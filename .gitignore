@@ -1,0 +1,61 @@
+# =================================================
+# Unified .gitignore for mcRepos (FrontierMode + Satchel)
+#
+# Patterns without a leading slash match at any depth, so these apply inside
+# both FrontierMode/ and Satchel/ without needing per-mod duplicates. Merged
+# from the two mods' original (now-removed) per-repo .gitignore files as part
+# of the bare-necessity sanitization pass -- see backhaul/wiki/plans/strip-down.md.
+# =================================================
+
+# --------------------
+# IDEs
+# --------------------
+# Eclipse
+bin/
+.settings/
+.metadata/
+.classpath
+.project
+*.launch
+
+# IntelliJ IDEA
+out/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio stray folder (seen at repo root pre-sanitization)
+.vs/
+
+# --------------------
+# Gradle
+# --------------------
+.gradle/
+build/
+
+# --------------------
+# Forge / Minecraft dev
+# --------------------
+run/
+run-data/
+logs/
+saves/
+crash-reports/
+*.log
+*.log.gz
+
+# --------------------
+# OS junk
+# --------------------
+.DS_Store
+Thumbs.db
+
+# --------------------
+# Forge MDK noise
+# --------------------
+forge*changelog.txt
+forge-*-mdk.zip
+
+# dependency mods (FrontierMode-specific, gitignored in the original repo)
+depmods/

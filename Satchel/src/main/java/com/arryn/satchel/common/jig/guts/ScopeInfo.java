@@ -1,0 +1,214 @@
+package com.arryn.satchel.common.jig.guts;
+
+import com.arryn.satchel.common.newconfig.newnew.*;
+import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.world.level.Level;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * Authoritative runtime record for a single scope instance.
+ *
+ * Lifecycle truth only. No policy enforcement.
+ */
+public final class ScopeInfo implements IJigConfigurable {
+
+    private final SatchelScope scope;
+    private final Object source;
+
+    private Phase phase = Phase.NEW;
+
+    private final Instant createdAt = Instant.now();
+    private Instant loadedAt;
+    private Instant unloadedAt;
+
+    private long lastExecutionPulse = -1;
+    private long lastJigTick = -1;
+
+    public ScopeInfo(
+            SatchelScope scope,
+            Object source
+    ) {
+        this.scope = Objects.requireNonNull(scope, "scope");
+        this.source = source;
+
+        OUT.debug(
+                "[ScopeInfo] CREATED scope="
+                        + scope.debugName()
+                        + " source="
+                        + (source == null ? "<null>" : source.getClass().getName())
+        );
+    }
+
+    // ---------------------------------------------------------------------
+    // Identity
+    // ---------------------------------------------------------------------
+
+    public SatchelScope scope() {
+        return scope;
+    }
+
+    public Object source() {
+        return source;
+    }
+
+    public UUID scopeId() {
+        return scope.uuid();
+    }
+
+    public String debugName() {
+        return scope.debugName();
+    }
+
+    @SuppressWarnings("unchecked")
+    public <S extends SatchelScope> S scopeAs() {
+        return (S) scope;
+    }
+
+    // ---------------------------------------------------------------------
+    // Lifecycle
+    // ---------------------------------------------------------------------
+
+    public Phase phase() {
+        return phase;
+    }
+
+    public void setPhase(Phase next) {
+        Objects.requireNonNull(next, "phase");
+        requireConfig();
+
+        if (this.phase == next) {
+            if (next == Phase.LOADED) {
+                throw new IllegalStateException("Cannot load a scope more than once");
+            }
+            return;
+        }
+
+//        // Optional lifecycle validation hook via config
+//        if (!execution().lifecycle()..allowsTransition(this.phase, next)) {
+//            throw new IllegalStateException(
+//                    "Lifecycle policy forbids transition: "
+//                            + this.phase + " -> " + next
+//            );
+//        }
+
+        OUT.debug(
+                "[ScopeInfo] PHASE transition "
+                        + scope.debugName()
+                        + " "
+                        + this.phase
+                        + " -> "
+                        + next
+        );
+
+        this.phase = next;
+
+        if (next == Phase.LOADED) {
+            loadedAt = Instant.now();
+        }
+        if (next == Phase.UNLOADED) {
+            unloadedAt = Instant.now();
+        }
+    }
+
+    public boolean isReady() {
+        requireConfig();
+
+        switch (policies().readiness().mode()) {
+            case IMMEDIATE:
+                return true;
+            case DEFERRED:
+                return phase == Phase.LOADED;
+            default:
+                return phase == Phase.LOADED;
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Execution Tracking
+    // ---------------------------------------------------------------------
+
+    void markExecutionPulse(long tick) {
+        lastExecutionPulse = tick;
+    }
+
+    void markJigTick(long tick) {
+        lastJigTick = tick;
+    }
+
+    public long lastExecutionPulse() {
+        return lastExecutionPulse;
+    }
+
+    public long lastJigTick() {
+        return lastJigTick;
+    }
+
+    // ---------------------------------------------------------------------
+    // Phase Enum
+    // ---------------------------------------------------------------------
+
+    public enum Phase {
+        NEW,
+        LOADED,
+        UNLOADING,
+        UNLOADED
+    }
+
+    // ---------------------------------------------------------------------
+    // CONFIG (live reference, no flattening)
+    // ---------------------------------------------------------------------
+
+    private JigBindingConfig<?,?> binding;
+    private JigExecutionConfig execution;
+    private JigPoliciesConfig policies;
+    private JigBundlesConfig<?> bundles;
+
+    @Override
+    public void installJigConfig(CompiledJigConfig config) {
+        Objects.requireNonNull(config, "config");
+        binding = config.binding();
+        execution = config.execution();
+        policies = config.policies();
+        bundles = config.bundles();
+    }
+
+    private void requireConfig() {
+        if (binding == null) {
+            throw new IllegalStateException("JigConfig not installed for scope: " + debugName());
+        }
+    }
+
+    @Override public JigBindingConfig<?, ?> binding() { return binding; }
+    @Override public JigExecutionConfig execution() { return execution; }
+    @Override public JigPoliciesConfig policies() { return policies; }
+    @Override public JigBundlesConfig<?> bundles() { return bundles; }
+
+    @Override
+    public String toString() {
+        return "ScopeInfo[" +
+                scope.debugName() +
+                ", phase=" + phase +
+                "]";
+    }
+    public Level referenceLevel() {
+        requireConfig();
+
+        if (binding().referenceLevelResolver() == null) {
+            return null;
+        }
+
+        return binding()
+                .referenceLevelResolver()
+                .apply(scopeAs());
+    }
+    // ---------------------------------------------------------------------
+    // Future hook
+    // ---------------------------------------------------------------------
+
+    public JigInfo jigInfo() {
+        return null; // TODO wire back-reference later
+    }
+}
