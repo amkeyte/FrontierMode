@@ -3,12 +3,12 @@ id: SAT_001
 uid: SAT
 number: 1
 client: Satchel
-status: open
+status: done
 title: README.txt is stock MDK boilerplate
 context: Route to Lead Dev — real description lives in gradle.properties, not README.txt.
 priority: normal
 opened: '2026-08-11'
-closed: null
+closed: '2026-08-13'
 ---
 
 <!-- bh-header:start -->
@@ -28,7 +28,7 @@ FrontierMode's. It says nothing about what Satchel actually is. The real identit
 > Satchel: Core data & utility mod for FrontierMode.
 
 I've captured that — plus the DocletProject API-dump tooling link and the existing `design/`
-diagrams — on the wiki as an interim source of truth: [Satchel](../wiki/mods/satchel.md).
+diagrams — on the wiki as an interim source of truth: [Satchel](../wiki/satchel/satchel.md).
 
 ### Suggested fix
 
@@ -39,3 +39,11 @@ to FrontierMode/DocletProject is visible without digging through `gradle.propert
 ### Required By
 
 *(none)*
+
+## Log
+
+- 2026-08-11: Ticket opened by PM.
+- 2026-08-13: Prepended an "About this mod" section to `README.txt` (mod ID, version, group,
+  author, license, Minecraft/Forge range, the FrontierMode relationship, and a pointer to the
+  wiki page) ahead of the existing Forge MDK setup instructions, which are left intact below it.
+  Closing.

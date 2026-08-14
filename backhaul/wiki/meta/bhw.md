@@ -6,7 +6,7 @@ title: BHW — Wiki Conventions
 summary: Wiki page ID scheme, slug convention, and CLI cheatsheet.
 keywords: null
 status: draft
-updated: '2026-08-11'
+updated: '2026-08-13'
 ---
 
 <!-- bh-header:start -->
@@ -45,6 +45,45 @@ here gates whether a page shows up in `WIKI_INDEX.md`; all statuses are listed.
 `WIKI_INDEX.md` renders each page's title as a table column — same reasoning as BHT's length
 standard (see `meta/bht.md`). Target title length ≤ ~40 characters; let `summary` carry the
 detail instead.
+
+## No changelog content on wiki pages
+
+A wiki page describes the thing as it is now, not how it got there. Don't write "Update
+(TICKET, date): X changed to Y" inline, don't keep a section around "for history" once it no
+longer describes current behavior, and don't narrate that content was "backfilled" or
+"reconstructed" — none of that helps a reader who just wants to know the current state, and it's
+one more thing to notice has gone stale.
+
+History belongs in the place that's actually built to hold it: a ticket's log, a roadmap node's
+status trail (`superseded`/`done` nodes stay on record deliberately — see `meta/bhrm.md`), or
+`wiki/plans/*` for a specific initiative's writeup. If a wiki page needs to point at *why*
+something is the way it is, link to the ticket or roadmap node rather than restating the story
+inline — e.g. "known debt, see FRO_004" rather than a paragraph recapping what FRO_004 found.
+
+Before deleting a historical section, check it isn't the only path to something else (a ticket, a
+sibling page) — either drop that link too, or move it somewhere that still resolves. Nothing
+should go unreachable; `WIKI_INDEX.md` lists every page regardless, but a page's own body should
+still route a reader to what it depends on.
+
+## No status either — tickets and roadmap own that
+
+Same principle, one level further: a wiki page doesn't say whether something is open, resolved,
+in progress, or the only actionable item in some graph. That's what BHT (`bht`) and BHRM (`bhrm`)
+are for, and they're the only place it can be trusted, since a wiki page has no mechanism forcing
+someone to update it the moment a ticket closes. If a page needs to gesture at outstanding work,
+name the ticket or roadmap node (`see FRO_004`) and stop there — don't also characterize its
+state in prose, since that's the part that goes stale first.
+
+If something is a real fact worth tracking and doesn't have a ticket yet, open one — that's the
+"ticket out the fix" half of this: don't leave a note-to-self in the wiki saying a fix is needed
+"but there's no ticket for it yet." The wiki should describe the thing as it actually is today
+(including known-imperfect states, like a placeholder package name); whether someone's planning
+to change that is BHT/BHRM's job to track, not the wiki's.
+
+An open design question is different from a tracked status and can stay in prose if that's what
+the page is actually about (e.g. a reconciliation doc's list of things not yet decided) — the
+line is whether it duplicates a ticket/roadmap field or is substantive content the page exists to
+capture.
 
 ## Cross-references: use real relative links, not double brackets
 

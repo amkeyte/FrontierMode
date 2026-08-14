@@ -1,4 +1,22 @@
 
+Satchel
+=======
+Core data & utility mod for FrontierMode -- bundles/fixtures, networking, and
+per-bundle persistence.
+
+- Mod ID: satchel
+- Version: 0.0.2
+- Group: com.arryn
+- Author: Arryn
+- License: MIT
+- Minecraft: [1.20.1,1.21) on Forge [47,)
+- FrontierMode depends on this mod (mandatory, loads after).
+
+Full architecture and design docs: backhaul/wiki/satchel/satchel.md
+(this repo is part of the mcRepos Backhaul project; see BACKHAUL.md at the repo root).
+
+--------------------------------------------------------------------------------
+
 Source installation information for modders
 -------------------------------------------
 This code follows the Minecraft Forge installation methodology. It will apply

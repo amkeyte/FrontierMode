@@ -7,7 +7,7 @@ summary: Server-side per-bundle persistence architecture (Satchel 2.0) -- Bundle
   identity rules, dirty propagation.
 keywords: null
 status: verified
-updated: '2026-08-11'
+updated: '2026-08-13'
 ---
 
 <!-- bh-header:start -->
@@ -19,29 +19,31 @@ updated: '2026-08-11'
 *Migrated from `Satchel/src/main/java/com/arryn/satchel/server/persistence/BundlePersistence.md`
 as part of [SAT_003](../../../tickets/SAT_003_md-migration.md).*
 
-**Architect review (2026-08-11): resolved, moved to verified.** Re-checked both claims against
-current source:
+Re-checked both claims against current source:
 
 - The deprecation claim holds: grepped `src/` for `PlayerBundleSavedData` and
   `ServerWorldBundleSavedData` (the variants this doc says were replaced) — neither exists
   anymore.
 - The location claim was stale and is now corrected: `BundleSavedData.java` lives in
-  `com.arryn.satchel.common.newstuff`, not `com.arryn.satchel.server.persistence`. The
-  `server/persistence` package is not a working alternate location — its only file,
-  `ServerPersistenceContext.java`, is entirely commented out (including its `implements
-  ServerPersistentStitch`, an interface that no longer exists in source either), i.e. genuinely
-  dead code from an earlier design, not a place anything routes through today.
+  `com.arryn.satchel.common.persistence`, not `com.arryn.satchel.server.persistence`. The old
+  `server/persistence` package is gone entirely — its one file, `ServerPersistenceContext.java`,
+  was fully commented-out dead code (including an `implements ServerPersistentStitch` against an
+  interface that no longer exists either). It survived the 2026-08-13 compile-fix pass as leftover
+  cruft (a prior pass claimed it was already gone; it wasn't) and was actually deleted, along with
+  the now-empty directory, via [SAT_017](../../../tickets/SAT_017_persistence-followup.md). Not a
+  location this or anything else routes through, historically or now.
 
-`common.newstuff` is real, live, and is where the current persistence/hydration plumbing actually
-sits — read the package name as an unrenamed placeholder, not as a signal that the code is
-provisional. Confirmed by pattern, not just this one class: `common/fixture/NbtFixtureHydrationSource.java`
-is also entirely commented out, while its replacement, `common/newstuff/NbtFixtureHydrationSource.java`,
-is the live implementation actually wired into `FixtureHydrator` (`common/newstuff/FixtureHydrator.java`).
-`common.newstuff` is where Satchel 2.0's persistence/hydration classes live now
-(`BundleSavedData`, `FixtureHydrator`, `FixtureHydrationSource`, `ParcelEgressSink`,
-`ParcelHydrationSource`, `SavedDataEgressSink`, `SavedDataHydrationSource`); a package rename is
-still open work (there's no ticket for it yet — worth opening one), not something this review
-does silently.
+`common.persistence` (renamed 2026-08-13 from `common.newstuff` — a placeholder name that never
+signaled provisional code, see [SAT_004](../../../tickets/SAT_004_newstuff-rename.md), now
+executed) is where the current persistence/hydration plumbing actually sits. Confirmed by
+pattern, not just one class: `common/fixture/NbtFixtureHydrationSource.java` was entirely
+commented-out dead code, while its live replacement, `NbtFixtureHydrationSource.java`, is the
+implementation actually wired into `FixtureHydrator` — both now live in `common/persistence/`
+(the dead `common/fixture/` copy was deleted in the same pass). `common.persistence` is where
+Satchel 2.0's persistence/hydration classes live (`BundleSavedData`, `FixtureHydrator`,
+`FixtureHydrationSource`, `ParcelEgressSink`, `ParcelHydrationSource`, `SavedDataEgressSink`,
+`SavedDataHydrationSource`) — the name now matches this page's own title, rather than the
+placeholder it replaced.
 
 This package defines all **server-side persistent storage** for Satchel bundles. In Satchel
 2.0, persistence moves from "one SavedData per owner type" (world/player) to **one SavedData
@@ -113,6 +115,16 @@ Persistence must never call:
 * `onRemoved`
 
 Lifecycle sequencing is owned entirely by backend systems (e.g. `WorldBundles`).
+
+This boundary held up correctly even through
+[SAT_027](../../../tickets/SAT_027_server-hydrate-bypasses-lifecycle.md): `SatchelBundle.
+hydrateFrom(FixtureHydrationSource)` (persistence's actual entry point into a bundle) only does
+the `CREATED → HYDRATED` transition and marks `isHydrated()` true — it still never calls
+`onLoaded()` itself, matching the rule above. The bug SAT_027 fixed was one level up:
+`ScopeEngine_Server` (the backend, correctly the one place `onLoaded()` *is* called from) was
+calling `FixtureHydrator` directly instead of going through `hydrateFrom`/`hydrateAll` at all, so
+`isHydrated()` never flipped true and the backend's own `onLoaded()` call never fired — a backend
+wiring bug, not a persistence-layer violation of this rule.
 
 ### 3. Dirty propagation is one-way
 
@@ -220,8 +232,9 @@ architectural changes.
 
 ## Summary
 
-`com.arryn.satchel.common.newstuff` (package rename pending — see the resolution note at the top
-of this page) defines the durable storage layer for Satchel bundles.
+`com.arryn.satchel.common.persistence` (renamed from `common.newstuff`, see
+[SAT_004](../../../tickets/SAT_004_newstuff-rename.md)) defines the durable storage layer for
+Satchel bundles.
 
 In Satchel 2.0:
 
@@ -237,4 +250,4 @@ evolution.
 
 - [Bundle](bundle.md)
 - [Fixture](fixture.md)
-- [Satchel mod summary](../../mods/satchel.md)
+- [Satchel mod summary](../satchel.md)

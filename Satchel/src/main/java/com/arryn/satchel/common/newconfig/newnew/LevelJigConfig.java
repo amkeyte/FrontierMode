@@ -34,6 +34,12 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
         p.binding.sideApplicability = JigPolicies.SideApplicability.SERVER;
         p.binding.scopeResolver = LevelResolver::resolveScope;
         p.binding.uuidDeterminer = LevelResolver::determineUUID;
+        // A LevelScope already holds its own Level directly (see LevelScope.level()) -- no
+        // registry lookup needed. Left unset, ScopeInfo.referenceLevel() returns null
+        // unconditionally, and any jig that legitimately requires a persistence/networking/clock
+        // capability throws AccessFailed("no referenceLevel available") on its very first
+        // hydrate, even though the Level was available the whole time. See SAT_023.
+        p.binding.referenceLevel = LevelScope::level;
 
         // -------------------------------------------------
         // Execution

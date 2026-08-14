@@ -1,13 +1,13 @@
 package com.arryn.satchel.common.bundle;
 
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.newstuff.FixtureHydrationSource;
-import com.arryn.satchel.common.newstuff.FixtureHydrator;
+import com.arryn.satchel.common.persistence.FixtureHydrationSource;
+import com.arryn.satchel.common.persistence.FixtureHydrator;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
-import com.arryn.satchel.common.newstuff.NbtFixtureHydrationSource;
+import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
 import com.arryn.satchel.common.stitch.LogicalSideStitch;
 import net.minecraft.nbt.CompoundTag;
 
@@ -162,15 +162,47 @@ public class SatchelBundle {
 
     public final void hydrateAll(CompoundTag root) {
         if (root == null) return;
+        hydrateFrom(new NbtFixtureHydrationSource(root));
+    }
 
+    /**
+     * Transitions CREATED -> HYDRATED and applies {@code source} to every existing fixture, then
+     * marks this bundle hydrated. Shared by both hydration entry points: client parcel
+     * application ({@link #hydrateAll}, source is always NBT) and server SavedData ingress
+     * (ScopeEngine_Server.hydrateBundle, source may be real saved data OR an explicitly empty
+     * source when nothing has ever been persisted yet -- either way, the bundle must leave
+     * CREATED to ever reach ACTIVE, since saveAll()/onJigTick() both require it). Before this
+     * method existed, ScopeEngine_Server.hydrateBundle() called FixtureHydrator directly, which
+     * by its own doc "performs no lifecycle transitions" -- so no server bundle, with or without
+     * existing data, ever actually left CREATED. See SAT_027.
+     */
+    public final void hydrateFrom(FixtureHydrationSource source) {
         lifecycle.transition(
                 LifecycleState.CREATED,
                 LifecycleState.HYDRATED
         );
 
-        FixtureHydrationSource source = new NbtFixtureHydrationSource(root);
         new FixtureHydrator(this, source).hydrateExisting();
         hydrated = true;
+    }
+
+    /**
+     * Applies {@code source} to every existing fixture WITHOUT any lifecycle transition --
+     * for refreshing an already-active bundle with a newer sync snapshot. {@link #hydrateFrom}
+     * is one-time-only by design (its CREATED -> HYDRATED transition throws on any later call,
+     * since it's meant to fire exactly once, alongside {@code onLoaded()}); every parcel after
+     * the first that arrives for an already-loaded client bundle needs a way to apply updated
+     * data without repeating that transition or re-firing the loaded event. Required state
+     * mirrors {@link #saveAll}'s own requirement, since both operate on a bundle already
+     * considered "live." See SAT_030.
+     */
+    public final void refreshFrom(FixtureHydrationSource source) {
+        lifecycle.requireAny(EnumSet.of(
+                LifecycleState.LOADED,
+                LifecycleState.ACTIVE
+        ));
+
+        new FixtureHydrator(this, source).hydrateExisting();
     }
     // ---------------------------------------------------------------------
     // Lifecycle hooks (backend-controlled)

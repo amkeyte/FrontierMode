@@ -48,11 +48,14 @@ class RenderContext {
 
         Minecraft mc = Minecraft.getInstance();
         Level level = mc.level;
-        //level cannot be null if client context is ready, but let's clear the warning.
-        //oops somehow it is null during tick. I don't think tick should be dispatching
-        //in satchel until the level has loaded and ungated the lifetime.
-        // check hub and also see if there's something wierd going on with the frontier tick handler
-        if (level == null) throw new IllegalStateException("Minecraft returned null level");
+        // This IS reachable, not a "shouldn't happen": ScopeEvent.Tick keeps firing for a client
+        // scope for one or more ticks after the player disconnects -- Minecraft.level/.player are
+        // already null by then (confirmed by GrowthTriggerRenderer.debugFlame()'s own
+        // mc.player == null check a few lines up its call site, which logs and returns instead of
+        // crashing), but nothing has unsubscribed this jig's tick participation yet. Same shape as
+        // isNotClientSide() above: "context not currently available" is a legitimate skip, not an
+        // error. See FRO_016.
+        if (level == null) return Optional.empty();
         LevelScope scope = new LevelScope(level);
 
         return Optional.of(CACHE.computeIfAbsent(scope, RenderContext::new));

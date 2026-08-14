@@ -3,12 +3,12 @@ id: FRO_001
 uid: FRO
 number: 1
 client: FrontierMode
-status: open
+status: done
 title: README.txt is stock MDK boilerplate
 context: Route to Lead Dev — real description lives in mods.toml, not README.txt.
 priority: normal
 opened: '2026-08-11'
-closed: null
+closed: '2026-08-13'
 ---
 
 <!-- bh-header:start -->
@@ -28,7 +28,7 @@ identity currently only lives in `src/main/resources/META-INF/mods.toml`:
 > Frontier Mode: Gameplay and world-tuning modifications for Minecraft.
 
 I've captured that (plus the Satchel dependency) on the wiki as an interim source of truth:
-[FrontierMode](../wiki/mods/frontiermode.md).
+[FrontierMode](../wiki/frontiermode/frontiermode.md).
 
 ### Suggested fix
 
@@ -39,3 +39,10 @@ doesn't have to go spelunking in `mods.toml` to find out what the mod does.
 ### Required By
 
 *(none)*
+
+## Log
+
+- 2026-08-11: Ticket opened by PM.
+- 2026-08-13: Prepended an "About this mod" section to `README.txt` (mod ID, version, author,
+  license, Minecraft/Forge range, the Satchel dependency, and a pointer to the wiki page) ahead
+  of the existing Forge MDK setup instructions, which are left intact below it. Closing.

@@ -23,7 +23,7 @@ ticket: null
   post-strip-down roadmap reconstruction. Represents the original Forge MDK scaffold plus the
   `frontiermode` identity (`mods.toml`: "Frontier Mode: Gameplay and world-tuning modifications
   for Minecraft") and the mandatory, `AFTER`-ordered dependency on Satchel. See
-  [FrontierMode](../wiki/mods/frontiermode.md).
+  [FrontierMode](../wiki/frontiermode/frontiermode.md).
 
 ## Required By
 

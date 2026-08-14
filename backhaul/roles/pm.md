@@ -83,8 +83,9 @@ Before doing anything else, read, in order:
 3. backhaul/WIKI_INDEX.md and its meta/ pages (bht.md, bhw.md, bhrm.md, bhrole.md) — the
    conventions this project's Backhaul instance follows. bhrole.md in particular covers why role
    files (this one included) should point at BACKHAUL.md rather than embed point-in-time status.
-4. backhaul/wiki/mods/*.md — current identity and status for each mod (not README.txt, which is
-   stock Forge MDK boilerplate in both repos).
+4. backhaul/wiki/frontiermode/frontiermode.md and backhaul/wiki/satchel/satchel.md — current
+   identity and status for each mod (not README.txt, which is stock Forge MDK boilerplate in
+   both repos).
 
 Do NOT start work yet. Once you've read the above:
 

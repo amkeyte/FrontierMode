@@ -72,7 +72,7 @@ Before doing anything else, read, in order:
    tickets), Wiki Index (note anything marked `status: draft`, especially in categories you own
    — that's open Architect work whether or not anyone tells you), Roadmap (actionable nodes),
    Team.
-2. backhaul/wiki/mods/frontiermode.md and backhaul/wiki/mods/satchel.md — current identity and
+2. backhaul/wiki/frontiermode/frontiermode.md and backhaul/wiki/satchel/satchel.md — current identity and
    status for each mod. (Not README.txt — that's stock Forge MDK boilerplate in both repos, see
    the open FRO_001/SAT_001 tickets.)
 3. Each mod's `*/architecture/*` wiki pages and `Satchel/design/` diagrams.

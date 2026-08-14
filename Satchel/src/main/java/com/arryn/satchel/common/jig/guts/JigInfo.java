@@ -64,6 +64,7 @@ public final class JigInfo implements IJigConfigurable {
 
         ScopeInfo info = new ScopeInfo(scope, source);
         info.installJigConfig(compiledConfig());
+        info.installJigInfo(this);
 
         ScopeInfo existing = scopeInfos.putIfAbsent(scope, info);
         if (existing != null) {

@@ -111,6 +111,7 @@ public final class JigConfigCompiler {
             SatchelJig<?> jig =
                     config.binding().jigType().getDeclaredConstructor().newInstance();
             jig.installJigConfig(config);
+            jig.installKey(jigKey);
             JigKey.validateTypes(jigKey, jig);
             return jig;
 

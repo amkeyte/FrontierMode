@@ -1,4 +1,20 @@
 
+Frontier Mode
+=============
+Gameplay and world-tuning modifications for Minecraft.
+
+- Mod ID: frontiermode
+- Version: 1.0.0
+- Author: Arryn
+- License: All Rights Reserved
+- Minecraft: [1.20.1,1.21) on Forge [47,)
+- Depends on Satchel (mandatory, loads after) for core data/utility support.
+
+Full architecture and design docs: backhaul/wiki/frontiermode/frontiermode.md
+(this repo is part of the mcRepos Backhaul project; see BACKHAUL.md at the repo root).
+
+--------------------------------------------------------------------------------
+
 Source installation information for modders
 -------------------------------------------
 This code follows the Minecraft Forge installation methodology. It will apply

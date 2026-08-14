@@ -6,7 +6,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.SatchelJigRegistrar;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import net.minecraftforge.fml.LogicalSide;
 

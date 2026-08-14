@@ -130,6 +130,25 @@ repositories {
 // TODO(debt, FRO_004): same hardcoded-path issue as the flatDir repo above.
 def satchelLibDir = file("C:/_local/mcRepos/Satchel/build/libs")
 
+// Fails fast with an actionable message instead of NPE'ing when Satchel hasn't been built yet
+// (e.g. a fresh checkout, or after `./gradlew clean`). FrontierMode's mods.toml declares Satchel
+// as a mandatory AFTER dependency, so this jar must exist before FrontierMode can build.
+def satchelJar = satchelLibDir.exists()
+        ? satchelLibDir.listFiles()
+                ?.findAll { it.name.startsWith("Satchel-") && it.name.endsWith(".jar") }
+                ?.max { it.lastModified() }
+        : null
+
+if (satchelJar == null) {
+    throw new GradleException(
+            "No Satchel-*.jar found in ${satchelLibDir}.\n" +
+            "FrontierMode depends on Satchel's built output (mods.toml declares it as a " +
+            "mandatory dependency). Build Satchel first:\n" +
+            "    cd ../Satchel && ./gradlew build\n" +
+            "then re-run this build."
+    )
+}
+
 dependencies {
     // Specify the version of Minecraft to use.
     // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
@@ -144,11 +163,7 @@ dependencies {
     // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-forge-util:${jei_version}")
     // runtimeOnly fg.deobf("mezz.jei:jei-${mc_version}-forge:${jei_version}")
 
-    compileOnly files(
-            satchelLibDir.listFiles()
-                    .findAll { it.name.startsWith("Satchel-") && it.name.endsWith(".jar") }
-                    .max { it.lastModified() }
-    )
+    compileOnly files(satchelJar)
 
 
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
@@ -196,6 +211,41 @@ tasks.named('jar', Jar).configure {
 
     // This is the preferred method to reobfuscate your jar file
     finalizedBy 'reobfJar'
+}
+
+// ------------------------------------------------------------
+// Chain: rebuild + deploy Satchel before launching FrontierMode.
+// Kept as a separate Gradle invocation (not includeBuild/composite) --
+// see backhaul/wiki/plans/strip-down.md, "Build" section: FrontierMode
+// and Satchel are deliberately independent ForgeGradle projects.
+// ------------------------------------------------------------
+tasks.register('buildSatchel', Exec) {
+    group = 'satchel'
+    description = 'Rebuilds Satchel and deploys its dev jar into run/mods via a separate Gradle invocation.'
+
+    def satchelDir = file("${projectDir}/../Satchel")
+    workingDir satchelDir
+
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+    commandLine isWindows
+            ? ['cmd', '/c', 'gradlew.bat', 'copyToFrontierMode']
+            : ['./gradlew', 'copyToFrontierMode']
+
+    doFirst {
+        if (!satchelDir.exists()) {
+            throw new GradleException("Satchel project not found at ${satchelDir} -- expected it as a sibling of FrontierMode.")
+        }
+    }
+}
+
+tasks.matching { it.name == 'runClient' }.configureEach {
+    dependsOn tasks.named('buildSatchel')
+}
+
+// compileJava reads the Satchel jar's bytes (compileOnly files(satchelJar)); make sure the
+// rebuild finishes before compilation, not just "sometime before runClient".
+tasks.named('compileJava').configure {
+    mustRunAfter tasks.named('buildSatchel')
 }
 
 allprojects {

@@ -148,22 +148,34 @@ public final class DefaultBorderRules implements BorderRules {
     public boolean growPathCriteria(Level level, BlockPos pos, BlockState placed) {
         if (!placed.is(Blocks.GOLD_BLOCK)) return false;
 
-        var tip = BorderAPI.borders(level)
-                .flatMap(b -> b.PATH.tip())
-                .orElseThrow(); //no path tip
+        var tipOpt = BorderAPI.borders(level)
+                .flatMap(b -> b.PATH.tip());
 
+        // No path tip yet is a real, expected state -- a fresh world/fixture before any border
+        // has ever been grown -- not an error. BordersPathFacet.grow() already treats this case
+        // as first-class (falls back to fixture.logic.getInitial(), which ignores `pos` and is
+        // always spawn-centered per DefaultBorderRules' own class doc above). So here: any gold
+        // block placement is valid to trigger that initial growth when there's nothing to be
+        // "close enough" to yet. Was `.orElseThrow()` -- crashed the server on the very first
+        // gold block ever placed in a fresh world. See SAT_023-adjacent finding, FRO_015.
+        if (tipOpt.isEmpty()) return true;
 
-        return BorderMath.isInside(GROWTH_RING_RADIUS + 1, pos, tip.center());
+        return BorderMath.isInside(GROWTH_RING_RADIUS + 1, pos, tipOpt.get().center());
     }
 
     @Override
     public void updateFinderItems(Level level) {
 
-        var tip = BorderAPI.borders(level)
-                .flatMap(b -> b.PATH.tip())
-                .orElseThrow(); //no path tip
+        var tipOpt = BorderAPI.borders(level)
+                .flatMap(b -> b.PATH.tip());
 
-        BlockPos tipCenter = tip.center();
+        // Same "no path tip yet" state as growPathCriteria above -- nothing to point players at
+        // until a border exists, not an error. Was `.orElseThrow()`, which crashed the server
+        // tick (via SatchelEventBus.post -> ScopeEvent.Tick) on every fresh-world tick before the
+        // first border was ever grown. See FRO_015.
+        if (tipOpt.isEmpty()) return;
+
+        BlockPos tipCenter = tipOpt.get().center();
 
         for (Player player : level.players()) {
             BorderPathCompass.giveOrUpdate(player, tipCenter);

@@ -2,6 +2,7 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.lifecycle.*;
+import com.arryn.satchel.common.newconfig.EventHandlers;
 import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
 import com.arryn.satchel.common.util.out.OUT;
@@ -44,6 +45,11 @@ public final class LogicalFoundation {
             var info = new JigInfo(key,jig,coupler);
             info.installJigConfig(cfg);
             jigInfos.putIfAbsent(key,info);
+
+            EventHandlers handlers = cfg.execution().eventHandlers();
+            if (handlers != null) {
+                handlers.install(eventBus());
+            }
         }
 
         OUT.debug("Installed " + configs.size() +
@@ -135,7 +141,7 @@ public final class LogicalFoundation {
     public ScopeInfo requireScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
         JigInfo ji = requireJigInfo(jigKey);
 
-        JigKey.validateTypes(ji.jig, scope);
+        JigKey.validateTypes(jigKey, ji.jig);
 
         return ji.scopeInfo(scope).orElseThrow(
                 () -> new SatchelException.ScopeNotFound(

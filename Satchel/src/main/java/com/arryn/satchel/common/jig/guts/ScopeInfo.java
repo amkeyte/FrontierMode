@@ -205,10 +205,25 @@ public final class ScopeInfo implements IJigConfigurable {
                 .apply(scopeAs());
     }
     // ---------------------------------------------------------------------
-    // Future hook
+    // Owning JigInfo (back-reference)
     // ---------------------------------------------------------------------
 
+    private JigInfo jigInfo;
+
+    /**
+     * Installs the back-reference to the {@link JigInfo} that owns this scope. Called once, by
+     * {@link JigInfo#addScope}, right after this {@code ScopeInfo} is constructed -- the only
+     * place a {@code ScopeInfo} is ever created, and the only place its owning {@code JigInfo} is
+     * naturally in scope as {@code this}.
+     */
+    void installJigInfo(JigInfo jigInfo) {
+        if (this.jigInfo != null) {
+            throw new IllegalStateException("Cannot reinstall owning JigInfo for scope: " + debugName());
+        }
+        this.jigInfo = Objects.requireNonNull(jigInfo, "jigInfo");
+    }
+
     public JigInfo jigInfo() {
-        return null; // TODO wire back-reference later
+        return jigInfo;
     }
 }

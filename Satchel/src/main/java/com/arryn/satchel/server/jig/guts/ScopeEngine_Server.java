@@ -14,11 +14,12 @@ import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.newconfig.JigBundles;
 import com.arryn.satchel.common.newconfig.newnew.*;
-import com.arryn.satchel.common.newstuff.FixtureHydrator;
-import com.arryn.satchel.common.newstuff.ParcelEgressSink;
-import com.arryn.satchel.common.newstuff.SavedDataEgressSink;
-import com.arryn.satchel.common.newstuff.SavedDataHydrationSource;
+import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
+import com.arryn.satchel.common.persistence.ParcelEgressSink;
+import com.arryn.satchel.common.persistence.SavedDataEgressSink;
+import com.arryn.satchel.common.persistence.SavedDataHydrationSource;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
@@ -282,22 +283,32 @@ public final class ScopeEngine_Server implements ScopeEngine {
     ) {
         boolean hydratedBefore = bundle.isHydrated();
 
+        // resolveServerLevel only returns null when persistence isn't required for this
+        // jig -- the required-but-broken case always throws instead of returning null
+        // (SAT_013). A null here means "nothing to hydrate," not an error.
         ServerLevel level =
                 resolveServerLevel(info, CapableOf.PERSISTENCE);
 
-        if (level == null) {
-            throw new SatchelException.AccessFailed(
-                    "Source is not a ServerLevel. Type: "
-                            + info.source().getClass().getName()
+        if (level != null) {
+            Optional<SavedDataHydrationSource> source =
+                    SavedDataHydrationSource.forBundle(level, key);
+
+            // bundle.hydrateFrom(...), not a raw FixtureHydrator call -- FixtureHydrator
+            // explicitly documents itself as performing no lifecycle transitions, so calling it
+            // directly (the previous code here) meant no server bundle, ever, with or without
+            // real saved data, transitioned past CREATED. hydrateFrom() does the CREATED ->
+            // HYDRATED transition and sets isHydrated(), which is what lets the check below
+            // actually fire bundle.onLoaded(). When no saved data exists yet (first-ever
+            // creation -- the common case for a fresh world), still hydrate from an explicitly
+            // empty source rather than skipping entirely: the bundle still needs to reach
+            // ACTIVE, since saveAll()/onJigTick() both require LOADED/ACTIVE, and "nothing to
+            // load" is a normal state, not a reason to leave the bundle stuck. See SAT_027.
+            bundle.hydrateFrom(
+                    source.isPresent()
+                            ? source.get()
+                            : new NbtFixtureHydrationSource(new CompoundTag())
             );
         }
-
-        SavedDataHydrationSource
-                .forBundle(level, key)
-                .ifPresent(source ->
-                        new FixtureHydrator(bundle, source)
-                                .hydrateExisting()
-                );
 
         if (!hydratedBefore && bundle.isHydrated()) {
             bundle.onLoaded();
@@ -324,14 +335,13 @@ public final class ScopeEngine_Server implements ScopeEngine {
     ) {
         if (!bundle.isDirty()) return;
 
+        // Same null-means-skip contract as hydrateBundle() (SAT_013) -- nothing to
+        // flush to if persistence isn't required for this jig.
         ServerLevel level =
                 resolveServerLevel(info, CapableOf.PERSISTENCE);
 
         if (level == null) {
-            throw new SatchelException.AccessFailed(
-                    "Source is not a ServerLevel. Type: "
-                            + info.source().getClass().getName()
-            );
+            return;
         }
 
         SavedDataEgressSink
@@ -371,7 +381,16 @@ public final class ScopeEngine_Server implements ScopeEngine {
         Objects.requireNonNull(info, "info");
         requireConfig();
 
-        JigPolicies.Capabilities caps = policies().capabilities();
+        // Deliberately info.policies(), not this.policies(): this engine is a single per-side
+        // singleton shared by every jig (LogicalFoundation.installConfigs() calls
+        // engine.installJigConfig(config) once per jig, on the same shared instance, via
+        // JigConfigCompiler.instantiateCoupler -- each call plainly overwrites the engine's own
+        // binding/execution/policies/bundles fields, so this.policies() reflects whichever jig
+        // was installed *last* in that loop, not the jig actually asking here. info (the
+        // ScopeInfo for the specific scope being hydrated/flushed) carries its own correctly
+        // per-jig-scoped policies, installed once by JigInfo.addScope() and never touched again
+        // -- that's the one that must be consulted. See SAT_023.
+        JigPolicies.Capabilities caps = info.policies().capabilities();
 
         boolean required = switch (requirement) {
             case PERSISTENCE -> caps.requiresPersistence();

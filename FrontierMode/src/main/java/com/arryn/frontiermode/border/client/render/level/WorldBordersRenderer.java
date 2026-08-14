@@ -12,9 +12,6 @@ public final class WorldBordersRenderer {
 
     private static final int SEGMENTS = 128;
 
-    /** World height of the ring */
-    private static final float RING_Y = 100.0f;
-
     /** Total radial thickness = 0.3m */
     private static final float RING_HALF_THICKNESS = 0.15f;
 
@@ -75,13 +72,21 @@ public final class WorldBordersRenderer {
         float radius = border.radius();
         Vector3f color = RingColorPalette.get(border.layerIndex());
 
+        // Was a hardcoded RING_Y = 100.0f, completely ignoring the border's own center height --
+        // rendered fine (no crash, no error), just wherever Y 100 happened to land relative to
+        // real terrain, which could easily be underground or otherwise depth-occluded depending
+        // on the world. GrowthTriggerRenderer's particle ritual site never had this problem
+        // because it explicitly looks up ground height; this one just needed the border's own
+        // center().getY() instead of a magic constant. See FRO_019.
         double cx = border.center().getX();
+        double cy = border.center().getY();
         double cz = border.center().getZ();
 
         drawRingBand(
                 matrix,
                 vc,
                 (float) cx,
+                (float) cy,
                 (float) cz,
                 radius - RING_HALF_THICKNESS,
                 radius + RING_HALF_THICKNESS,
@@ -97,6 +102,7 @@ public final class WorldBordersRenderer {
             Matrix4f matrix,
             VertexConsumer vc,
             float centerX,
+            float centerY,
             float centerZ,
             float innerRadius,
             float outerRadius,
@@ -126,13 +132,13 @@ public final class WorldBordersRenderer {
             float oz2 = centerZ + sin2 * outerRadius;
 
             // Two triangles
-            vertex(vc, matrix, ix1, iz1, color);
-            vertex(vc, matrix, ox1, oz1, color);
-            vertex(vc, matrix, ox2, oz2, color);
+            vertex(vc, matrix, ix1, centerY, iz1, color);
+            vertex(vc, matrix, ox1, centerY, oz1, color);
+            vertex(vc, matrix, ox2, centerY, oz2, color);
 
-            vertex(vc, matrix, ix1, iz1, color);
-            vertex(vc, matrix, ox2, oz2, color);
-            vertex(vc, matrix, ix2, iz2, color);
+            vertex(vc, matrix, ix1, centerY, iz1, color);
+            vertex(vc, matrix, ox2, centerY, oz2, color);
+            vertex(vc, matrix, ix2, centerY, iz2, color);
         }
     }
 
@@ -140,10 +146,11 @@ public final class WorldBordersRenderer {
             VertexConsumer vc,
             Matrix4f matrix,
             float x,
+            float y,
             float z,
             Vector3f color
     ) {
-        vc.vertex(matrix, x, RING_Y, z)
+        vc.vertex(matrix, x, y, z)
                 .color(color.x(), color.y(), color.z(), 1.0f)
                 .endVertex();
     }

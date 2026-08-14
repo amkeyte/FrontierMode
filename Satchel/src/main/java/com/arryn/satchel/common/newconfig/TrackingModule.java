@@ -2,20 +2,18 @@ package com.arryn.satchel.common.newconfig;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
+import com.arryn.satchel.common.bundle.builder.BundleFactories;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
 
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelJig;
-import com.arryn.satchel.common.jig.level.LevelResolver;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.level.LevelScopeCoupler;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
-import com.arryn.satchel.common.newconfig.newnew.JigConfig;
 import com.arryn.satchel.common.newconfig.newnew.JigPolicies;
+import com.arryn.satchel.common.newconfig.newnew.LevelJigConfig;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.world.level.Level;
 
 import java.util.List;
 import java.util.Objects;
@@ -42,6 +40,17 @@ public class TrackingModule {
 
     public static void init() {
         OUT.debug("Satchel Tracking Initializing");
+
+        // ─────────────────────────────────────────────
+        // Bundle construction registry -- ScopeEngine_Server.create() reads BundleFactories,
+        // not the JigBundles.Schema below (that's for JigConfigValidator only). Same duality
+        // BorderModule.init() documents; both registrations are required, not redundant.
+        // Missing this call throws "No BundleFactory registered for ..." the first time this
+        // jig tries to create its bundle.
+        // ─────────────────────────────────────────────
+        BundleFactories
+                .registerFactory(BUNDLE, scope -> new SatchelBundle(scope, BUNDLE))
+                .registerFixture(TRACKER, TrackerFixture::new);
 
         // ─────────────────────────────────────────────
         // Build bundle schema
@@ -81,26 +90,17 @@ public class TrackingModule {
         // ─────────────────────────────────────────────
         // Build JigConfig targeting LevelJig
         // ─────────────────────────────────────────────
+        // LevelJigConfig already pins jigType/couplerType/scopeType/sourceType/
+        // sideApplicability/scopeResolver/uuidDeterminer to the LevelJig defaults
+        // this module needs -- only bundles and eventHandlers are per-module.
 
-        JigConfig<LevelScope, Level> config =
-                JigConfig.<LevelScope, Level>builder()
-                        .jigKey(JIG)
-                        .jigType(LevelJig.class)
-                        .scopeType(LevelScope.class)
-                        .sourceType(Level.class)
-                        .couplerType(LevelScopeCoupler.class) // we need to add this in
-                        .resolveScope(LevelResolver::resolveScope)
-                        .determineUUID(LevelResolver::determineUUID)
-                        .bundles(bundles)
+        LevelJigConfig config = new LevelJigConfig(JIG);
 
-                        .sideApplicability(JigPolicies.SideApplicability.SERVER)
+        config.bundles().schema(bundles);
 
-                        .lifecycle(JigPolicies.Lifecycle.defaults()
-                                .withTick(true)) // assuming helper or explicit record
-
-                        .eventHandlers(eventHandlers)
-
-                        .build();
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
+                .eventHandlers(eventHandlers);
 
         // ─────────────────────────────────────────────
         // Register config (not a jig!)

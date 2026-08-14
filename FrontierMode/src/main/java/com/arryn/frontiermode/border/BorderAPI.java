@@ -52,16 +52,8 @@ public final class BorderAPI {
     }
 
     public static LevelJig levelJig() {
-        try {
-            return (LevelJig)
-                    foundation().jigInfo(FrontierKeys.BORDERS_JIG).jig;
-        } catch (RuntimeException e) {
-            throw new SatchelException.JigNotFound(
-                    "Borders LevelJig not found for key "
-                            + FrontierKeys.BORDERS_JIG,
-                    e
-            );
-        }
+        return (LevelJig)
+                foundation().requireJigInfo(FrontierKeys.BORDERS_JIG).jig;
     }
 
     public static LevelScope scope(Level level) {

@@ -112,7 +112,7 @@ wiki — those stay as the index-level pointer) gets its own category, kept sepa
 - `satchel/architecture/*` — Satchel's docs (the five migrated `.md` files above, going
   forward: bundle, fixture, net, persistence, and whatever else accumulates).
 - `frontiermode/architecture/*` — FrontierMode's docs (none exist yet — noted in
-  [FrontierMode](../mods/frontiermode.md) already; this is where they'll land once written).
+  [FrontierMode](../frontiermode/frontiermode.md) already; this is where they'll land once written).
 
 Cross-references are only allowed in the direction of the actual code dependency:
 FrontierMode depends on Satchel (`mods.toml`, mandatory, `AFTER`), so FrontierMode docs may link
@@ -278,3 +278,27 @@ Gradle project alongside FrontierMode — purely an IDE-side setting, zero build
 
 **Net effect:** one shared git history, two separate Gradle builds, optionally one IntelliJ
 window. None of the three implies or requires either of the others.
+
+## Update (2026-08-13): mods/* landing pages consolidated into each mod's own category
+
+The "New rule" section above (kept for history) had `mods/*` staying separate as an
+index-level-only pointer, with each mod's real docs living under their own category
+(`frontiermode/architecture/*`, `satchel/architecture/*`). In practice this scattered a mod's
+content across unrelated alphabetical positions in `WIKI_INDEX.md` (`design/frontiermode` sorted
+nowhere near `frontiermode/architecture` or `mods`), so there was no way to see everything under
+one mod from the index, or to drill down from a landing page.
+
+Fixed by moving the landing pages themselves into their mod's category instead of keeping them
+separate:
+
+- `wiki/mods/frontiermode.md` → `wiki/frontiermode/frontiermode.md`
+- `wiki/mods/satchel.md` → `wiki/satchel/satchel.md`
+- `wiki/design/frontiermode/*` → `wiki/frontiermode/design/*` (matches the existing
+  `frontiermode/architecture/*` pattern; Satchel has no wiki-hosted design docs yet — its design
+  material is the diagrams under `Satchel/design/` in the mod repo itself, linked from
+  `satchel/satchel.md`, not moved).
+
+Now every `frontiermode/*` and `satchel/*` category sorts together in `WIKI_INDEX.md`, and each
+landing page's Architecture/Design sections are real drill-down links, not just index entries.
+The `mods` category is retired. Updated all role bootstrap prompts and ticket/roadmap hyperlinks
+that pointed at the old `wiki/mods/*.md` paths.

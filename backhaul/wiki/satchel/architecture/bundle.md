@@ -79,4 +79,4 @@ is to let them cooperate without collapsing into a monolith.
 - [Fixture](fixture.md)
 - [Networking](net.md)
 - [Persistence](persistence.md)
-- [Satchel mod summary](../../mods/satchel.md)
+- [Satchel mod summary](../satchel.md)

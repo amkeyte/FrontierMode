@@ -21,11 +21,11 @@ updated: '2026-08-11'
 "fixture") — `notes.md` ended with an `<!-- include: SatchelFacet.md --> ` directive, so they're
 merged here in that order, unchanged otherwise.*
 
-**Architect review (2026-08-11): resolved, moved to verified.** The two source docs use "facet"
-and "fixture" for what reads like the same concept at a glance, but checking against current code
-shows they're not synonyms left over from a rename — they're two distinct, still-live concepts at
-different levels of the hierarchy, and the terminology only looks inconsistent because both source
-files used the word "facet" loosely before the split had a name.
+The two source docs use "facet" and "fixture" for what reads like the same concept at a glance,
+but checking against current code shows they're not synonyms left over from a rename — they're
+two distinct, still-live concepts at different levels of the hierarchy, and the terminology only
+looks inconsistent because both source files used the word "facet" loosely before the split had
+a name.
 
 What the code actually shows:
 
@@ -237,4 +237,4 @@ They are intentionally boring, explicit, and strict — and that is their streng
 ## Related pages
 
 - [Bundle](bundle.md)
-- [Satchel mod summary](../../mods/satchel.md)
+- [Satchel mod summary](../satchel.md)

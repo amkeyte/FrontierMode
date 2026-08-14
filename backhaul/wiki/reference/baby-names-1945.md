@@ -26,6 +26,8 @@ memorable, non-colliding label going forward — draw from here instead of inven
 |---|---|
 | Walter | PM role persona (see [PM](../../roles/pm.md)) |
 | Douglas | Architect role persona (see [Architect](../../roles/architect.md)) |
+| Sasha | Game Designer role persona (see [Game Designer](../../roles/game-designer.md)) |
+| Curtis | Lead Dev role persona (see [Lead Dev](../../roles/lead-dev.md)) |
 
 ## Full list
 

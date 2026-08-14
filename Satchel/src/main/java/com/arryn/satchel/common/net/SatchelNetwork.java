@@ -3,6 +3,7 @@ package com.arryn.satchel.common.net;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.level.LevelScope;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.network.NetworkRegistry;
@@ -63,7 +64,17 @@ public final class SatchelNetwork {
     ) {
         Satchel.requireServer();
 
-        ServerLevel level = info.scopeAs();
+        // info.scopeAs() is an unchecked cast to whatever the call site infers -- the actual
+        // runtime scope object is a LevelScope (wrapping a Level), never a ServerLevel itself.
+        // ServerLevel level = info.scopeAs() compiled fine (erasure) and threw ClassCastException
+        // the first time this method actually ran, since flushIfDirty()/pulseSync() never
+        // reached scheduleSync() before SAT_027/FRO_018 fixed the chain ahead of it. Go through
+        // LevelScope.level() (the scope's own real accessor) instead, then cast to ServerLevel --
+        // safe here since Satchel.requireServer() above already guarantees server side. Matches
+        // this method's own doc: currently LevelScope-only, future scope types need different
+        // distribution logic entirely. See SAT_028.
+        LevelScope levelScope = info.scopeAs();
+        ServerLevel level = (ServerLevel) levelScope.level();
 
         CHANNEL.send(
                 PacketDistributor.DIMENSION.with(

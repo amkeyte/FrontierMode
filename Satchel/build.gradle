@@ -160,3 +160,31 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+
+// ------------------------------------------------------------
+// Deploy dev jar into sibling FrontierMode project for local multi-mod testing
+// ------------------------------------------------------------
+tasks.register('copyToFrontierMode', Copy) {
+    group = 'satchel'
+    description = "Copies the dev jar into ../FrontierMode/run/mods and removes stale Satchel jars there."
+
+    def frontierModsDir = file("${projectDir}/../FrontierMode/run/mods")
+
+    dependsOn tasks.named('jar')
+
+    doFirst {
+        def frontierRoot = frontierModsDir.parentFile.parentFile
+        if (!frontierRoot.exists()) {
+            throw new GradleException("FrontierMode project not found at ${frontierRoot} — expected it as a sibling of Satchel.")
+        }
+        frontierModsDir.mkdirs()
+        frontierModsDir.listFiles({ f -> f.name.startsWith('Satchel-') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
+    }
+
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into frontierModsDir
+}
+
+tasks.named('jar').configure {
+    finalizedBy tasks.named('copyToFrontierMode')
+}

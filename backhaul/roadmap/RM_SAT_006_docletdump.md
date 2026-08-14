@@ -21,8 +21,7 @@ ticket: null
 
 - 2026-08-11: Node opened, backfilled as **superseded** history (see `superseded_by`).
 
-Evidenced by [Satchel](../wiki/mods/satchel.md)'s "Tooling: DocletProject — removed" section and
-by the strip-down plan
+Evidenced by [SAT_002](../tickets/SAT_002_strip-bare.md) and the strip-down plan
 ([backhaul/wiki/plans/strip-down.md](../wiki/plans/strip-down.md)): Satchel once ran an
 `apiDumpSatchel` Gradle task (`gradle/apiDump.gradle`) that fed a separate `DocletProject`
 workspace. Sequenced early (depends only on RM_SAT_001) since API-dump tooling only needs the mod

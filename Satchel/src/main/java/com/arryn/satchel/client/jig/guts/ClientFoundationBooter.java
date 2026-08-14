@@ -9,6 +9,8 @@ import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
 import net.minecraftforge.fml.LogicalSide;
 
+import java.util.List;
+
 public final class ClientFoundationBooter extends ASatchelFoundationBooter {
 
     private static ClientFoundationBooter instance;
@@ -47,17 +49,19 @@ public final class ClientFoundationBooter extends ASatchelFoundationBooter {
         // Install booter FIRST so engine() is available
         foundation.installBooter(this);
 
-        // Compile + install config for this side
-        CompiledJigConfig config =
-                JigConfigCompiler.compileForSide(LogicalSide.CLIENT);
-
-        foundation.installConfigs(config);
-
-        // Glue-only installs (no logic)
+        // Glue-only installs (no logic) -- must precede installConfigs(): it installs
+        // each jig's EventHandlers onto the event bus as it's processed, so the bus has
+        // to exist first. Matches ServerFoundationBooter's order (SAT_011).
         foundation.installEventBus();
         foundation.installFoundationLifecycle();
         foundation.installScopeLifecycle();
         foundation.installBundleLifecycle();
+
+        // Compile + install config for this side
+        List<CompiledJigConfig> configs =
+                JigConfigCompiler.compileForSide(LogicalSide.CLIENT);
+
+        foundation.installConfigs(configs);
 
         // NOTE:
         // No jig materialization

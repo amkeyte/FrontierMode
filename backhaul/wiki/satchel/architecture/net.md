@@ -24,9 +24,27 @@ The `net` package defines Satchel's **transport-only networking layer**. It exis
 move serialized bundle data and explicit client requests between sides. Networking does not
 define state, policy, or gameplay behavior.
 
-All packet handlers are explicitly registered. Packet decode is side-effect free, input is
-validated, and server-side execution is authoritative. Mods may use Satchel bundles without
-using the network layer at all.
+All packet handlers are explicitly registered — via `SatchelNetwork.register()`, which must
+actually be called for that to be true. It wasn't, from whenever this page's "explicit
+registration" language was written until
+[SAT_026](../../../tickets/SAT_026_network-register-never-called.md): `S2cBundleParcel`'s
+encoder/decoder/handler were fully implemented but never added to `SatchelNetwork.CHANNEL`, so
+every `SatchelNetwork.send()` call was sending a message type the channel didn't know about.
+Client-side bundles have never received real hydration data as a result — the guarantee this
+paragraph describes was the intended design the whole time, just not wired up. Fixed by calling
+`SatchelNetwork.register()` from `SatchelMod`'s constructor. Packet decode is side-effect free,
+input is validated, and server-side execution is authoritative. Mods may use Satchel bundles
+without using the network layer at all.
+
+A second, independent bug sat right next to the first and only surfaced once registration and
+[FRO_018](../../../tickets/FRO_018_border-executionpulse-disabled.md)'s execution-pulse fix let
+`SatchelNetwork.send()` actually run: it did `ServerLevel level = info.scopeAs();`, an unchecked
+generic cast that compiled fine but threw `ClassCastException` at runtime — the scope object
+behind a `LevelJig` is a `LevelScope`, never a `ServerLevel` directly. Fixed in
+[SAT_029](../../../tickets/SAT_029_send-sidedness-classcast.md) by going through
+`LevelScope.level()` first, then casting the real `Level` to `ServerLevel`. `send()` is currently
+LevelScope-only by design (see its own doc comment); a future scope type would need its own
+distribution logic, not a fix to this cast.
 
 ### Packet Model
 
@@ -34,7 +52,14 @@ using the network layer at all.
 
 * Bundle state is synchronized using a unified parcel format.
 * Parcels contain bundle identity and serialized facet data.
-* Client application is limited to `bundle.loadAll(data)`.
+* Client application goes through `SatchelBundle.hydrateAll(data)` for a bundle's first-ever
+  parcel (pairs with the one-time `onLoaded()` transition) or `SatchelBundle.refreshFrom(source)`
+  for every parcel after that (updates fixture data in place, no lifecycle transition). Until
+  [SAT_030](../../../tickets/SAT_030_client-refresh-single-shot-hydrate.md), every parcel past the
+  first for a given bundle called `hydrateAll` again, which throws once the bundle has already
+  left `CREATED` — client bundles were permanently frozen at their first snapshot, silently
+  dropping every real update after it. (This page previously named the method `bundle.loadAll` —
+  that name doesn't exist in the current code; corrected here.)
 
 **Client → Server**
 
@@ -85,4 +110,4 @@ cross-thread bugs.
 
 - [Bundle](bundle.md)
 - [Fixture](fixture.md)
-- [Satchel mod summary](../../mods/satchel.md)
+- [Satchel mod summary](../satchel.md)

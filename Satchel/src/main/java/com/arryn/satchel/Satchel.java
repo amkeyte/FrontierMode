@@ -77,18 +77,6 @@ public final class Satchel {
         }
     }
 
-//    public static void activateRegistrations(LogicalSide side) {
-//        LogicalFoundation foundation = FOUNDATIONS.get(side);
-//        if (foundation == null) {
-//            throw new IllegalStateException(
-//                    "Cannot activate registrations: Satchel not installed for " + side
-//            );
-//        }
-//
-//        SatchelJigRegistrar2.activateForSide(side, foundation);
-//        SatchelStrapRegistrar.activateForSide(side,foundation);
-//    }
-
     public static void registerJigConfig(JigConfig<?, ?> config) {
         JigConfigCompiler.register(config);
     }
@@ -108,8 +96,9 @@ public final class Satchel {
         Objects.requireNonNull(scope, "scope");
         Objects.requireNonNull(bundleKey, "bundleKey");
 
-        return foundation()                         // Optional<LogicalFoundation>
-                .flatMap(f -> f.askJig(jigKey))     // Optional<SatchelJig<?>>
+        return foundation()                             // Optional<LogicalFoundation>
+                .flatMap(f -> f.askJigInfo(jigKey))     // Optional<JigInfo>
+                .map(info -> info.jig)                  // Optional<SatchelJig<?>>
                 .flatMap(j -> j.ask(scope, bundleKey));
     }
 
@@ -131,10 +120,10 @@ public final class Satchel {
         LogicalFoundation f = require();
 
         // 1. Resolve jig (authoritative)
-        SatchelJig<?> jig = f.requireJig(jigKey);
+        SatchelJig<?> jig = f.requireJigInfo(jigKey).jig;
 
         // 2. Enforce invariant explicitly
-        JigKey.validateTypes(jig, scope);
+        JigKey.validateTypes(jigKey, jig);
 
         // 3. Require scope + readiness
         ScopeInfo info = f.requireScopeInfo(jigKey, scope);
@@ -171,7 +160,7 @@ public final class Satchel {
         }
 
 
-        return f.requireJig(jigKey).getOrCreate(scope, bundleKey);
+        return f.requireJigInfo(jigKey).jig.getOrCreate(scope, bundleKey);
     }
 
     public static void requireServer() {
@@ -184,7 +173,7 @@ public final class Satchel {
     }
     public static void requireClient() {
         var side = require().side();
-        if (side != LogicalSide.SERVER) {
+        if (side != LogicalSide.CLIENT) {
             throw new SatchelException.BadLogicalSide(
                     "This operation is client-only (current side: " + side + ")"
             ) ;
