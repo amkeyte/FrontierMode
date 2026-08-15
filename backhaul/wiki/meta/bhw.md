@@ -85,6 +85,37 @@ the page is actually about (e.g. a reconciliation doc's list of things not yet d
 line is whether it duplicates a ticket/roadmap field or is substantive content the page exists to
 capture.
 
+## Spec pages: a stricter sibling of architecture pages
+
+`<mod>/architecture/*` describes how something is built — the conceptual/structural layer,
+narrative-tolerant in the sense of explaining reasoning, but subject to the same "no changelog
+content" rule above. `<mod>/spec/*` is a narrower, stricter sibling: the current, precise
+contract for one boundary surface — registration/method contracts, invariants, lifecycle
+ordering, guarantees, forbidden behavior. No dated narrative at all, not even the light amount
+architecture pages sometimes carry — a spec page is meant to be the stable thing other content
+points at, not a record of how it got that way.
+
+**Test for whether something gets a spec page: does a consumer *outside* the implementing
+package/mod actually depend on this surface not changing?** If yes, it's a boundary and qualifies.
+If the answer is "nothing outside this package calls it directly," it stays architecture-page-only
+(or isn't documented at that granularity at all) — internal machinery doesn't need a promise made
+about it, because nothing external is trusting the promise. This keeps spec pages rare and
+load-bearing rather than one-per-class.
+
+Placement mirrors architecture: `<mod>/spec/*`, same cross-reference directionality (link in the
+direction of the actual code dependency). Cross-cutting spec content that isn't cleanly
+mod-scoped follows the same "goes under FRO for now" convention already established for
+cross-cutting tickets/roadmap items (see `plans/strip-down.md`'s "New rule" section) —
+FrontierMode is the ecosystem-facing repo, Satchel stays the dependency.
+
+**Not tracked as a roadmap initiative or a bounded plan.** `bhrm` models dependency-graph-shaped
+forward work; this isn't that. And unlike `plans/doc-coverage.md` or `plans/strip-down.md`, this
+deliberately has no finish line — it's a standing practice, not a project. Built opportunistically:
+when a ticket already requires opening the relevant architecture page, split out whatever
+contract-shaped content has accumulated into a sibling spec page, and trim the historical
+narrative out of the architecture page in the same pass. Don't go looking for untouched areas to
+backfill speculatively.
+
 ## Cross-references: use real relative links, not double brackets
 
 **Always link with standard markdown — `[Title](relative/path.md)` — resolved relative to the

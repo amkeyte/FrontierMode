@@ -9,6 +9,7 @@ import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
 import com.arryn.satchel.common.stitch.LogicalSideStitch;
+import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 
 import java.util.*;
@@ -21,6 +22,14 @@ public class SatchelBundle {
     // ---------------------------------------------------------------------
 
     private static final int DEFAULT_SYNC_INTERVAL_TICKS = 20 * 5;
+
+    // RM_SAT_013: grace window before the runtime half of the silent-inertness health-check
+    // logs a warning. 10s is deliberately longer than DEFAULT_SYNC_INTERVAL_TICKS (5s) so a
+    // bundle that's simply waiting on its first regular sync interval, per the still-open
+    // proactive-push question this node's log covers, doesn't trip the warning under normal
+    // conditions.
+    private static final int INERTNESS_WARNING_TICKS = 20 * 10;
+
     protected final SatchelScope scope;
     protected final BundleKey<?> key;
 
@@ -44,6 +53,9 @@ public class SatchelBundle {
     private BundleSyncDelegate syncDelegate;
     private int syncIntervalTicks = DEFAULT_SYNC_INTERVAL_TICKS;
     private int syncCounter;
+
+    private int ticksNotActive;
+    private boolean inertnessWarned;
 
     // ---------------------------------------------------------------------
     // Construction
@@ -292,6 +304,32 @@ public class SatchelBundle {
 
         syncCounter = 0;
         syncDelegate.sync(info, key, this);
+    }
+
+    /**
+     * RM_SAT_013: runtime half of the silent-inertness health-check. Called once per execution
+     * pulse by {@code ScopeEngine_Server}/{@code ScopeEngine_Client}, alongside
+     * {@link #pulseSync}. Diagnostic only, never throws: logs a single warning if this bundle has
+     * sat below {@code ACTIVE} for longer than a short grace window, then stays quiet -- resets
+     * the counter the moment {@code ACTIVE} is reached, and only ever warns once per bundle so a
+     * genuinely slow (but not actually broken) path, like a client bundle waiting on a delayed
+     * first parcel, doesn't spam the log every pulse afterward.
+     */
+    public final void healthCheckPulse() {
+        if (lifeCycleState() == LifecycleState.ACTIVE) {
+            ticksNotActive = 0;
+            return;
+        }
+
+        ticksNotActive++;
+        if (!inertnessWarned && ticksNotActive >= INERTNESS_WARNING_TICKS) {
+            inertnessWarned = true;
+            OUT.warn(
+                    "[health-check] Bundle " + debugName() + " has not reached ACTIVE after "
+                            + ticksNotActive + " execution pulses (still " + lifeCycleState()
+                            + "). Possible silent inertness -- see RM_SAT_013."
+            );
+        }
     }
 
     // ---------------------------------------------------------------------

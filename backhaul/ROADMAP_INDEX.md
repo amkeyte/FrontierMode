@@ -8,42 +8,63 @@
 
 ## RM_FRO
 
+**Graph view:** [Open in browser ↗](ROADMAP_GRAPH_RM_FRO.html)
+
 ### Actionable now
 
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
-- [**RM_FRO_006**](roadmap/RM_FRO_006_playereval.md) — Per-player border evaluation
+- [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) — Per-player border evaluation
+- [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) — Clean up dead BorderView code
 
 ### Dependency structure
 
 Depth-ordered (longest path from a root), not a literal tree — a node with multiple prerequisites is listed once, with all of them named inline, rather than repeated under each parent.
 
-- [**RM_FRO_001**](roadmap/RM_FRO_001_scaffold.md) [work · resolved] Set up mod scaffolding
-  - [**RM_FRO_002**](roadmap/RM_FRO_002_borderfeature.md) [work · resolved] Build the World Border feature — depends on: RM_FRO_001
-    - [**RM_FRO_003**](roadmap/RM_FRO_003_jigwiring.md) [work · resolved] Wire Border into Satchel's jig runtime — depends on: RM_FRO_002
-    - [**RM_FRO_004**](roadmap/RM_FRO_004_commands.md) [work · resolved] Command and selector interface — depends on: RM_FRO_002
-    - [**RM_FRO_005**](roadmap/RM_FRO_005_rendering.md) [work · resolved] Client-side border rendering — depends on: RM_FRO_002
-    - [**RM_FRO_006**](roadmap/RM_FRO_006_playereval.md) [work · open · ACTIONABLE] Per-player border evaluation — depends on: RM_FRO_002
-      - [**RM_FRO_007**](roadmap/RM_FRO_007_stripdown.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_FRO_003, RM_FRO_004, RM_FRO_005
+- [**RM_FRO_001**](roadmap/RM_FRO_001_mary.md) [work · resolved] Set up mod scaffolding
+  - [**RM_FRO_002**](roadmap/RM_FRO_002_linda.md) [work · resolved] Build the World Border feature — depends on: RM_FRO_001
+    - [**RM_FRO_003**](roadmap/RM_FRO_003_barbara.md) [work · resolved] Wire Border into Satchel's jig runtime — depends on: RM_FRO_002
+    - [**RM_FRO_004**](roadmap/RM_FRO_004_patricia.md) [work · resolved] Command and selector interface — depends on: RM_FRO_002
+    - [**RM_FRO_005**](roadmap/RM_FRO_005_carol.md) [work · resolved] Client-side border rendering — depends on: RM_FRO_002
+      - [**RM_FRO_007**](roadmap/RM_FRO_007_nancy.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_FRO_003, RM_FRO_004, RM_FRO_005
+        - [**RM_FRO_008**](roadmap/RM_FRO_008_sharon.md) [convergence · reached] Border prototype verified end-to-end — depends on: RM_FRO_002, RM_FRO_003, RM_FRO_004, RM_FRO_005, RM_FRO_007
+          - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) [work · open · ACTIONABLE] Per-player border evaluation — depends on: RM_FRO_008
+          - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) [work · open · ACTIONABLE] Clean up dead BorderView code — depends on: RM_FRO_008
+            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · WIP] Prototype hardening — depends on: RM_FRO_009
 
 ## RM_SAT
 
+**Graph view:** [Open in browser ↗](ROADMAP_GRAPH_RM_SAT.html)
+
 ### Actionable now
 
-Nothing is currently actionable.
+Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
+
+- [**RM_SAT_018**](roadmap/RM_SAT_018_edward.md) — Universal sidedness facade
+- [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) — Build PlayerJig/PlayerScope
 
 ### Dependency structure
 
 Depth-ordered (longest path from a root), not a literal tree — a node with multiple prerequisites is listed once, with all of them named inline, rather than repeated under each parent.
 
-- [**RM_SAT_001**](roadmap/RM_SAT_001_scaffold.md) [work · resolved] Set up mod scaffolding
-  - [**RM_SAT_002**](roadmap/RM_SAT_002_bundlemodel.md) [work · resolved] Establish the bundle/facet state model — depends on: RM_SAT_001
-  - [**RM_SAT_006**](roadmap/RM_SAT_006_docletdump.md) [work · superseded] Integrate DocletProject API-dump tooling — depends on: RM_SAT_001
-    - [**RM_SAT_003**](roadmap/RM_SAT_003_jigfoundation.md) [work · resolved] Introduce the jig/foundation runtime — depends on: RM_SAT_002
-    - [**RM_SAT_004**](roadmap/RM_SAT_004_fixturerename.md) [work · resolved] Rename facet to fixture — depends on: RM_SAT_002
-      - [**RM_SAT_005**](roadmap/RM_SAT_005_netlayer.md) [work · resolved] Build the networking layer — depends on: RM_SAT_004
-      - [**RM_SAT_007**](roadmap/RM_SAT_007_persistence2.md) [convergence · reached] Satchel 2.0 persistence model — depends on: RM_SAT_003, RM_SAT_004
-      - [**RM_SAT_008**](roadmap/RM_SAT_008_jigconfig.md) [work · resolved] Jig Config compiler rewrite — depends on: RM_SAT_003
-        - [**RM_SAT_009**](roadmap/RM_SAT_009_stripdown.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_SAT_005, RM_SAT_006, RM_SAT_007, RM_SAT_008
-          - [**RM_SAT_010**](roadmap/RM_SAT_010_docmigrate.md) [work · resolved] Migrate in-source architecture docs into the wiki — depends on: RM_SAT_009
+- [**RM_SAT_001**](roadmap/RM_SAT_001_james.md) [work · resolved] Set up mod scaffolding
+  - [**RM_SAT_002**](roadmap/RM_SAT_002_robert.md) [work · resolved] Establish the bundle/facet state model — depends on: RM_SAT_001
+  - [**RM_SAT_006**](roadmap/RM_SAT_006_david.md) [work · superseded] Integrate DocletProject API-dump tooling — depends on: RM_SAT_001
+    - [**RM_SAT_003**](roadmap/RM_SAT_003_john.md) [work · resolved] Introduce the jig/foundation runtime — depends on: RM_SAT_002
+    - [**RM_SAT_004**](roadmap/RM_SAT_004_william.md) [work · resolved] Rename facet to fixture — depends on: RM_SAT_002
+      - [**RM_SAT_005**](roadmap/RM_SAT_005_richard.md) [work · resolved] Build the networking layer — depends on: RM_SAT_004
+      - [**RM_SAT_008**](roadmap/RM_SAT_008_thomas.md) [work · resolved] Jig Config compiler rewrite — depends on: RM_SAT_003
+        - [**RM_SAT_007**](roadmap/RM_SAT_007_charles.md) [convergence · reached] Satchel 2.0 persistence model — depends on: RM_SAT_003, RM_SAT_004, RM_SAT_005, RM_SAT_006, RM_SAT_008
+          - [**RM_SAT_009**](roadmap/RM_SAT_009_michael.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_SAT_007
+            - [**RM_SAT_010**](roadmap/RM_SAT_010_ronald.md) [work · resolved] Migrate in-source architecture docs into the wiki — depends on: RM_SAT_009
+              - [**RM_SAT_011**](roadmap/RM_SAT_011_larry.md) [convergence · reached] Foundation runtime verified end-to-end — depends on: RM_SAT_010
+                - [**RM_SAT_012**](roadmap/RM_SAT_012_donald.md) [work · resolved] Consolidate BundleFactories into schema — depends on: RM_SAT_011
+                - [**RM_SAT_013**](roadmap/RM_SAT_013_gary.md) [work · resolved] Add silent-inertness health-check — depends on: RM_SAT_011
+                - [**RM_SAT_014**](roadmap/RM_SAT_014_joseph.md) [work · resolved] Fix LevelJig unload/rescope leak — depends on: RM_SAT_011
+                - [**RM_SAT_015**](roadmap/RM_SAT_015_george.md) [work · resolved] Clean up dead registrar/ModelJig code — depends on: RM_SAT_011
+                  - [**RM_SAT_016**](roadmap/RM_SAT_016_kenneth.md) [work · resolved] Write new-Satchel-module checklist — depends on: RM_SAT_012
+                  - [**RM_SAT_019**](roadmap/RM_SAT_019_dennis.md) [work · resolved] Sync a Satchel world-identity token — depends on: RM_SAT_014
+                    - [**RM_SAT_017**](roadmap/RM_SAT_017_paul.md) [convergence · reached] Prototype hardening — depends on: RM_SAT_012, RM_SAT_013, RM_SAT_014, RM_SAT_015, RM_SAT_016, RM_SAT_019
+                      - [**RM_SAT_018**](roadmap/RM_SAT_018_edward.md) [convergence · WIP · ACTIONABLE] Universal sidedness facade — depends on: RM_SAT_017
+                      - [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) [work · open · ACTIONABLE] Build PlayerJig/PlayerScope — depends on: RM_SAT_017
 

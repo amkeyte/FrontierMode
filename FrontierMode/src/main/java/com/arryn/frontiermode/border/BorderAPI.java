@@ -84,8 +84,24 @@ public final class BorderAPI {
     public static Optional<BordersFixture> borders(Level level) {
         LevelScope scope = scope(level);
 
-        var info = Satchel.require()
-                .requireScopeInfo(FrontierKeys.BORDERS_JIG, scope);
+        // RM_SAT_019: client-side scope recognition can now be legitimately deferred (waiting on
+        // the world-identity token round-trip), so "this jig doesn't know this scope yet" is a
+        // real, expected state on top of the "known but not ready" one already handled below --
+        // not a hard failure. tryScopeInfo (Satchel-side, added for this) hands that back as an
+        // empty Optional instead of requireScopeInfo's throw; treat it exactly like the
+        // !isReady() case a few lines down: standby, don't crash.
+        var infoOpt = Satchel.require()
+                .tryScopeInfo(FrontierKeys.BORDERS_JIG, scope);
+
+        if (infoOpt.isEmpty()) {
+            OUT.debug(
+                    "[BorderAPI] borders(): scope not yet known → Optional.empty "
+                            + "level=" + level.dimension().location()
+            );
+            return Optional.empty();
+        }
+
+        var info = infoOpt.get();
 
         if (!info.isReady()) {
             OUT.debug(

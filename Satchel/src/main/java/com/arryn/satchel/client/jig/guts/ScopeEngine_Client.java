@@ -3,14 +3,12 @@ package com.arryn.satchel.client.jig.guts;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
-import com.arryn.satchel.common.bundle.builder.BundleFactories;
-import com.arryn.satchel.common.bundle.builder.BundleFactoryEntry;
-import com.arryn.satchel.common.bundle.builder.FixtureRegistration;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.SatchelException;
+import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.net.ParcelInbox;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
@@ -151,13 +149,15 @@ public final class ScopeEngine_Client implements ScopeEngine {
         Optional<T> existing = ask(info, key);
         if (existing.isPresent()) return existing.get();
 
-        BundleFactoryEntry<T> entry = BundleFactories.entryFor(key);
-        if (entry == null) {
-            throw new IllegalStateException("No BundleFactory registered for " + key);
+        @SuppressWarnings("unchecked")
+        JigBundles.BundleDecl<SatchelScope, T> decl =
+                (JigBundles.BundleDecl<SatchelScope, T>) bundleDecls.get(key);
+        if (decl == null) {
+            throw new IllegalStateException("No BundleDecl registered for " + key);
         }
 
         T bundle = Objects.requireNonNull(
-                entry.bundleFactory.apply(info.scope()),
+                decl.factory().create(info.scope()),
                 "Bundle factory returned null for " + key
         );
 
@@ -165,8 +165,8 @@ public final class ScopeEngine_Client implements ScopeEngine {
         OUT.TRACE().log("         using " + key);
         OUT.TRACE().log("         in scopeInfo " + info.debugName());
 
-        for (FixtureRegistration<?> reg : entry.fixtureRegistrations) {
-            applyFixture(bundle, reg);
+        for (JigBundles.FixtureDecl<?> fixtureDecl : decl.fixtures()) {
+            applyFixture(bundle, fixtureDecl);
         }
 
         // no-op on client
@@ -180,9 +180,9 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     private <F extends SatchelFixture> void applyFixture(
             SatchelBundle bundle,
-            FixtureRegistration<F> reg
+            JigBundles.FixtureDecl<F> decl
     ) {
-        bundle.getOrCreateFixture(reg.key(), reg.factory());
+        bundle.getOrCreateFixture(decl.key(), decl.factory()::create);
     }
 
     @Override
@@ -200,6 +200,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
             if (bundle == null) continue;
 
             bundle.pulseSync(info);
+            bundle.healthCheckPulse();
 
             if (bundle.isDirty()) {
                 OUT.warn("[engine] CLIENT bundle became dirty (read-only violation): " + bundle.debugName());

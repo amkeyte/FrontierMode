@@ -116,12 +116,17 @@ block placement) to drive border growth.
 
 ## Known gap: per-player evaluation is unfinished
 
-`border/common/player/*` contains real logic classes — `BorderPlayerEval`, `BorderPlayerLogic`,
-`BorderPlayerStatus`, `BorderPlayerStatusFixture`, `BorderPlayerStatusProposal` — but the bundle
-meant to host them, `BorderPlayerBundle`, is entirely commented out, including a stubbed
-`return null; //getOrCreateFacet(...)`. Nothing in `BorderModule.init()` constructs or registers
-it. This reads as an abandoned or paused player-scoped extension to the (working) world-scoped
-border system, not a design decision — see `RM_FRO_006` in the roadmap.
+All six files under `border/common/player/*` are commented out, package declaration included —
+`BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`, `BorderPlayerStatusProposal`,
+`BorderPlayerStatusFixture`, and `BorderPlayerBundle` (the last including a stubbed
+`return null; //getOrCreateFacet(...)`). They split into two piles, though: the first four have no
+Satchel dependency at all (a record, a stateless evaluator, plain value objects — only touching
+`BorderMath`/`Border` and vanilla types) and would compile unchanged today. `BorderPlayerFixture`
+and `BorderPlayerBundle` are the ones actually blocked — written against a `SatchelSetting` base
+class and package paths (`com.arryn.satchel.jig.guts`) that predate the current
+`SatchelFixture`/`common.jig.guts` structure entirely. Nothing in `BorderModule.init()` constructs
+or registers any of it. Reads as an abandoned or paused player-scoped extension to the (working)
+world-scoped border system, not a design decision — see `RM_FRO_006` in the roadmap.
 
 ## Related pages
 

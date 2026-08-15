@@ -3,9 +3,6 @@ package com.arryn.satchel.server.jig.guts;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
-import com.arryn.satchel.common.bundle.builder.BundleFactories;
-import com.arryn.satchel.common.bundle.builder.BundleFactoryEntry;
-import com.arryn.satchel.common.bundle.builder.FixtureRegistration;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -177,15 +174,17 @@ public final class ScopeEngine_Server implements ScopeEngine {
         Optional<B> existing = ask(info, key);
         if (existing.isPresent()) return existing.get();
 
-        BundleFactoryEntry<B> entry = BundleFactories.entryFor(key);
-        if (entry == null) {
-            throw new IllegalStateException("No BundleFactory registered for " + key);
+        @SuppressWarnings("unchecked")
+        JigBundles.BundleDecl<SatchelScope, B> decl =
+                (JigBundles.BundleDecl<SatchelScope, B>) bundleDecls.get(key);
+        if (decl == null) {
+            throw new IllegalStateException("No BundleDecl registered for " + key);
         }
 
         SatchelScope scope = Objects.requireNonNull(info.scope(), "scope");
 
         B bundle = Objects.requireNonNull(
-                entry.bundleFactory.apply(scope),
+                decl.factory().create(scope),
                 "Bundle factory returned null for " + key
         );
 
@@ -194,8 +193,8 @@ public final class ScopeEngine_Server implements ScopeEngine {
         OUT.TRACE().log("         in scope " + info.debugName());
 
         // Define bundle shape immediately
-        for (FixtureRegistration<?> reg : entry.fixtureRegistrations) {
-            applyFixture(bundle, reg);
+        for (JigBundles.FixtureDecl<?> fixtureDecl : decl.fixtures()) {
+            applyFixture(bundle, fixtureDecl);
         }
 
         // Register before hydration so hooks can resolve it if needed
@@ -227,6 +226,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
             if (bundle == null) continue;
 
             bundle.pulseSync(info);
+            bundle.healthCheckPulse();
 
             if (bundle.isDirty()) {
                 flushIfDirty(info, key, bundle);
@@ -258,7 +258,16 @@ public final class ScopeEngine_Server implements ScopeEngine {
         // Terminal maintenance flush
         onExecutionPulse(info);
 
-        Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
+        // RM_SAT_014, part 2: must read the map *before* evicting it below, then evict
+        // regardless of whether it had anything in it. Previously this method called
+        // bundle.onDestroyed() on every bundle here but never removed the scope's own entry
+        // from `active` -- so the next time a scope with the same UUID was created (e.g. a new
+        // world reusing the same dimension name, since LevelScope's UUID is deterministic from
+        // the dimension name alone), bundlesFor()'s computeIfAbsent found the old, already
+        // torn-down bundle map still sitting there and handed it back instead of building fresh
+        // ones. ScopeEngine_Client.unload() already evicts correctly (active.remove(...)); this
+        // brings the server engine's behavior in line with it.
+        Map<BundleKey<?>, SatchelBundle> map = active.remove(validatedScopeId(info));
         if (map == null || map.isEmpty()) return;
 
         for (SatchelBundle bundle : map.values()) {
@@ -319,9 +328,9 @@ public final class ScopeEngine_Server implements ScopeEngine {
 
     private <F extends SatchelFixture> void applyFixture(
             SatchelBundle bundle,
-            FixtureRegistration<F> reg
+            JigBundles.FixtureDecl<F> decl
     ) {
-        bundle.getOrCreateFixture(reg.key(), reg.factory());
+        bundle.getOrCreateFixture(decl.key(), decl.factory()::create);
     }
 
     /* =============================================================

@@ -28,6 +28,40 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Douglas | Architect role persona (see [Architect](../../roles/architect.md)) |
 | Sasha | Game Designer role persona (see [Game Designer](../../roles/game-designer.md)) |
 | Curtis | Lead Dev role persona (see [Lead Dev](../../roles/lead-dev.md)) |
+| Mary | Roadmap node slug, [RM_FRO_001](../../roadmap/RM_FRO_001_mary.md) |
+| Linda | Roadmap node slug, [RM_FRO_002](../../roadmap/RM_FRO_002_linda.md) |
+| Barbara | Roadmap node slug, [RM_FRO_003](../../roadmap/RM_FRO_003_barbara.md) |
+| Patricia | Roadmap node slug, [RM_FRO_004](../../roadmap/RM_FRO_004_patricia.md) |
+| Carol | Roadmap node slug, [RM_FRO_005](../../roadmap/RM_FRO_005_carol.md) |
+| Sandra | Roadmap node slug, [RM_FRO_006](../../roadmap/RM_FRO_006_sandra.md) |
+| Nancy | Roadmap node slug, [RM_FRO_007](../../roadmap/RM_FRO_007_nancy.md) |
+| Sharon | Roadmap node slug, [RM_FRO_008](../../roadmap/RM_FRO_008_sharon.md) |
+| Judith | Roadmap node slug, [RM_FRO_009](../../roadmap/RM_FRO_009_judith.md) |
+| Susan | Roadmap node slug, [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md) |
+| James | Roadmap node slug, [RM_SAT_001](../../roadmap/RM_SAT_001_james.md) |
+| Robert | Roadmap node slug, [RM_SAT_002](../../roadmap/RM_SAT_002_robert.md) |
+| John | Roadmap node slug, [RM_SAT_003](../../roadmap/RM_SAT_003_john.md) |
+| William | Roadmap node slug, [RM_SAT_004](../../roadmap/RM_SAT_004_william.md) |
+| Richard | Roadmap node slug, [RM_SAT_005](../../roadmap/RM_SAT_005_richard.md) |
+| David | Roadmap node slug, [RM_SAT_006](../../roadmap/RM_SAT_006_david.md) |
+| Charles | Roadmap node slug, [RM_SAT_007](../../roadmap/RM_SAT_007_charles.md) |
+| Thomas | Roadmap node slug, [RM_SAT_008](../../roadmap/RM_SAT_008_thomas.md) |
+| Michael | Roadmap node slug, [RM_SAT_009](../../roadmap/RM_SAT_009_michael.md) |
+| Ronald | Roadmap node slug, [RM_SAT_010](../../roadmap/RM_SAT_010_ronald.md) |
+| Larry | Roadmap node slug, [RM_SAT_011](../../roadmap/RM_SAT_011_larry.md) |
+| Donald | Roadmap node slug, [RM_SAT_012](../../roadmap/RM_SAT_012_donald.md) |
+| Gary | Roadmap node slug, [RM_SAT_013](../../roadmap/RM_SAT_013_gary.md) |
+| Joseph | Roadmap node slug, [RM_SAT_014](../../roadmap/RM_SAT_014_joseph.md) |
+| George | Roadmap node slug, [RM_SAT_015](../../roadmap/RM_SAT_015_george.md) |
+| Kenneth | Roadmap node slug, [RM_SAT_016](../../roadmap/RM_SAT_016_kenneth.md) |
+| Paul | Roadmap node slug, [RM_SAT_017](../../roadmap/RM_SAT_017_paul.md) |
+| Edward | Roadmap node slug, [RM_SAT_018](../../roadmap/RM_SAT_018_edward.md) |
+| Dennis | Roadmap node slug, [RM_SAT_019](../../roadmap/RM_SAT_019_dennis.md) |
+| Jerry | Roadmap node slug, [RM_SAT_020](../../roadmap/RM_SAT_020_jerry.md) |
+
+Roadmap node slugs follow a fixed pattern: girls' names for RM_FRO, boys' names for RM_SAT,
+assigned in list rank order — so a slug's gender alone tells you which mod's graph it belongs to.
+When a new node is opened, take the next unused name from the matching-gender list.
 
 ## Full list
 

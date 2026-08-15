@@ -193,8 +193,8 @@ Satchel-specific work goes under SAT.
 ## Roadmap: deliberately left alone for this pass
 
 Explicit call: the strip-down tickets do **not** touch or close
-[RM_FRO_001](../../roadmap/RM_FRO_001_scaffold.md) /
-[RM_SAT_001](../../roadmap/RM_SAT_001_scaffold.md), and stripping work isn't tied to them. The
+[RM_FRO_001](../../roadmap/RM_FRO_001_mary.md) /
+[RM_SAT_001](../../roadmap/RM_SAT_001_james.md), and stripping work isn't tied to them. The
 roadmap gets rebuilt deliberately afterward (see below), not backed into as a side effect of
 cleanup tickets.
 

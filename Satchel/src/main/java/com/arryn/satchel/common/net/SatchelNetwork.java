@@ -6,9 +6,12 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
+
+import java.util.UUID;
 
 /**
  * Satchel 2.0 — Unified networking entry point.
@@ -53,6 +56,14 @@ public final class SatchelNetwork {
                 .consumerMainThread(S2cBundleParcel::handle)
                 .add();
 
+        // ------------------------------------------------------------
+        //  S2C — World-identity token (RM_SAT_019)
+        // ------------------------------------------------------------
+        CHANNEL.messageBuilder(S2cWorldIdentityToken.class, id())
+                .encoder(S2cWorldIdentityToken::encode)
+                .decoder(S2cWorldIdentityToken::decode)
+                .consumerMainThread(S2cWorldIdentityToken::handle)
+                .add();
 
     }
 // Currently routes scope packets to all clients in the scope's dimension.
@@ -84,6 +95,25 @@ public final class SatchelNetwork {
         );
     }
 
+
+    /**
+     * RM_SAT_019 — push the world-identity token to one player.
+     *
+     * <p>
+     * Per-player, not per-scope/dimension like {@link #send(ScopeInfo, Object)} above — the token
+     * is world-level state, so it goes out via {@link PacketDistributor#PLAYER} keyed on the
+     * player's own connection rather than any dimension's audience. Called from
+     * {@code ServerForgeIngress} at login and again on each dimension change (see class docs on
+     * {@link S2cWorldIdentityToken}).
+     */
+    public static void sendToken(ServerPlayer player, UUID token) {
+        Satchel.requireServer();
+
+        CHANNEL.send(
+                PacketDistributor.PLAYER.with(() -> player),
+                new S2cWorldIdentityToken(token)
+        );
+    }
 
     private SatchelNetwork() {
     }

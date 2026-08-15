@@ -50,10 +50,42 @@ public final class LogicalFoundation {
             if (handlers != null) {
                 handlers.install(eventBus());
             }
+
+            checkExecutionPulseHealth(key, cfg);
         }
 
         OUT.debug("Installed " + configs.size() +
                 " jig configs for side " + side);
+    }
+
+    /**
+     * RM_SAT_013: boot-time half of the silent-inertness health-check. Catches the FRO_018 shape
+     * at the source instead of waiting for a human to notice gameplay isn't syncing or
+     * persisting: a jig that requires the persistence or networking capability but never enables
+     * execution-pulse participation ticks fine (if tick is on) but never flushes or syncs
+     * anything -- {@code ScopeEngine_Server.flushIfDirty()}/{@code scheduleSync()} and
+     * {@code ScopeEngine_Client.applyIncomingParcels()} only ever run from inside
+     * {@code onExecutionPulse} (see the Jig & Scope Runtime wiki page). No error, no exception --
+     * just quiet inertness. This only checks the two static config categories against each other
+     * at boot; it can't detect the separate, still-open question of whether the very first parcel
+     * push is proactive or purely interval-based -- see RM_SAT_013's own roadmap node log for
+     * that finding.
+     */
+    private void checkExecutionPulseHealth(JigKey<?> key, CompiledJigConfig cfg) {
+        var caps = cfg.policies().capabilities();
+        boolean needsFlushOrSync = caps.requiresPersistence() || caps.requiresNetworking();
+        boolean executionPulseOn = cfg.execution().lifecycle().participatesInExecutionPulse();
+
+        if (needsFlushOrSync && !executionPulseOn) {
+            OUT.warn(
+                    "[health-check] Jig " + key + " requires persistence and/or networking but "
+                            + "does not participate in the execution pulse -- it will tick (if "
+                            + "tick is enabled) but never flush or sync anything. Same silent-"
+                            + "inertness shape as FRO_018. Fix: call "
+                            + ".execution().lifecycle(...withExecutionPulse(true)) in this jig's "
+                            + "JigConfig."
+            );
+        }
     }
 
     /* =============================================================
@@ -148,6 +180,23 @@ public final class LogicalFoundation {
                         "Jig " + jigKey + " does not know scope " + scope.debugName()
                 )
         );
+    }
+
+    /**
+     * Non-throwing sibling of {@link #requireScopeInfo(JigKey, SatchelScope)}. "This jig doesn't
+     * know this scope yet" is a legitimate, expected state now that client-side scope recognition
+     * can be deferred (see {@code LevelResolver.resolveScope}'s RM_SAT_019 block/defer behavior) —
+     * a caller reached during that window (e.g. render code running before the world-identity
+     * token round-trip completes) should treat it the same as any other "not ready yet" state
+     * rather than crash. Type mismatches (wrong jig for this scope type) still throw via
+     * {@code JigKey.validateTypes} -- that's a real programming error, not a timing window.
+     */
+    public Optional<ScopeInfo> tryScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
+        JigInfo ji = requireJigInfo(jigKey);
+
+        JigKey.validateTypes(jigKey, ji.jig);
+
+        return ji.scopeInfo(scope);
     }
 
     /* =============================================================

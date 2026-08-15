@@ -2,7 +2,6 @@ package com.arryn.satchel.common.newconfig;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
-import com.arryn.satchel.common.bundle.builder.BundleFactories;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
@@ -42,18 +41,12 @@ public class TrackingModule {
         OUT.debug("Satchel Tracking Initializing");
 
         // ─────────────────────────────────────────────
-        // Bundle construction registry -- ScopeEngine_Server.create() reads BundleFactories,
-        // not the JigBundles.Schema below (that's for JigConfigValidator only). Same duality
-        // BorderModule.init() documents; both registrations are required, not redundant.
-        // Missing this call throws "No BundleFactory registered for ..." the first time this
-        // jig tries to create its bundle.
-        // ─────────────────────────────────────────────
-        BundleFactories
-                .registerFactory(BUNDLE, scope -> new SatchelBundle(scope, BUNDLE))
-                .registerFixture(TRACKER, TrackerFixture::new);
-
-        // ─────────────────────────────────────────────
-        // Build bundle schema
+        // Build bundle schema -- RM_SAT_012: ScopeEngine.create()/.get() now read this
+        // schema (bundleDecls) directly, so the separate BundleFactories.registerFactory(...)
+        // call this module used to also make is gone. It was genuinely redundant, not a second
+        // required registration -- see RM_SAT_012's roadmap node for the full history of that
+        // duality. BorderModule.init() (FrontierMode) still does the old double-registration;
+        // that's a follow-up for FrontierMode's own pass, not touched here.
         // ─────────────────────────────────────────────
 
         var trackerFixture =
@@ -118,6 +111,17 @@ public class TrackingModule {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
+        // ScopeEvent is posted on the ONE shared per-side SatchelEventBus, not a per-jig bus --
+        // every jig's onLoad() posts here, so this handler fires for every LevelJig scoped to
+        // the same dimension (e.g. Border's), not just Tracking's own. info.jigInfo() correctly
+        // reflects whichever jig actually posted THIS event; without this check we'd blindly use
+        // that (possibly foreign) jig to fetch TrackingModule.BUNDLE, which its engine never
+        // registered -- root cause of the RM_SAT_012 "No BundleDecl registered for
+        // satcheltracker:tracker_bundle" crash (diagnosed 2026-08-15, see that node's log).
+        if (!JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
         var jig = info.jigInfo().jig;
 
         var bundle = jig.getOrCreate(
@@ -140,6 +144,12 @@ public class TrackingModule {
     }
     private static void onScopeUnloaded(ScopeEvent.Unloaded event) {
         ScopeInfo info = event.info();
+
+        // Same shared-bus reasoning as onScopeLoaded above.
+        if (!JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
         var jig = info.jigInfo().jig;
 
         jig.ask(
@@ -158,6 +168,12 @@ public class TrackingModule {
     }
     private static void onScopeTick(ScopeEvent.Tick event) {
         ScopeInfo info = event.info();
+
+        // Same shared-bus reasoning as onScopeLoaded above.
+        if (!JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
         var jig = info.jigInfo().jig;
 
         jig.ask(

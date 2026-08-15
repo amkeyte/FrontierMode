@@ -62,9 +62,17 @@
 | Title | Status | Summary | Edit |
 |---|---|---|---|
 | [Bundle](wiki/satchel/architecture/bundle.md) | verified | Satchel's primary unit of state aggregation -- identity, lifecycle, and the scope/bundle/facet/stitch mental model. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/bundle.md) |
+| [Universal Sidedness Facade](wiki/satchel/architecture/facade-vision.md) | draft | Vision: Satchel as the exclusive path to Forge for every module -- every touch point, not just tick/lifecycle, guaranteed side-correct by construction rather than by thread discipline. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/facade-vision.md) |
 | [Fixture](wiki/satchel/architecture/fixture.md) | verified | The fixture/facet package -- Satchel's modder-facing unit of persistent state: lifecycle, field registration, save/load contract, isolation rules. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/fixture.md) |
 | [Jig & Strap Registration — History](wiki/satchel/architecture/jig-registration-break.md) | verified | Historical record of the compile-blocking jig/strap registration regression found and fixed on 2026-08-13 -- investigation notes, root causes, and the fix chain. Current mechanism is documented in runtime.md. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/jig-registration-break.md) |
 | [Jig & Strap Registration — Recovery Plan](wiki/satchel/architecture/jig-registration-recovery-plan.md) | verified | Proposed direction and first cleanup step to get FrontierMode compiling again against Satchel's newer declarative config system, deprecating the dead imperative Registrar/Strap pattern. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/jig-registration-recovery-plan.md) |
 | [Networking](wiki/satchel/architecture/net.md) | verified | Satchel's transport-only networking layer -- packet model, guarantees, forbidden behavior. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/net.md) |
+| [New Module Checklist](wiki/satchel/architecture/new-module-checklist.md) | draft | Footguns every new Satchel jig/module consumer has hit at least once -- register schema only, wire executionPulse if sync is needed, wire Forge listeners, respect LogicalSideContext thread discipline. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/new-module-checklist.md) |
 | [Persistence](wiki/satchel/architecture/persistence.md) | verified | Server-side per-bundle persistence architecture (Satchel 2.0) -- BundleSavedData, identity rules, dirty propagation. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/persistence.md) |
 | [Jig & Scope Runtime](wiki/satchel/architecture/runtime.md) | verified | The jig/scope/foundation tick-and-event delivery machinery underneath Satchel -- foundations, the dispatch chain, JigConfig registration, and the three jig kinds. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/runtime.md) |
+
+## satchel/spec
+
+| Title | Status | Summary | Edit |
+|---|---|---|---|
+| [Forge Integration & Sidedness Contract](wiki/satchel/spec/forge-integration.md) | verified | Which classes may touch Forge's event buses directly, which bus each legitimate touch-point uses, and the sidedness/thread-binding rules any code reaching into Satchel must follow. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/spec/forge-integration.md) |
