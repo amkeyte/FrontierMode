@@ -180,13 +180,34 @@ public final class BordersPathFacet {
         fixture.markPathDirty();
     }
 
-    public void fixLayers() {
+    /**
+     * RM_FRO_011: was a no-op that still reported success ({@code BorderCommandHandler
+     * .pathFixLayers} unconditionally told the command sender "Reconciled border layers with path
+     * order" even though this method did nothing) -- {@code moveUp}/{@code moveDown} are fully
+     * wired, op-exposed commands that reorder the *path list*, but {@link Border#layerIndex()} is
+     * immutable (only a fresh {@link BorderProposal} can set it), so reordering the path never
+     * touched the layerIndex values {@code DefaultBorderRules.getRelevant()} actually sorts by --
+     * an op could desync path order from difficulty order and the one command whose job is
+     * reconciling that silently didn't.
+     *
+     * <p>
+     * Still doesn't reorder layerIndex to match path order -- that needs a real design pass, not
+     * a mechanical fix folded into this hardening pass: {@link Border#layerIndex()} can only be
+     * changed via a fresh {@link BorderProposal} through {@link BordersCrudFacet#applyProposal},
+     * which now (also RM_FRO_011) rejects a layerIndex that collides with any other border's --
+     * correct for a single ad-hoc {@code /border add}/{@code /border transform}, but a naive
+     * in-place reassignment of every path member's layerIndex to 0..n-1 can transiently collide
+     * with an off-path border's existing layerIndex partway through, or with another path member
+     * not yet reassigned. That needs either a two-pass reassignment or a temporary validation
+     * bypass, neither of which is a change to make blind, without a real build to verify against.
+     * Reports honestly instead: no mutation, no false "reconciled" success.
+     *
+     * @return {@code false} — always, until the reorder logic above is actually implemented.
+     */
+    public boolean fixLayers() {
         fixture.requireServerSide();
 
-        // TODO: reorder layerIndex values to match path order
-        // Currently a no-op by design.
-
-        fixture.markPathDirty();
+        return false;
     }
 
 }

@@ -19,7 +19,6 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
-@SuppressWarnings("'getProposal()' is deprecated since version 1.21.1 and marked for removal")
 @Mod(FrontierMode.MODID)
 public final class FrontierMode {
 

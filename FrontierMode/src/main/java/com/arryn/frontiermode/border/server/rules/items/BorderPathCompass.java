@@ -75,6 +75,19 @@ public final class BorderPathCompass {
                 return stack;
             }
         }
+
+        // RM_FRO_013: was main-inventory-only -- BordersTriggers.updateFinderItems polls this
+        // every 5 ticks via giveOrUpdate, so a compass sitting in the offhand slot
+        // (Inventory.offhand, a separate field from .items in Forge 1.20.1's Inventory) was
+        // reported as ItemStack.EMPTY on every poll, and giveOrUpdate granted a brand new one
+        // each time -- a live, trivially reproducible item-duplication bug (move the compass to
+        // offhand, wait, watch the inventory fill with duplicates).
+        for (ItemStack stack : serverPlayer.getInventory().offhand) {
+            if (isFrontierCompass(stack)) {
+                return stack;
+            }
+        }
+
         return ItemStack.EMPTY;
     }
 

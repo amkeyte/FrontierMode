@@ -77,6 +77,23 @@ class RenderContext {
         return Optional.of(CACHE.computeIfAbsent(scope, RenderContext::new));
     }
 
+    /**
+     * RM_FRO_012: package-visible eviction hook, called from {@code Rendering.onClientUnload}
+     * (subscribed to {@code ScopeEvent.Unloaded} via {@code BorderModule}'s {@code EventHandlers}).
+     * Before this, {@link #CACHE} only ever grew -- {@link #getInstance()}'s {@code computeIfAbsent}
+     * had no corresponding removal anywhere, so every world a client visited in one session left
+     * one {@code RenderContext} (plus the two maps inside its own {@code BordersRevisionMonitor})
+     * parked here for the life of the JVM. {@code ScopeEvent.Unloaded} already fires on both sides
+     * for exactly this purpose (see {@code ScopeLifecycleDispatcher}'s own javadoc: "the final
+     * guaranteed safe access point for the scopeInfo and any data associated with it") -- this was
+     * simply never subscribed to on the client. No Satchel-side change needed: this class is
+     * deliberately not persisted/bundle state (see the Border wiki page), so eviction just drops
+     * the map entry, nothing to flush.
+     */
+    static void evict(LevelScope scope) {
+        CACHE.remove(scope);
+    }
+
     //fixture has to lazy load because render tick will be called
     //before satchel is available
     private Optional<BordersFixture> fixture = Optional.empty();

@@ -65,6 +65,22 @@ compass to offhand through a full finder-items poll cycle and verifying no dupli
 it's a real usable exception type with at least one real throw site). All three are cheap to
 verify directly, no multi-session play test needed.
 
+- 2026-08-16: **Implemented by Lead Dev (Curtis), unverified — no build access this session.**
+  - **Item 1 fixed as described:** `BordersFixture.loadBorders()` now wraps each entry's
+    `Border.load(...)` in a try/catch, logs and skips a failing entry via `OUT.warn`, and keeps
+    hydrating the rest of the list — matches Persistence's documented "Invalid fixture NBT → Log +
+    skip" contract instead of aborting the whole list on one bad entry.
+  - **Item 2 fixed as described:** `BorderPathCompass.find()` now also scans
+    `ServerPlayer.getInventory().offhand` after the existing main-inventory (`.items`) scan.
+  - **Item 3: deleted**, not built out — grep confirms no remaining reference
+    (`border/common/util/BordersAPIException.java` removed; the now-empty `common/util/`
+    directory was left in place, harmless for the build).
+  - **Unverified this session** — no Forge/Mojang maven access (confirmed via curl). This node's
+    own done-bar is cheap to verify directly (a deliberately-corrupted save entry; one
+    offhand-compass poll cycle; a grep) — see
+    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md). Singleplayer/integrated is
+    sufficient; nothing here crosses a client/server network boundary.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

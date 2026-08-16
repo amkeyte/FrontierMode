@@ -115,6 +115,47 @@ standard for anything touching command-reachable mutation. The housekeeping item
 stakes — compiling clean and a quick manual check (tab-complete shows `@none`, no leftover
 boilerplate config values referenced anywhere) is enough for those specifically.
 
+- 2026-08-16: **Implemented by Lead Dev (Curtis), unverified — no build access this session.**
+  - **Item 1 fixed as described:** `BorderAPI.transformBorder` now only calls
+    `proposal.center(...)`/`.radius(...)` when the corresponding argument is non-null, leaving
+    `proposal.insert(border)`'s seeded value alone otherwise. All five `/border transform` forms
+    should now work, not just the two that supplied both center and radius.
+  - **Item 2 fixed as described:** `BordersCrudFacet.validateProposal` now rejects radius outside
+    `BorderConstants.MIN_RADIUS`/`MAX_RADIUS` and rejects a `layerIndex` colliding with a
+    *different* border's (a proposal updating its own border via `insert()` is correctly excluded
+    from colliding with itself). `applyProposal`'s failure message improved slightly (was the
+    unconditional "Something went wrong").
+  - **Item 3 — took the alternative the node's text explicitly sanctioned, not the reorder
+    implementation.** Actually reordering `layerIndex` to match path order turns out to interact
+    badly with item 2's new collision check: a naive in-place reassignment of every path member to
+    `0..n-1` can transiently collide with an off-path border's existing `layerIndex`, or with
+    another path member not yet reassigned, partway through — fixing that needs a real two-pass
+    (or bypass) design, not something safe to guess at without a real build to verify against.
+    `BordersPathFacet.fixLayers()` now returns `boolean` (`false`, always, until that design
+    lands) instead of unconditionally returning `void` and leaving the caller to assume success;
+    `BorderCommandHandler.pathFixLayers` reports "No changes made" instead of the previous false
+    "Reconciled" positive. Flagging this as a real follow-up worth its own roadmap node once
+    someone designs the reorder properly — not filing that node myself since it's a design call,
+    not a mechanical one, and the project owner said not to route around architectural decisions
+    without a ticket.
+  - **`@relevant` message fixed**, but scoped narrower than "blank selector" — the false-negative
+    only actually reaches the player through `BorderCommands.applySelector`'s shared "no borders
+    matched" path (delete/transform/info all route through it), so that's the one place patched:
+    empty results specifically from `Mode.RELEVANT` now say "@relevant isn't implemented yet (see
+    RM_FRO_006)" instead of the generic message; every other selector mode's empty-result message
+    is unchanged (those are honest).
+  - **Housekeeping, all done:** `Config.java` stripped to just the empty, registered `SPEC` (the
+    stock `LOG_DIRT_BLOCK`/`MAGIC_NUMBER`/`magicNumberIntroduction`/`items` fields and their
+    `onLoad` handler deleted — confirmed via grep that nothing outside `Config.java` read any of
+    them). Both stray `@SuppressWarnings` deleted (`FrontierMode.java`, and `Config.java`'s went
+    with the `onLoad` method/`@EventBusSubscriber` annotation it was attached to — nothing left in
+    that class to subscribe). `@none` added to `BorderSelectorArgumentType.listSuggestions()`.
+  - **Unverified this session** — no Forge/Mojang maven access (confirmed via curl). Real
+    `gradlew build` plus the command checklist in
+    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md) still owed before this counts as
+    resolved. Singleplayer/integrated is sufficient for all of this node's testing — nothing here
+    crosses a client/server network boundary the way `RM_SAT_020` does.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

@@ -114,6 +114,44 @@ public final class ServerForgeIngress {
     }
 
     /* =============================================================
+     * Scope discovery — PLAYER (RM_SAT_020)
+     * ========================================================== */
+
+    // Two separate @SubscribeEvent methods listen to PlayerLoggedInEvent (this one, and
+    // onPlayerLoggedIn below for the world-identity token sync) -- deliberately kept as two
+    // clearly-named handlers for two different concerns, rather than folding scope discovery into
+    // the token-sync method, per this project's "one clearly-named place per concern" convention
+    // (see Forge Integration & Sidedness Contract). Forge dispatches to both without issue.
+    @SubscribeEvent
+    public static void onPlayerScopeDiscover(PlayerEvent.PlayerLoggedInEvent e) {
+        if (!(e.getEntity() instanceof ServerPlayer player)) return;
+
+        BOOTER.bindFoundation();
+        ensureInstalled();
+
+        // No PlayerJigConfig is registered by any module yet (RM_SAT_020 builds the jig kind
+        // itself; RM_FRO_006 is the first planned real consumer) -- introduceSource() degrades
+        // gracefully when no jig recognizes the source (see LogicalFoundation.introduceSource),
+        // same as it would for any other as-yet-unconsumed source type. Safe to wire now, ahead
+        // of a real consumer, exactly as RM_SAT_020 calls for.
+        Satchel.require().introduceSource(player);
+    }
+
+    // Deliberately does NOT hook PlayerEvent.PlayerChangedDimensionEvent to
+    // introduceSource/tryRemoveSource -- a PlayerScope has to survive a dimension change intact
+    // (see RM_SAT_020's design log: buffs and border-compass attunement are identity-tied, not
+    // level-derivable), unlike LevelScope, which is legitimately torn down and re-resolved per
+    // dimension. Only login/logout affect this scope's lifecycle.
+    @SubscribeEvent
+    public static void onPlayerScopeUnload(PlayerEvent.PlayerLoggedOutEvent e) {
+        if (!(e.getEntity() instanceof ServerPlayer player)) return;
+
+        BOOTER.bindFoundation();
+
+        Satchel.require().tryRemoveSource(player);
+    }
+
+    /* =============================================================
      * World-identity token sync (RM_SAT_019)
      * ========================================================== */
 

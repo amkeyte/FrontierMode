@@ -86,6 +86,34 @@ for the life of the JVM.
 session, confirm only one live entry remains) — not just a compile check, matching this project's
 standard for anything touching client lifecycle.
 
+- 2026-08-16: **Implemented by Lead Dev (Curtis), unverified — no build access this session.**
+  - **Item 1 fixed as described:** `GrowthTriggerRenderer.debugFlame()` deleted outright (not
+    gated behind a flag — nothing about its prior form looked intentional, matching this node's
+    own read).
+  - **Item 2 fixed as described, via a new public seam rather than direct package access:**
+    `RenderContext` is package-private in `border.client.render.level`, but `Rendering` (the
+    subscriber home) lives in `com.arryn.frontiermode` — a different package — so `Rendering`
+    can't reach `RenderContext` directly. Added `RenderContext.evict(LevelScope)` (package-visible,
+    same as the node's fix direction asked for) plus a public
+    `GrowthTriggerRenderer.onUnload(LevelScope)` seam that calls it (mirroring how `tick()` is
+    already `GrowthTriggerRenderer`'s public per-tick seam for `Rendering.onClientTick`).
+    `Rendering.onClientUnload` subscribes to `ScopeEvent.Unloaded` (wired into `BorderModule`'s
+    `EventHandlers` alongside the existing `Tick` subscription), guards client-side the same way
+    `onClientTick` does, and defensively `instanceof LevelScope`-checks the event's scope (skip,
+    don't crash, if a future client-applicable jig kind ever shares this bus) before calling the
+    new seam. `BordersRevisionMonitor`'s own maps go away for free once the owning `RenderContext`
+    is evicted, as the node's fix direction predicted — no separate cleanup needed there.
+  - **Not yet carried into [New Module
+    Checklist](../../wiki/satchel/architecture/new-module-checklist.md)** the way this node's own
+    doc-follow-up log entry (above) said it should be — that page already has item 6 from the
+    doc-follow-up pass; didn't re-touch it since nothing about the actual fix changed the
+    guidance already written there.
+  - **Unverified this session** — no Forge/Mojang maven access (confirmed via curl). This node's
+    own done-bar specifically requires real play (no flame particle during normal play; visiting
+    two worlds in one client session leaves only one live `CACHE` entry) — see
+    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md). Singleplayer/integrated is
+    sufficient; nothing here crosses a client/server network boundary.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

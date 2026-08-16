@@ -35,6 +35,10 @@ public final class BorderSelectorArgumentType
         builder.suggest("@coord");
         builder.suggest("@all");
         builder.suggest("@relevant");
+        // RM_FRO_011: @none is a real mode BorderSelector.parse() accepts (resolves to an empty
+        // list unconditionally) but never showed up in tab-complete -- the one selector mode
+        // that never appeared here.
+        builder.suggest("@none");
 
         return builder.buildFuture();
     }

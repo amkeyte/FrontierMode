@@ -83,6 +83,43 @@ lifecycle/ingress needs real-play confirmation, not a compile check alone. Concr
   than an observable player-facing effect — log that explicitly rather than treating "nothing
   visibly changed" as confirmation of anything.
 
+- 2026-08-16: **Implemented by Lead Dev (Curtis), unverified — no build access this session.**
+  Built fresh against `LevelJig`'s current pattern, not a resurrection of the old commented-out
+  files (confirmed those predate both the jig/requireJig rename and the current
+  `SatchelScope`/`ScopeCoupler` shape, exactly as this node's design log said):
+  - `PlayerJig`, `PlayerResolver`, `PlayerScope`, `PlayerScopeCoupler`
+    (`common/jig/player/*`) — mirror `LevelJig`/`LevelResolver`/`LevelScope`/`LevelScopeCoupler`
+    exactly. `PlayerScope` holds a `ServerPlayer` (not the abstract `Player`); UUID is derived
+    from the player's own persistent UUID, deliberately not folded with the world-identity token
+    (a player's identity isn't level-scoped).
+  - `PlayerJigConfig` (`common/newconfig/newnew/`) — mirrors `LevelJigConfig`'s four-category-lens
+    shape. Defaults `sideApplicability` to `SERVER` (not `LevelJigConfig`'s default, which Border
+    overrides to `BOTH`) since every named consumer (RM_FRO_006) is server-authoritative. No
+    `referenceLevel` default — deliberately left for a future consumer to supply, since unlike
+    `LevelScope` there's no single `Level` a `PlayerScope` is intrinsically tied to. Not registered
+    anywhere yet — no module calls `Satchel.registerJigConfig` with one, matching "no real
+    consumer yet" from this node's own text.
+  - Ingress wiring in `ServerForgeIngress`: `PlayerEvent.PlayerLoggedInEvent` →
+    `introduceSource(player)`, `PlayerEvent.PlayerLoggedOutEvent` → `tryRemoveSource(player)`.
+    Deliberately does **not** hook `PlayerChangedDimensionEvent` — a `PlayerScope` has to survive
+    a dimension change intact, unlike `LevelScope`. No separate "per-player tick source" was
+    added: the existing shared `TickEvent.ServerTickEvent` → `foundationLifecycle().pulse()` path
+    already walks every `JigInfo`/`ScopeInfo` including a future `PlayerJig`'s, the same way it
+    already does for `LevelJig` — nothing level-specific in that path.
+  - Deleted `PlayerLoadEvent`/`PlayerTickEvent`/`PlayerUnloadEvent` (`common/jig/player/*`) —
+    fully commented-out scaffolding referencing a `Lifecycle.Domain`/`ISatchelLoadEvent` event
+    system that no longer exists (current model is the generic `ScopeEvent.Loaded`/`Tick`/
+    `Unloaded` posted via `SatchelEventBus`, already sufficient for any future `PlayerJig`
+    consumer — no per-domain event classes needed). Not mentioned in this node's own rebuild-shape
+    description, and pure dead weight the same way `RM_FRO_009`'s `BorderView` is.
+  - **Not built:** any bundle/fixture or module `init()` — that's `RM_FRO_006`'s job per this
+    node's own text ("this node's own work is comparatively small... wire registration into
+    `BorderModule.init()`").
+  - **Unverified this session** — no Forge/Mojang maven access in this sandbox (confirmed via
+    curl). Real build + the dedicated-server login/tick/dimension-change/logout cycle from this
+    node's done-bar (above) is owed before this counts as resolved — see
+    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md).
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

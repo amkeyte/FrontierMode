@@ -51,6 +51,17 @@ independent. Pick order freely, or run in parallel.
 
 ## Log
 
+- 2026-08-16: **All five items implemented by Lead Dev (Curtis), unverified.** RM_SAT_020,
+  RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013 — see each node's own log for what changed.
+  One deviation from the letter of a node's fix direction, flagged rather than silently decided:
+  RM_FRO_011 item 3 (`fixLayers`) took the "honest message instead of a false positive" branch
+  the node's own text explicitly sanctioned as an acceptable alternative, not the full
+  layerIndex-reorder implementation — the reorder turned out to interact badly with this same
+  pass's new collision validation (item 2), and designing around that safely isn't a call to make
+  without a real build to verify against. Not filed as its own ticket — a design question for
+  Architect/PM to pick up if it's worth prioritizing, not blocking. Real build + the
+  [FRO_023](FRO_023_playtest-checklist-batch2.md) checklist still owed on all five before any of
+  this counts as resolved.
 - 2026-08-16: Lead Dev (Curtis) confirmed this session's sandbox has no Forge/Mojang maven access
   (curl to maven.minecraftforge.net/files.minecraftforge.net/libraries.minecraft.net all 403 from
   the proxy) — can't run a real `gradlew build` or playtest here, which RM_FRO_011/012/013's

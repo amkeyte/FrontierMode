@@ -81,7 +81,16 @@ public final class BordersFixture
 
         ListTag list = root.getList(KEY_BORDERS, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            borders.add(Border.load(this, (CompoundTag) t));
+            // RM_FRO_013: Persistence's own documented contract is "Invalid fixture NBT -> Log +
+            // skip" -- this loop didn't follow it. A single malformed or hand-edited border entry
+            // (missing id, wrong tag type, a future format change) threw during Border.load's
+            // tag.getUUID("id")/etc. and aborted hydration of the *entire* list for this world,
+            // not just the one bad entry.
+            try {
+                borders.add(Border.load(this, (CompoundTag) t));
+            } catch (RuntimeException e) {
+                OUT.warn("[Border] Skipping malformed border entry during load: " + e);
+            }
         }
 
 

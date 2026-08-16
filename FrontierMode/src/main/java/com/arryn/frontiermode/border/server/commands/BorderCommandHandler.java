@@ -270,7 +270,19 @@ public final class BorderCommandHandler {
         var path = BorderAPI.borders(level)
                 .map(b -> b.PATH)
                 .orElseThrow();
-        path.fixLayers();
+
+        // RM_FRO_011: fixLayers() no longer claims success it didn't earn -- see its own doc for
+        // why this is still a real no-op rather than a false "reconciled" positive.
+        boolean reconciled = path.fixLayers();
+
+        if (!reconciled) {
+            ctx.getSource().sendSuccess(
+                    () -> msg("No changes made -- layer/path reconciliation isn't implemented yet."),
+                    false
+            );
+            return 0;
+        }
+
         ctx.getSource().sendSuccess(
                 () -> msg("Reconciled border layers with path order."),
                 false

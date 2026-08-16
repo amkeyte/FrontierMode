@@ -255,9 +255,22 @@ public final class BorderAPI {
                 );
 
         var proposal = borders.CRUD.getProposal();
-        proposal.insert(border)
-                .center(newCenter)
-                .radius(newRadius);
+
+        // RM_FRO_011: proposal.insert(border) seeds center/radius from the existing border first
+        // -- a null newCenter/newRadius means "leave that seeded value alone," not "pass null
+        // through." BorderProposal.radius(int) takes a primitive, so a null Integer auto-unboxes
+        // and throws NPE before this method is even entered if passed directly (hit by
+        // /border transform <selector> here and <selector> <pos>, both of which omit radius);
+        // a null center reaches Border's constructor instead, which requireNonNull()s it (hit by
+        // /border transform <selector> radius <r>, which omits position). Only the two forms that
+        // supply both center and radius worked before this fix.
+        proposal.insert(border);
+        if (newCenter != null) {
+            proposal.center(newCenter);
+        }
+        if (newRadius != null) {
+            proposal.radius(newRadius);
+        }
 
         borders.CRUD.validateProposal(proposal);
         return borders.CRUD.applyProposal(proposal);

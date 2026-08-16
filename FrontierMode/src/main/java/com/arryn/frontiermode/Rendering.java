@@ -4,6 +4,7 @@ import com.arryn.frontiermode.border.client.render.level.GrowthTriggerRenderer;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.SatchelEvent;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import net.minecraft.world.level.block.LevelEvent;
@@ -75,5 +76,29 @@ public class Rendering {
 //                mc.player.getZ(),
 //                0.0, 0.05, 0.0
 //        );
+    }
+
+    /**
+     * RM_FRO_012: newly subscribed to {@code ScopeEvent.Unloaded} via {@code BorderModule}'s
+     * {@code EventHandlers}, alongside the existing {@code Tick} subscription above --
+     * {@code RenderContext.CACHE} was never evicted before this; see that class's own doc for the
+     * full reasoning. Same client-side guard as {@link #onClientTick}, same shared-bus caveat
+     * (this fires for every LevelJig scope unload on this dimension, not just Border's -- eviction
+     * is idempotent, so that's harmless here).
+     */
+    public static void onClientUnload(ScopeEvent.Unloaded event) {
+
+        if (Satchel.foundation()
+                .filter(f -> f.side().isClient())
+                .isEmpty()) return;
+
+        // Defensive instanceof rather than a blind info().scopeAs() cast: this handler is
+        // subscribed on the shared per-side SatchelEventBus, so it fires for ScopeEvent.Unloaded
+        // from ANY jig, not just Border's LevelJig -- harmless to skip a non-LevelScope quietly
+        // rather than risk a ClassCastException if a future client-applicable jig kind is ever
+        // added.
+        if (!(event.info().scope() instanceof LevelScope scope)) return;
+
+        GrowthTriggerRenderer.onUnload(scope);
     }
 }

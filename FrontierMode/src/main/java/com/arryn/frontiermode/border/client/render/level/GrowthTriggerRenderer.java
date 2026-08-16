@@ -4,8 +4,6 @@ import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.DefaultBorderRules;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -35,29 +33,29 @@ public final class GrowthTriggerRenderer {
         radius = r;
     }
 
-    private static void debugFlame() {
-        Minecraft mc = Minecraft.getInstance();
-        ClientLevel level = mc.level;
-
-        if (mc.player == null) {
-            OUT.info("Player was null");
-            return;
-        }
-
-        mc.particleEngine.createParticle(
-                ParticleTypes.FLAME,
-                mc.player.getX(),
-                mc.player.getY() + 2,
-                mc.player.getZ(),
-                0.0, 0.1, 0.0
-        );
+    /**
+     * RM_FRO_012: entry point for {@code Rendering.onClientUnload} (subscribed to
+     * {@code ScopeEvent.Unloaded} via {@code BorderModule}'s {@code EventHandlers}) to evict this
+     * level's {@link RenderContext} -- {@code Rendering} lives in a different package and
+     * {@code RenderContext} is package-private by design (client-render-only state, not meant to
+     * be touched outside this package), so this is the public seam, same as {@link #tick()} is
+     * for the per-tick call.
+     */
+    public static void onUnload(LevelScope scope) {
+        RenderContext.evict(scope);
     }
 
     /**
      * Called once per client tick (END phase).
      */
     public static void tick() {
-        debugFlame();
+        // RM_FRO_012: was `debugFlame()`, called unconditionally here first thing, every client
+        // tick, with no flag or config gate -- spawned a FLAME particle above the player's head
+        // visible to every player, always. Rendering.onClientTick already had an almost identical
+        // block commented out a few lines below its own call site, a strong signal this was meant
+        // to be disabled the same way and got missed when the call site moved. Deleted outright
+        // rather than gated behind a debug flag -- nothing about its prior form looked
+        // intentional (see RM_FRO_012's roadmap node).
 
         RenderContext rc = RenderContext.getInstance()
                 .filter(rcx -> !rcx.standby())

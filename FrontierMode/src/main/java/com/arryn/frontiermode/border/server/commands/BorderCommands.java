@@ -89,9 +89,17 @@ public final class BorderCommands {
         }
 
         if (borders.isEmpty()) {
-            ctx.getSource().sendFailure(
-                    Component.literal("[Border] No borders matched selector.")
-            );
+            // RM_FRO_011: @relevant is BorderSelector's default when no selector text is given
+            // at all (see BorderSelector.parse), but resolveRelevant() is stubbed to List.of()
+            // (blocked on RM_FRO_006 -- BorderAPI.getRelevant(Player) is itself a placeholder).
+            // The generic "no borders matched" message is a false negative for this specific
+            // case: it reads like the player really is outside every border, when the real
+            // reason is that the feature isn't built yet. Every other selector mode's "no match"
+            // is a real, honest result.
+            String message = selector.mode == BorderSelectorResult.Mode.RELEVANT
+                    ? "[Border] @relevant isn't implemented yet (see RM_FRO_006) -- use an explicit selector."
+                    : "[Border] No borders matched selector.";
+            ctx.getSource().sendFailure(Component.literal(message));
             return 0;
         }
 
