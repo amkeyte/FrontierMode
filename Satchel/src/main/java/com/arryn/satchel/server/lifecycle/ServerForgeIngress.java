@@ -159,6 +159,13 @@ public final class ServerForgeIngress {
         BOOTER.bindFoundation();
         ensureInstalled();
 
+        // isReady() gate: no-op the actual jig tick pulse until Satchel is ready for this side.
+        // In practice this never actually skips server-side -- the token is bound synchronously
+        // in onLevelDiscover, before any source is introduced, so by the time any tick can fire
+        // at all a level has already loaded and the server is ready. Kept for symmetry with the
+        // client and as a real (not just documented) guarantee rather than an assumption.
+        if (!Satchel.isReady()) return;
+
         LogicalFoundation foundation = Satchel.require();
 
         // Drive Satchel-internal execution.

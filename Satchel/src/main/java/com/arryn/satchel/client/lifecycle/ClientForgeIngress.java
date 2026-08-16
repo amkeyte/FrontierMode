@@ -114,7 +114,16 @@ public final class ClientForgeIngress {
         BOOTER.bindFoundation();
         ensureInstalled();
 
+        // Exception path, per the isReady() gate below: this is what MAKES the client ready --
+        // it must run every tick regardless, since it's the thing that detects the token
+        // transitioning from absent to present and reacts to it.
         reannounceLevelIfTokenJustArrived();
+
+        // isReady() gate: no-op the actual jig tick pulse until Satchel is ready for this side.
+        // Nothing meaningful would happen anyway (no scope has been registered yet if we're not
+        // ready), but this makes "nothing ticks until Satchel is good" a real, enforced
+        // guarantee rather than something that happens to be true because nothing's registered.
+        if (!Satchel.isReady()) return;
 
         LogicalFoundation foundation = Satchel.require();
 

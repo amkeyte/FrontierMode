@@ -7,7 +7,6 @@ import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.server.commands.BorderCommands;
 import com.arryn.frontiermode.border.server.rules.BordersTriggers;
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.bundle.builder.BundleFactories;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.newconfig.EventHandlers;
@@ -32,19 +31,13 @@ public final class BorderModule {
     public static void init() {
         OUT.info("FrontierMode - Border Module Initiating.");
 
-        // Still the live bundle/fixture-construction registry -- JigBundles.Schema below
-        // is required by JigConfigValidator but isn't consumed for actual construction
-        // (ScopeEngine.create() goes through BundleFactories, not bundleDecls). Keep both.
-        BundleFactories
-                .registerFactory(
-                        FrontierKeys.BORDERS_BUNDLE,
-                        scope -> new BordersBundle(scope, FrontierKeys.BORDERS_BUNDLE))
-                .registerFixture(
-                        FrontierKeys.BORDERS,
-                        BordersFixture::new);
-
         // ─────────────────────────────────────────────
-        // Bundle schema (required by JigConfigValidator; mirrors the registration above)
+        // Bundle schema -- FRO_021: RM_SAT_012 consolidated ScopeEngine.create()/.get() onto
+        // this schema (bundleDecls) directly; the separate BundleFactories.registerFactory(...)
+        // call this module used to also make was dead weight (confirmed via grep -- nothing
+        // anywhere calls BundleFactories.entryFor(...) anymore) and has been removed, mirroring
+        // TrackingModule.init()'s already-cleaned state. See RM_SAT_012's roadmap node for the
+        // full history of that duality.
         // ─────────────────────────────────────────────
         var bordersFixture =
                 new JigBundles.FixtureDecl<BordersFixture>(

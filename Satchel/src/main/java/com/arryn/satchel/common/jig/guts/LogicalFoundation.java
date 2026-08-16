@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.lifecycle.*;
 import com.arryn.satchel.common.newconfig.EventHandlers;
 import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
@@ -25,6 +26,31 @@ public final class LogicalFoundation {
 
     public LogicalSide side() {
         return side;
+    }
+
+    /**
+     * Whether this foundation is safe to build on yet -- the general readiness gate any
+     * Satchel-dependent code (present or future) should check before doing anything, rather than
+     * each feature reinventing its own "am I too early" logic.
+     *
+     * <p>
+     * Server: trivially true once this instance exists. {@code ServerForgeIngress} binds the
+     * world-identity token synchronously, before introducing any source, in the same handler that
+     * is this foundation's first real opportunity to do anything -- there's no observable window
+     * where a server foundation exists but isn't fully ready.
+     *
+     * <p>
+     * Client: additionally requires the world-identity token (RM_SAT_019) to have been received
+     * and bound. Before that, a client-side {@code LevelScope}'s identity isn't stable yet --
+     * see {@code LevelScope.determineUUID}, which throws {@code SatchelException.NotReady} rather
+     * than compute a value once this is the enforced precondition, instead of the earlier design's
+     * silent dimension-only fallback.
+     */
+    public boolean isReady() {
+        if (side == LogicalSide.CLIENT) {
+            return WorldIdentityContext.current().isPresent();
+        }
+        return true;
     }
 
     /* =============================================================

@@ -56,6 +56,24 @@ public final class BorderAPI {
                 foundation().requireJigInfo(FrontierKeys.BORDERS_JIG).jig;
     }
 
+    /**
+     * FRO_021 investigated whether this bypasses {@code LevelResolver}'s token-aware defer logic
+     * in a way that matters: it does bypass it, but its only real call site
+     * ({@code BorderCommandHandler.debugCreate}) is server-only, and the server never defers --
+     * {@code ServerForgeIngress} binds the world-identity token before introducing any source, so
+     * {@code LevelScope}'s UUID is already stable (token-folded) the first time this could
+     * possibly run.
+     * <p>
+     * Since the isReady()/{@code SatchelException.NotReady} redesign, this can throw if called
+     * before {@code Satchel.isReady()} -- never actually happens from this method's real
+     * (server-only) call site, per the above, but it does happen for the other caller of
+     * {@code new LevelScope(...)}-shaped construction: {@link #borders(Level)} below, which
+     * checks {@code Satchel.isReady()} proactively before calling this, precisely so it never
+     * has to find out the hard way. If a genuinely client-side caller of this method specifically
+     * is ever added, it needs the same proactive check -- see {@code RenderContext.getInstance()}
+     * for the pattern (it hit the real version of this problem before the redesign: two different
+     * UUIDs for the same level, before vs. after the token, corrupting a long-lived cache key).
+     */
     public static LevelScope scope(Level level) {
         return new LevelScope(level);
     }
@@ -82,6 +100,21 @@ public final class BorderAPI {
     }
 
     public static Optional<BordersFixture> borders(Level level) {
+        // isReady() gate: scope(level) constructs a LevelScope directly (not through
+        // LevelResolver), and LevelScope now throws SatchelException.NotReady rather than
+        // silently falling back if the world-identity token isn't bound yet -- see the
+        // isReady()/NotReady redesign this superseded (FRO_021 originally fixed this window with
+        // tryScopeInfo alone, before LevelScope's own fallback was removed). This is the one
+        // proactive check that keeps this method's whole body safe to run early, same "standby,
+        // don't crash" philosophy as the two checks below it.
+        if (!Satchel.isReady()) {
+            OUT.debug(
+                    "[BorderAPI] borders(): Satchel not ready yet → Optional.empty "
+                            + "level=" + level.dimension().location()
+            );
+            return Optional.empty();
+        }
+
         LevelScope scope = scope(level);
 
         // RM_SAT_019: client-side scope recognition can now be legitimately deferred (waiting on

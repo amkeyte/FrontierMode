@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.BordersRevisionMonitor;
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.level.LevelResolver;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -56,7 +57,22 @@ class RenderContext {
         // isNotClientSide() above: "context not currently available" is a legitimate skip, not an
         // error. See FRO_016.
         if (level == null) return Optional.empty();
-        LevelScope scope = new LevelScope(level);
+
+        // FRO_021: route through LevelResolver instead of constructing LevelScope directly.
+        // RM_SAT_019 made a client-side LevelScope's UUID depend on the world-identity token
+        // (present -> folded in; absent -> dimension-only fallback) -- and this method's result
+        // is used as a long-lived Map key (CACHE below), not a one-off value. Constructing a
+        // LevelScope directly here would mint a dimension-only-UUID key before the token
+        // arrives, then a DIFFERENT token-folded-UUID "key" for the same real level afterward;
+        // since ASatchelScope's equals()/hashCode() delegate to that UUID, CACHE would treat the
+        // two as unrelated keys and silently fork a second RenderContext for one level,
+        // discarding the first's revisionMonitor/cachedBorders state. LevelResolver.resolveScope
+        // returns null during that same pre-token window (see its own RM_SAT_019 block/defer
+        // logic) -- treating that as "not ready yet" here is consistent with this method's
+        // existing FRO_016 handling and Optional<RenderContext> contract, and guarantees this
+        // method never mints a cache key under a UUID that's about to change out from under it.
+        LevelScope scope = LevelResolver.resolveScope(level);
+        if (scope == null) return Optional.empty();
 
         return Optional.of(CACHE.computeIfAbsent(scope, RenderContext::new));
     }

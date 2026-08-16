@@ -61,6 +61,18 @@ public final class Satchel {
         return FOUNDATIONS.containsKey(side);
     }
 
+    /**
+     * The general readiness gate for the current thread's side -- false if no foundation is
+     * installed yet at all, or if one is installed but {@link LogicalFoundation#isReady()} says
+     * it's not safe to build on yet (see that method's docs for what "ready" means per side).
+     * Callers that might run before readiness (rendering, commands, anything outside Satchel's
+     * own ingress) should check this proactively and skip gracefully rather than let a
+     * {@code SatchelException.NotReady} surface as their first signal.
+     */
+    public static boolean isReady() {
+        return foundation().map(LogicalFoundation::isReady).orElse(false);
+    }
+
     /* =============================================================
      * Installation / activation
      * ========================================================== */

@@ -134,6 +134,29 @@ public abstract class SatchelException extends RuntimeException {
         }
     }
 
+    /**
+     * Thrown when code touches Satchel-dependent state before {@code Satchel.isReady()} for the
+     * calling side. On the client this specifically means: before the world-identity token
+     * (RM_SAT_019) has been received and bound. Deliberately distinct from {@link ScopeNotReady}
+     * (a specific, already-known scope hasn't converged to LOADED yet) -- this is "there is no
+     * valid scope identity to even ask about yet," a precondition failure, not a lifecycle-phase
+     * one. Callers that can run before readiness (rendering, commands, anything outside
+     * Satchel's own ingress) are expected to check {@code Satchel.isReady()} proactively and skip
+     * gracefully; this exception is the safety net for the ones that don't.
+     */
+    public static final class NotReady extends SatchelException {
+        private static final String PREAMBLE =
+                "Satchel is not ready yet: ";
+
+        public NotReady(String message) {
+            super(PREAMBLE + message);
+        }
+
+        public NotReady(String message, Throwable cause) {
+            super(PREAMBLE + message, cause);
+        }
+    }
+
     public static final class BadLogicalSide extends SatchelException {
         private static final String PREAMBLE =
                 "Unexpected logical side.";

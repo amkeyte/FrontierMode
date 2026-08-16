@@ -1,14 +1,12 @@
 package com.arryn.satchel.common.jig.level;
 
-import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
-import com.arryn.satchel.common.jig.guts.LogicalSideContext;
-import net.minecraftforge.fml.LogicalSide;
+import com.arryn.satchel.common.jig.guts.SatchelException;
 import net.minecraft.world.level.Level;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 public final class LevelResolver {
@@ -22,20 +20,18 @@ public final class LevelResolver {
             return null;
         }
 
-        // RM_SAT_019: block/defer recognizing this source on the client until the server's
-        // world-identity token has been received and cached. LevelScope's UUID folds the token
-        // in (see LevelScope.determineUUID) -- constructing one before the token arrives would
-        // compute a token-less scope UUID that would then need to be silently swapped out later.
-        // Returning null here reuses this method's existing "unrecognized source" contract
-        // rather than inventing a new state; ScopeEngine_Client's tick pulse re-triggers
-        // introduceSource() once the token arrives (see ClientForgeIngress), so this is a
-        // one-tick-or-so delay at world join, not a permanent block.
+        // isReady() gate (RM_SAT_019 world-identity token, generalized): defer recognizing this
+        // source until Satchel.isReady() for this side -- on the client that means the token
+        // hasn't been received yet. Returning null here reuses this method's existing
+        // "unrecognized source" contract rather than let determineUUID() throw
+        // SatchelException.NotReady; introduceSource() treats a null resolveScope result as "no
+        // jig recognizes this source," the right degraded behavior for this window --
+        // ClientForgeIngress's tick pulse re-triggers introduceSource() once ready (see
+        // reannounceLevelIfTokenJustArrived).
         //
-        // Server never hits this: ServerForgeIngress binds the token before introducing any
-        // source, so WorldIdentityContext.current() is always present by the time this runs
-        // server-side.
-        if (LogicalSideContext.require() == LogicalSide.CLIENT
-                && WorldIdentityContext.current().isEmpty()) {
+        // Server never actually returns null here: ServerForgeIngress binds the token before
+        // introducing any source, so isReady() is always true by the time this runs server-side.
+        if (!Satchel.isReady()) {
             return null;
         }
 
@@ -46,6 +42,29 @@ public final class LevelResolver {
         return Level.class;
     }
 
+    /**
+     * Deterministic UUID for a level scope -- dimension key folded with the bound world-identity
+     * token. The one real implementation: {@link LevelScope}'s constructor calls this directly
+     * ({@code super(LevelResolver.determineUUID(level))}) rather than duplicating the formula
+     * itself -- this used to be the other way around (two independent, hand-synced copies of the
+     * same logic, exactly the kind of thing that silently rots), and before that there were two
+     * separately-duplicated non-throwing "safe token lookup" helpers on top of that. This is also
+     * the method {@code LevelJigConfig.createPresets()}'s {@code uuidDeterminer} binding
+     * (`LevelResolver::determineUUID`) was always meant to point at -- a private method on
+     * {@code LevelScope} could never have satisfied that method-reference binding, so this
+     * direction of delegation also happens to match the pre-existing config wiring's intent, not
+     * just this pass's cleanup.
+     *
+     * <p>
+     * Reached directly by {@code LevelScope}'s constructor and instance-level
+     * {@code determineUUID(Object)} override, and indirectly via {@code LevelJig.determineUUID}
+     * -- itself confirmed unreachable by anything live (see RM_SAT_019's investigation), kept
+     * correct rather than deleted since it's a real {@code @Override} satisfying
+     * {@code SatchelJig}'s contract.
+     *
+     * @throws SatchelException.NotReady if the world-identity token isn't bound yet for this side.
+     *         {@code Satchel.isReady()} is the proactive check to avoid ever hitting this.
+     */
     public static UUID determineUUID(Object source) {
         if (!(source instanceof Level level)) {
             throw new IllegalStateException(
@@ -54,29 +73,16 @@ public final class LevelResolver {
             );
         }
 
-        // RM_SAT_019: fold in the world-identity token when available, same non-throwing/
-        // non-blocking fallback as LevelScope's own (actually load-bearing) private static
-        // determineUUID -- kept in sync here even though this particular overload is currently
-        // unused (see LevelScope's constructor for why: it resolves to its own private static
-        // overload, not this one) so it doesn't silently rot into a misleading duplicate.
+        UUID token = WorldIdentityContext.current().orElseThrow(() ->
+                new SatchelException.NotReady(
+                        "LevelScope requested for " + level.dimension().location()
+                                + " before the world-identity token is bound"
+                )
+        );
+
         String dimensionKey = level.dimension().toString();
-        Optional<UUID> token = safeCurrentToken();
-
-        return token
-                .map(t -> UUID.nameUUIDFromBytes((t + ":" + dimensionKey).getBytes(StandardCharsets.UTF_8)))
-                .orElseGet(() -> UUID.nameUUIDFromBytes(dimensionKey.getBytes(StandardCharsets.UTF_8)));
-    }
-
-    /**
-     * Non-throwing token lookup -- {@link WorldIdentityContext#current()} requires a
-     * {@link LogicalSideContext} bound to the calling thread, which callers of a UUID-derivation
-     * method (as opposed to this class's own {@code resolveScope}, called only from
-     * Satchel-aware ingress) shouldn't be assumed to guarantee.
-     */
-    private static Optional<UUID> safeCurrentToken() {
-        if (LogicalSideContext.current().isEmpty()) {
-            return Optional.empty();
-        }
-        return WorldIdentityContext.current();
+        return UUID.nameUUIDFromBytes(
+                (token + ":" + dimensionKey).getBytes(StandardCharsets.UTF_8)
+        );
     }
 }

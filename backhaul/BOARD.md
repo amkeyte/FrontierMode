@@ -6,7 +6,9 @@
 
 ## open
 
-_No tickets in this state._
+| Ticket | Client | Pri | Title | Context | Edit |
+|---|---|---|---|---|---|
+| [SAT_032](tickets/SAT_032_isready-gate.md) | Satchel | normal | isReady() gate replaces silent LevelScope UUID fallback | LevelScope now throws instead of silently forking UUIDs pre-token; Satchel.isReady() is the new general readiness gate. Architecture-page updates needed on your side. | [Edit](editmd:///C:/_local/mcRepos/backhaul/tickets/SAT_032_isready-gate.md) |
 
 ## in-progress
 
