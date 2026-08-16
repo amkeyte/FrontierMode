@@ -44,6 +44,7 @@
 |---|---|---|---|
 | [Full Documentation Coverage Plan](wiki/plans/doc-coverage.md) | published | Plan to bring FrontierMode and Satchel's wiki up to full design/spec coverage of existing code before content work starts. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/doc-coverage.md) |
 | [Bare-Necessity Strip-Down Plan](wiki/plans/strip-down.md) | published | Plan to strip both mod repos to the minimum needed to remain valid Forge mods, and replace git history clean. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/strip-down.md) |
+| [FrontierMode Operational Tiers](wiki/plans/operational-tiers.md) | published | The experience-tier framework FrontierMode's roadmap convergence nodes are organized around, instead of one convergence per module. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/operational-tiers.md) |
 
 ## reference
 

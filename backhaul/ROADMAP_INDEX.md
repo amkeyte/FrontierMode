@@ -16,6 +16,9 @@ Everything below has no unsatisfied dependency. This is the menu — pick from h
 
 - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) — Per-player border evaluation
 - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) — Clean up dead BorderView code
+- [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) — Border mutation validation hardening
+- [**RM_FRO_012**](roadmap/RM_FRO_012_carolyn.md) — Client render lifecycle cleanup
+- [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) — Border fixture & compass robustness
 
 ### Dependency structure
 
@@ -30,7 +33,11 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
         - [**RM_FRO_008**](roadmap/RM_FRO_008_sharon.md) [convergence · reached] Border prototype verified end-to-end — depends on: RM_FRO_002, RM_FRO_003, RM_FRO_004, RM_FRO_005, RM_FRO_007
           - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) [work · open · ACTIONABLE] Per-player border evaluation — depends on: RM_FRO_008
           - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) [work · open · ACTIONABLE] Clean up dead BorderView code — depends on: RM_FRO_008
-            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · WIP] Prototype hardening — depends on: RM_FRO_009
+          - [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) [work · open · ACTIONABLE] Border mutation validation hardening — depends on: RM_FRO_008
+          - [**RM_FRO_012**](roadmap/RM_FRO_012_carolyn.md) [work · open · ACTIONABLE] Client render lifecycle cleanup — depends on: RM_FRO_008
+          - [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) [work · open · ACTIONABLE] Border fixture & compass robustness — depends on: RM_FRO_008
+            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · WIP] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013
+              - [**RM_FRO_014**](roadmap/RM_FRO_014_shirley.md) [convergence · WIP] Tier 0: Substrate operational — depends on: RM_FRO_010, RM_FRO_006
 
 ## RM_SAT
 

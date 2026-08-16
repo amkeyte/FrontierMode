@@ -45,6 +45,9 @@ minecraft {
         }
 
         server {
+            // Own working dir so a concurrently-running client doesn't collide with the
+            // server's saves/, logs/, server.properties, eula.txt (see run{} configureEach above).
+            workingDirectory project.file('run-server')
             property 'forge.enabledGameTestNamespaces', mod_id
             args '--nogui'
         }
@@ -166,23 +169,35 @@ test {
 // ------------------------------------------------------------
 tasks.register('copyToFrontierMode', Copy) {
     group = 'satchel'
-    description = "Copies the dev jar into ../FrontierMode/run/mods and removes stale Satchel jars there."
+    description = "Copies the dev jar into FrontierMode's run/mods and run-server/mods, removing stale Satchel jars first."
 
-    def frontierModsDir = file("${projectDir}/../FrontierMode/run/mods")
+    def frontierRoot = file("${projectDir}/../FrontierMode")
+    // client and dedicated server run out of separate working dirs (see FrontierMode's runs{}
+    // server block), so both need their own copy of the Satchel jar on the mod-loading path.
+    def frontierModsDirs = [file("${frontierRoot}/run/mods"), file("${frontierRoot}/run-server/mods")]
 
     dependsOn tasks.named('jar')
 
     doFirst {
-        def frontierRoot = frontierModsDir.parentFile.parentFile
         if (!frontierRoot.exists()) {
             throw new GradleException("FrontierMode project not found at ${frontierRoot} — expected it as a sibling of Satchel.")
         }
-        frontierModsDir.mkdirs()
-        frontierModsDir.listFiles({ f -> f.name.startsWith('Satchel-') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
+        frontierModsDirs.each { dir ->
+            dir.mkdirs()
+            dir.listFiles({ f -> f.name.startsWith('Satchel-') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
+        }
     }
 
     from tasks.named('jar').flatMap { it.archiveFile }
-    into frontierModsDir
+    into frontierModsDirs[0]
+    doLast {
+        frontierModsDirs.tail().each { dir ->
+            copy {
+                from tasks.named('jar').flatMap { it.archiveFile }
+                into dir
+            }
+        }
+    }
 }
 
 tasks.named('jar').configure {

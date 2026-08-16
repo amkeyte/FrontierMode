@@ -38,6 +38,10 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Sharon | Roadmap node slug, [RM_FRO_008](../../roadmap/RM_FRO_008_sharon.md) |
 | Judith | Roadmap node slug, [RM_FRO_009](../../roadmap/RM_FRO_009_judith.md) |
 | Susan | Roadmap node slug, [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md) |
+| Betty | Roadmap node slug, [RM_FRO_011](../../roadmap/RM_FRO_011_betty.md) |
+| Carolyn | Roadmap node slug, [RM_FRO_012](../../roadmap/RM_FRO_012_carolyn.md) |
+| Judy | Roadmap node slug, [RM_FRO_013](../../roadmap/RM_FRO_013_judy.md) |
+| Shirley | Roadmap node slug, [RM_FRO_014](../../roadmap/RM_FRO_014_shirley.md) |
 | James | Roadmap node slug, [RM_SAT_001](../../roadmap/RM_SAT_001_james.md) |
 | Robert | Roadmap node slug, [RM_SAT_002](../../roadmap/RM_SAT_002_robert.md) |
 | John | Roadmap node slug, [RM_SAT_003](../../roadmap/RM_SAT_003_john.md) |

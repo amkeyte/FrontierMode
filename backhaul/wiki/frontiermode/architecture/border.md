@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-13'
+updated: '2026-08-16'
 ---
 
 <!-- bh-header:start -->
@@ -63,11 +63,19 @@ declarative `JigConfig`/`EventHandlers` system. Confirmed by a real `gradlew bui
 `BorderModule.init()` (`border/BorderModule.java`) is the subsystem's single entry point, called
 once from `FrontierMode`'s constructor. It:
 
-1. Registers `BordersBundle`/`BordersFixture` with Satchel's `BundleFactories` — still the
-   registry `ScopeEngine.create()` actually reads for construction.
-2. Also declares a `JigBundles.Schema` (`bundles.schema(...)`) mirroring that same registration —
-   required by `JigConfigValidator`, but not itself consumed for construction. Both exist
-   deliberately, not redundantly; see the source comment on this if it looks like duplication.
+1. Declares a `JigBundles.Schema` (`bundles.schema(...)`) for `BordersBundle`/`BordersFixture` —
+   the sole construction path `ScopeEngine_Server.create()`/`ScopeEngine_Client.create()` read.
+   **Corrected 2026-08-16**: this page previously described a second, separate
+   `BundleFactories.registerFactory(...)` call as "still the registry `ScopeEngine.create()`
+   actually reads." That was accurate when written but is now stale —
+   [RM_SAT_012](../../../roadmap/RM_SAT_012_donald.md) consolidated `ScopeEngine` onto the
+   schema (`bundleDecls`) directly, and [FRO_021](../../../tickets/FRO_021_clear-frontiermode-s-remaining-out-of-sp.md)
+   removed `BorderModule`'s now-dead `BundleFactories` call and its by-then-inaccurate comment.
+   `BordersFixture` registration is schema-only now, mirroring `TrackingModule.init()`'s own
+   cleaned-up state (see [Jig & Scope Runtime](../../satchel/architecture/runtime.md#worked-example-trackingmodule)).
+2. Builds a `JigBundles.BundleDecl<LevelScope, BordersBundle>` wrapping that fixture decl, then a
+   `JigBundles.Schema<LevelScope>` wrapping the bundle decl — the two-level `FixtureDecl` →
+   `BundleDecl` → `Schema` shape `JigConfigValidator` expects.
 3. Builds one `LevelJigConfig` for `FrontierKeys.BORDERS_JIG` with
    `sideApplicability = JigPolicies.SideApplicability.BOTH` — a single declared config, but
    `compileForSide()` runs independently per side at each side's own foundation boot, so this
@@ -113,20 +121,42 @@ block placement) to drive border growth.
   renderers read from (`BordersFixture` pulled via `BorderAPI`, refreshed every 20 ticks via
   `BordersRevisionMonitor`). `BorderView` is dead — fully commented out, not part of the live
   pipeline despite the name suggesting otherwise.
+- **Readiness**: `BorderAPI.borders(Level)` — the one place both renderers and the command layer
+  actually reach `BordersFixture` through — proactively checks `Satchel.isReady()`
+  ([SAT_032](../../../tickets/SAT_032_isready-gate.md)) before doing anything else, since it's
+  reachable from the client render path before the world-identity token has necessarily arrived.
+  `RenderContext.getInstance()` goes through `LevelResolver.resolveScope` rather than constructing
+  a `LevelScope` directly, for the same reason — direct construction now throws
+  `SatchelException.NotReady` pre-readiness instead of silently falling back, which would corrupt
+  `RenderContext.CACHE`'s key stability if it were ever hit. See
+  [Forge Integration & Sidedness Contract](../../satchel/spec/forge-integration.md#sidedness--the-contract-not-just-the-mechanism)
+  for the general contract this follows.
 
-## Known gap: per-player evaluation is unfinished
+## Known gaps
 
-All six files under `border/common/player/*` are commented out, package declaration included —
-`BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`, `BorderPlayerStatusProposal`,
-`BorderPlayerStatusFixture`, and `BorderPlayerBundle` (the last including a stubbed
-`return null; //getOrCreateFacet(...)`). They split into two piles, though: the first four have no
-Satchel dependency at all (a record, a stateless evaluator, plain value objects — only touching
-`BorderMath`/`Border` and vanilla types) and would compile unchanged today. `BorderPlayerFixture`
-and `BorderPlayerBundle` are the ones actually blocked — written against a `SatchelSetting` base
-class and package paths (`com.arryn.satchel.jig.guts`) that predate the current
-`SatchelFixture`/`common.jig.guts` structure entirely. Nothing in `BorderModule.init()` constructs
-or registers any of it. Reads as an abandoned or paused player-scoped extension to the (working)
-world-scoped border system, not a design decision — see `RM_FRO_006` in the roadmap.
+**Per-player evaluation is unfinished.**
+
+Seven files across two packages are commented out, package declarations included. Six live under
+`border/common/player/*` — `BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`,
+`BorderPlayerStatusProposal`, `BorderPlayerStatusFixture`, and `BorderPlayerBundle` (the last
+including a stubbed `return null; //getOrCreateFacet(...)`) — and split into two piles: the first
+four have no Satchel dependency at all (a record, a stateless evaluator, plain value objects —
+only touching `BorderMath`/`Border` and vanilla types) and would compile unchanged today.
+`BorderPlayerFixture` and `BorderPlayerBundle` are the ones actually blocked — written against a
+`SatchelSetting` base class and package paths (`com.arryn.satchel.jig.guts`) that predate the
+current `SatchelFixture`/`common.jig.guts` structure entirely. The seventh,
+`border/server/PlayerTickHandler`, is the (also fully commented-out) tick-driver meant to iterate
+server players and route their border-status evaluation each tick — the caller these six files
+were waiting on. Nothing in `BorderModule.init()` constructs, registers, or ticks any of it. Reads
+as an abandoned or paused player-scoped extension to the (working) world-scoped border system, not
+a design decision — see `RM_FRO_006` in the roadmap.
+
+**Mutation validation, render lifecycle, and fixture/item robustness gaps.** A source-level
+resilience pass found several structural gaps in the mutation, rendering, and persistence paths
+described above — tracked as roadmap work rather than restated here:
+[RM_FRO_011](../../../roadmap/RM_FRO_011_betty.md) (border proposal/path validation),
+[RM_FRO_012](../../../roadmap/RM_FRO_012_carolyn.md) (client render lifecycle), and
+[RM_FRO_013](../../../roadmap/RM_FRO_013_judy.md) (fixture load and compass robustness).
 
 ## Related pages
 

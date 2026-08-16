@@ -7,7 +7,7 @@ summary: The jig/scope/foundation tick-and-event delivery machinery underneath S
   -- foundations, the dispatch chain, JigConfig registration, and the three jig kinds.
 keywords: null
 status: verified
-updated: '2026-08-13'
+updated: '2026-08-15'
 ---
 
 <!-- bh-header:start -->
@@ -50,6 +50,37 @@ mode is loud, not silent, for *that* specific case. It's not loud for the relate
 `satchel.md` already documents (`requireClient()`'s side check, tracked in
 [SAT_006](../../../tickets/SAT_006_fix-inverted-requireclient-side-check.md)) — that's about which
 side a bound thread claims to be, not whether one is bound at all.
+
+## Readiness: bound to a side vs. ready to use
+
+`LogicalSideContext` (above) answers "which side is this thread" — a thread-binding question.
+`LogicalFoundation.isReady()` / `Satchel.isReady()` (`isReady()` on both, added by
+[SAT_032](../../../tickets/SAT_032_isready-gate.md)) answer a different, later question: is this
+side's foundation actually safe to build on right now. A thread can be correctly bound to a side
+and still not be ready — that gap is real and mostly a client concern.
+
+- **Server:** `isReady()` is trivially true once the foundation is installed. Nothing on the
+  server defers past installation.
+- **Client:** `isReady()` additionally requires the world-identity token
+  (`WorldIdentityContext`, [RM_SAT_019](../../../roadmap/RM_SAT_019_dennis.md)) to have
+  round-tripped from the server and been bound. There's a real window — from world join until
+  that packet arrives — where the client is bound to `LogicalSide.CLIENT` but not yet ready.
+- **Ticking is gated on it too.** `ServerForgeIngress`/`ClientForgeIngress.onExecutionPulse`
+  no-op the foundation's lifecycle pulse (`foundationLifecycle().pulse()`) until
+  `Satchel.isReady()`. The exception is the bootstrap chain itself — `bindFoundation`,
+  `ensureInstalled`, and the client's `reannounceLevelIfTokenJustArrived` (which is what actually
+  detects the token landing) — those run unconditionally, because they're what make readiness
+  happen in the first place.
+- **`LevelResolver.resolveScope`** checks `Satchel.isReady()` and returns `null` during the defer
+  window rather than constructing a scope — the same "not recognized yet, not an error" contract
+  this page's ingress section already uses for other "too early" states.
+- **`LevelScope`'s constructor throws `SatchelException.NotReady` if called directly during the
+  defer window**, rather than silently falling back to a dimension-only UUID the way it used to.
+  The old fallback was itself a bug source — see SAT_032's log for the `RenderContext` cache-fork
+  it caused — so any code constructing a `LevelScope` outside `LevelResolver` needs its own
+  `Satchel.isReady()` check first, or needs to go through `LevelResolver.resolveScope(...)`
+  instead. [New Module Checklist](new-module-checklist.md) item 4 covers this from a
+  module-author's perspective.
 
 ## Ingress: how a raw Forge event becomes a jig tick
 

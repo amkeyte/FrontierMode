@@ -87,6 +87,9 @@ minecraft {
         }
 
         server {
+            // Own working dir so a concurrently-running client doesn't collide with the
+            // server's saves/, logs/, server.properties, eula.txt (see run{} configureEach above).
+            workingDirectory project.file('run-server')
             property 'forge.enabledGameTestNamespaces', mod_id
             args '--nogui'
         }
@@ -238,7 +241,7 @@ tasks.register('buildSatchel', Exec) {
     }
 }
 
-tasks.matching { it.name == 'runClient' }.configureEach {
+tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach {
     dependsOn tasks.named('buildSatchel')
 }
 
@@ -248,6 +251,41 @@ tasks.named('compileJava').configure {
     mustRunAfter tasks.named('buildSatchel')
 }
 
+// ------------------------------------------------------------
+// World control for the dedicated server (run-server/<level-name>).
+// Default behavior: the server keeps whatever world is already on disk and just
+// keeps playing on it -- nothing here changes that unless you opt in.
+// Opt-in fresh start: ./gradlew runServer -PfreshWorld  (or add -PfreshWorld to the
+// IntelliJ run configuration's Arguments field when you want a clean slate).
+// ------------------------------------------------------------
+tasks.register('resetServerWorld') {
+    group = 'frontiermode'
+    description = "Deletes the dedicated server's world save so the next runServer starts fresh."
+
+    doLast {
+        def propsFile = project.file('run-server/server.properties')
+        def levelName = 'world'
+        if (propsFile.exists()) {
+            def props = new Properties()
+            propsFile.withInputStream { props.load(it) }
+            levelName = props.getProperty('level-name', 'world')
+        }
+        def worldDir = project.file("run-server/${levelName}")
+        if (worldDir.exists()) {
+            project.delete(worldDir)
+            logger.lifecycle("Deleted server world: ${worldDir}")
+        } else {
+            logger.lifecycle("No existing server world at ${worldDir} -- next runServer will generate fresh anyway.")
+        }
+    }
+}
+
+tasks.matching { it.name == 'runServer' }.configureEach {
+    if (project.hasProperty('freshWorld')) {
+        dependsOn tasks.named('resetServerWorld')
+    }
+}
+
 allprojects {
     tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
@@ -255,12 +293,15 @@ allprojects {
 }
 tasks.withType(JavaExec).configureEach {
     doFirst {
-        def badJar = file("run/mods").listFiles()
+        // Derived from this task's own workingDir rather than hardcoded to "run", so it covers
+        // both run/mods (client) and run-server/mods (dedicated server) automatically.
+        def modsDir = file("${workingDir}/mods")
+        def badJar = modsDir.listFiles()
                 ?.find { it.name.startsWith("frontiermode-") }
 
         if (badJar != null) {
             throw new GradleException(
-                    "FrontierMode jar detected in run/mods (${badJar.name}). " +
+                    "FrontierMode jar detected in ${modsDir} (${badJar.name}). " +
                             "Remove it — dev runs use exploded output."
             )
         }

@@ -7,7 +7,7 @@ summary: Gameplay and world-tuning modifications for Minecraft; depends on Satch
   for core data/utility support.
 keywords: null
 status: verified
-updated: '2026-08-13'
+updated: '2026-08-16'
 ---
 
 <!-- bh-header:start -->
@@ -70,8 +70,12 @@ client-side rendering) — worth Architect confirming how directly it can be bui
 ## Roadmap
 
 Tracked under `RM_FRO` — see [ROADMAP_INDEX.md](../../ROADMAP_INDEX.md) for current status.
+Convergence nodes follow the tier framework in [FrontierMode Operational
+Tiers](../plans/operational-tiers.md) — player-facing experience thresholds that cross module
+lines, rather than one convergence per module.
 
 ## Related pages
 
 - [Satchel](../satchel/satchel.md)
 - [Border](architecture/border.md)
+- [FrontierMode Operational Tiers](../plans/operational-tiers.md)

@@ -54,6 +54,35 @@ per-scope-kind ingress pattern `LevelJig` already uses. Either order works.
 **Consumer waiting on this:** [RM_FRO_006](RM_FRO_006_sandra.md) — cross-graph,
 not a `depends_on` edge (`bhrm` graphs are UID-independent), documented in both directions.
 
+- 2026-08-16: **Done bar added, project owner's call, before implementation started** — this node
+  previously had no stated done-bar, unlike its RM_FRO siblings in the same handoff batch
+  ([FRO_022](../../tickets/FRO_022_handoff-batch2.md)). Added ahead of Lead Dev picking this up.
+
+**Done bar:** compiling clean (`gradlew build` on Satchel, then FrontierMode via `buildSatchel`)
+is necessary but not sufficient — matching this project's standing rule that anything touching
+lifecycle/ingress needs real-play confirmation, not a compile check alone. Concretely:
+
+- A full player login → tick → dimension change → logout cycle, run against a **real dedicated
+  server** (`runServer`) with a **separate client** (`runClient`) connecting to it — not the
+  integrated/singleplayer path alone. Flagged specifically because `PlayerJig`'s login/logout
+  ingress (`PlayerEvent.PlayerLoggedInEvent`/`PlayerLoggedOutEvent`) is the first jig kind in
+  either repo whose scope lifecycle is driven by a per-connection event rather than a per-level
+  one, and the [Universal Sidedness Facade](../wiki/satchel/architecture/facade-vision.md) vision
+  this node feeds into already names dedicated-server deployment as the point where the same-JVM
+  safety net (both `LogicalFoundation`s alive together in singleplayer) stops covering for
+  sidedness bugs. An integrated-server-only test wouldn't exercise the real cross-JVM boundary
+  this ingress has to be correct against.
+- Confirm a `PlayerScope`'s state survives a dimension change without a manual handoff — the
+  specific property this node's design log (above) cites as the reason it isn't hosted on
+  `BordersBundle` instead.
+- Confirm logout actually tears the scope down (mirroring [RM_SAT_014](RM_SAT_014_joseph.md)'s
+  `LevelJig` unload fix) rather than leaking a `PlayerScope` per player per session — the same
+  class of bug [RM_FRO_012](../../roadmap/RM_FRO_012_carolyn.md) found on the render-cache side.
+- No `RM_FRO_006` consumer exists yet to exercise this end-to-end, so verification here is
+  necessarily synthetic (a minimal test consumer, or direct inspection of jig/scope state) rather
+  than an observable player-facing effect — log that explicitly rather than treating "nothing
+  visibly changed" as confirmation of anything.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

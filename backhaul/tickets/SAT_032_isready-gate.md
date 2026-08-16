@@ -3,13 +3,13 @@ id: SAT_032
 uid: SAT
 number: 32
 client: Satchel
-status: open
+status: done
 title: isReady() gate replaces silent LevelScope UUID fallback
 context: LevelScope now throws instead of silently forking UUIDs pre-token; Satchel.isReady()
   is the new general readiness gate. Architecture-page updates needed on your side.
 priority: normal
 opened: '2026-08-15'
-closed: null
+closed: '2026-08-15'
 ---
 
 <!-- board:start -->
@@ -86,6 +86,22 @@ as everything else from this session.
 
 ## Log
 
+- 2026-08-15: **Doc updates done (Architect/Douglas) — closing.** All three pages flagged above:
+  - [Forge Integration & Sidedness Contract](../wiki/satchel/spec/forge-integration.md) — the
+    `tryScopeInfo` bullet now distinguishes "does a jig know this scope yet" from the general
+    readiness question; added a new bullet for `Satchel.isReady()` as the general gate (what it
+    means per side, what it gates, the ingress-class exception), and a new bullet documenting that
+    direct `LevelScope` construction now throws `SatchelException.NotReady` instead of silently
+    falling back.
+  - [Jig & Scope Runtime](../wiki/satchel/architecture/runtime.md) — added a new "Readiness: bound
+    to a side vs. ready to use" section right after "Foundations," covering the server/client
+    asymmetry, the execution-pulse gating, and both `LevelResolver`/`LevelScope`'s roles in it.
+  - [New Module Checklist](../wiki/satchel/architecture/new-module-checklist.md) — extended item 4
+    with the `Satchel.isReady()` check and a pointer to `LevelResolver.resolveScope` as the
+    prefer-this-over-direct-construction pattern.
+  Also closed [FRO_021](../tickets/FRO_021_clear-frontiermode-s-remaining-out-of-sp.md) in the
+  same pass (already done by Curtis, confirmed via source read) — its `RenderContext` finding is
+  the concrete bug this whole redesign traces back to.
 - 2026-08-15: **Confirmed via real play.** Project owner ran a full session, switching worlds
   back and forth repeatedly with no problems. Closes the "not build-tested" caveat this ticket
   opened with.

@@ -8,7 +8,7 @@ summary: Footguns every new Satchel jig/module consumer has hit at least once --
   LogicalSideContext thread discipline.
 keywords: null
 status: draft
-updated: '2026-08-15'
+updated: '2026-08-16'
 ---
 
 <!-- bh-header:start -->
@@ -61,12 +61,41 @@ you haven't registered a jig config before.
    utility that might legitimately be called from either context, prefer
    `LogicalSideContext.current()` (an `Optional`) over `require()` so an unbound caller degrades
    instead of crashing.
+
+   Separately, once you *are* on a bound thread: check `Satchel.isReady()` before touching
+   anything Satchel-dependent from outside its own ingress (rendering, commands, anything reached
+   from a client tick). Being bound to a side isn't the same as that side being ready — on the
+   client specifically, "ready" additionally means the world-identity token (see
+   [Sync a Satchel world-identity token](../../../roadmap/RM_SAT_019_dennis.md)) has round-tripped
+   from the server. Code that skips this check and constructs a `LevelScope` directly risks
+   `SatchelException.NotReady` (thrown from `LevelScope`'s constructor once the token isn't bound)
+   — or, if it caches that scope as a map key the way `RenderContext` used to, a silently forked
+   cache entry once the token does arrive and the "same" level's UUID changes out from under it
+   (see [SAT_032](../../../tickets/SAT_032_isready-gate.md)). Prefer
+   `LevelResolver.resolveScope(...)` (returns `null` during the defer window, same "not ready yet"
+   shape as everything else on this page) over constructing `LevelScope` yourself when there's any
+   chance you're running before readiness.
 5. **Remember the jig-per-side split.** A `sideApplicability = BOTH` config compiles into two
    independent `CompiledJigConfig`s — one per side's own foundation boot — not one instance shared
    across sides. Don't reach for cross-side state from inside a jig's own code; if two sides
    genuinely need to agree on something (see
    [Sync a Satchel world-identity token](../../../roadmap/RM_SAT_019_dennis.md) for a concrete
    example), that's a networking problem, not a shared-object one.
+
+6. **If you cache anything client-side keyed by a scope, evict it on `ScopeEvent.Unloaded` —
+   don't leave it to accumulate forever.** `ScopeEvent.Unloaded` is emitted exactly once per scope
+   teardown, on both sides, driven by the same `LevelEvent.Unload` → `tryRemoveSource` path every
+   module already relies on for load/tick — its own javadoc calls it "the final guaranteed safe
+   access point for the scopeInfo and any data associated with it." A module that keys a
+   client-side cache (a render context, UI state, anything scoped to a `LevelScope`/similar) off
+   that scope and never listens for `Unloaded` leaks one entry per world visited, for the life of
+   the JVM — this is the exact gap
+   [RM_FRO_012](../../../roadmap/RM_FRO_012_carolyn.md) tracks fixing in FrontierMode's
+   `RenderContext`. Subscribe the same way you already do for `Tick`
+   (`.on(ScopeEvent.Unloaded.class, ...)`), guarded by the same client/server check your other
+   handlers use. The eviction handler itself doesn't need its own `Satchel.isReady()` check (item
+   4 above) — by the time `Unloaded` fires for a scope, that scope was necessarily ready when it
+   loaded, so there's no readiness gap left to guard against at teardown.
 
 ## Worked example
 

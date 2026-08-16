@@ -8,7 +8,7 @@ summary: Which classes may touch Forge's event buses directly, which bus each le
   Satchel must follow.
 keywords: null
 status: verified
-updated: '2026-08-14'
+updated: '2026-08-15'
 ---
 
 <!-- bh-header:start -->
@@ -106,6 +106,31 @@ module.
   `requireScopeInfo` (throws `ScopeNotFound`) if there's any chance it runs before the scope is
   guaranteed registered. `requireScopeInfo` is still correct for the common case — dispatch
   reached from an already-tracked `ScopeEvent`/tick, where the scope is guaranteed to exist.
+  `tryScopeInfo` answers "does a jig know about this scope yet" — a different, narrower question
+  from the general readiness gate below; a scope can be unknown even after Satchel itself is
+  ready, and vice versa during the boot window.
+- **`Satchel.isReady()` is the general readiness gate — check it before anything else.**
+  ([SAT_032](../../../tickets/SAT_032_isready-gate.md)) Being bound to a side
+  (`LogicalSideContext`) only means a thread can ask Satchel a question; it doesn't mean the
+  answer is available yet. `Satchel.isReady()` is true on the server once a foundation is
+  installed, and on the client only once the world-identity token has been received and bound —
+  the same precondition `tryScopeInfo`'s deferral above exists for, generalized to apply anywhere,
+  not just scope lookup. Code that can run before readiness (rendering, commands, anything outside
+  the two ingress classes) should check this proactively and skip gracefully, the same "standby,
+  don't crash" pattern `BorderAPI.borders(Level)` and `RenderContext.getInstance()` both use.
+  Ticking itself is gated on this too: `ServerForgeIngress`/`ClientForgeIngress.onExecutionPulse`
+  no-op the foundation's lifecycle pulse until `Satchel.isReady()`, with the bootstrap chain
+  itself (`bindFoundation`, `ensureInstalled`, and the client's token-arrival detection) carved
+  out as the deliberate exception that has to run unconditionally to make readiness happen at all.
+- **Constructing a `LevelScope` directly is no longer silently safe pre-readiness — it throws.**
+  Earlier, a `LevelScope` built before the world-identity token arrived quietly fell back to a
+  dimension-only UUID instead of a token-folded one — convenient, but a landmine for any caller
+  that treats that UUID as a stable identity (a long-lived cache key, for instance: two different
+  UUIDs mean two different map entries for what's really the same level, once the token lands).
+  `LevelScope`'s constructor now throws `SatchelException.NotReady` instead of falling back.
+  `LevelScope` is still directly constructable from anywhere — that's unchanged — but callers that
+  might run before readiness should either check `Satchel.isReady()` first or, better, go through
+  `LevelResolver.resolveScope(...)` (returns `null` during the defer window rather than throwing).
 
 ## Unload is a real teardown now
 
