@@ -25,6 +25,18 @@ so the checklist lives in one place instead of being scattered across five roadm
 Covers the batch handed off in [FRO_022](FRO_022_handoff-batch2.md): RM_SAT_020, RM_FRO_009,
 RM_FRO_011, RM_FRO_012, RM_FRO_013.
 
+**Before running any of this: rebuild.** [FRO_024](FRO_024_rendering-eager-static-crash.md) fixed
+a real dedicated-server crash found from the first `run-server/latest.log` (`Rendering`'s eager
+static field construction crashed on the first server tick) — that fix has to actually be in the
+jar being tested, or every item below hits the same crash before getting anywhere.
+
+**[FRO_025](FRO_025_client-crash-borders-jig-not-installed-o.md) is resolved (2026-08-16)** — the
+client crash from the first post-rebuild session (BORDERS_JIG never installing client-side) didn't
+recur on the next run; client now installs its jig config correctly and completed a full
+overworld/nether session with no crash. Client-side items below are unblocked. See that ticket's
+closing log entry for one caveat: the root mechanism isn't fully confirmed, so if this crash comes
+back, it's not a new bug — check FRO_025 first.
+
 **Build, both repos, in order** (Satchel first — FrontierMode's `compileOnly files(satchelJar)`
 and `buildSatchel` task both depend on a fresh Satchel jar):
 1. `cd Satchel && ./gradlew build`
@@ -40,14 +52,14 @@ the first jig kind in either repo driven by a per-connection event instead of a 
 dedicated-server deployment is specifically where the same-JVM safety net singleplayer provides
 stops covering for sidedness bugs.
 - [ ] Connect a real client (`./gradlew runClient`) to a running dedicated server.
-- [ ] Confirm `PlayerScope` state is created on login (check via log output or a temporary debug
-  command — no real consumer exists yet, so this is necessarily a synthetic check).
-- [ ] Change dimension, confirm the same `PlayerScope`'s state persists across the change (no
-  manual handoff, no reset).
-- [ ] Disconnect, confirm the scope actually tears down (no leaked `PlayerScope` per session —
-  check for repeated entries after reconnecting a few times).
-- [ ] Note in the node's log whether this was a synthetic check (temporary test hook) or found a
-  real consumer to exercise it, since `RM_FRO_006` doesn't land until later.
+- [ ] **`PlayerTrackingModule` now provides this (2026-08-16)** — watch server console/
+  `latest.log` for `[PlayerTracking]` lines instead of needing a manual debug command:
+  - [ ] Login: exactly one `[PlayerTracking] LOADED player=... scope=... dim=...` line.
+  - [ ] Dimension change: `[PlayerTracking] TICK` lines (roughly every 5s) show `dim=` change
+    while `scope=` (the UUID) stays identical — no second `LOADED` line for the same player.
+  - [ ] Disconnect: exactly one `[PlayerTracking] UNLOADED player=... scope=...` line, and no
+    further `TICK` lines for that player afterward. Reconnect a few times and confirm each cycle
+    produces exactly one `LOADED`/`UNLOADED` pair, not an accumulating count.
 
 **RM_FRO_009 — Clean up dead BorderView code.** Low-risk pure deletion.
 - [ ] `gradlew build` succeeds after removing `BorderView`.
@@ -82,6 +94,11 @@ is sufficient (no networking-boundary dependency).
 
 ## Log
 
+- 2026-08-16: RM_SAT_020's login/dimension-change/logout item updated — `PlayerTrackingModule`
+  (see that node's own log) now makes this a real log-watching check instead of an unresolved
+  "no way to do this yet." Also added a rebuild note referencing
+  [FRO_024](FRO_024_rendering-eager-static-crash.md)'s crash fix, found from the project owner's
+  first real `run-server/latest.log`.
 - 2026-08-16: Ticket opened, checklist drafted by Lead Dev ahead of implementation. Project owner
   will execute against real builds and update each roadmap node's own log with results — this
   ticket can close once all five nodes are confirmed.

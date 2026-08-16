@@ -9,6 +9,8 @@
 | Ticket | Client | Pri | Title | Context | Edit |
 |---|---|---|---|---|---|
 | [FRO_023](tickets/FRO_023_playtest-checklist-batch2.md) | FrontierMode | normal | Build+playtest checklist: Sat020/Fro009-013 | Sandbox has no Forge/Mojang maven access; owner runs real gradlew build + playtest per checklist in ticket body. | [Edit](editmd:///C:/_local/mcRepos/backhaul/tickets/FRO_023_playtest-checklist-batch2.md) |
+| [FRO_024](tickets/FRO_024_rendering-eager-static-crash.md) | FrontierMode | high | Rendering eager static crashes dedicated server | WorldBordersRenderer built in Rendering's <clinit>; RuntimeDistCleaner blocks MultiBufferSource on DEDICATED_SERVER. First real runServer crash. | [Edit](editmd:///C:/_local/mcRepos/backhaul/tickets/FRO_024_rendering-eager-static-crash.md) |
+| [SAT_033](tickets/SAT_033_bundle-sync-parcels-sent-unconditionally.md) | Satchel | normal | Bundle sync parcels sent unconditionally, ignoring dirty state and connected players | Observed in a real server log with no client connected: pulseSync() fires scheduleSync() every syncIntervalTicks regardless of bundle.isDirty() and regardless of whether any player is in the dimension. Pinned from project owner-supplied log, not yet actioned. | [Edit](editmd:///C:/_local/mcRepos/backhaul/tickets/SAT_033_bundle-sync-parcels-sent-unconditionally.md) |
 
 ## in-progress
 

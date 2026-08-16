@@ -30,8 +30,32 @@ import net.minecraftforge.fml.common.Mod;
 )
 public class Rendering {
 
-    private static final WorldBordersRenderer BORDERS_RENDERER =
-            new WorldBordersRenderer();
+    // Crash fix (first real dedicated-server run, run-server/logs, 2026-08-16): was
+    // `private static final WorldBordersRenderer BORDERS_RENDERER = new WorldBordersRenderer();`
+    // -- an eager static field initializer, which runs during Rendering.<clinit>. BorderModule's
+    // EventHandlers wires Rendering::onClientTick (and onClientUnload) into a BOTH-applicability
+    // LevelJigConfig, so ScopeEvent.Tick invokes those methods on the server too -- and merely
+    // *entering* either method already forces <clinit> to run first, before either method's own
+    // client-side guard ever gets a chance to return early. <clinit> unconditionally constructing
+    // a WorldBordersRenderer forced that class to load, and WorldBordersRenderer references
+    // MultiBufferSource in its method signatures -- a class Forge's RuntimeDistCleaner refuses to
+    // load on DEDICATED_SERVER. Crashed the very first server tick.
+    //
+    // This was invisible under every prior singleplayer/integrated test (client classes are
+    // legitimately loadable there) and only surfaced now that a real dedicated server is being
+    // run for the first time -- same class of risk the sidedness-facade vision page already
+    // named. Fix: defer construction until onRenderLevel actually needs it -- onRenderLevel is
+    // only ever invoked client-side (RenderLevelStageEvent doesn't fire on a dedicated server, and
+    // this class's own @Mod.EventBusSubscriber(value = Dist.CLIENT) keeps Forge from even
+    // registering it there), so WorldBordersRenderer.class now never loads on the server at all.
+    private static WorldBordersRenderer bordersRenderer;
+
+    private static WorldBordersRenderer bordersRenderer() {
+        if (bordersRenderer == null) {
+            bordersRenderer = new WorldBordersRenderer();
+        }
+        return bordersRenderer;
+    }
 
     /* --------------------------------------------------------------------- */
     /* Render pass                                                            */
@@ -45,7 +69,7 @@ public class Rendering {
 
         // Render border rings
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
-            BORDERS_RENDERER.render(event.getPoseStack());
+            bordersRenderer().render(event.getPoseStack());
         }
 //        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
 //            // Spawn visual-only particles (growth trigger, etc.)

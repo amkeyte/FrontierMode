@@ -1,6 +1,7 @@
 package com.arryn.satchel;
 
 import com.arryn.satchel.common.net.SatchelNetwork;
+import com.arryn.satchel.common.newconfig.PlayerTrackingModule;
 import com.arryn.satchel.common.newconfig.TrackingModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.fml.common.Mod;
@@ -24,6 +25,11 @@ public class SatchelMod {
 
         //set up the tracking module.
         TrackingModule.init();
+
+        // RM_SAT_020 verification aid -- see PlayerTrackingModule's own class doc. Real consumer
+        // (RM_FRO_006) hasn't landed yet; this is what lets the login/dimension-change/logout
+        // checklist in FRO_023 actually be checked before then.
+        PlayerTrackingModule.init();
 
     }
 }

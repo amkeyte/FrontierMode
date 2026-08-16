@@ -5,6 +5,7 @@ import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
+import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
@@ -57,6 +58,20 @@ public final class JigConfigCompiler {
         }
 
         CONFIGS.put(key, config);
+
+        // FRO_025 diagnostic: a real client run produced a JigNotFound crash for
+        // frontiermode:borders_jig (BOTH-applicability) despite registration completing without
+        // error and the equivalent server run installing all 3 registered configs correctly. This
+        // line plus the matching one in compileForSide() lets a re-run pin down whether CLIENT
+        // ever sees fewer entries than were actually registered (map identity / cross-thread
+        // visibility) or whether registration itself is silently short-circuiting on CLIENT only.
+        // Remove once FRO_025 is resolved.
+        OUT.debug(
+                "[JigConfigCompiler] register() key=" + key
+                        + " thread=" + Thread.currentThread().getName()
+                        + " mapIdentity=" + System.identityHashCode(CONFIGS)
+                        + " sizeAfter=" + CONFIGS.size()
+        );
     }
 
     /* =============================================================
@@ -67,6 +82,17 @@ public final class JigConfigCompiler {
         Objects.requireNonNull(side, "side");
 
         frozen = true;
+
+        // FRO_025 diagnostic -- see the matching log in register(). If mapIdentity here differs
+        // from what register() reported, that's two different CONFIGS instances (classloader
+        // duplication). If mapIdentity matches but sizeSeen is lower than the last sizeAfter
+        // register() reported for this side's JVM, that's a visibility/ordering bug instead.
+        OUT.debug(
+                "[JigConfigCompiler] compileForSide() side=" + side
+                        + " thread=" + Thread.currentThread().getName()
+                        + " mapIdentity=" + System.identityHashCode(CONFIGS)
+                        + " sizeSeen=" + CONFIGS.size()
+        );
 
         List<CompiledJigConfig> result = new ArrayList<>();
 

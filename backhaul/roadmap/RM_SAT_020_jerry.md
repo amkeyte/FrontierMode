@@ -83,6 +83,18 @@ lifecycle/ingress needs real-play confirmation, not a compile check alone. Concr
   than an observable player-facing effect — log that explicitly rather than treating "nothing
   visibly changed" as confirmation of anything.
 
+- 2026-08-16: **Verification aid built: `PlayerTrackingModule`** (`common/newconfig/`), mirroring
+  `TrackingModule`'s already-established role for `LevelJig` — a real, minimal jig consumer whose
+  only job is proving the lifecycle fires, since `RM_FRO_006` hasn't landed. Registered
+  unconditionally from `SatchelMod`'s constructor, alongside `TrackingModule.init()`. Logs at INFO
+  (not DEBUG) so all three done-bar items above are readable straight out of `latest.log`:
+  `[PlayerTracking] LOADED player=... scope=... dim=...` once per login, `[PlayerTracking] TICK
+  player=... scope=... dim=...` roughly every 5s (watch `dim=` change across a dimension change
+  while `scope=` — the UUID — stays the same), `[PlayerTracking] UNLOADED player=... scope=...`
+  once per logout with no further `TICK` lines after. Answers the project owner's "I don't have a
+  way to check this" directly, rather than leaving the done-bar's "necessarily synthetic" caveat
+  unresolved.
+
 - 2026-08-16: **Implemented by Lead Dev (Curtis), unverified — no build access this session.**
   Built fresh against `LevelJig`'s current pattern, not a resurrection of the old commented-out
   files (confirmed those predate both the jig/requireJig rename and the current

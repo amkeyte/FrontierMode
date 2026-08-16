@@ -284,6 +284,11 @@ tasks.matching { it.name == 'runServer' }.configureEach {
     if (project.hasProperty('freshWorld')) {
         dependsOn tasks.named('resetServerWorld')
     }
+
+    // Gradle's JavaExec doesn't forward stdin to the child process by default, so console
+    // commands typed into the IntelliJ Run window (stop, op, etc.) silently go nowhere even
+    // though the server is alive and listening. This wires it through.
+    standardInput = System.in
 }
 
 allprojects {
