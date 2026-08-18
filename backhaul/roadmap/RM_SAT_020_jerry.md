@@ -3,7 +3,7 @@ id: RM_SAT_020
 uid: RM_SAT
 number: 20
 kind: work
-status: open
+status: resolved
 title: Build PlayerJig/PlayerScope
 owner: Arryn
 depends_on:
@@ -56,7 +56,7 @@ not a `depends_on` edge (`bhrm` graphs are UID-independent), documented in both 
 
 - 2026-08-16: **Done bar added, project owner's call, before implementation started** — this node
   previously had no stated done-bar, unlike its RM_FRO siblings in the same handoff batch
-  ([FRO_022](../../tickets/FRO_022_handoff-batch2.md)). Added ahead of Lead Dev picking this up.
+  ([FRO_022](../tickets/FRO_022_handoff-batch2.md)). Added ahead of Lead Dev picking this up.
 
 **Done bar:** compiling clean (`gradlew build` on Satchel, then FrontierMode via `buildSatchel`)
 is necessary but not sufficient — matching this project's standing rule that anything touching
@@ -77,7 +77,7 @@ lifecycle/ingress needs real-play confirmation, not a compile check alone. Concr
   `BordersBundle` instead.
 - Confirm logout actually tears the scope down (mirroring [RM_SAT_014](RM_SAT_014_joseph.md)'s
   `LevelJig` unload fix) rather than leaking a `PlayerScope` per player per session — the same
-  class of bug [RM_FRO_012](../../roadmap/RM_FRO_012_carolyn.md) found on the render-cache side.
+  class of bug [RM_FRO_012](RM_FRO_012_carolyn.md) found on the render-cache side.
 - No `RM_FRO_006` consumer exists yet to exercise this end-to-end, so verification here is
   necessarily synthetic (a minimal test consumer, or direct inspection of jig/scope state) rather
   than an observable player-facing effect — log that explicitly rather than treating "nothing
@@ -130,7 +130,24 @@ lifecycle/ingress needs real-play confirmation, not a compile check alone. Concr
   - **Unverified this session** — no Forge/Mojang maven access in this sandbox (confirmed via
     curl). Real build + the dedicated-server login/tick/dimension-change/logout cycle from this
     node's done-bar (above) is owed before this counts as resolved — see
-    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md).
+    [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md).
+
+- 2026-08-16: **Done-bar fully confirmed against a real dedicated-server session.** Project owner
+  ran login → nether portal → logout → login → return to overworld → logout, read directly from
+  `[PlayerTracking]` lines in `run-server/logs/latest.log`:
+  - **Login creates a scope:** three clean `LOADED` lines, one per login, each with a fresh scope
+    UUID (as expected -- a new login is a new `PlayerScope`, not a resumed one).
+  - **Dimension change preserves scope, stronger evidence than the done-bar asked for:** the
+    done-bar only required *a* dimension change to not disturb the scope, but the log shows it
+    twice, live, mid-session (not just across relogs): scope `@159708419`'s `TICK` lines show
+    `dim=` going `overworld` → `the_nether` with no second `LOADED` in between (18:02:15 →
+    18:02:20), and scope `@1562881636`'s `TICK` lines show `the_nether` → `overworld` the same
+    way. Exactly the property this node's original design log cited as the reason `PlayerScope`
+    isn't hosted on `BordersBundle`.
+  - **Logout tears the scope down:** three clean `LOADED`/`UNLOADED` pairs, no accumulation, no
+    orphaned scope.
+  - Marking this node's done-bar satisfied. `PlayerTrackingModule` stays in place (harmless at
+    INFO level, and it's the only real consumer/exerciser of `PlayerJig` until `RM_FRO_006` lands).
 
 ## Required By
 

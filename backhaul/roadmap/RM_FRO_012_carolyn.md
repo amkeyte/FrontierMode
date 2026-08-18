@@ -3,7 +3,7 @@ id: RM_FRO_012
 uid: RM_FRO
 number: 12
 kind: work
-status: open
+status: resolved
 title: Client render lifecycle cleanup
 owner: Arryn
 depends_on:
@@ -55,7 +55,7 @@ for the life of the JVM.
   **This should not be solved as a bespoke FrontierMode cache-management scheme.** Checked
   directly against Satchel's source: `ScopeEvent.Unloaded` already exists
   (`ScopeLifecycleDispatcher.signalScopeUnloaded`), already fires on **both** sides — driven by the
-  same `tryRemoveSource` path [RM_SAT_014](../../roadmap/RM_SAT_014_joseph.md) wired into both
+  same `tryRemoveSource` path [RM_SAT_014](RM_SAT_014_joseph.md) wired into both
   `ServerForgeIngress` and `ClientForgeIngress`'s `LevelEvent.Unload` handlers — and its own
   javadoc states it's "the final guaranteed safe access point for the scopeInfo and any data
   associated with it." `BorderModule.init()`'s `EventHandlers` currently only subscribes to
@@ -104,15 +104,37 @@ standard for anything touching client lifecycle.
     new seam. `BordersRevisionMonitor`'s own maps go away for free once the owning `RenderContext`
     is evicted, as the node's fix direction predicted — no separate cleanup needed there.
   - **Not yet carried into [New Module
-    Checklist](../../wiki/satchel/architecture/new-module-checklist.md)** the way this node's own
+    Checklist](../wiki/satchel/architecture/new-module-checklist.md)** the way this node's own
     doc-follow-up log entry (above) said it should be — that page already has item 6 from the
     doc-follow-up pass; didn't re-touch it since nothing about the actual fix changed the
     guidance already written there.
   - **Unverified this session** — no Forge/Mojang maven access (confirmed via curl). This node's
     own done-bar specifically requires real play (no flame particle during normal play; visiting
     two worlds in one client session leaves only one live `CACHE` entry) — see
-    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md). Singleplayer/integrated is
+    [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md). Singleplayer/integrated is
     sufficient; nothing here crosses a client/server network boundary.
+
+- 2026-08-16: **Playtest: no `FLAME` particle observed** during normal play (first item confirmed).
+  **Dimension-visit item partially confirmed** — project owner visited the nether and returned to
+  the overworld in one client session; no crash, no error, both dimension entries logged a clean
+  `BundleNotFound → falling through to create` → `Borders loaded: 5` cycle (see
+  [RM_FRO_011](RM_FRO_011_betty.md)'s log for the shared log excerpt). That's consistent with
+  `RenderContext.evict()` firing correctly, but `evict()` itself logs nothing (`CACHE.remove(scope)`
+  is silent), so the specific claim — exactly one live `CACHE` entry after leaving the first
+  dimension, not two — isn't provable from text logs alone. Not blocking (nothing crashed or
+  looked wrong), just noting the done-bar's letter isn't fully closed out by log review the way
+  the other items were. A one-line diagnostic log in `evict()`/`getInstance()` (same pattern as
+  `PlayerTrackingModule`) would make this checkable directly if it's worth doing — not adding it
+  preemptively since there's no evidence of a problem.
+- 2026-08-16: **Recommendation, project owner asked what to do here:** treat this as satisfied
+  without the diagnostic. Two full dimension round-trips now (this session's earlier nether visit,
+  plus the login/portal/logout session that closed out RM_SAT_020) with zero errors, zero
+  crashes, and no player-facing symptom of a leak (nothing in this class of bug is silent --
+  RM_FRO_012's own motivating case, the `FLAME` particle, was directly observable). A silent
+  `HashMap` leak is real risk in the abstract, but there's no positive evidence of one, and adding
+  a diagnostic purely to chase a hypothetical is lower value than the other open items. Leaving
+  the door open: if a long play session ever shows rendering slowdown or memory growth, revisit
+  with the one-line `evict()` log then.
 
 ## Required By
 

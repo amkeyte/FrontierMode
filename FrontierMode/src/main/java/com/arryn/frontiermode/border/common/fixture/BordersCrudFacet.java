@@ -26,12 +26,20 @@ public class BordersCrudFacet {
         fixture.requireServerSide();
         proposal.requireNotConsumed();
 
-        if (validateProposal(proposal)) {
+        Optional<String> failure = failureReason(proposal);
+        if (failure.isEmpty()) {
             return fixture.accept(proposal);
         }
-        throw new IllegalStateException(
-                "Border proposal rejected by validation -- see server log for the specific reason."
-        );
+
+        // Was a fixed generic message ("...see server log for the specific reason") -- the real
+        // reason was only ever reaching OUT.warn(), never the exception itself, so the player-
+        // facing rejection (BorderCommandHandler catches this and relays e.getMessage()) was
+        // uninformative even after RM_FRO_011's original fix stopped it from looking like a
+        // crash. Confirmed from a real /border add ~ ~ ~ 999999999 0 retest: player only saw the
+        // generic text, not "radius 999999999 outside allowed range [1, 512]." Carrying the real
+        // reason through here fixes that at the source instead of duplicating the reason-building
+        // logic at every catch site.
+        throw new IllegalStateException(failure.get());
     }
 
     /**
@@ -47,37 +55,47 @@ public class BordersCrudFacet {
      * an uncontrolled collision silently corrupts that ordering.
      */
     public boolean validateProposal(BorderProposal proposal) {
+        return failureReason(proposal).isEmpty();
+    }
+
+    /**
+     * Real validation logic, shared by {@link #validateProposal} (kept boolean, still used
+     * directly by {@code BorderLogic}'s organic-growth path) and {@link #applyProposal} (which
+     * needs the actual reason text, not just pass/fail, to give the player a useful rejection
+     * message instead of a generic one -- see that method's own comment).
+     */
+    private Optional<String> failureReason(BorderProposal proposal) {
         fixture.requireServerSide();
 
         int radius = proposal.radius();
         if (radius < BorderConstants.MIN_RADIUS || radius > BorderConstants.MAX_RADIUS) {
-            OUT.warn(
-                    "[Border] Rejected proposal: radius " + radius + " outside allowed range ["
-                            + BorderConstants.MIN_RADIUS + ", " + BorderConstants.MAX_RADIUS + "]."
-            );
-            return false;
+            String reason = "radius " + radius + " outside allowed range ["
+                    + BorderConstants.MIN_RADIUS + ", " + BorderConstants.MAX_RADIUS + "].";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
         }
 
         int layerIndex = proposal.layerIndex();
         if (layerIndex < 0) {
-            OUT.warn("[Border] Rejected proposal: negative layerIndex " + layerIndex + ".");
-            return false;
+            String reason = "negative layerIndex " + layerIndex + ".";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
         }
 
         // A proposal updating an existing border (via insert(border)) keeps that border's own id,
         // so it's correctly excluded from colliding with itself here -- only a *different*
         // border already holding this layerIndex counts as a real collision.
+
         boolean collides = fixture.all().stream()
                 .anyMatch(b -> !b.id().equals(proposal.id()) && b.layerIndex() == layerIndex);
         if (collides) {
-            OUT.warn(
-                    "[Border] Rejected proposal: layerIndex " + layerIndex
-                            + " collides with an existing border's layerIndex."
-            );
-            return false;
+            String reason = "layerIndex " + layerIndex
+                    + " collides with an existing border's layerIndex.";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
         }
 
-        return true;
+        return Optional.empty();
     }
 
     public boolean remove(UUID uuid){

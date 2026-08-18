@@ -38,14 +38,26 @@ source-verified, pass.*
   likely the level sequence (level 1, level 2, level 3...) in design terms, though this specific
   equivalence wasn't asked/confirmed explicitly and is worth double-checking before it's load-bearing.
 
-## Geometry (recalled, not yet verified)
+## Geometry (confirmed against source)
 
-Each Border is tracked as a **coordinate + radius**. Height is not stored — it spans whatever the
-Minecraft engine's own world-height bounds are, matching the design's "full world height, min to
-max" cylinder. Stated from memory by the project owner ("double check at some point"); `BorderMath.java`
-hasn't been checked against this claim, and [Border](border.md) doesn't currently document
-geometry at all. Treat as the working assumption, not a verified fact, until a code-focused pass
-confirms it.
+Each Border is tracked as a **coordinate + radius** (`Border.center()`/`Border.radius()`).
+Height is not stored — `BorderMath` computes containment and distance in X/Z space only
+("Y is intentionally ignored," per its own class doc), matching the design's "full world height,
+min to max" cylinder. Confirmed directly from `Border.java`/`BorderMath.java`, not recalled from
+memory.
+
+## Oldest-ring-wins overlap resolution (confirmed against source)
+
+The single biggest previously-unconfirmed assumption in this page: yes,
+`DefaultBorderRules.getRelevant(List<Border> containing, BlockPos pos)` implements exactly this —
+given the set of borders containing a point (`BorderLogic.containing()`), it returns the one with
+the lowest `layerIndex` (oldest), tie-broken by nearest center. This backs both
+`BorderAPI.getRelevant(ServerPlayer)` and the `@relevant` command selector, not just a stub —
+wired end-to-end and not a placeholder. Real, evidenced gap in the same neighborhood: reordering
+`Border.layerIndex()` to match a *manually reordered* path (`/border path moveup`/`movedown`)
+isn't implemented yet — see [Border](border.md#known-gaps) and
+[Border Path & Layer Reconciliation](path-layer-reconciliation.md) — but the resolution query
+itself, for borders as currently laid out, is real and correct.
 
 ## Persistence layering (confirmed — already aligned, no reconciliation needed)
 
@@ -92,24 +104,19 @@ nothing else depends on, and it's already in a shape other triggers can reuse.
 
 ## Open items
 
-- **Does the existing Border/`BordersFixture` model actually support permanent, immutable
-  historical regions with an age-based overlap-resolution query (oldest-ring-wins)?** This is the
-  single biggest unconfirmed assumption underlying the whole progression design — everything about
-  safe pockets and "old territory stays old" depends on it — and it wasn't part of this round of
-  answers. Needs a source-level check before more spec work builds on top of it.
-- **`BorderPlayerBundle`'s purpose, at the source level, is no longer a mystery** — see
-  [Border](border.md#known-gap-per-player-evaluation-is-unfinished). Real per-player logic exists
+- **`BorderPlayerBundle`'s purpose, at the source level, is no longer a mystery, and it's now
+  wired up** — see [Border](border.md#known-gaps). Real per-player logic exists
   (`BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`, `BorderPlayerStatusFixture`,
-  `BorderPlayerStatusProposal`), but the bundle meant to host them is entirely commented out and
-  nothing constructs or registers it — an evidenced, tracked gap (see `RM_FRO_006` in the
-  roadmap), not junk and not a design decision. The project owner's earlier recollection ("might
-  be junk... probably the layer meant to track per-player border-specific data") turns out to be
-  the right guess. What's still genuinely open is the *design* side: this per-player layer isn't
-  mapped to any current Frontier design concept, so whether it's an early stab at something the
-  design will need later (e.g. once multiplayer's "whose frontier is it" question in [Multiplayer
-  Sketch](../design/multiplayer-sketch.md) gets unparked) or should be finished/removed on its own
-  merits is a design call, not a source-reading one.
-- Whether geometry is truly coordinate+radius as recalled, per above.
+  `BorderPlayerStatusProposal`) and, per `BorderModule.init()`, the bundle is now constructed and
+  registered against a real `PlayerJig`/`PlayerScope` (see `RM_FRO_006`) — this was still described
+  as fully commented out and unregistered in this page's earlier pass, which is now stale. The
+  project owner's earlier recollection ("might be junk... probably the layer meant to track
+  per-player border-specific data") was the right guess. What's still genuinely open is the
+  *design* side, deliberately not resolved here: this per-player layer isn't mapped to any current
+  Frontier design concept yet. Per the project owner (2026-08-16): that's Architect's question to
+  answer, not Game Designer's, but not worth resolving until something actually needs it — likely
+  multiplayer's "whose frontier is it" question in [Multiplayer
+  Sketch](../design/multiplayer-sketch.md), maybe sooner. Left open on purpose.
 - The boss/ambient-difficulty-mismatch warning-signal feasibility question from
   [Progression & Frontier Mechanics](../design/progression.md#bosses-can-appear-in-old-territory)
   — explicitly deferred by the project owner, not part of this reconciliation pass.
@@ -117,6 +124,9 @@ nothing else depends on, and it's already in a shape other triggers can reuse.
 ## Related pages
 
 - [Border](border.md)
+- [Border Path & Layer Reconciliation](path-layer-reconciliation.md)
+- [Boss](boss.md) — partially corrects this page's "missing caller, not a missing capability"
+  finding (path/center gap found scoping the real caller)
 - [Frontier Mode Overview](../design/overview.md)
 - [Progression & Frontier Mechanics](../design/progression.md)
 - [Bundle](../../satchel/architecture/bundle.md)

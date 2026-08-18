@@ -3,13 +3,14 @@ id: FRO_023
 uid: FRO
 number: 23
 client: FrontierMode
-status: open
+status: closed
 title: 'Build+playtest checklist: Sat020/Fro009-013'
 context: Sandbox has no Forge/Mojang maven access; owner runs real gradlew build +
-  playtest per checklist in ticket body.
+  playtest per checklist in ticket body. All five nodes (RM_SAT_020, RM_FRO_009/011/012/013)
+  confirmed and resolved as of 2026-08-16.
 priority: normal
 opened: '2026-08-16'
-closed: null
+closed: '2026-08-16'
 ---
 
 <!-- board:start -->
@@ -51,49 +52,89 @@ runServer` in Satchel or FrontierMode, whichever hosts the test), not just singl
 the first jig kind in either repo driven by a per-connection event instead of a per-level one, and
 dedicated-server deployment is specifically where the same-JVM safety net singleplayer provides
 stops covering for sidedness bugs.
-- [ ] Connect a real client (`./gradlew runClient`) to a running dedicated server.
-- [ ] **`PlayerTrackingModule` now provides this (2026-08-16)** — watch server console/
-  `latest.log` for `[PlayerTracking]` lines instead of needing a manual debug command:
-  - [ ] Login: exactly one `[PlayerTracking] LOADED player=... scope=... dim=...` line.
-  - [ ] Dimension change: `[PlayerTracking] TICK` lines (roughly every 5s) show `dim=` change
-    while `scope=` (the UUID) stays identical — no second `LOADED` line for the same player.
-  - [ ] Disconnect: exactly one `[PlayerTracking] UNLOADED player=... scope=...` line, and no
-    further `TICK` lines for that player afterward. Reconnect a few times and confirm each cycle
-    produces exactly one `LOADED`/`UNLOADED` pair, not an accumulating count.
+- [x] Connect a real client (`./gradlew runClient`) to a running dedicated server.
+- [x] **`PlayerTrackingModule` confirmed (2026-08-16)** — read directly from
+  `[PlayerTracking]` lines in a real login/nether/logout/login/overworld/logout session:
+  - [x] Login: three clean `LOADED` lines, one per login.
+  - [x] Dimension change: confirmed live, mid-session, twice — `TICK` lines show `dim=` change
+    while `scope=` stays identical, no second `LOADED` in between.
+  - [x] Disconnect: three clean `LOADED`/`UNLOADED` pairs, no accumulation. Node's done-bar met —
+    see RM_SAT_020's log.
 
 **RM_FRO_009 — Clean up dead BorderView code.** Low-risk pure deletion.
-- [ ] `gradlew build` succeeds after removing `BorderView`.
-- [ ] `runClient`, join a world with an active border, confirm rendering is unaffected (ring +
-  growth-trigger particle still draw correctly).
+- [x] `gradlew build` succeeds after removing `BorderView`.
+- [x] `runClient`, join a world with an active border, confirm rendering is unaffected — "border
+  rendering works" per project owner, confirmed in the same session as RM_SAT_020's test above.
 
 **RM_FRO_011 — Border mutation validation hardening.** Command-reachable, singleplayer/integrated
 is sufficient (no networking-boundary dependency).
-- [ ] `/border transform <selector> here` — no longer throws.
-- [ ] `/border transform <selector> <pos>` (omit radius) — no longer throws.
-- [ ] `/border transform <selector> radius <r>` (omit position) — no longer throws.
-- [ ] `/border add ~ ~ ~ 999999999 0` — rejected or clamped, not silently accepted.
-- [ ] `/border path fixlayers` — either actually reconciles layer order to path order, or reports
-  what it actually did instead of a false "Reconciled" success message.
-- [ ] Tab-complete on a border selector argument shows `@none`.
-- [ ] No leftover `Config.java` boilerplate values referenced anywhere (grep clean).
+- [x] `/border transform <selector> here` — confirmed individually (`/border transform 0 here`).
+- [x] `/border transform <selector> <pos>` (omit radius) — confirmed individually
+  (`/border transform 0 ~ ~ ~ 15`, relative coords, via the vanilla `pos` argument).
+- [x] `/border transform <selector> radius <r>` (omit position) — confirmed individually
+  (`/border transform 0 radius 100`). Project owner's call to stop testing variations here —
+  agreed, item 1 is closed.
+- [x] `/border add ~ ~ ~ 999999999 0` — rejected, not silently accepted. Confirmed across three
+  rounds: no more crash-looking error, single log line (not double), and now the player sees the
+  actual reason (`radius 999999999 outside allowed range [1, 512]`) instead of a generic message.
+- [x] `/border path fixlayers` — confirmed behaving as designed: reports "No changes made" rather
+  than a false "Reconciled" positive. (Not because there's nothing to fix — the reorder logic
+  itself isn't built yet, on purpose, per RM_FRO_011's log. Low priority, parked for
+  Architect/PM.)
+- [x] Tab-complete on a border selector argument shows `@none` — confirmed present (alphabetical
+  order: `@all`, `@containing`, `@coord`, `@none`, `@relevant`). Separately noted: `@all` being
+  the first suggestion for `/border transform` specifically feels like the wrong default to the
+  project owner (`@relevant` would fit better) — real but low-priority UX idea, not a bug, not
+  actioned.
+- [x] No leftover `Config.java` boilerplate values referenced anywhere (grep clean).
 
 **RM_FRO_012 — Client render lifecycle cleanup.** Singleplayer/integrated is sufficient.
-- [ ] No `FLAME` particle spawns above the player during normal play.
-- [ ] Visit two different worlds/dimensions in one client session; confirm `RenderContext.CACHE`
-  has only one live entry after leaving the first (a debug log line or breakpoint check is fine —
-  there's no player-facing signal for this one).
+- [x] No `FLAME` particle spawns above the player during normal play.
+- [x] Visit two different worlds/dimensions in one client session — confirmed twice now, zero
+  errors both times. `RenderContext.CACHE`'s single-live-entry claim specifically still isn't
+  provable from text logs, but treating the done-bar as satisfied in practice — see RM_FRO_012's
+  log for the reasoning (no diagnostic added, no evidence of a problem, revisit only if a real
+  symptom shows up later).
 
 **RM_FRO_013 — Border fixture & compass robustness.** Singleplayer/integrated is sufficient.
-- [ ] Hand-edit one border entry in a save file to be malformed (bad UUID tag, wrong type); confirm
+- [x] Hand-edit one border entry in a save file to be malformed (bad UUID tag, wrong type); confirm
   the rest of that world's borders still load and only the bad entry is skipped (check logs for
-  the skip message).
-- [ ] Move a frontier compass to the offhand slot, wait through a few finder-items poll cycles
-  (~5 ticks each), confirm no duplicate compass appears in inventory.
-- [ ] Grep confirms `BordersAPIException` is gone (or, if built out instead, has a real throw
-  site).
+  the skip message). **Confirmed** — fresh server start showed `[Border] Skipping malformed
+  border entry during load: ...Expected UUID-Tag to be of type INT[], but found STRING.` followed
+  by `Borders loaded: 5` (Ironveil skipped, other five intact).
+- [x] Move a frontier compass to the offhand slot, wait through a few finder-items poll cycles
+  (~5 ticks each), confirm no duplicate compass appears in inventory. Confirmed, and extended:
+  also no duplication in the main hand after a path-grow event.
+- [x] Grep confirms `BordersAPIException` is gone — re-confirmed directly (`grep -rn
+  BordersAPIException FrontierMode/src`, no hits).
 
 ## Log
 
+- 2026-08-16: **All five nodes confirmed — ticket closed.** Malformed-entry test (RM_FRO_013's
+  last open item) confirmed on a fresh server start: correct skip warning, five borders loaded
+  (not six), server ran normally. RM_SAT_020, RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013 all
+  marked `resolved` on their own roadmap nodes.
+- 2026-08-16: **Second playtest round — everything closed except the malformed-entry test.**
+  RM_SAT_020 and RM_FRO_009 (untouched in the first round) both confirmed clean from a real
+  login/nether-portal/logout/login/overworld/logout session. RM_FRO_011's three `/border
+  transform` forms confirmed individually, `fixlayers` confirmed behaving as designed, `@none`
+  tab-complete confirmed present, the add-rejection message fix confirmed showing the real reason.
+  RM_FRO_012's dimension-visit item accepted as satisfied without a diagnostic (project owner
+  asked for a recommendation; two clean round-trips with zero symptoms was judged sufficient).
+  RM_FRO_013's `BordersAPIException` grep re-confirmed clean directly. Only remaining item across
+  all five nodes: the malformed-save-entry test, now staged directly (Lead Dev corrupted a real
+  border entry in the project owner's own save, backed up first) — awaiting the project owner's
+  restart + log check. This ticket can close as soon as that one comes back.
+- 2026-08-16: First real playtest pass reviewed (project owner + Lead Dev, reading
+  `run/logs/latest.log` + `run-server/logs/latest.log` together, plus project owner's direct
+  observations for items logs can't show). RM_FRO_011, RM_FRO_012, RM_FRO_013 checkboxes updated
+  above — see each item for specifics. One real bug found and fixed in the process: `/border add`/
+  `/border transform` rejections were surfacing as Brigadier's generic "unexpected error" instead
+  of the actual reason, plus a redundant double-validation call — both fixed in `BorderAPI.java`
+  and `BorderCommandHandler.java`, unverified pending rebuild. Still outstanding: individual
+  `/border transform` form isolation, `/border path fixlayers`, `@none` tab-complete visual check,
+  the malformed-save-entry test, and a `BordersAPIException` grep re-check. RM_SAT_020's items
+  untouched this pass (not part of this feedback round).
 - 2026-08-16: RM_SAT_020's login/dimension-change/logout item updated — `PlayerTrackingModule`
   (see that node's own log) now makes this a real log-watching check instead of an unresolved
   "no way to do this yet." Also added a rebuild note referencing

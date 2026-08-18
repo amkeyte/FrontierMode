@@ -3,16 +3,17 @@ id: SAT_033
 uid: SAT
 number: 33
 client: Satchel
-status: open
+status: closed
 title: Bundle sync parcels sent unconditionally, ignoring dirty state and connected
   players
 context: 'Observed in a real server log with no client connected: pulseSync() fires
   scheduleSync() every syncIntervalTicks regardless of bundle.isDirty() and regardless
-  of whether any player is in the dimension. Pinned from project owner-supplied log,
-  not yet actioned.'
+  of whether any player is in the dimension. Design question answered by project owner
+  (keep the heartbeat -- parcels are unreliable/unacked, no client resend-request
+  path) -- fixed by gating on player presence only, not dirty state.'
 priority: normal
 opened: '2026-08-16'
-closed: null
+closed: '2026-08-16'
 ---
 
 <!-- board:start -->
@@ -64,6 +65,20 @@ data corruption), but worth cleaning up given it runs on every bundle, every ses
 
 ## Log
 
+- 2026-08-16: **Design question answered by project owner, fixed, closed.** Keep the periodic
+  resend un-gated by `bundle.isDirty()` — parcels have no delivery acknowledgment and there's no
+  client-side "my state might be stale, please resend" request path, so the timer is the only
+  thing that heals a dropped parcel or catches up a client that connected mid-session before the
+  next real change. Confirmed the "waste" in the original log wasn't network traffic either way —
+  `SatchelNetwork.send()` uses `PacketDistributor.DIMENSION`, which Forge safely no-ops with zero
+  players — just wasted NBT-serialization/packet-construction CPU work for a send nobody receives.
+  **Fix:** `ScopeEngine_Server.scheduleSync()` now checks a new `noOneWouldReceiveThis(ScopeInfo)`
+  helper first and skips entirely when the scope's dimension has zero connected players — dirty
+  state still isn't checked, matching the decision to keep the heartbeat. Only meaningful for
+  `LevelScope`-backed bundles today (`SatchelNetwork.send()`'s only supported scope kind per
+  SAT_028); any other scope kind conservatively assumes someone might receive it rather than
+  guessing at a different audience shape. Unverified pending rebuild — no build access this
+  session.
 - 2026-08-16: Pinned by Lead Dev (Curtis) from a log snippet the project owner shared, traced to
   `SatchelBundle.pulseSync()` calling its sync delegate unconditionally (no dirty check, unlike
   the sibling `flushIfDirty()` persistence path). Left open, not actioned — see Summary for the

@@ -3,13 +3,14 @@ id: FRO_024
 uid: FRO
 number: 24
 client: FrontierMode
-status: open
+status: closed
 title: Rendering eager static crashes dedicated server
 context: WorldBordersRenderer built in Rendering's <clinit>; RuntimeDistCleaner blocks
-  MultiBufferSource on DEDICATED_SERVER. First real runServer crash.
+  MultiBufferSource on DEDICATED_SERVER. First real runServer crash. Confirmed fixed
+  -- 10+ dedicated-server sessions since, all reaching "Done" with zero recurrence.
 priority: high
 opened: '2026-08-16'
-closed: null
+closed: '2026-08-16'
 ---
 
 <!-- board:start -->
@@ -26,9 +27,9 @@ Reported by the project owner from `run-server/logs/latest.log` — first real d
 private static final WorldBordersRenderer BORDERS_RENDERER = new WorldBordersRenderer();
 ```
 
-[BorderModule](../../wiki/frontiermode/architecture/border.md#runtime-wiring)'s `EventHandlers`
+[BorderModule](../wiki/frontiermode/architecture/border.md#runtime-wiring)'s `EventHandlers`
 wires `Rendering::onClientTick` (and, as of today's
-[RM_FRO_012](../../roadmap/RM_FRO_012_carolyn.md) pass, `Rendering::onClientUnload`) into a
+[RM_FRO_012](../roadmap/RM_FRO_012_carolyn.md) pass, `Rendering::onClientUnload`) into a
 **BOTH**-applicability `LevelJigConfig` — so `ScopeEvent.Tick` invokes those methods on the server
 too. Both methods have their own client-side guard (`Satchel.foundation().filter(f ->
 f.side().isClient())`), but the guard runs too late: merely *entering* either static method forces
@@ -44,7 +45,7 @@ net/minecraft/client/renderer/MultiBufferSource for invalid dist DEDICATED_SERVE
 client-only classes are legitimately loadable there (`LogicalFoundation`'s own docs: "both
 [foundations] are alive simultaneously in single-player"). This is the first session with a real
 dedicated server + separate client JVM, and it's exactly the class of risk the
-[Universal Sidedness Facade](../../wiki/satchel/architecture/facade-vision.md) vision page already
+[Universal Sidedness Facade](../wiki/satchel/architecture/facade-vision.md) vision page already
 named: "dedicated-server deployment removes the accidental same-JVM safety net... it doesn't
 introduce the risk." Pre-existing bug, not introduced by today's RM_FRO_012 pass — that pass added
 a second method reference to the same already-broken class, which is what put it on the project
@@ -70,6 +71,11 @@ wrong.
 
 ## Log
 
+- 2026-08-16: **Confirmed fixed, closed.** Every dedicated-server session since the fix (10+
+  rolled log files, plus the freshest `latest.log` from today's RM_FRO_013 malformed-entry test)
+  reaches `Done (...)!` with zero occurrences of `Rendering.<clinit>`, `MultiBufferSource`, or
+  `RuntimeDistCleaner` anywhere in the logs. No recurrence, no different crash surfacing behind
+  it either.
 - 2026-08-16: Root cause traced from `run-server/logs/latest.log`, fix applied to `Rendering.java`
   (Lead Dev, Curtis). Left `open`, not `done` — pending a real re-run to confirm, same pattern as
   FRO_018.

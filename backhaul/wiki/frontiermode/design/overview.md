@@ -7,7 +7,7 @@ summary: Core identity, design pillars, and the gradient-not-walls philosophy fo
   FrontierMode's game-mode concept.
 keywords: null
 status: draft
-updated: '2026-08-12'
+updated: '2026-08-18'
 ---
 
 <!-- bh-header:start -->
@@ -50,7 +50,7 @@ Discovery](boss-discovery.md) and [Guardian Mobs](guardian-mobs.md).
 Nearly every limit in Frontier Mode should be a gradient the player experiences through play, not
 a hard rule enforced against them. The frontier's edge is a visual marker, not an invisible wall —
 a player can walk past it, and the world gets ruthlessly harder on the other side, but nothing
-stops them physically. Difficulty ramps by distance and by level-age, not by a switch. Discovery
+stops them physically. Difficulty ramps by distance and by Border age, not by a switch. Discovery
 tools scale from ambient and free (guardian mobs, environmental tells) to rare and expensive, not
 from "nothing" to "everything" at a fixed point. This principle should be treated as a constraint
 on every future mechanic proposed for this mode, not just the ones designed so far.
@@ -74,8 +74,9 @@ direct quote — flag if a more precise source turns up later.)
 Frontier Mode does not override Minecraft's existing difficulty settings or death consequences.
 Peaceful, Normal, Hard, and Hardcore all remain valid ways to play, and players should be free to
 set their own comfort level — Hardcore included, for players who want that tension. If a future
-mechanic wants to tie a consequence to the frontier itself (losing progress, being pushed back a
-level, etc.), that would be a deliberate, separate design decision, not an assumed default.
+mechanic wants to tie a consequence to the frontier itself (losing Path progress, being pushed
+back to an earlier Border, etc.), that would be a deliberate, separate design decision, not an
+assumed default.
 
 ## Audience
 
@@ -105,3 +106,6 @@ thinking is captured separately and is **not** part of the mode's current design
 - [Nethack Ideas (Parked)](nethack-ideas-parked.md)
 - [FrontierMode mod summary](../frontiermode.md)
 - [Border architecture](../architecture/border.md)
+- [Border Vocabulary](../architecture/border-vocabulary.md) — internal architecture vocabulary;
+  see [Progression & Frontier Mechanics](progression.md#terminology-level-is-player-facing-only)
+  for why "level" stays player-facing only across every page in this section.

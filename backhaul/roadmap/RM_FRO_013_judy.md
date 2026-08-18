@@ -3,7 +3,7 @@ id: RM_FRO_013
 uid: RM_FRO
 number: 13
 kind: work
-status: open
+status: resolved
 title: Border fixture & compass robustness
 owner: Arryn
 depends_on:
@@ -78,8 +78,35 @@ verify directly, no multi-session play test needed.
   - **Unverified this session** — no Forge/Mojang maven access (confirmed via curl). This node's
     own done-bar is cheap to verify directly (a deliberately-corrupted save entry; one
     offhand-compass poll cycle; a grep) — see
-    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md). Singleplayer/integrated is
+    [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md). Singleplayer/integrated is
     sufficient; nothing here crosses a client/server network boundary.
+
+- 2026-08-16: **Playtest: compass duplication check confirmed, extended beyond the original
+  scope.** Project owner reports no compass duplication in the main hand even after a path-grow
+  event (which is what triggers the finder-items poll to try to hand out a compass) — the done
+  bar's own item only specified the offhand slot, but this covers the broader "does the poll ever
+  hand out a second compass" question more directly, so treating it as satisfied. **Malformed
+  save-entry check still needs testing** — project owner flagged this explicitly as not yet done
+  this session. **Grep for `BordersAPIException`** re-confirmed clean directly (`grep -rn
+  BordersAPIException FrontierMode/src` — no hits). Item closed.
+- 2026-08-16: **Malformed-entry test staged directly, project owner didn't have a way to hand-edit
+  the save file themselves.** Found the live overworld border save
+  (`run-server/world/data/satchel_bundle_0d41215d-...dat`, gzip'd NBT) using `Border.save()`'s
+  known tag shape (`id` stored as a 4-int `IntArray` via `putUUID`). Backed up the original
+  (`.dat.bak`, same directory) before touching anything, then used `nbtlib` to replace the
+  `Ironveil` border entry's `id` tag with a plain `String` (`"NOT-A-VALID-UUID"`) — wrong NBT
+  type, exactly what `tag.getUUID("id")` inside `Border.load()` will choke on. The other five
+  borders (Ashring, Highfall, Blackgate, Shadowmere, Goldfall) are untouched. Next step is the
+  project owner's: restart the server (or reload the world), then confirm `run-server/logs/
+  latest.log` shows `[Border] Skipping malformed border entry during load: ...` exactly once, and
+  `/border info` lists five borders, not six, with `Ironveil` specifically missing. Restore
+  `.dat.bak` over the corrupted file afterward if the world should keep that border going
+  forward.
+- 2026-08-16: **Confirmed — malformed-entry test passed cleanly.** Fresh server start + login:
+  `[Border] Skipping malformed border entry during load: java.lang.IllegalArgumentException:
+  Expected UUID-Tag to be of type INT[], but found STRING.` followed immediately by
+  `Borders loaded: 5` — exactly one entry skipped (Ironveil), the other five loaded fine, server
+  ran normally. Done bar fully met. Node resolved.
 
 ## Required By
 

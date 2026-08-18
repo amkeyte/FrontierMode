@@ -3,7 +3,7 @@ id: RM_FRO_011
 uid: RM_FRO
 number: 11
 kind: work
-status: open
+status: resolved
 title: Border mutation validation hardening
 owner: Arryn
 depends_on:
@@ -152,9 +152,89 @@ boilerplate config values referenced anywhere) is enough for those specifically.
     that class to subscribe). `@none` added to `BorderSelectorArgumentType.listSuggestions()`.
   - **Unverified this session** — no Forge/Mojang maven access (confirmed via curl). Real
     `gradlew build` plus the command checklist in
-    [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md) still owed before this counts as
+    [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md) still owed before this counts as
     resolved. Singleplayer/integrated is sufficient for all of this node's testing — nothing here
     crosses a client/server network boundary the way `RM_SAT_020` does.
+
+- 2026-08-16: **First real playtest pass, project owner + Lead Dev (Curtis) reviewing
+  `run/logs/latest.log` and `run-server/logs/latest.log` together.** Per-item results:
+  - **Item 1 (`/border transform`, three null-arg forms) — confirmed no NPE/crash.** At least one
+    successful `Transformed border <id>` went through cleanly. The specific attempts to exercise
+    all three individual forms (`here`, position-only, radius-only) hit command-syntax typos
+    instead (`Incomplete (expected 3 coordinates)`, `Expected whitespace to end one argument`,
+    `Usage: @coord <x> <y> <z>`) — those are Brigadier parser rejections from the typed command
+    text, not this node's code path, so they don't confirm or deny anything about the fix. Still
+    open: a clean, correctly-typed retry of each of the three forms individually.
+  - **Item 2 (`/border add ~ ~ ~ 999999999 0` bounds check) — validation itself confirmed
+    working, but found and fixed a real bug in how the rejection surfaces.** Server log showed
+    the intended `[Border] Rejected proposal: radius 999999999 outside allowed range [1, 512].`
+    — but doubled (logged twice for one command), and the player only ever saw Brigadier's
+    generic `An unexpected error occurred trying to execute that command`, not the actual reason.
+    Root cause: `BorderAPI.addBorder()`/`transformBorder()` called
+    `borders.CRUD.validateProposal(proposal)` themselves *and* discarded the boolean result, while
+    `BordersCrudFacet.applyProposal()` already calls `validateProposal()` again internally and
+    throws a raw `IllegalStateException` on rejection — explains the double log line (redundant
+    first call) and the ugly player-facing message (nothing between `applyProposal()` and
+    Brigadier's dispatcher ever caught that exception). **Fixed just now:** removed the redundant
+    pre-validation call in `BorderAPI` (dead code, result was already discarded); added
+    `try/catch(IllegalStateException)` in `BorderCommandHandler.addExplicit`/`addHere`/`transform`,
+    converting the rejection into a clean `[Border] Rejected: <reason>` message via
+    `sendFailure`/`sendSystemMessage` instead of letting it bubble into Brigadier's generic
+    handler. Also worth noting for the retest: the actual `999999999` (9 nines, in range for
+    `IntegerArgumentType`) is what exercised this code path — an earlier typo with 12 nines
+    (`999999999999`) got rejected by Brigadier's own int-overflow check before ever reaching this
+    code, which is a different, unrelated rejection path, not evidence either way about this
+    fix.
+  - **Item 3 (`/border path fixlayers`) — not exercised this session**, no `fixlayers` or
+    `Reconcil` text anywhere in either log. Still needs a real run against the "reports what it
+    actually did" behavior landed above.
+  - **`@none` tab-complete** — not verifiable from text logs (client-side UI-only interaction,
+    nothing gets logged). Needs a direct visual confirmation from the project owner.
+  - **`Config.java` grep-clean** — confirmed directly from source (not logs): the only reference
+    to `Config` anywhere in FrontierMode is `FrontierMode.java`'s legitimate
+    `ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC)` call. Clean.
+  - **Follow-up retest (same session, project owner): the "unexpected error" fix works** — server
+    log now shows the rejection logged exactly once (double-log bug confirmed fixed), no more
+    generic Brigadier error. But the player-facing message was still just the generic
+    `Border proposal rejected by validation -- see server log for the specific reason.` — my first
+    fix only stopped the crash-looking message, it didn't carry the *actual* reason
+    (`radius 999999999 outside allowed range [1, 512]`) into what the player sees. Root cause:
+    `BordersCrudFacet.applyProposal()`'s thrown `IllegalStateException` always used a fixed
+    generic string; the real per-case reason only ever reached `OUT.warn()`, server-side only.
+    **Fixed just now:** refactored `validateProposal`'s logic into a private
+    `failureReason(BorderProposal)` returning `Optional<String>` (empty = valid); `applyProposal`
+    now throws with that actual reason text, so `BorderCommandHandler`'s existing catch (no
+    changes needed there) relays the real message to the player. `validateProposal` itself keeps
+    its `boolean` signature (`BorderLogic`'s two organic-growth call sites are unaffected). Also
+    found and cleaned up the same redundant-double-validate pattern in `BorderLogic.getInitial()`/
+    `grow()` (identical shape to the one already fixed in `BorderAPI`) while in this file.
+    Unverified pending rebuild.
+  - **All three `/border transform` forms confirmed individually, project owner's call to stop
+    there:** `radius 100`, `here`, and `~ ~ ~ 15` (relative coords, confirming `BlockPosArgument`
+    handles `~` fine -- that's the vanilla-provided `pos` argument, not the custom `@coord`
+    selector parser) all applied cleanly. Item 1 closed.
+  - **`/border path fixlayers` retested — behaves exactly as this session's fix left it**, reports
+    "No changes made -- layer/path reconciliation isn't implemented yet." Project owner asked if
+    that's because there's nothing to reconcile right now -- worth being precise: it's not a
+    "nothing to do" state, it's that the reorder logic itself was deliberately never built this
+    session (see the log entry above) because it interacted unsafely with item 2's new collision
+    check. The message is honest about that, not about the data being already clean. Confirmed
+    low priority, parked for Architect/PM per the existing flag.
+  - **Tab-complete default noted, not acted on:** `/border info` + Tab correctly suggests `@all`.
+    `/border transform` + Tab also suggests `@all` first (alphabetical order, same as everywhere
+    else `BorderSelectorArgumentType` is used) -- project owner's read is `@relevant` would be a
+    more useful default for `transform` specifically (usually acting on "the border I'm standing
+    in" rather than "all of them"). Not implemented -- would mean per-command-context suggestion
+    ordering instead of the current shared list, and `@relevant` doesn't even resolve to anything
+    yet (RM_FRO_006). Flagged as a real but low-priority UX idea, not a bug.
+  - Unrelated but observed in the same log window: a `@none`/empty-selector query returned
+    `[Border] No borders matched selector.` cleanly (no crash) — consistent with, but not a
+    substitute for, the tab-complete check above.
+  - **Not yet re-verified after today's two fixes** — same standing limitation, no Forge/Mojang
+    maven access this session. Still open pending: clean individual retests of the three
+    `/border transform` forms, a `/border add ~ ~ ~ 999999999 0` retest (should now show the
+    clean rejection message and only one log line), `/border path fixlayers`, and the `@none`
+    tab-complete visual check.
 
 ## Required By
 

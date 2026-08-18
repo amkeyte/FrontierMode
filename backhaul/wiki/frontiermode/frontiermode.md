@@ -47,6 +47,11 @@ mod; see [FRO_001](../../tickets/FRO_001_readme-boilerplate.md)).
 
 - [Border](architecture/border.md) — the world-border system, FrontierMode's one substantial
   feature.
+- [Border-Frontier Reconciliation](architecture/frontier-reconciliation.md) — maps Border onto the
+  design vocabulary below; what's confirmed vs. still open.
+- [Border Path & Layer Reconciliation](architecture/path-layer-reconciliation.md) — design for the
+  `fixLayers()` gap (RM_FRO_015).
+- [Boss](architecture/boss.md) — Tier 1's boss entity/spawn system design (RM_FRO_018/019).
 
 ## Design
 

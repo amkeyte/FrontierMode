@@ -134,10 +134,12 @@ public final class BorderSelector {
     }
 
     private static List<Border> resolveRelevant(ServerPlayer player) {
-//        var l = new ArrayList<Border>();
-//        l.add(BorderAPI.getRelevant(player));
-//        return l;
-        return List.of();
+        // RM_FRO_006: BorderAPI.getRelevant(ServerPlayer) is real now -- backed by the
+        // PlayerJig-scoped BorderPlayerStatusFixture BorderModule keeps current every tick.
+        // Empty here is a real, honest result (no nearest border yet -- e.g. an empty dimension,
+        // or the player hasn't ticked since logging in), same as every other selector mode's
+        // empty case, not the "feature isn't built" placeholder this used to be.
+        return BorderAPI.getRelevant(player).stream().toList();
     }
 
     public static Border resolveSingle(BorderSelectorResult sel, ServerPlayer player) throws CommandSyntaxException {

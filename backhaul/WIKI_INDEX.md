@@ -14,8 +14,11 @@
 
 | Title | Status | Summary | Edit |
 |---|---|---|---|
+| [Border Vocabulary (Parked)](wiki/frontiermode/architecture/border-vocabulary.md) | draft | Open idea: four distinct concepts (Relevance, Layer, Path, Difficulty) proposed to replace overloaded use of 'level' across the wiki and code. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/border-vocabulary.md) |
 | [Border](wiki/frontiermode/architecture/border.md) | verified | FrontierMode's world-border system -- the mod's one substantial feature, built on Satchel's fixture/facet and jig/scope model. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/border.md) |
+| [Boss](wiki/frontiermode/architecture/boss.md) | draft | Boss entity/spawn system design for Tier 1 -- data model, spawn algorithm, and the defeat-detection caller into BorderAPI. RM_FRO_018/019 build against this. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/boss.md) |
 | [Border-Frontier Reconciliation](wiki/frontiermode/architecture/frontier-reconciliation.md) | draft | Maps Sasha's Frontier design vocabulary onto the existing Border architecture and flags what's confirmed vs. still open. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/frontier-reconciliation.md) |
+| [Border Path & Layer Reconciliation](wiki/frontiermode/architecture/path-layer-reconciliation.md) | draft | Design for reconciling Border.layerIndex to path order after a manual /border path reorder -- the fixLayers() gap RM_FRO_015 tracks. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/path-layer-reconciliation.md) |
 
 ## frontiermode/design
 
@@ -25,7 +28,7 @@
 | [Guardian Mobs](wiki/frontiermode/design/guardian-mobs.md) | draft | Stronger, visually distinct hostile mob variants that cluster near bosses as a passive discovery aid and tension ramp. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/guardian-mobs.md) |
 | [Multiplayer Sketch (Parked)](wiki/frontiermode/design/multiplayer-sketch.md) | draft | Early, unscoped ideas for how the frontier loop might work in multiplayer -- fixed/summoned bosses, gear-based scaling. Not in active design scope. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/multiplayer-sketch.md) |
 | [Nethack Ideas (Parked)](wiki/frontiermode/design/nethack-ideas-parked.md) | draft | Nethack-derived feature ideas kept in mind for later so the core loop isn't band-aided to fit them after the fact. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/nethack-ideas-parked.md) |
-| [Nether and End](wiki/frontiermode/design/nether-and-end.md) | draft | How the Nether and End tie into frontier progression via the player's highest attained level rather than their own spatial frontier. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/nether-and-end.md) |
+| [Nether and End](wiki/frontiermode/design/nether-and-end.md) | draft | How the Nether and End tie into frontier progression via the furthest Path position the player has reached rather than their own spatial frontier. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/nether-and-end.md) |
 | [Frontier Mode Overview](wiki/frontiermode/design/overview.md) | draft | Core identity, design pillars, and the gradient-not-walls philosophy for FrontierMode's game-mode concept. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/overview.md) |
 | [Progression and Frontier Mechanics](wiki/frontiermode/design/progression.md) | draft | How the frontier expands: cylinder growth, re-centering, irregular shape, and the oldest-ring-wins overlap rule. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/progression.md) |
 
@@ -43,8 +46,8 @@
 | Title | Status | Summary | Edit |
 |---|---|---|---|
 | [Full Documentation Coverage Plan](wiki/plans/doc-coverage.md) | published | Plan to bring FrontierMode and Satchel's wiki up to full design/spec coverage of existing code before content work starts. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/doc-coverage.md) |
-| [Bare-Necessity Strip-Down Plan](wiki/plans/strip-down.md) | published | Plan to strip both mod repos to the minimum needed to remain valid Forge mods, and replace git history clean. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/strip-down.md) |
 | [FrontierMode Operational Tiers](wiki/plans/operational-tiers.md) | published | The experience-tier framework FrontierMode's roadmap convergence nodes are organized around, instead of one convergence per module. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/operational-tiers.md) |
+| [Bare-Necessity Strip-Down Plan](wiki/plans/strip-down.md) | published | Plan to strip both mod repos to the minimum needed to remain valid Forge mods, and replace git history clean. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/strip-down.md) |
 
 ## reference
 
@@ -65,10 +68,11 @@
 | [Bundle](wiki/satchel/architecture/bundle.md) | verified | Satchel's primary unit of state aggregation -- identity, lifecycle, and the scope/bundle/facet/stitch mental model. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/bundle.md) |
 | [Universal Sidedness Facade](wiki/satchel/architecture/facade-vision.md) | draft | Vision: Satchel as the exclusive path to Forge for every module -- every touch point, not just tick/lifecycle, guaranteed side-correct by construction rather than by thread discipline. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/facade-vision.md) |
 | [Fixture](wiki/satchel/architecture/fixture.md) | verified | The fixture/facet package -- Satchel's modder-facing unit of persistent state: lifecycle, field registration, save/load contract, isolation rules. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/fixture.md) |
+| [Forge Event Conduit (Parked)](wiki/satchel/architecture/forge-event-conduit.md) | draft | Open idea: route a jig's declared Forge gameplay events through Satchel-scoped dispatch instead of raw MinecraftForge.EVENT_BUS registration in module code. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/forge-event-conduit.md) |
 | [Jig & Strap Registration — History](wiki/satchel/architecture/jig-registration-break.md) | verified | Historical record of the compile-blocking jig/strap registration regression found and fixed on 2026-08-13 -- investigation notes, root causes, and the fix chain. Current mechanism is documented in runtime.md. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/jig-registration-break.md) |
 | [Jig & Strap Registration — Recovery Plan](wiki/satchel/architecture/jig-registration-recovery-plan.md) | verified | Proposed direction and first cleanup step to get FrontierMode compiling again against Satchel's newer declarative config system, deprecating the dead imperative Registrar/Strap pattern. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/jig-registration-recovery-plan.md) |
 | [Networking](wiki/satchel/architecture/net.md) | verified | Satchel's transport-only networking layer -- packet model, guarantees, forbidden behavior. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/net.md) |
-| [New Module Checklist](wiki/satchel/architecture/new-module-checklist.md) | draft | Footguns every new Satchel jig/module consumer has hit at least once -- register schema only, wire executionPulse if sync is needed, wire Forge listeners, respect LogicalSideContext thread discipline. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/new-module-checklist.md) |
+| [New Module Checklist](wiki/satchel/architecture/new-module-checklist.md) | draft | Footguns every new Satchel jig/module consumer has hit at least once -- register schema only, wire executionPulse if sync is needed, wire Forge listeners, respect LogicalSideContext thread discipline, keep bundles single-concern. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/new-module-checklist.md) |
 | [Persistence](wiki/satchel/architecture/persistence.md) | verified | Server-side per-bundle persistence architecture (Satchel 2.0) -- BundleSavedData, identity rules, dirty propagation. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/persistence.md) |
 | [Jig & Scope Runtime](wiki/satchel/architecture/runtime.md) | verified | The jig/scope/foundation tick-and-event delivery machinery underneath Satchel -- foundations, the dispatch chain, JigConfig registration, and the three jig kinds. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/runtime.md) |
 

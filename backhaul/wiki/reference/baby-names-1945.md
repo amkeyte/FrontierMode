@@ -41,7 +41,10 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Betty | Roadmap node slug, [RM_FRO_011](../../roadmap/RM_FRO_011_betty.md) |
 | Carolyn | Roadmap node slug, [RM_FRO_012](../../roadmap/RM_FRO_012_carolyn.md) |
 | Judy | Roadmap node slug, [RM_FRO_013](../../roadmap/RM_FRO_013_judy.md) |
-| Shirley | Roadmap node slug, [RM_FRO_014](../../roadmap/RM_FRO_014_shirley.md) |
+| Margaret | Roadmap node slug, [RM_FRO_015](../../roadmap/RM_FRO_015_margaret.md) |
+| Donna | Roadmap node slug, [RM_FRO_017](../../roadmap/RM_FRO_017_donna.md) |
+| Shirley | Roadmap node slug (reused, new number — see note below), [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md) |
+| Karen | Roadmap node slug (reused, new number — see note below), [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) |
 | James | Roadmap node slug, [RM_SAT_001](../../roadmap/RM_SAT_001_james.md) |
 | Robert | Roadmap node slug, [RM_SAT_002](../../roadmap/RM_SAT_002_robert.md) |
 | John | Roadmap node slug, [RM_SAT_003](../../roadmap/RM_SAT_003_john.md) |
@@ -62,10 +65,19 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Edward | Roadmap node slug, [RM_SAT_018](../../roadmap/RM_SAT_018_edward.md) |
 | Dennis | Roadmap node slug, [RM_SAT_019](../../roadmap/RM_SAT_019_dennis.md) |
 | Jerry | Roadmap node slug, [RM_SAT_020](../../roadmap/RM_SAT_020_jerry.md) |
+| Frank | Roadmap node slug, [RM_SAT_021](../../roadmap/RM_SAT_021_frank.md) |
 
 Roadmap node slugs follow a fixed pattern: girls' names for RM_FRO, boys' names for RM_SAT,
 assigned in list rank order — so a slug's gender alone tells you which mod's graph it belongs to.
 When a new node is opened, take the next unused name from the matching-gender list.
+
+Rank 14 (Shirley) and rank 16 (Karen) were briefly assigned to RM_FRO_014 and RM_FRO_016, both
+deleted 2026-08-16 (folded into [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md) — see that node's
+own log). Both names were reused the same day for real new nodes — Shirley for
+[RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md), Karen for
+[RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) — under new numbers, since the old node numbers
+themselves stay retired (IDs aren't reused once minted). Both names are now used again; the next
+unused RM_FRO name is Joyce (rank 18).
 
 ## Full list
 

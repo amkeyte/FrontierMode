@@ -3,14 +3,19 @@ package com.arryn.frontiermode.border;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
+import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
+import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.player.PlayerJig;
+import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
@@ -54,6 +59,15 @@ public final class BorderAPI {
     public static LevelJig levelJig() {
         return (LevelJig)
                 foundation().requireJigInfo(FrontierKeys.BORDERS_JIG).jig;
+    }
+
+    /**
+     * RM_FRO_006: the {@code PlayerJig} analogue of {@link #levelJig()}, backing
+     * {@link #playerStatus(ServerPlayer)}/{@link #getRelevant(ServerPlayer)} below.
+     */
+    public static PlayerJig playerJig() {
+        return (PlayerJig)
+                foundation().requireJigInfo(FrontierKeys.BORDER_PLAYER_JIG).jig;
     }
 
     /**
@@ -188,9 +202,63 @@ public final class BorderAPI {
     }
 
 
-    public static Optional<Border> getRelevant(Player player) {
-        // Placeholder until player scopes exist
-        return Optional.empty();
+    /**
+     * RM_FRO_006: resolves {@code player}'s live {@link BorderPlayerStatus} snapshot -- the
+     * per-player, {@code PlayerJig}-scoped derived-evaluation state ({@code BorderModule.init()}'s
+     * {@code onPlayerScopeTick} handler keeps this current every tick). Follows the same
+     * "standby, don't crash" discipline as {@link #borders(Level)}: not ready yet (Satchel not
+     * booted, scope not yet known, scope known but not ready) all fall through to
+     * {@code Optional.empty()} rather than throwing, since callers like
+     * {@code BorderSelector.resolveRelevant} run in ordinary command-dispatch context and a
+     * player who hasn't ticked even once yet (e.g. mid-login) is a real, expected transient state,
+     * not an error.
+     */
+    public static Optional<BorderPlayerStatus> playerStatus(ServerPlayer player) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+
+        PlayerScope scope = new PlayerScope(player);
+
+        var infoOpt = Satchel.require()
+                .tryScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
+
+        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+            return Optional.empty();
+        }
+
+        try {
+            Optional<BorderPlayerBundle> bundle =
+                    Optional.of(playerJig().getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE));
+
+            return bundle
+                    .flatMap(BorderPlayerBundle::status)
+                    .map(BorderPlayerStatusFixture::status);
+
+        } catch (RuntimeException e) {
+            throw new SatchelException.AccessFailed(
+                    "Failed to resolve BorderPlayerStatus for player "
+                            + player.getGameProfile().getName(),
+                    e
+            );
+        }
+    }
+
+    /**
+     * The border {@code player}'s live {@link BorderPlayerStatus} considers nearest, resolved
+     * back to a real {@link Border} in their current level. Backs {@code @relevant} in
+     * {@link com.arryn.frontiermode.border.server.commands.BorderSelector}. Empty whenever
+     * {@link #playerStatus(ServerPlayer)} is empty (not ready yet), or when it's present but
+     * genuinely has no nearest border (empty dimension, or the player hasn't ticked since
+     * entering one) -- {@code nearestBorderId} is null in that case per
+     * {@code BorderPlayerLogic.evaluate}'s own no-borders branch.
+     */
+    public static Optional<Border> getRelevant(ServerPlayer player) {
+        return playerStatus(player)
+                .map(BorderPlayerStatus::nearestBorderId)
+                .flatMap(id -> id == null
+                        ? Optional.empty()
+                        : border(player.serverLevel(), id));
     }
 
     // ---------------------------------------------------------------------
@@ -229,7 +297,11 @@ public final class BorderAPI {
                 .radius(radius)
                 .layerIndex(layerIndex);
 
-        borders.CRUD.validateProposal(proposal);
+        // Not a second validation pass -- applyProposal() below already calls
+        // validateProposal() itself and throws if it fails (BordersCrudFacet.applyProposal).
+        // This used to call validateProposal() here too and discard the boolean result, which
+        // did nothing but double the "[Border] Rejected proposal" log line on every rejection
+        // (confirmed from a real /border add ~ ~ ~ 999999999 0 test -- see FRO_023/RM_FRO_011).
         return borders.CRUD.applyProposal(proposal);
     }
 
@@ -272,7 +344,7 @@ public final class BorderAPI {
             proposal.radius(newRadius);
         }
 
-        borders.CRUD.validateProposal(proposal);
+        // See addBorder()'s matching comment above -- applyProposal() already validates.
         return borders.CRUD.applyProposal(proposal);
     }
 

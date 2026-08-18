@@ -134,22 +134,24 @@ block placement) to drive border growth.
 
 ## Known gaps
 
-**Per-player evaluation is unfinished.**
+**Per-player evaluation** is a second, independent `JigConfig` alongside the world-scoped one
+described under "Runtime wiring" above — `BorderPlayerBundle`/`BorderPlayerStatusFixture`
+(`border/common/player/*`), player-scoped via Satchel's `PlayerJig`/`PlayerScope` rather than
+`LevelScope`, registered and wired in `BorderModule.init()` the same way. `BorderModule`'s
+`onPlayerScopeTick` handler recomputes each player's `BorderPlayerStatusFixture` every tick
+against their current level's live border list — a derive-only snapshot (nearest border, distance,
+inside flag), deliberately not persisted or networked, since it's cheap to recompute and has no
+restart-survival requirement. `BorderAPI.getRelevant(ServerPlayer)` and the `@relevant` command
+selector both read off this fixture. See [RM_FRO_006](../../../roadmap/RM_FRO_006_sandra.md) for
+status — this section describes the current shape of the code, not whether that node is closed.
 
-Seven files across two packages are commented out, package declarations included. Six live under
-`border/common/player/*` — `BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`,
-`BorderPlayerStatusProposal`, `BorderPlayerStatusFixture`, and `BorderPlayerBundle` (the last
-including a stubbed `return null; //getOrCreateFacet(...)`) — and split into two piles: the first
-four have no Satchel dependency at all (a record, a stateless evaluator, plain value objects —
-only touching `BorderMath`/`Border` and vanilla types) and would compile unchanged today.
-`BorderPlayerFixture` and `BorderPlayerBundle` are the ones actually blocked — written against a
-`SatchelSetting` base class and package paths (`com.arryn.satchel.jig.guts`) that predate the
-current `SatchelFixture`/`common.jig.guts` structure entirely. The seventh,
-`border/server/PlayerTickHandler`, is the (also fully commented-out) tick-driver meant to iterate
-server players and route their border-status evaluation each tick — the caller these six files
-were waiting on. Nothing in `BorderModule.init()` constructs, registers, or ticks any of it. Reads
-as an abandoned or paused player-scoped extension to the (working) world-scoped border system, not
-a design decision — see `RM_FRO_006` in the roadmap.
+**Path/layer-index reconciliation.** `BordersPathFacet.moveUp()`/`moveDown()` reorder the
+canonical `borderPath` list; `Border.layerIndex()` — the value
+[DefaultBorderRules.getRelevant()](#runtime-wiring) actually sorts by for oldest-ring-wins overlap
+resolution — is immutable and untouched by either. `fixLayers()`, the method meant to reconcile
+the two, is currently a hardcoded no-op (`return false`). See [Border Path & Layer
+Reconciliation](path-layer-reconciliation.md) for the design and
+[RM_FRO_015](../../../roadmap/RM_FRO_015_margaret.md) for status.
 
 **Mutation validation, render lifecycle, and fixture/item robustness gaps.** A source-level
 resilience pass found several structural gaps in the mutation, rendering, and persistence paths
@@ -167,3 +169,7 @@ described above — tracked as roadmap work rather than restated here:
 - [Fixture](../../satchel/architecture/fixture.md)
 - [Border-Frontier Reconciliation](frontier-reconciliation.md) — how this architecture maps onto
   Sasha's Frontier design vocabulary, and what's still open
+- [Border Path & Layer Reconciliation](path-layer-reconciliation.md) — design for the
+  `fixLayers()` gap noted above
+- [Boss](boss.md) — Tier 1's boss entity/spawn system, the first consumer of `BorderAPI.addBorder()`
+  outside Border's own command layer

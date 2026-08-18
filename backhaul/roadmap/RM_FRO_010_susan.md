@@ -11,6 +11,8 @@ depends_on:
 - RM_FRO_011
 - RM_FRO_012
 - RM_FRO_013
+- RM_FRO_006
+- RM_FRO_015
 created: '2026-08-14'
 superseded_by: null
 ticket: null
@@ -22,6 +24,57 @@ ticket: null
 
 ## Prototype hardening
 
+**This node also carries the FrontierMode Tier 0 ("Substrate operational") designation
+directly** — see [FrontierMode Operational Tiers](../wiki/plans/operational-tiers.md). There is no
+separate Tier 0 roadmap node. Two attempts at one (RM_FRO_014 "Shirley," then RM_FRO_016 "Karen")
+were both deleted 2026-08-16, project owner's call: every convergence-gate fix applied to this
+node's children left the "Tier 0" node as a single pass-through pointer back here with nothing of
+its own — no reason to keep a node around that has no functional difference from this one. This
+node reaches when its own six children below all resolve. Once it does,
+[RM_FRO_017](RM_FRO_017_donna.md) ("Donna," Tier 1 skeleton) is next — depends on this node
+directly, expecting several real intermediate nodes to be scoped and inserted between the two over
+time (fold them into Donna's own `depends_on` as they're found, same convergence-gate convention
+as this node's own six children).
+
+**Satchel-side prerequisite, named but not graph-enforced** (`bhrm` graphs are UID-independent —
+there's no real `depends_on` edge across RM_FRO/RM_SAT): [RM_SAT_017](RM_SAT_017_paul.md) ("Paul,"
+Satchel's own hardening convergence, `reached`) and [RM_SAT_020](RM_SAT_020_jerry.md) ("Jerry,"
+`PlayerJig`/`PlayerScope`, `resolved`). Both currently satisfied. Since there's no edge, nothing
+re-checks this automatically if either ever regresses — flagged in
+[BKHL_004](../tickets/BKHL_004_deprecated-convergence-tracking.md). Treat this as a manual
+checklist item any time this node's own `reached` flip is being considered, alongside the six
+children below.
+
+- 2026-08-16: **`depends_on` widened to add [RM_FRO_015](RM_FRO_015_margaret.md) ("Margaret" —
+  Border command-surface completion).** Found via an Architect source-level check of the actual
+  `border/*` tree (not just the wiki) while scoping "what's still not done for Tier 0" ahead of
+  what was then RM_FRO_014 (deleted, see this node's Tier 0 note above) closing: `BordersPathFacet.fixLayers()` is a real,
+  self-documented incomplete gap (hardcoded `return false`; RM_FRO_011's own log explicitly asked
+  for this as a follow-up node rather than filing it itself). Folded in here rather than routed
+  around Susan, same convergence-gate shape as every other sibling in this list. See RM_FRO_015 for
+  full scope — its own text also covers a couple of smaller command-surface rough edges found in
+  the same pass.
+- 2026-08-16: **Reverted to WIP, and `depends_on` widened to add RM_FRO_006 ("Sandra").**
+  what was then RM_FRO_014 (a separate Tier 0 convergence node, since deleted — see this node's
+  Tier 0 note above) originally depended on this node *and* directly on RM_FRO_006 in parallel —
+  the same shape as the RM_SAT_007/009 bypass this project's convention already forbids (see
+  [BKHL_002](../tickets/BKHL_002_convergence-gate.md)): Sandra was skipping this convergence to
+  feed the Tier 0 node directly instead of routing through it. Caught on review, corrected the
+  same way RM_SAT_009's own siblings were folded in: RM_FRO_006 now named here in `depends_on`,
+  and removed from the Tier 0 node's own list. Since RM_FRO_006 is real, unresolved work
+  (see its own node — genuinely blocked on RM_SAT_020, which has since landed, but the FrontierMode
+  side hasn't been implemented yet), this node's **reached** flip below was premature under the
+  corrected graph shape and is reverted to WIP until RM_FRO_006 actually resolves.
+- 2026-08-16: **Reached** *(superseded by the entry above — kept for the record).* All four
+  dependencies then listed were `resolved` and real-play confirmed per
+  [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md): RM_FRO_009 (dead `BorderView`
+  deletion, border rendering confirmed unaffected), RM_FRO_011 (all three validation-hardening
+  items individually confirmed against a real build), RM_FRO_012 (no stray particle, render-cache
+  eviction accepted without a diagnostic per project owner's call), RM_FRO_013 (malformed-entry
+  skip and offhand-compass fixes both confirmed on a real server). This convergence now carries
+  real evidenced structural work, not just a thin pass-through — flipping to reached is a
+  conscious call, same standard used for [RM_SAT_017](RM_SAT_017_paul.md)'s own flip, not an
+  automatic consequence of its children resolving.
 - 2026-08-16: **`depends_on` widened to add three real siblings to RM_FRO_009** —
   [RM_FRO_011](RM_FRO_011_betty.md) (border mutation validation hardening),
   [RM_FRO_012](RM_FRO_012_carolyn.md) (client render lifecycle cleanup), and

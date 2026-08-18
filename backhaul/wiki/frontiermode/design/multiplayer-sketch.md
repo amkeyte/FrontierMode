@@ -7,7 +7,7 @@ summary: Early, unscoped ideas for how the frontier loop might work in multiplay
   -- fixed/summoned bosses, gear-based scaling. Not in active design scope.
 keywords: null
 status: draft
-updated: '2026-08-12'
+updated: '2026-08-18'
 ---
 
 <!-- bh-header:start -->
@@ -22,7 +22,7 @@ isn't lost, not because it's ready to build against.
 
 ## Why multiplayer needs a different shape, not just a bigger frontier
 
-The single-player loop relies on a boss existing somewhere unknown within its level, found through
+The single-player loop relies on a boss existing somewhere unknown within its Border, found through
 ambient and deliberate discovery tools (see [Boss Discovery](boss-discovery.md)). That doesn't
 translate cleanly once multiple players can search simultaneously in different directions, and
 raises questions the single-player design doesn't have to answer — whose frontier is it, what
@@ -30,11 +30,11 @@ happens when two players expand it in different directions at once. Rather than 
 solo model, the early thinking here treats multiplayer as its own variant with real structural
 differences:
 
-- **Boss locations are fixed**, not randomized within the level's area — and maintain the
+- **Boss locations are fixed**, not randomized within the Border's area — and maintain the
   appropriate difficulty/depth for wherever they sit, rather than roaming.
 - **Bosses must be summoned.** They don't simply exist ambiently in the world waiting to be
   stumbled on the way a solo-mode boss does.
-- Boss difficulty might scale off **the highest level of boss loot equipment a player is
+- Boss difficulty might scale off **the highest gear tier of boss loot equipment a player is
   carrying** when they summon it — a gear-check rather than a location-check.
 
 ## Design goal: protect the ramp-up for new players

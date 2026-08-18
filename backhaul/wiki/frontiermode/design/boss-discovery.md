@@ -7,7 +7,7 @@ summary: The clue gradient players use to find bosses, from ambient guardian mob
   to expensive tracking tools, plus loot design.
 keywords: null
 status: draft
-updated: '2026-08-12'
+updated: '2026-08-18'
 ---
 
 <!-- bh-header:start -->
@@ -36,8 +36,8 @@ Roughly ordered from cheapest/most-ambient to rarest/most-deliberate:
 - **Guardian mobs** — stronger, visually distinct hostile variants that cluster more densely near
   a boss. Always available, no cost, requires no special item — just paying attention to mob
   density and toughness while playing normally. See [Guardian Mobs](guardian-mobs.md) for the
-  full design; that page also covers why they're introduced later in progression rather than at
-  level 1.
+  full design; that page also covers why they're introduced later in progression rather than in
+  the starting Border (level 1, to the player).
 - **Environmental tells** — sounds, particle effects, dedicated biomes associated with boss
   presence. Still ambient, slightly more specific than guardian density alone.
 - **Beacons and particle trails** — a visible, findable signal placed near (not on top of) a
@@ -71,8 +71,8 @@ a proposed player-facing mechanic, and should not be treated as part of the desi
 
 ## Reward loot
 
-Boss defeats grant loot from an increasingly rich table as level (and boss difficulty) climbs.
-Both which boss appears and what it drops are meant to be randomized, not fixed per level — see
+Boss defeats grant loot from an increasingly rich table as Border difficulty climbs. Both which
+boss appears and what it drops are meant to be randomized, not fixed per Border — see
 [Progression & Frontier Mechanics](progression.md#resource-and-reward-density) for how reward
 richness is also expected to scale with distance from origin more generally, independent of boss
 loot specifically.
@@ -82,3 +82,5 @@ loot specifically.
 - [Frontier Mode Overview](overview.md)
 - [Progression & Frontier Mechanics](progression.md)
 - [Guardian Mobs](guardian-mobs.md)
+- [Border Vocabulary](../architecture/border-vocabulary.md) — why "Border" replaces "level" here
+  as the mechanic term.

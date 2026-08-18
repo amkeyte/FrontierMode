@@ -5,10 +5,10 @@ slug: new-module-checklist
 title: New Module Checklist
 summary: Footguns every new Satchel jig/module consumer has hit at least once -- register
   schema only, wire executionPulse if sync is needed, wire Forge listeners, respect
-  LogicalSideContext thread discipline.
+  LogicalSideContext thread discipline, keep bundles single-concern.
 keywords: null
 status: draft
-updated: '2026-08-16'
+updated: '2026-08-17'
 ---
 
 <!-- bh-header:start -->
@@ -96,6 +96,18 @@ you haven't registered a jig config before.
    handlers use. The eviction handler itself doesn't need its own `Satchel.isReady()` check (item
    4 above) — by the time `Unloaded` fires for a scope, that scope was necessarily ready when it
    loaded, so there's no readiness gap left to guard against at teardown.
+7. **Don't fold a new fixture into another module's existing bundle just because a scope is
+   already registered there — register your own bundle instead.** A bundle is meant to be one
+   coherent body of data ([Bundle](bundle.md): "a scope may host multiple bundles simultaneously,
+   each representing an independent concern"); reaching for the nearest already-wired bundle
+   instead is the SavedData-sprawl anti-pattern Satchel exists to replace, one fixture at a time.
+   This has already come up twice on the same target: explicitly rejected for per-player border
+   state before it was built ([RM_SAT_020](../../../roadmap/RM_SAT_020_jerry.md)/
+   [RM_FRO_006](../../../roadmap/RM_FRO_006_sandra.md) — "the dumping ground every future module
+   reaches for"), then caught again in a design pass before Boss's own fixture was built
+   ([RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md)'s 2026-08-17 log entry). A new concern
+   gets its own bundle — even one more schema registration for an already-registered scope kind —
+   not a slot on someone else's.
 
 ## Worked example
 

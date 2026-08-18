@@ -3,22 +3,32 @@ package com.arryn.frontiermode.border;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.Rendering;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
+import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
+import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
+import com.arryn.frontiermode.border.common.player.BorderPlayerStatusProposal;
 import com.arryn.frontiermode.border.server.commands.BorderCommands;
 import com.arryn.frontiermode.border.server.rules.BordersTriggers;
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.player.PlayerJig;
+import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.newconfig.EventHandlers;
 import com.arryn.satchel.common.newconfig.JigBundles;
 import com.arryn.satchel.common.newconfig.newnew.JigPolicies;
 import com.arryn.satchel.common.newconfig.newnew.LevelJigConfig;
+import com.arryn.satchel.common.newconfig.newnew.PlayerJigConfig;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.level.BlockEvent;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Entry point for initializing and hooking the Border subsystem.
@@ -116,6 +126,59 @@ public final class BorderModule {
 
         Satchel.registerJigConfig(config);
 
+        // ─────────────────────────────────────────────
+        // RM_FRO_006 (Sandra): per-player border evaluation, PlayerJig-scoped. A second,
+        // independent JigConfig alongside the LevelJig one above -- PlayerTrackingModule (Satchel)
+        // is the template this follows for wiring a bundle onto PlayerJig/PlayerScope, same
+        // division of labor TrackingModule's LevelJigConfig usage already establishes for this
+        // module's own BordersBundle registration above.
+        //
+        // Deliberately real PlayerJig/PlayerScope, not a LevelScope workaround hosted on
+        // BordersBundle -- per-player state (nearest border, distance, inside flag) is genuinely
+        // identity-tied and must follow the player across dimensions without a manual handoff.
+        // See RM_FRO_006's own roadmap node for the full design ruling (2026-08-14) and RM_SAT_020
+        // for why this had to wait on PlayerJig/PlayerScope landing first.
+        // ─────────────────────────────────────────────
+        var borderPlayerFixture =
+                new JigBundles.FixtureDecl<BorderPlayerStatusFixture>(
+                        FrontierKeys.BORDER_PLAYER_STATUS,
+                        BorderPlayerStatusFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+
+        var borderPlayerBundle =
+                new JigBundles.BundleDecl<PlayerScope, BorderPlayerBundle>(
+                        FrontierKeys.BORDER_PLAYER_BUNDLE,
+                        (PlayerScope scope) -> new BorderPlayerBundle(scope, FrontierKeys.BORDER_PLAYER_BUNDLE),
+                        List.of(borderPlayerFixture)
+                );
+
+        JigBundles.Schema<PlayerScope> playerBundles =
+                new JigBundles.Schema<>(List.of(borderPlayerBundle));
+
+        EventHandlers playerEventHandlers =
+                EventHandlers.builder()
+                        .on(ScopeEvent.Tick.class, BorderModule::onPlayerScopeTick)
+                        .build();
+
+        // PlayerJigConfig already pins jigType/couplerType/scopeType/sourceType/
+        // sideApplicability(SERVER)/scopeResolver/uuidDeterminer to the PlayerJig defaults this
+        // module needs, and its lifecycle preset already has withTick(true) -- only bundles and
+        // eventHandlers are per-module, same as PlayerTrackingModule's own usage. Not persisted,
+        // not networked: BorderPlayerStatus is a live-recomputed snapshot (see
+        // BorderPlayerStatusFixture's own doc), so no capabilities()/persistence() override is
+        // needed here, unlike the LevelJigConfig above (Border's own state genuinely must survive
+        // a restart).
+        PlayerJigConfig playerConfig = new PlayerJigConfig(FrontierKeys.BORDER_PLAYER_JIG);
+
+        playerConfig.bundles().schema(playerBundles);
+
+        playerConfig.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
+                .eventHandlers(playerEventHandlers);
+
+        Satchel.registerJigConfig(playerConfig);
+
         // onBlockPlaced is a plain static method, not an @SubscribeEvent instance method on a
         // registered listener object -- FrontierMode's constructor only does
         // MinecraftForge.EVENT_BUS.register(this), which picks up @SubscribeEvent methods
@@ -133,5 +196,45 @@ public final class BorderModule {
 
     public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
         BordersTriggers.growPath(event);
+    }
+
+    // ─────────────────────────────────────────────
+    // RM_FRO_006 (Sandra) tick handler
+    // ─────────────────────────────────────────────
+
+    /**
+     * Recomputes the ticking player's {@link BorderPlayerStatusFixture} against their current
+     * level's live border list. Shared-bus caveat, same as every other {@code ScopeEvent} handler
+     * in this codebase (e.g. {@code PlayerTrackingModule}'s handlers): {@code ScopeEvent.Tick}
+     * fires for every jig scoped to whatever just ticked, not just this one -- the
+     * {@code BORDER_PLAYER_JIG} key check below is what keeps this from running against the
+     * wrong jig's scopes.
+     */
+    private static void onPlayerScopeTick(ScopeEvent.Tick event) {
+        ScopeInfo info = event.info();
+        Objects.requireNonNull(info, "info");
+
+        if (!FrontierKeys.BORDER_PLAYER_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        var jig = (PlayerJig) info.jigInfo().jig;
+        PlayerScope scope = (PlayerScope) info.scope();
+        ServerPlayer player = scope.player();
+
+        BorderPlayerBundle bundle = jig.getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE);
+        BorderPlayerStatusFixture fixture =
+                bundle.getOrCreateFixture(FrontierKeys.BORDER_PLAYER_STATUS, BorderPlayerStatusFixture::new);
+
+        List<Border> borders =
+                BorderAPI.borders(player.serverLevel())
+                        .map(b -> b.CRUD.all())
+                        .orElseGet(List::of);
+
+        fixture.accept(
+                new BorderPlayerStatusProposal(player.getUUID()),
+                borders,
+                player.blockPosition()
+        );
     }
 }

@@ -3,13 +3,14 @@ id: FRO_020
 uid: FRO
 number: 20
 client: FrontierMode
-status: in-progress
+status: closed
 title: Hand off hardening batch to Lead Dev
 context: Satchel-side hardening ready for Curtis; FrontierMode follows once it proves
-  out. See RM_SAT_012-015, RM_FRO_009/006.
+  out. See RM_SAT_012-015, RM_FRO_009/006. All five nodes resolved, FRO_016 already
+  closed -- nothing left open in this batch's scope as of 2026-08-16.
 priority: normal
 opened: '2026-08-14'
-closed: null
+closed: '2026-08-16'
 ---
 
 <!-- board:start -->
@@ -51,6 +52,14 @@ visible on the graph, not part of this immediate handoff.
 
 ## Log
 
+- 2026-08-16: **Closed — everything in this batch's scope is resolved.** RM_SAT_012/013/014/015
+  and RM_FRO_009 all show `status: resolved` on their own nodes; `FRO_016` was already `done`
+  (closed 2026-08-14, predates this check); `RM_FRO_008` already shows `reached`. Nothing left
+  open here. Separately worth flagging to Walter: `RM_FRO_006` (held back in this ticket's own
+  text, pending `RM_SAT_020`) is now genuinely unblocked — `RM_SAT_020` resolved today (see
+  [FRO_022](FRO_022_handoff-batch2.md)/[FRO_023](FRO_023_playtest-checklist-batch2.md)). Not
+  reopening this ticket for that — it's new work for a future handoff, not unfinished business
+  from this one.
 - 2026-08-15: **[RM_SAT_017](../roadmap/RM_SAT_017_paul.md) ("Paul") reached.** Project owner's
   conscious call (PM updating docs on request, not making the call) — see that node's own log for
   the full reasoning: RM_SAT_019 is now confirmed via real play, joining RM_SAT_012/RM_SAT_014's

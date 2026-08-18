@@ -9,6 +9,7 @@ import com.arryn.satchel.common.jig.guts.SatchelException;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.newconfig.JigBundles;
 import com.arryn.satchel.common.newconfig.newnew.*;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
@@ -365,11 +366,43 @@ public final class ScopeEngine_Server implements ScopeEngine {
             BundleKey<?> key,
             SatchelBundle bundle
     ) {
+        // SAT_033: this fires on a fixed timer (SatchelBundle.pulseSync), deliberately not
+        // gated on bundle.isDirty() -- project owner's call. Parcels have no delivery
+        // acknowledgment and there's no client-side "resend please" request path
+        // (SatchelNetwork is fire-and-forget), so this periodic resend is the only thing that
+        // heals a dropped parcel or catches a client up if it connected mid-session before the
+        // next real state change. That safety net stays. What doesn't need to stay is doing the
+        // work when there's nobody to receive it -- the project owner's original log was an
+        // empty world, still re-serializing and re-sending the same bundle every 5 seconds
+        // forever with zero players connected.
+        if (noOneWouldReceiveThis(info)) {
+            return;
+        }
+
         OUT.TRACE().log("[server engine] Sending Parcel for bundle: " + key.id);
 
         ParcelEgressSink
                 .forBundle(info, key)
                 .emit(bundle.saveAll());
+    }
+
+    /**
+     * True if this scope's sync target currently has nobody able to receive it, so the
+     * NBT-serialize-and-send work in {@link #scheduleSync} can be skipped this pulse.
+     * {@link com.arryn.satchel.common.net.SatchelNetwork#send} only supports {@link LevelScope}
+     * today (its own doc: "future scope types need different distribution logic entirely," see
+     * SAT_028) -- for a level-scoped bundle, its audience is whoever's in that dimension, so an
+     * empty dimension really does mean nobody would receive this. Any other scope kind (a future
+     * {@code PlayerScope}-backed networked bundle, for instance) doesn't have a dimension-wide
+     * audience to check this way -- conservatively assume someone might receive it rather than
+     * guessing at a different kind of scope's audience.
+     */
+    private boolean noOneWouldReceiveThis(ScopeInfo info) {
+        if (!(info.scope() instanceof LevelScope levelScope)) {
+            return false;
+        }
+        return levelScope.level() instanceof ServerLevel serverLevel
+                && serverLevel.players().isEmpty();
     }
 
     public String debugName() {

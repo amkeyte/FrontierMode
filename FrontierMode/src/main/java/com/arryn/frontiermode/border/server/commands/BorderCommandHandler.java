@@ -38,7 +38,21 @@ public final class BorderCommandHandler {
     ) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        var border = BorderAPI.addBorder(level, pos, radius, layer);
+        Border border;
+        try {
+            border = BorderAPI.addBorder(level, pos, radius, layer);
+        } catch (IllegalStateException e) {
+            // RM_FRO_011's validation (BordersCrudFacet.applyProposal/validateProposal) throws a
+            // raw IllegalStateException on rejection (bad radius, negative/colliding layerIndex).
+            // Uncaught, that surfaces to the player as Brigadier's generic "An unexpected error
+            // occurred" -- confirmed from a real /border add ~ ~ ~ 999999999 0 test (FRO_023):
+            // the server log showed a clean "[Border] Rejected proposal: radius ... outside
+            // allowed range" WARN, but the player just saw the scary generic message instead of
+            // that reason. This is the fix: same rejection, but the player actually sees why.
+            ctx.getSource().sendFailure(msg("Rejected: " + e.getMessage()));
+            return 0;
+        }
+
         ctx.getSource().sendSuccess(
                 () -> msg("Created border " + border.id()),
                 false
@@ -54,12 +68,19 @@ public final class BorderCommandHandler {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
-        Border border = BorderAPI.addBorder(
-                sp.serverLevel(),
-                sp.blockPosition(),
-                radius,
-                layer
-        );
+        Border border;
+        try {
+            border = BorderAPI.addBorder(
+                    sp.serverLevel(),
+                    sp.blockPosition(),
+                    radius,
+                    layer
+            );
+        } catch (IllegalStateException e) {
+            // See addExplicit()'s matching comment above.
+            sp.sendSystemMessage(msg("Rejected: " + e.getMessage()));
+            return 0;
+        }
 
         sp.sendSystemMessage(
                 msg("Created border " + border.id() + " at your location")
@@ -121,13 +142,19 @@ public final class BorderCommandHandler {
             BlockPos center,
             Integer radius
     ) {
-        Border out = BorderAPI.transformBorder(
-                ctx.getSource().getLevel(),
-                id,
-                center,
-                radius
-        );
-
+        try {
+            BorderAPI.transformBorder(
+                    ctx.getSource().getLevel(),
+                    id,
+                    center,
+                    radius
+            );
+        } catch (IllegalStateException e) {
+            // See BorderCommandHandler#addExplicit's matching comment -- same rejection path,
+            // same fix (RM_FRO_011 / FRO_023).
+            ctx.getSource().sendFailure(msg("Rejected: " + e.getMessage()));
+            return 0;
+        }
 
         ctx.getSource().sendSuccess(
                 () -> msg("Transformed border " + id),

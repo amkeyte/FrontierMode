@@ -15,10 +15,7 @@
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
 - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) — Per-player border evaluation
-- [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) — Clean up dead BorderView code
-- [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) — Border mutation validation hardening
-- [**RM_FRO_012**](roadmap/RM_FRO_012_carolyn.md) — Client render lifecycle cleanup
-- [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) — Border fixture & compass robustness
+- [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) — Border command-surface completion
 
 ### Dependency structure
 
@@ -32,12 +29,15 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
       - [**RM_FRO_007**](roadmap/RM_FRO_007_nancy.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_FRO_003, RM_FRO_004, RM_FRO_005
         - [**RM_FRO_008**](roadmap/RM_FRO_008_sharon.md) [convergence · reached] Border prototype verified end-to-end — depends on: RM_FRO_002, RM_FRO_003, RM_FRO_004, RM_FRO_005, RM_FRO_007
           - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) [work · open · ACTIONABLE] Per-player border evaluation — depends on: RM_FRO_008
-          - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) [work · open · ACTIONABLE] Clean up dead BorderView code — depends on: RM_FRO_008
-          - [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) [work · open · ACTIONABLE] Border mutation validation hardening — depends on: RM_FRO_008
-          - [**RM_FRO_012**](roadmap/RM_FRO_012_carolyn.md) [work · open · ACTIONABLE] Client render lifecycle cleanup — depends on: RM_FRO_008
-          - [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) [work · open · ACTIONABLE] Border fixture & compass robustness — depends on: RM_FRO_008
-            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · WIP] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013
-              - [**RM_FRO_014**](roadmap/RM_FRO_014_shirley.md) [convergence · WIP] Tier 0: Substrate operational — depends on: RM_FRO_010, RM_FRO_006
+          - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) [work · resolved] Clean up dead BorderView code — depends on: RM_FRO_008
+          - [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) [work · resolved] Border mutation validation hardening — depends on: RM_FRO_008
+          - [**RM_FRO_012**](roadmap/RM_FRO_012_carolyn.md) [work · resolved] Client render lifecycle cleanup — depends on: RM_FRO_008
+          - [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) [work · resolved] Border fixture & compass robustness — depends on: RM_FRO_008
+          - [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) [work · open · ACTIONABLE] Border command-surface completion — depends on: RM_FRO_008
+            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · WIP] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013, RM_FRO_006, RM_FRO_015
+              - [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) [work · open] Boss entity/spawn system — depends on: RM_FRO_010
+                - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · open] Boss defeat border-growth caller — depends on: RM_FRO_018
+                  - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · WIP] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019
 
 ## RM_SAT
 
@@ -48,7 +48,7 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
 - [**RM_SAT_018**](roadmap/RM_SAT_018_edward.md) — Universal sidedness facade
-- [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) — Build PlayerJig/PlayerScope
+- [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) — Build MobJig/MobScope
 
 ### Dependency structure
 
@@ -73,5 +73,6 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                   - [**RM_SAT_019**](roadmap/RM_SAT_019_dennis.md) [work · resolved] Sync a Satchel world-identity token — depends on: RM_SAT_014
                     - [**RM_SAT_017**](roadmap/RM_SAT_017_paul.md) [convergence · reached] Prototype hardening — depends on: RM_SAT_012, RM_SAT_013, RM_SAT_014, RM_SAT_015, RM_SAT_016, RM_SAT_019
                       - [**RM_SAT_018**](roadmap/RM_SAT_018_edward.md) [convergence · WIP · ACTIONABLE] Universal sidedness facade — depends on: RM_SAT_017
-                      - [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) [work · open · ACTIONABLE] Build PlayerJig/PlayerScope — depends on: RM_SAT_017
+                      - [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) [work · resolved] Build PlayerJig/PlayerScope — depends on: RM_SAT_017
+                      - [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) [work · open · ACTIONABLE] Build MobJig/MobScope — depends on: RM_SAT_017
 

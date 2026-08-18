@@ -3,13 +3,14 @@ id: FRO_022
 uid: FRO
 number: 22
 client: FrontierMode
-status: in-progress
+status: closed
 title: Hand off next batch to Lead Dev
 context: FRO_009/011/012/013 + RM_SAT_020 ready for Curtis. RM_SAT_018 needs Douglas
-  first. RM_FRO_006 still blocked.
+  first. RM_FRO_006 still blocked. All five confirmed resolved as of 2026-08-16 (see
+  FRO_023).
 priority: normal
 opened: '2026-08-16'
-closed: null
+closed: '2026-08-16'
 ---
 
 <!-- board:start -->
@@ -51,6 +52,10 @@ independent. Pick order freely, or run in parallel.
 
 ## Log
 
+- 2026-08-16: **Closed — all five items confirmed resolved** against real builds and real play
+  (see [FRO_023](FRO_023_playtest-checklist-batch2.md) for the full playtest record). RM_FRO_006
+  remains blocked on nothing from this batch anymore — RM_SAT_020 is genuinely done, not just
+  implemented.
 - 2026-08-16: **All five items implemented by Lead Dev (Curtis), unverified.** RM_SAT_020,
   RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013 — see each node's own log for what changed.
   One deviation from the letter of a node's fix direction, flagged rather than silently decided:

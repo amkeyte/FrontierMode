@@ -19,6 +19,59 @@ ticket: null
 
 ## Per-player border evaluation
 
+- 2026-08-16: **Implemented by Lead Dev (Curtis) — pending real build/playtest.** All six
+  `border/common/player/*` files uncommented/rewritten per this node's own plan: the four
+  pure-logic files (`BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`,
+  `BorderPlayerStatusProposal`) uncommented verbatim from git history, only fixing
+  `BorderPlayerLogic`'s stale `border.common.level.Border` import
+  (→ `border.common.fixture.Border`) — everything else, including the no-`equals()`
+  `BorderPlayerStatus` (so `BorderPlayerStatusFixture.accept()`'s `Objects.equals(current, next)`
+  check marks dirty on every real eval, not just on value changes) reused exactly as originally
+  written, per the "essentially as-is" plan. `BorderPlayerStatusFixture` rewritten against
+  `SatchelFixture` (not `SatchelSetting`) — deliberately not persisted, since
+  `BorderPlayerStatus`/`BorderPlayerEval`'s own docs already call this data "not persisted or
+  synced": it's live-recomputed from world state each tick, not source-of-truth state.
+  `BorderPlayerBundle` rewritten against current `SatchelBundle`/`BundleKey`/`SatchelScope` import
+  paths, dead `getOrCreateFacet(Class)` stub replaced with the modern `get(FixtureKey)` accessor
+  pattern (`BordersBundle.borders()`'s own shape), renamed to `status()`. New
+  `FrontierKeys.BORDER_PLAYER_BUNDLE`/`BORDER_PLAYER_STATUS`/`BORDER_PLAYER_JIG` keys. Registration
+  wired into `BorderModule.init()` as a second, independent `PlayerJigConfig` alongside the
+  existing `LevelJigConfig` — schema/bundle/tick-handler wiring follows `PlayerTrackingModule`'s
+  already-proven pattern exactly (same `ScopeEvent.Tick` shared-bus key-check discipline). No
+  `capabilities()`/`persistence()` override needed (unlike Border's own `LevelJigConfig`), since
+  this data isn't persisted. `BorderSelector.resolveRelevant()` now calls the real
+  `BorderAPI.getRelevant(ServerPlayer)` (signature changed from the placeholder's abstract
+  `Player` to `ServerPlayer`, since `PlayerScope`/`PlayerJig` are server-only by design — the old
+  signature was never a real constraint, it had exactly one caller and that caller was commented
+  out). Also cleaned up `BorderCommands.applySelector`'s now-stale "`@relevant` isn't implemented
+  yet" special-cased failure message.
+
+  **Not verified against a real build** — no Forge/Mojang maven access in this sandbox (see
+  [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md) for the standing reason). Per this
+  node's own done-bar: still need real confirmation that (1) the four pure-logic files behave
+  unchanged, (2) `BorderPlayerStatusFixture`/`BorderPlayerBundle` construct correctly against
+  `PlayerJig`/`PlayerScope` across a login/dimension-change/logout cycle (mirroring RM_SAT_020's
+  own done-bar — no persistence claim to verify here, since this data deliberately doesn't
+  persist), and (3) `@relevant` resolves to a real border instead of the old empty-list stub. Left
+  `open`, not `resolved` — see [FRO_026](../tickets/FRO_026_sandra-implementation.md) for the
+  playtest ask.
+- 2026-08-16: **Blocker cleared — genuinely workable now, not just graph-actionable.**
+  [RM_SAT_020](RM_SAT_020_jerry.md) is `resolved`, confirmed against a real dedicated-server
+  login/dimension-change/logout cycle (see that node's own log and
+  [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md)), not just implemented. The stale
+  "don't assign until RM_SAT_020 is actually done" line below no longer applies — it's done. This
+  node's own remaining work is a consumer sitting on top of already-proven `PlayerJig` plumbing,
+  the same relationship Border has to `LevelJig` — no dedicated-server requirement carries forward
+  to verifying this node specifically; ordinary singleplayer/integrated testing (already sufficient
+  for RM_FRO_009/011/012/013) should cover it. Ready to hand to Lead Dev.
+- 2026-08-16: **Feeds Tier 0 via [RM_FRO_010](RM_FRO_010_susan.md) ("Susan") directly — no
+  separate Tier 0 node.** Folded into Susan's own `depends_on` after review caught this node
+  skipping Susan's gate to feed a separate Tier 0 convergence node in parallel — same
+  convergence-bypass shape RM_SAT_007/009 already ruled out. That separate Tier 0 node (first
+  RM_FRO_014 "Shirley," then rebuilt as RM_FRO_016 "Karen") was deleted the same day — both were
+  functionally just a pointer back to Susan, so Susan now carries the Tier 0 designation directly
+  (see her own node). This node's own `depends_on` (RM_FRO_008) is unchanged; only the downstream
+  routing moved, twice, landing on Susan for good.
 - 2026-08-11: Node opened, status **left open** — this reflects genuinely unfinished code, not
   invented forward planning.
 - 2026-08-14: `depends_on` moved from RM_FRO_002 to

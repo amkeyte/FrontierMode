@@ -110,7 +110,11 @@ public final class BorderLogic {
         var prop = setting.CRUD.getProposal();
 
         prop.center(rules.chooseInitialCenter(level)).radius(rules.chooseInitialRadius(level)).layerIndex(0);
-        setting.CRUD.validateProposal(prop);
+        // Not a second validation pass -- applyProposal() below already validates and throws on
+        // rejection. Same redundant-call cleanup as BorderAPI.addBorder/transformBorder (see
+        // FRO_023/RM_FRO_011) -- this call's boolean result was discarded, so it did nothing but
+        // double the "[Border] Rejected proposal" log line whenever chooseInitialRadius somehow
+        // produced an out-of-range value.
         return setting.CRUD.applyProposal(prop);
     }
 
@@ -122,7 +126,7 @@ public final class BorderLogic {
 
         prop.center(rules.chooseNextCenter(level, previous)).radius(rules.chooseNextRadius(level, previous)).layerIndex(previous.layerIndex() + 1);
 
-        setting.CRUD.validateProposal(prop);
+        // See getInitial()'s matching comment above.
         return setting.CRUD.applyProposal(prop);
     }
 

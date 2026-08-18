@@ -3,7 +3,7 @@ id: RM_FRO_009
 uid: RM_FRO
 number: 9
 kind: work
-status: open
+status: resolved
 title: Clean up dead BorderView code
 owner: Arryn
 depends_on:
@@ -32,9 +32,12 @@ is the real shared per-level cache both live renderers (`WorldBordersRenderer`,
   declaration included) and confirmed via grep that nothing else in either repo referenced
   `BorderView` before deleting. No behavior change — it was never part of the live rendering
   pipeline. Unverified this session (no build access — see
-  [FRO_023](../../tickets/FRO_023_playtest-checklist-batch2.md)); low-risk pure deletion per this
+  [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md)); low-risk pure deletion per this
   node's own text, but still owed a real `gradlew build` + a quick in-world check that rendering
   (ring + growth-trigger particle) is unaffected.
+
+- 2026-08-16: **Confirmed.** Project owner: "border rendering works" after a full
+  login/nether-portal/logout/login/overworld/logout session on a real rebuild. Done bar met.
 
 ## Required By
 

@@ -83,8 +83,8 @@ isn't rediscovered from scratch later.
 
 ## Per-player evaluation doesn't map to one tier
 
-[RM_FRO_006](../../roadmap/RM_FRO_006_sandra.md) (per-player border evaluation, blocked on
-Satchel's [RM_SAT_020](../../roadmap/RM_SAT_020_jerry.md)) is Tier-0-shaped *work* — it's building
+[RM_FRO_006](../../roadmap/RM_FRO_006_sandra.md) (per-player border evaluation, no longer blocked —
+Satchel's [RM_SAT_020](../../roadmap/RM_SAT_020_jerry.md) resolved) is Tier-0-shaped *work* — it's building
 a capability, not a player-facing feature — but its actual payoff (a buff-modified applicable
 layer, a border-compass's attunement) likely doesn't get exercised until Tier 2 or 3 content
 exists to use it. A capability and its payoff don't have to land in the same tier; RM_FRO_006 sits
@@ -93,15 +93,30 @@ becomes meaningful to a player.
 
 ## Where each tier is tracked
 
-- **Tier 0**: [RM_FRO_014](../../roadmap/RM_FRO_014_shirley.md), gathering
-  [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md) (hardening) and
-  [RM_FRO_006](../../roadmap/RM_FRO_006_sandra.md) (per-player).
-- **Tiers 1-3**: no convergence node yet — no work exists under `RM_FRO` for a boss, discovery, or
-  progression module, so there's nothing real to gather. Per this project's existing practice for
-  exactly this situation (see [Universal Sidedness
-  Facade](../satchel/architecture/facade-vision.md)'s own "real work nodes get inserted as pieces
-  of this get scoped, not invented wholesale now"), these convergences get created once real
-  sibling work exists, not as empty placeholders now.
+- **Tier 0**: no separate node — folded directly into
+  [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md) ("Susan"), which gathers hardening, per-player
+  evaluation (RM_FRO_006), and command-surface completion (RM_FRO_015), and now carries the Tier 0
+  designation in its own body text. Two attempts at a standalone Tier 0 node (RM_FRO_014 "Shirley,"
+  then a rebuild as RM_FRO_016 "Karen") were both deleted the same day they were created — every
+  convergence-gate fix applied to Susan's children left the standalone node as a single
+  pass-through pointer to Susan with nothing of its own, so the project owner cut the indirection
+  rather than keep rebuilding it.
+- **Tier 1**: [RM_FRO_017](../../roadmap/RM_FRO_017_donna.md) ("Donna") — opened as a placeholder
+  skeleton, project owner's explicit override of the guidance immediately below (which otherwise
+  still holds for Tiers 2-3). Now gathers real intermediate work, folded into Donna's own
+  `depends_on` per [BKHL_002](../../tickets/BKHL_002_convergence-gate.md) rather than depending on
+  RM_FRO_010 directly: [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md) ("Shirley," boss
+  entity/spawn system) and [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) ("Karen,"
+  defeat-detection caller into `BorderAPI`), design at [Boss](../frontiermode/architecture/boss.md).
+  Shirley also names a cross-graph prerequisite on Satchel's
+  [RM_SAT_021](../../roadmap/RM_SAT_021_frank.md) ("Frank," a new `MobJig`/`MobScope` kind) — not a
+  real `depends_on` edge (`bhrm` graphs are UID-independent), documented in both nodes' text
+  instead.
+- **Tiers 2-3**: no convergence node — per this project's existing practice (see [Universal
+  Sidedness Facade](../satchel/architecture/facade-vision.md)'s own "real work nodes get inserted
+  as pieces of this get scoped, not invented wholesale now"), a tier's convergence gets created
+  once real sibling work exists under `RM_FRO` to gather. Tier 1 is the deliberate exception to
+  that sequencing, not a change in the general policy.
 - **Tier 4**: not scoped; see above.
 
 ## Related pages
