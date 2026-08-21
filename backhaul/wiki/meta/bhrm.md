@@ -48,6 +48,19 @@ graph, not a flat list — a long descriptive slug makes both harder to eyeball 
 tab-complete than a short code does. The ID itself never contains the slug (only the filename
 does), so this is purely about keeping files easy to work with, not about identity.
 
+## Persona names are not reusable
+
+Nodes in this project carry a persona name alongside their ID, drawn from
+[Top Baby Names of 1945](../reference/baby-names-1945.md). **A retired node's name does not go back
+in the pool.** Reissuing one was tried as a convenience and turned out to be a bad idea: RM_FRO_014
+("Shirley") and RM_FRO_016 ("Karen") were deleted, their names handed to RM_FRO_018 and RM_FRO_019,
+and every bare-name reference in the project's prose became ambiguous — including in the log entries
+that explain *why* the originals were deleted, which necessarily still name them.
+
+The ID is the identity; the persona name is a handle for talking about a node out loud. A handle
+that points at two things is worse than no handle. Take the next unused name instead — the list is
+long, and the cost of skipping one is nothing.
+
 ## Title length
 
 `ROADMAP_INDEX.md` renders each node's title as part of a one-line list entry — same reasoning

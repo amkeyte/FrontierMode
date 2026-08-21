@@ -7,7 +7,7 @@ summary: Gameplay and world-tuning modifications for Minecraft; depends on Satch
   for core data/utility support.
 keywords: null
 status: verified
-updated: '2026-08-16'
+updated: '2026-08-18'
 ---
 
 <!-- bh-header:start -->
@@ -47,8 +47,8 @@ mod; see [FRO_001](../../tickets/FRO_001_readme-boilerplate.md)).
 
 - [Border](architecture/border.md) — the world-border system, FrontierMode's one substantial
   feature.
-- [Border-Frontier Reconciliation](architecture/frontier-reconciliation.md) — maps Border onto the
-  design vocabulary below; what's confirmed vs. still open.
+- [Border Vocabulary](architecture/border-vocabulary.md) — the canon Relevance/Layer/Path/Difficulty
+  terms this and the design pages below are stated in.
 - [Border Path & Layer Reconciliation](architecture/path-layer-reconciliation.md) — design for the
   `fixLayers()` gap (RM_FRO_015).
 - [Boss](architecture/boss.md) — Tier 1's boss entity/spawn system design (RM_FRO_018/019).

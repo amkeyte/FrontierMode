@@ -19,6 +19,10 @@ ticket: null
 
 ## Boss defeat border-growth caller
 
+*Name note: "Karen" also named RM_FRO_016, a Tier 0 convergence deleted 2026-08-16 — so a bare
+"Karen" in older prose may mean either node. Always pair the name with its ID. Reusing a retired
+node's persona is no longer done; see [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md).*
+
 - 2026-08-18: **`BossFixture` decoupled from `Border` entirely — see
   [RM_FRO_018](RM_FRO_018_shirley.md)'s 2026-08-18 log entry for the full reasoning; this node's
   own handler changes as a direct result.** Two corrections to the body below: (1) "mark that
@@ -34,6 +38,11 @@ ticket: null
   write a fresh `BossFixture` record, `bossEntityId: null`. Materialization (actually placing the
   entity) happens later, on `BOSS_JIG`'s own tick, same as any other unmaterialized record — this
   handler doesn't spawn anything itself, it just ensures the record exists.
+  **[Vocab note: "level" here is now named `layer` per [Border
+  Vocabulary](../wiki/frontiermode/architecture/border-vocabulary.md), fixed on
+  [Boss](../wiki/frontiermode/architecture/boss.md) itself via
+  [FRO_029](../tickets/FRO_029_border-vocab-conformance.md) — this log entry is left as
+  originally written, not restated.]**
 - 2026-08-17: **Defeat-detection race worth flagging explicitly, found while writing up
   `MobJig`'s poll-based presence model for [RM_SAT_021](../wiki/frontiermode/architecture/boss.md)
   (see [Boss](../wiki/frontiermode/architecture/boss.md)'s "What can actually go wrong" section).**
@@ -71,9 +80,8 @@ concluding it's genuinely not a tracked boss. If neither finds a match, no-op �
 world aren't a tracked boss. If so: mark that boss's own `BossFixture` record defeated (`alive:
 false`), then grow.
 
-**Real gap found scoping this, corrects [Border-Frontier
-Reconciliation](../wiki/frontiermode/architecture/frontier-reconciliation.md)'s "missing caller,
-not a missing capability" finding — it's mostly right, but not entirely.** `BorderAPI.addBorder()`
+**Real gap found scoping this — Tier 1's defeat-triggered growth is mostly new-caller work, but
+not purely.** `BorderAPI.addBorder()`
 does accept an arbitrary center, confirmed — but it only touches the border *list*
 (`BordersCrudFacet.applyProposal`), not the canonical `borderPath`; only
 `BordersPathFacet.grow()` appends to the path, and `grow()` always computes its own center via
@@ -104,6 +112,10 @@ instead of a real API.
 **Radius/layerIndex for the new border** should reuse `DefaultBorderRules.chooseNextRadius()`
 (growth-factor curve) and `previous.layerIndex() + 1` exactly as `grow()` does today — only the
 center is different, not the rest of the growth rule.
+**[Rename note, 2026-08-20: `Border.layerIndex()` is now `Border.layer()` — renamed directly in
+code by the project owner. Every `layerIndex` mention on this node (here, the path/layerIndex
+assumption above, and the done bar's "`layerIndex` continues the existing sequence" below) means
+the same current `layer()` accessor; left as originally written rather than rewritten throughout.]**
 
 **Closes the loop:** after growth succeeds, this handler calls into `BossModule`'s record-creation
 directly — the same paired call every border-creation site needs (see

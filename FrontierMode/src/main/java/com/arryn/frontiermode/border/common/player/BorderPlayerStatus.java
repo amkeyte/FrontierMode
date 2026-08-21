@@ -1,11 +1,18 @@
 package com.arryn.frontiermode.border.common.player;
 
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
  * Authoritative snapshot of border-related state for a player.
  *
  * Constructed only by BorderPlayerStatusFixture.
+ *
+ * {@code relevantLayer}/{@code nearestLayer} were split from a single overloaded {@code
+ * layer} field (Border Vocabulary Conformance Checklist item 2.4) -- see {@link
+ * BorderPlayerEval}'s own doc comment for the full reasoning. {@code relevantLayer} is the one
+ * safe to feed into {@code BorderRules.ACTIVE.layerToDifficulty(...)} for an ambient-difficulty
+ * reading; {@code nearestLayer} is not a Relevance result and should not be used for that.
  */
 public final class BorderPlayerStatus {
 
@@ -15,7 +22,8 @@ public final class BorderPlayerStatus {
     private final UUID nearestBorderId;
     private final int distanceToNearest;
     private final boolean insideNearest;
-    private final int layerIndex;
+    private final OptionalInt relevantLayer;
+    private final int nearestLayer;
 
     BorderPlayerStatus(
             BorderPlayerStatusFixture authority,
@@ -23,14 +31,16 @@ public final class BorderPlayerStatus {
             UUID nearestBorderId,
             int distanceToNearest,
             boolean insideNearest,
-            int layerIndex
+            OptionalInt relevantLayer,
+            int nearestLayer
     ) {
         this.authority = authority;
         this.playerId = playerId;
         this.nearestBorderId = nearestBorderId;
         this.distanceToNearest = distanceToNearest;
         this.insideNearest = insideNearest;
-        this.layerIndex = layerIndex;
+        this.relevantLayer = relevantLayer;
+        this.nearestLayer = nearestLayer;
     }
 
     // ----------------------------
@@ -61,7 +71,11 @@ public final class BorderPlayerStatus {
         return insideNearest;
     }
 
-    public int layerIndex() {
-        return layerIndex;
+    public OptionalInt relevantLayer() {
+        return relevantLayer;
+    }
+
+    public int nearestLayer() {
+        return nearestLayer;
     }
 }

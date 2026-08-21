@@ -7,7 +7,7 @@ summary: The jig/scope/foundation tick-and-event delivery machinery underneath S
   -- foundations, the dispatch chain, JigConfig registration, and the three jig kinds.
 keywords: null
 status: verified
-updated: '2026-08-15'
+updated: '2026-08-21'
 ---
 
 <!-- bh-header:start -->
@@ -157,14 +157,36 @@ this page describes. See [Persistence](persistence.md) and [Networking](net.md) 
 `AScopeCoupler.getOrCreate()`'s resilience depends on both engines throwing the *same* exception
 type on a missing bundle: it calls `get()`, catches `SatchelException.BundleNotFound` specifically,
 and falls through to `create()` on that catch alone — any other exception type propagates
-uncaught. `ScopeEngine_Server.get()` always has; `ScopeEngine_Client.get()` threw plain
-`IllegalStateException` in both its failure branches until
-[SAT_024](../../../tickets/SAT_024_client-engine-wrong-exception.md), meaning the client-side
-fallback never actually engaged — any legitimate "no client-local bundle yet" state (the normal
-first-render condition) crashed instead of transparently creating the bundle. Found via
-`BorderAPI.borders()`'s client-side `getOrCreate()` call from `RenderContext`/
-`WorldBordersRenderer` — the first client-side `getOrCreate()` call site in either repo to hit a
-genuinely-missing bundle.
+uncaught. Both engines throw that type.
+
+**Lesson, cheap to re-break:** a new engine or `get()` branch that throws anything else silently
+disables the fallback rather than erroring loudly — the symptom is a crash on the normal
+first-access path, not a visible wiring mistake
+([SAT_024](../../../tickets/SAT_024_client-engine-wrong-exception.md)).
+
+**The client's first-creation path logs two warnings that look like faults and aren't.** Entering a
+level client-side, before any bundle exists for that scope, produces:
+
+```
+BundleNotFound ignored; falling through to create
+[engine] CLIENT bundle became dirty (read-only violation)
+```
+
+Both are the fallback above working. The first is `AScopeCoupler.getOrCreate()`'s catch clause
+announcing itself. The second follows from client bundles being server-authoritative and therefore
+read-only (see [Networking](net.md)): constructing the bundle marks it dirty, which trips the
+read-only guard's warning even though nothing improper happened. `clearDirty()` runs immediately
+after, and hydration proceeds normally.
+
+Expect the pair **once per new scope** — so once per dimension, on every world entry and every
+portal transition. A repeating cadence matching dimension loads is the normal shape, not evidence
+of a leak or a sync fault. What *would* be a real signal is the pair appearing without a successful
+hydrate after it, or appearing more than once for the same scope.
+
+Worth knowing because these two lines have been read as a fresh bug more than once by people
+scanning client logs for something else — see
+[FRO_025](../../../tickets/FRO_025_client-crash-borders-jig-not-installed-o.md), which established
+this, and [FRO_040](../../../tickets/FRO_040_bordersbundle-warn.md).
 
 `JigInfo` (`common/jig/guts/JigInfo.java`) is the runtime record for one *installed jig* — it
 pairs a `JigKey<?>`, a `SatchelJig<?>` instance, and a `ScopeCoupler`, and owns the
@@ -182,8 +204,6 @@ a specific jig — its `Phase` (`NEW → LOADED → UNLOADING → UNLOADED`), it
 `ScopeInfo.jigInfo()` is the back-reference from a scope to its owning `JigInfo`, installed once
 by `JigInfo.addScope()` right after construction (`installJigInfo(this)` — the only place a
 `ScopeInfo` is ever created, and the only place its owning `JigInfo` is naturally in scope).
-Previously a stub (`return null`) — see [SAT_020](../../../tickets/SAT_020_jiginfo-null.md), fixed
-during the documentation-coverage runtime-verification pass.
 
 ## The `JigConfig` declarative registration system
 
@@ -211,13 +231,15 @@ facets — see [Fixture](fixture.md)):
   operation, throwing `SatchelException.AccessFailed` if none is available).
 - **`JigBundlesConfig<S>`** — the `JigBundles.Schema<S>` this jig's scopes expose.
 
-`LevelJigConfig` (`common/newconfig/newnew/LevelJigConfig.java`) is the one concrete `JigConfig`
-subclass that exists — it pins `jigType`/`couplerType` to `LevelJig`/`LevelScopeCoupler`,
-`scopeType`/`sourceType` to `LevelScope`/`Level`, wires `scopeResolver`/`uuidDeterminer` to
-`LevelResolver`, defaults `sideApplicability` to `SERVER`, and leaves `bundles.schema` unset
-(a consumer must call `.bundles().schema(...)` before compiling, or `JigConfigValidator` rejects
-it). Both real consumers — Border and `TrackingModule` (below) — construct a `LevelJigConfig`,
-override the fields they need, and register it.
+`LevelJigConfig` (`common/newconfig/newnew/LevelJigConfig.java`) was the first concrete `JigConfig`
+subclass built, and the pattern `PlayerJigConfig` and (designed) `MobJigConfig` both mirror — it
+pins `jigType`/`couplerType` to `LevelJig`/`LevelScopeCoupler`, `scopeType`/`sourceType` to
+`LevelScope`/`Level`, wires `scopeResolver`/`uuidDeterminer` to `LevelResolver`, defaults
+`sideApplicability` to `SERVER`, and leaves `bundles.schema` unset (a consumer must call
+`.bundles().schema(...)` before compiling, or `JigConfigValidator` rejects it). Both of `LevelJig`'s
+own real consumers — Border and `TrackingModule` (below) — construct a `LevelJigConfig`, override
+the fields they need, and register it. See [The jig kinds](#the-jig-kinds-modeljig-deleted-see-below)
+below for `PlayerJigConfig`/`MobJigConfig`'s own divergences from this shape.
 
 **Registration and compilation**, driven by `JigConfigCompiler` (`common/newconfig/newnew/JigConfigCompiler.java`):
 
@@ -339,44 +361,97 @@ No config category currently exposes bundle-level event subscription the way
 subscribe directly against `foundation.eventBus()`, bypassing the declarative config path
 entirely; no code in either repo currently does this.
 
-## The two jig kinds (`ModelJig` deleted, see below)
+## The jig kinds (`ModelJig` deleted, see below)
 
-Only `LevelJig` is exercised by anything real. Reading the current state directly, not by
-inference:
+Three jig kinds are real or on track to be: `LevelJig` and `PlayerJig` have live consumers today;
+`MobJig` is designed and tracked for build. Reading the current state directly, not by inference:
 
-- **`LevelJig`** (`common/jig/level/*` — `LevelJig`, `LevelResolver`, `LevelScope`,
-  `LevelScopeCoupler`) — scoped to a Minecraft `Level`/dimension. Identity used to be derived
-  purely from `dimension().toString()`; as of
-  [RM_SAT_019](../../../roadmap/RM_SAT_019_dennis.md) it folds in a server-issued world-identity
-  token when one is bound (`WorldIdentityContext`), falling back to the dimension-only UUID when
-  it isn't — see [Forge Integration & Sidedness Contract](../spec/forge-integration.md) for the
-  full sidedness picture this participates in. `LevelScopeCoupler.markReady` always returns
-  `true` — no readiness gate beyond the scope existing. This is the only jig kind with a
-  `JigConfig` subclass (`LevelJigConfig`) and the only one either repo's real consumers (Border,
-  `TrackingModule`) use.
-- **`ModelJig`** — **deleted**, along with `ModelCoupler`/`ModelScope`/`ModelSource`
-  (`common/jig/model/*`) and `ServerModelIngress` (`server/jig/guts/model/*`). This page
-  previously described it as structurally complete but unreachable (no `JigConfig` subclass, no
-  registration path). Confirmed by the project owner during
-  [RM_SAT_015](../../../roadmap/RM_SAT_015_george.md): it was built as a sample/reference model, not
-  in-progress scaffolding — dead weight, not a gap. See
-  [Jig & Strap Registration — Recovery Plan](jig-registration-recovery-plan.md#rot-to-remove-already-gone).
-- **`PlayerJig`** (`common/jig/player/*` — `PlayerJig`, `PlayerResolver`, `PlayerScope`,
-  `PlayerScopeCoupler`, `PlayerLoadEvent`, `PlayerTickEvent`, `PlayerUnloadEvent`) — **entirely
-  commented out**, all seven files, package declaration included (each file's first line is
-  `//package com.arryn.satchel.common.requireJig.player;`, itself referencing a `requireJig`
-  package name that doesn't match the current `jig` package layout — this predates the
-  jig/requireJig rename entirely). Not a partial stub: full class bodies, all commented, no live
-  declaration a compiler or `grep -r "class PlayerJig"` would find as active code. Scaffolding
-  history, not current runtime.
+### `LevelJig`
+
+`common/jig/level/*` — `LevelJig`, `LevelResolver`, `LevelScope`, `LevelScopeCoupler`. Scoped to a
+Minecraft `Level`/dimension. Identity folds in a server-issued world-identity token when one is
+bound (`WorldIdentityContext`), falling back to the dimension-only UUID when it isn't — see
+[Forge Integration & Sidedness Contract](../spec/forge-integration.md) for the full sidedness
+picture this participates in. `LevelScopeCoupler.markReady` always returns `true` — no readiness
+gate beyond the scope existing. Has a `JigConfig` subclass (`LevelJigConfig`) and is used by both
+repos' oldest real consumers, Border and `TrackingModule`.
+
+### `PlayerJig`
+
+`common/jig/player/*` — `PlayerJig`, `PlayerResolver`, `PlayerScope`, `PlayerScopeCoupler`. Scoped
+to a `ServerPlayer` (not the abstract `Player`), identity derived directly from the player's own
+persistent UUID, deliberately not folded with the world-identity token the way `LevelScope` is —
+a player's identity isn't level-scoped. Has a `JigConfig` subclass (`PlayerJigConfig`,
+`common/newconfig/newnew/`) mirroring `LevelJigConfig`'s four-category-lens shape, defaulting
+`sideApplicability` to `SERVER`. Ingress is
+`PlayerEvent.PlayerLoggedInEvent`/`PlayerLoggedOutEvent` in `ServerForgeIngress`. Only login and
+logout affect this scope's lifecycle: `PlayerChangedDimensionEvent` is deliberately never wired to
+`introduceSource`/`tryRemoveSource`, since a `PlayerScope` has to survive a dimension change intact
+rather than get torn down and rebuilt. (`ServerForgeIngress` does subscribe to that event, for
+world-identity token sync — a separate concern from scope lifecycle.) No dedicated per-player tick source exists or is
+needed — the shared `TickEvent.ServerTickEvent` → `foundationLifecycle().pulse()` path already
+walks every `JigInfo`/`ScopeInfo`, `PlayerJig`'s included, the same way it does for `LevelJig`.
+FrontierMode's `BorderModule` and `BorderAPI` both consume `PlayerScope` today.
+
+### `MobJig`
+
+`common/jig/mob/*`, designed. The mob/entity generalization of `Scope`: a boss or other tagged
+`Mob` has state (which `Border`/level it belongs to, alive/defeated) that has to travel with the
+entity itself rather than get derived fresh from wherever it happens to be standing. Scoped to
+`Mob` specifically, not the broader `LivingEntity` — `LivingEntity` includes `Player`/
+`ServerPlayer`, which `PlayerJig` already owns, and typing `MobScope` against it would let the
+same object be scoped by two jig kinds with no type-level guard against it. No `MobResolver`:
+`determineUUID` and a `getFor(Mob mob)` fast-path factory live directly on `MobScope` itself (see
+[MobScope.getFor() Contract](../spec/mobscope-getfor.md) for that method's boundary contract) —
+the resolver split `LevelJig`/`PlayerJig` use wasn't worth mirroring for a jig kind built fresh.
+`MobJigConfig` mirrors `PlayerJigConfig`'s four-category-lens shape structurally but ships no
+default `sideApplicability` — each consumer states its own (Boss's is `SERVER`, since
+defeat-detection is server-only today; a later client-rendering consumer would register its own
+`BOTH`-applicability config without `MobJig` itself changing).
+
+**Presence is poll-driven, not event-driven — the real architectural difference from
+`LevelJig`/`PlayerJig`.** `LevelJig`/`PlayerJig` introduce and tear down sources from Forge
+join/leave events (`LevelEvent.Load`, `PlayerLoggedInEvent`/`LoggedOutEvent`) because both
+populations — dimensions, logged-in players — are small, bounded, and their events reliably fire
+for the full lifecycle. A tagged `Mob` isn't: a busy server has hundreds spawning and despawning
+per chunk load, and a tracked entity (a boss, especially) spends most of its life in an unloaded
+chunk, where no join/leave event fires on any predictable schedule. `MobJig` therefore doesn't
+wait to be told a mob exists or stops existing — a consumer registers a `MobJigConfig` interest
+supplier (the UUIDs it cares about, per level), and `MobJig` adds a reconciliation step inside
+`foundationLifecycle().pulse()` that, roughly every 20 ticks, calls `Level.getEntity(UUID)` for
+every UUID any registered supplier is interested in. A UUID that resolves and isn't yet scoped
+gets introduced (`ScopeEvent.Loaded`); a UUID that was scoped last cycle and no longer resolves
+gets torn down (`ScopeEvent.Unloaded`) — reason-agnostic, on purpose: a chunk unload and a genuine
+removal (death, discard) are indistinguishable to `Level.getEntity(UUID)` and are treated
+identically by design, the same reason-agnostic contract `LevelEvent.Unload`/
+`PlayerLoggedOutEvent` teardown already gives the other two jig kinds. `MobScope.getFor(Mob mob)`
+is a fast path onto this same machinery, not a second ingress mechanism — see its own spec page
+for what it guarantees.
+
+**A torn-down scope's backing reference is never stale, by construction.** Introducing a source
+captures its `source` reference exactly once, on the `addScope` call that creates its `ScopeInfo`
+— that reference is never mutated in place afterward. This does not create a stale-reference risk
+for `MobJig`, because a `ScopeInfo` never survives the gap where staleness could occur: the same
+reconciliation cycle that would otherwise leave a scope pointing at a superseded `Mob` object
+instead tears that scope down the moment its UUID stops resolving, and re-introduces it fresh — a
+new `ScopeInfo`, a new `addScope` call, a newly-resolved `source` — the next time the UUID
+resolves again. There is no separate "refresh the source in place" mechanism, and none is needed:
+teardown-and-reintroduce on every gap in resolvability already makes staleness impossible rather
+than something to detect and correct.
+
+### `ModelJig` (deleted)
+
+Deleted, along with `ModelCoupler`/`ModelScope`/`ModelSource` (`common/jig/model/*`) and
+`ServerModelIngress` (`server/jig/guts/model/*`). It was a sample/reference model rather than
+in-progress scaffolding — structurally complete but with no `JigConfig` subclass and no
+registration path, so nothing could reach it. See
+[Jig & Strap Registration — Recovery Plan](jig-registration-recovery-plan.md#rot-to-remove-already-gone).
 
 ## Known gaps
 
-- **`PlayerJig` and its whole package are dead** — see above. Still open;
-  [RM_SAT_020](../../../roadmap/RM_SAT_020_jerry.md) tracks building a real one.
 - **No bundle-level `EventHandlers` equivalent** — see "Bundle-level lifecycle" above. Still open.
 - **Resolved: `ModelJig` had no registration path.** Fixed by deletion, not by wiring one — see
-  "The two jig kinds" above.
+  "The jig kinds" above.
 - **Resolved: a `LevelJig` scope was never actually unloaded once loaded.**
   `ServerForgeIngress`/`ClientForgeIngress`'s `LevelEvent.Unload` handlers now call
   `LogicalFoundation.tryRemoveSource`, fixed by
@@ -387,8 +462,7 @@ inference:
   [RM_SAT_013](../../../roadmap/RM_SAT_013_gary.md) traced `SatchelBundle.pulseSync` directly and
   confirmed there's no fast path — a freshly created bundle's first sync rides the same
   `syncIntervalTicks` counter as every later one (up to `DEFAULT_SYNC_INTERVAL_TICKS`, 5s at 20
-  TPS, of latency), not "sits inert forever" as this page previously speculated, but not
-  immediate either. A boot-time and runtime health-check (`LogicalFoundation.installConfigs`'s
+  TPS, of latency) — not immediate, but not inert either. A boot-time and runtime health-check (`LogicalFoundation.installConfigs`'s
   `checkExecutionPulseHealth`, `SatchelBundle.healthCheckPulse`) now logs a warning if a bundle
   sits below `ACTIVE` past a grace window, catching the FRO_018 shape (execution-pulse silently
   off) at the source instead of requiring a human to notice. A real fast path (e.g. an immediate
@@ -403,5 +477,7 @@ inference:
 - [Networking](net.md)
 - [Border](../../frontiermode/architecture/border.md) — the concrete consumer this page's
   registration walkthrough is built from
+- [MobScope.getFor() Contract](../spec/mobscope-getfor.md) — the boundary contract for `MobJig`'s
+  fast-path factory
 - [Jig & Strap Registration — History](jig-registration-break.md) — the break/fix history behind
   this runtime's current shape

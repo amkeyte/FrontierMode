@@ -16,30 +16,8 @@ updated: '2026-08-13'
 
 # Persistence
 
-*Migrated from `Satchel/src/main/java/com/arryn/satchel/server/persistence/BundlePersistence.md`
-as part of [SAT_003](../../../tickets/SAT_003_md-migration.md).*
-
-Re-checked both claims against current source:
-
-- The deprecation claim holds: grepped `src/` for `PlayerBundleSavedData` and
-  `ServerWorldBundleSavedData` (the variants this doc says were replaced) — neither exists
-  anymore.
-- The location claim was stale and is now corrected: `BundleSavedData.java` lives in
-  `com.arryn.satchel.common.persistence`, not `com.arryn.satchel.server.persistence`. The old
-  `server/persistence` package is gone entirely — its one file, `ServerPersistenceContext.java`,
-  was fully commented-out dead code (including an `implements ServerPersistentStitch` against an
-  interface that no longer exists either). It survived the 2026-08-13 compile-fix pass as leftover
-  cruft (a prior pass claimed it was already gone; it wasn't) and was actually deleted, along with
-  the now-empty directory, via [SAT_017](../../../tickets/SAT_017_persistence-followup.md). Not a
-  location this or anything else routes through, historically or now.
-
-`common.persistence` (renamed 2026-08-13 from `common.newstuff` — a placeholder name that never
-signaled provisional code, see [SAT_004](../../../tickets/SAT_004_newstuff-rename.md), now
-executed) is where the current persistence/hydration plumbing actually sits. Confirmed by
-pattern, not just one class: `common/fixture/NbtFixtureHydrationSource.java` was entirely
-commented-out dead code, while its live replacement, `NbtFixtureHydrationSource.java`, is the
-implementation actually wired into `FixtureHydrator` — both now live in `common/persistence/`
-(the dead `common/fixture/` copy was deleted in the same pass). `common.persistence` is where
+`com.arryn.satchel.common.persistence` is where the persistence/hydration plumbing sits —
+`BundleSavedData` included. There is no `server/persistence` package. `common.persistence` is where
 Satchel 2.0's persistence/hydration classes live (`BundleSavedData`, `FixtureHydrator`,
 `FixtureHydrationSource`, `ParcelEgressSink`, `ParcelHydrationSource`, `SavedDataEgressSink`,
 `SavedDataHydrationSource`) — the name now matches this page's own title, rather than the

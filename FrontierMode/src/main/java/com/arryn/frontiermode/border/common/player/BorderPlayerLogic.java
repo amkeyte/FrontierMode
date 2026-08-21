@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Stateless evaluator producing derived player-border information.
@@ -28,6 +29,7 @@ final class BorderPlayerLogic {
                     null,
                     Integer.MAX_VALUE,
                     false,
+                    OptionalInt.empty(),
                     -1
             );
         }
@@ -40,7 +42,7 @@ final class BorderPlayerLogic {
         // wrong by real playtest: returned the wrong border, not the lowest layer).
         //
         // BorderRules.getRelevant(containing, pos) already defines the correct, established
-        // semantics for this exact question -- lowest layerIndex wins among borders the position
+        // semantics for this exact question -- lowest layer wins among borders the position
         // is actually inside, ties broken by nearest center (see DefaultBorderRules.getRelevant,
         // already the single source of truth other facets reference for this ranking, e.g.
         // BordersCrudFacet/BordersPathFacet's own comments). Delegating to it here instead of
@@ -53,11 +55,15 @@ final class BorderPlayerLogic {
         Border relevant = BorderRules.ACTIVE.getRelevant(containing, pos);
 
         if (relevant != null) {
+            // The Relevant border is also the nearest border in this branch (it's a member of
+            // `containing`, and Relevance is resolved from the same set `nearest` would search),
+            // so nearestLayer can just mirror relevantLayer here rather than re-deriving it.
             return new BorderPlayerEval(
                     relevant.id(),
                     BorderMath.distanceToSurface(relevant, pos),
                     true,
-                    relevant.layerIndex()
+                    OptionalInt.of(relevant.layer()),
+                    relevant.layer()
             );
         }
 
@@ -71,11 +77,15 @@ final class BorderPlayerLogic {
                 ))
                 .orElseThrow();
 
+        // Outside every border -- Border Vocabulary doesn't define Relevance for this case at
+        // all, so relevantLayer stays empty; nearestLayer is the fallback's layer, explicitly not
+        // a Relevance result.
         return new BorderPlayerEval(
                 nearest.id(),
                 BorderMath.distanceToSurface(nearest, pos),
                 false,
-                nearest.layerIndex()
+                OptionalInt.empty(),
+                nearest.layer()
         );
     }
 }

@@ -3,12 +3,12 @@ id: FRO_026
 uid: FRO
 number: 26
 client: FrontierMode
-status: in-progress
+status: done
 title: Implement RM_FRO_006 (Sandra) — per-player border evaluation
 context: null
 priority: normal
 opened: '2026-08-16'
-closed: null
+closed: '2026-08-20'
 ---
 
 <!-- board:start -->
@@ -59,6 +59,45 @@ reports back, same pattern as [FRO_023](FRO_023_playtest-checklist-batch2.md).
 
 ## Log
 
+- 2026-08-20: **Closed — project owner's call.** All three done-bar items now have real positive
+  evidence: build/playtest confirmed item 2 directly, the project owner's `@relevant` test
+  confirmed item 3 directly and item 1 indirectly. [RM_FRO_006](../roadmap/RM_FRO_006_sandra.md)
+  ("Sandra") marked `resolved` alongside this ticket.
+- 2026-08-20: **First real build + playtest pass since implementation, read from
+  `run/logs/latest.log` and `run-server/logs/latest.log`.** Real `gradlew build`: `BUILD
+  SUCCESSFUL`. A login/dimension-change/logout cycle was exercised (overworld → the_nether →
+  overworld → logout) — no `/border` or `@relevant` command was run this pass. Read against the
+  four checklist items in the entry below, item by item, without touching their checkboxes (still
+  genuinely unconfirmed, not just unchecked by oversight):
+  - **Pure-logic files behave unchanged** — not directly evidenced. No crash occurred, which is
+    consistent with correctness, but nothing in this pass specifically exercises border-command
+    behavior to positively confirm it.
+  - **`BorderPlayerStatusFixture`/`BorderPlayerBundle` construct correctly across a
+    login/dimension-change/logout cycle** — reasonably confirmed, the strongest finding of this
+    pass. `frontiermode:border_player_bundle` fell through to create once at login (the expected
+    first-touch path, same shape every other bundle in the log takes), then survived the
+    overworld→nether→overworld round-trip and logout with zero errors, exceptions, or
+    `AccessFailed` logged against it. Weaker than a positive confirmation would be — this fixture
+    has no dedicated log line of its own the way Satchel's `PlayerTracking` verification aid does —
+    but nothing points to a problem either.
+  - **`@relevant` resolves to a real border** — not exercised. No command was run this pass.
+  - **`@relevant` reports honestly when nowhere near a border** — not exercised, same reason.
+
+  **Still not done: this ticket stays `in-progress`, [RM_FRO_006](../roadmap/RM_FRO_006_sandra.md)
+  stays `open`.** A command-exercising pass (any `/border ... @relevant` usage) is what's left
+  before this done bar is actually met. Full mirrored write-up on
+  [RM_FRO_006](../roadmap/RM_FRO_006_sandra.md)'s own log.
+- 2026-08-20: **Project owner reports `/border info @relevant` was tested separately and resolves
+  correctly** — closes the gap the entry above flagged. Full reasoning on
+  [RM_FRO_006](../roadmap/RM_FRO_006_sandra.md)'s own log, including why this also bears on the
+  first checklist item (pure-logic files), not just the third. **All three checklist items now
+  have real positive evidence.** Leaving `in-progress` — per this ticket's own text above, closing
+  is the project owner's call, not assumed here.
+
+  **Separately observed, not part of this ticket's scope:** the client log shows a repeating
+  `[engine] CLIENT bundle became dirty (read-only violation)` WARN for `BordersBundle` (the
+  world-scoped bundle, not this ticket's player-scoped one) once per dimension load. Flagging so
+  it isn't lost; not this ticket's concern to fix.
 - 2026-08-16: **Tier 0 node deleted, merged into Susan.** The separate Tier 0 convergence
   referenced above (first RM_FRO_014 "Shirley," then rebuilt as RM_FRO_016 "Karen") is gone —
   both were functionally just a pointer back to RM_FRO_010, so Susan now carries the Tier 0

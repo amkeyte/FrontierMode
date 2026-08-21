@@ -7,7 +7,7 @@ summary: Boss entity/spawn system design for Tier 1 -- data model, spawn algorit
   and the defeat-detection caller into BorderAPI. RM_FRO_018/019 build against this.
 keywords: null
 status: draft
-updated: '2026-08-16'
+updated: '2026-08-18'
 ---
 
 <!-- bh-header:start -->
@@ -61,21 +61,24 @@ already established in this codebase.
 
 `BossFixture` is the **sole durable source of truth** for boss identity — **not keyed by `Border`
 UUID, and not a reference to any `Border` at all.** It's a self-contained collection of records,
-one per boss: `{bossId, position, level, bossEntityId, alive}`. `position` is an XZ column (the
+one per boss: `{bossId, position, layer, bossEntityId, alive}`. `position` is an XZ column (the
 chosen home for this boss, picked once, immediately, at creation — see "Position" below for why
-this doesn't wait on anything). `level` is a plain copied number (whatever the originating
-`Border`'s `layerIndex()` was at the moment of creation), not a live reference — once copied, this
-record never looks at a `Border` again. `bossEntityId` is **nullable** (null until the entity has
+this doesn't wait on anything). `layer` is a plain copied number (whatever the originating
+`Border`'s `layer()` was at the moment of creation, renamed from `layerIndex()` 2026-08-20), not a
+live reference — once copied, this record never looks at a `Border` again. Named `layer`, not `level` — per [Border
+Vocabulary](border-vocabulary.md), "level" is reserved for player-facing text only; an internal
+data-model field is exactly the kind of place it's supposed to have retired from. `bossEntityId` is
+**nullable** (null until the entity has
 actually been placed in the world; a record can legitimately exist with no entity yet). `alive` is
 false once defeated.
 
 **A boss is created at the same time as a border, but not tied to it.** See "Defeat detection and
 the border-growth gap" below for exactly where that creation gets triggered — the short version is
 that whatever code creates a new `Border` also creates the matching boss record right there,
-extracting `position`/`level` once and then never referencing the `Border` again. This is
+extracting `position`/`layer` once and then never referencing the `Border` again. This is
 deliberate, not an oversight: it means a boss record needs nothing but a chosen `position` and
-`level` to exist, which is also what makes a hand-placed special-event boss (a fixed position, a
-chosen level, no `Border` involved at all) trivial later — it's the same record shape, just
+`layer` to exist, which is also what makes a hand-placed special-event boss (a fixed position, a
+chosen layer, no `Border` involved at all) trivial later — it's the same record shape, just
 inserted a different way. Also worth being explicit about scope: not every `Border` gets a boss.
 Only borders that actually enter the level's progression (level 1's initial border, and every
 border grown onto the path afterward) do — an off-path border created some other way (a debug
@@ -149,8 +152,8 @@ Easy to conflate; worth keeping visibly separate, since each is answered a diffe
 with whatever code just created a new `Border` in the level's progression — see "Defeat detection
 and the border-growth gap" below for exactly where those calls live. Creating the record is
 instant and unconditional: pick a random XZ column within the new `Border`'s disk (see "Position"
-below — pure geometry, no chunk state involved), copy its `layerIndex()` as `level`, and write
-`{position, level, bossEntityId: null, alive: true}`. No periodic check ever asks "does the
+below — pure geometry, no chunk state involved), copy its `layer()` value as `layer`, and write
+`{position, layer, bossEntityId: null, alive: true}`. No periodic check ever asks "does the
 path-tip have a boss" — `BossFixture` doesn't know what the path even is.
 
 **"Does an existing record have an actual entity yet?"** — tick-driven, on `BOSS_JIG`'s own
@@ -209,12 +212,18 @@ later" strategy object, not a hardcoded algorithm):
   vanilla entity at that point, and write `bossEntityId` onto the existing record. Nothing about
   *where* was ever in question by this point — the XZ was fixed back at "Position" — this step only
   answers *when*.
-- **Mob type / stat scaling by `layerIndex`:** a placeholder table, not a locked curve — level 1
-  should be [Progression & Frontier Mechanics](../design/progression.md#starting-conditions)'s own
-  named example (a rabbit), later levels tougher vanilla mobs with scaled health/damage attributes.
-  Real balance tuning is Game Designer/playtest territory once there's something to play, same
-  category as `DefaultBorderRules.GROWTH_FACTOR`'s own "safe baseline" framing — this node ships a
-  working default, not a final curve.
+- **Mob type / stat scaling by the boss's own recorded `layer`** — `BossFixture.layer`, the
+  copy-once value set at creation (see "Data model" above), **never** a live `Border.layer()`
+  lookup at spawn or materialization time. This is the same guarantee [Border
+  Vocabulary](border-vocabulary.md#implementation-trap-worth-flagging-now)'s "implementation trap"
+  section warns against reintroducing — stated here explicitly so a reader who jumps straight to
+  this section doesn't have to cross-check "Data model" to confirm it. A placeholder table, not a
+  locked curve — layer 1 should be [Progression & Frontier
+  Mechanics](../design/progression.md#starting-conditions)'s own named example (a rabbit), higher
+  layers tougher vanilla mobs with scaled health/damage attributes. Real balance tuning is Game
+  Designer/playtest territory once there's something to play, same category as
+  `DefaultBorderRules.GROWTH_FACTOR`'s own "safe baseline" framing — this node ships a working
+  default, not a final curve.
 - **Tagging:** happens in the same step as materialization above, not a separate pass — the entity
   is guaranteed loaded at that exact instant (`isLoaded` just confirmed it), so call
   `MobScope.getFor(mob)` to attach `BossMobFixture` right there, no reason to wait a full poll
@@ -258,8 +267,8 @@ not every scenario that sounds scary is a real gap:
   its boss record in the same breath as the border. If it ever does, that's a real data bug (a
   missed call site, a crash between the two calls, manual world editing) — not a normal transient
   state to tolerate the way an unmaterialized record is. A defensive reconciliation check can catch
-  it: compare the path's set of `layerIndex` values against `BossFixture`'s set of `level` values,
-  using the level number itself as the correlating key (no live `Border` reference needed, matching
+  it: compare the path's set of `layer()` values against `BossFixture`'s set of `layer` values,
+  using that value itself as the correlating key (no live `Border` reference needed, matching
   the decoupling in "Data model" above). Runs on `BOSS_JIG`'s tick alongside materialization, but
   it's a periodic integrity check, not a primary creation mechanism — if it ever finds a mismatch,
   that's worth logging loudly, not silently self-healing without a trace.
@@ -267,10 +276,10 @@ not every scenario that sounds scary is a real gap:
 ## Defeat detection and the border-growth gap
 
 [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) owns the `LivingDeathEvent` handler itself; the
-one thing worth documenting here is a real gap it found in Border's own surface.
-[Border-Frontier Reconciliation](frontier-reconciliation.md)'s "missing caller, not a missing
-capability" finding is mostly right but not entirely: `BorderAPI.addBorder()` accepts an arbitrary
-center, but doesn't touch `borderPath`; `BordersPathFacet.grow()` maintains the path but always
+one thing worth documenting here is a real gap it found in Border's own surface. Border's public
+mutation surface is already trigger-agnostic — `BorderAPI.addBorder()` accepts an arbitrary
+center from any caller, not just commands — but that alone isn't sufficient: it doesn't touch
+`borderPath`; `BordersPathFacet.grow()` maintains the path but always
 computes its own random center via `DefaultBorderRules.chooseNextCenter()`, with no parameter for
 "center here instead." Neither alone satisfies
 [Progression & Frontier Mechanics](../design/progression.md#the-core-loop)'s "centered on the
@@ -278,8 +287,8 @@ defeated boss's home block" requirement while keeping the path consistent.
 
 **Recommended fix, small and targeted:** a new `BordersPathFacet.growCenteredOn(BlockPos center)`
 — same two-step shape `grow()` already has (rules-driven proposal, then path append), but taking
-an explicit center instead of deferring to `chooseNextCenter()`. Radius and `layerIndex` still come
-from the existing rules (`chooseNextRadius()`, `previous.layerIndex() + 1`) — only the center
+an explicit center instead of deferring to `chooseNextCenter()`. Radius and `layer` still come
+from the existing rules (`chooseNextRadius()`, `previous.layer() + 1`) — only the center
 differs. This keeps "create a border and keep the path consistent" atomic, the same guarantee every
 other `BordersPathFacet` mutation already provides, rather than leaving two calls
 (`addBorder()` + `PATH.insert()`) for every future "grow to a specific point" caller to remember to
@@ -289,7 +298,7 @@ sequence correctly.
 exist at all?" above.** This isn't Border's job and isn't a Border-side hook — Border doesn't know
 `BossModule` exists, and that dependency direction (Boss depends on Border, never the reverse) stays
 fixed. Instead, whoever *calls* a border-creating operation also calls into `BossModule` right
-after, as a sibling step, extracting `position`/`level` from the `Border` that call just returned:
+after, as a sibling step, extracting `position`/`layer` from the `Border` that call just returned:
 
 - **`growCenteredOn(center)`, post-defeat.** The caller is [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)'s
   own `LivingDeathEvent` handler — it already calls growth; it just also calls `BossModule`'s
@@ -307,8 +316,6 @@ after, as a sibling step, extracting `position`/`level` from the `Border` that c
 ## Related pages
 
 - [Border](border.md) — the data model and module pattern this extends
-- [Border-Frontier Reconciliation](frontier-reconciliation.md) — the "missing caller" finding this
-  page partially corrects
 - [Progression & Frontier Mechanics](../design/progression.md) — the core loop this implements
 - [FrontierMode Operational Tiers](../../plans/operational-tiers.md) — Tier 1's definition
 - [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md) / [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) — roadmap trackers

@@ -10,7 +10,7 @@ depends_on:
 - RM_SAT_017
 created: '2026-08-16'
 superseded_by: null
-ticket: null
+ticket: SAT_035
 ---
 
 <!-- bh-header:start -->
@@ -163,6 +163,37 @@ ticket: null
     tears down and re-introduces on every reload, is still an implementation detail worth deciding
     explicitly rather than assuming — carried forward, not newly resolved.
 
+- 2026-08-21: **Scheduling, not design: this node goes before its FrontierMode consumer, project
+  owner's call.** [RM_FRO_018](RM_FRO_018_shirley.md) ("Shirley," boss entity/spawn system) is
+  currently the only node `bhrm frontier --uid RM_FRO` reports as actionable, and it is built
+  directly on this node's `MobScope.getFor(mob)` fast path, `MobJig`-scoped fixtures, and presence
+  poll. Since the cross-graph relationship can't be a `depends_on` edge, that actionable listing is
+  misleading on its own — so the ordering is now stated on both nodes. Practical effect for whoever
+  picks this up: FrontierMode's Tier 1 is queued behind it, so this node's "Verification aid"
+  section below matters more than usual — a synthetic consumer proving introduce/tick/remove is
+  what unblocks Shirley, not a compiling `MobJig` alone. Tracked as
+  [FRO_030](../tickets/FRO_030_frank-first.md).
+
+- 2026-08-21: **Architect ticket opened: [SAT_034](../tickets/SAT_034_mobjig-docs.md).** This node's
+  design is settled but lives only in this log; nothing in `wiki/` mentions `MobJig` or `MobScope`.
+  SAT_034 covers consolidating it into [Jig & Scope
+  Runtime](../wiki/satchel/architecture/runtime.md)'s jig-kinds section, and deciding whether
+  `MobScope.getFor()` earns a spec page. **Read that ticket's item 1 before acting on the
+  "build fresh against `PlayerJig`'s current shape" instruction below** — `runtime.md` currently
+  describes `PlayerJig` as entirely commented-out scaffolding, which is false (verified against
+  source 2026-08-21; [RM_SAT_020](RM_SAT_020_jerry.md) is `resolved` and FrontierMode consumes
+  `PlayerScope` today). The reference this node says to copy from is documented as not existing.
+
+- 2026-08-21: **Design signed off, build ticket opened: [SAT_035](../tickets/SAT_035_mobjig-build.md).**
+  Architect completed [SAT_034](../tickets/SAT_034_mobjig-docs.md) — this node's design is now on
+  [Jig & Scope Runtime § MobJig](../wiki/satchel/architecture/runtime.md#mobjig) and
+  [MobScope.getFor() Contract](../wiki/satchel/spec/mobscope-getfor.md), and `runtime.md`'s stale
+  `PlayerJig` claims are corrected. **Those two pages are authoritative over this log for anyone
+  building.** This log contains two superseded designs (the opt-in/`EntityLeaveLevelEvent` ingress
+  model and the earlier `LivingEntity` typing), both explicitly reversed — building from it
+  front-to-back would build the wrong thing twice. The done bar and verification aid below stay
+  authoritative here.
+
 **Build fresh against `PlayerJig`'s current shape for the scope/config plumbing, minus the
 corrections above — the ingress mechanism itself is new, not ported.** `MobScope extends
 ASatchelScope`, holding a `Mob` directly (not `LivingEntity`), with `determineUUID` and the
@@ -206,6 +237,20 @@ that integrated/singleplayer alone would do) — chunk unload behavior is exactl
 test, and it's the one piece of this that couldn't be verified against source alone in this
 session (no Forge/Mojang maven access in the sandbox this design pass ran in — flagged, not
 assumed).
+
+- 2026-08-21: **Stale `ScopeInfo.source()` question (flagged 2026-08-16, carried forward
+  2026-08-17) resolved: no separate refresh mechanism — Architect ruling.** The poll model already
+  treats loss of resolution and regain of resolution as teardown-then-reintroduce, not as one
+  continuous `ScopeInfo` living through the gap: a UUID that stops resolving tears its `ScopeInfo`
+  down; a UUID that later resolves again goes through `addScope` as if for the first time. Since
+  `source` is captured exactly once — on the `addScope` call that creates a `ScopeInfo` — and no
+  `ScopeInfo` instance survives the gap where staleness could occur, there's nothing left for an
+  in-place refresh to fix: the teardown/reintroduce cycle already guarantees a fresh `source` on
+  every reintroduction by construction, not as a separately-verified property. Documented as
+  current design in [Jig & Scope Runtime](../wiki/satchel/architecture/runtime.md#mobjig). No
+  change to the done bar below — this was a design question, not a new verification requirement.
+  Consolidated into the wiki along with the rest of this node's design per
+  [SAT_034](../tickets/SAT_034_mobjig-docs.md).
 
 ## Required By
 

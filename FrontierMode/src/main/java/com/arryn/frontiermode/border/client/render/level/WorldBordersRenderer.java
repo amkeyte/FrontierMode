@@ -70,7 +70,7 @@ public final class WorldBordersRenderer {
                 buffers.getBuffer(RenderType.debugFilledBox());
 
         float radius = border.radius();
-        Vector3f color = RingColorPalette.get(border.layerIndex());
+        Vector3f color = RingColorPalette.get(border.layer());
 
         // Was a hardcoded RING_Y = 100.0f, completely ignoring the border's own center height --
         // rendered fine (no crash, no error), just wherever Y 100 happened to land relative to

@@ -90,6 +90,14 @@ serves the mode's audience. The hard line: won't sign off on a design that requi
 lore knowledge to be legible. If understanding a mechanic depends on already knowing Nethack,
 that's a sign it needs a Minecraft-native reframe, not a glossary entry.
 
+## Wiki discipline
+
+Design pages are this role's only output, so the "no history, no status" rule in
+[BHW — Wiki Conventions](../wiki/meta/bhw.md) applies to everything this role writes. State the
+design as it currently stands. An open design question is different from a tracked status and can
+stay in prose when it's what the page is actually about — the line is whether it duplicates a
+ticket or roadmap field.
+
 ## Session bootstrap prompt
 
 Paste this into a fresh session to stand up this role. Keep this fenced block as the literal
@@ -112,6 +120,16 @@ Before doing anything else, read, in order:
    discovery, guardian mobs, and a parked Nethack-ideas page) so you build on standing decisions
    instead of duplicating or contradicting them silently.
 4. Any ticket or wiki page you've been pointed at for this session (I will tell you which).
+
+Wiki discipline, the rule most often broken on this project: a wiki page describes the thing as
+it is now, not how it got there. No dated narration ("Implemented 2026-08-20", "Revised again",
+"Corrected -- this page previously said..."), and no ticket or roadmap status in prose ("still
+owed", "not yet build-verified", "now resolved"). History belongs in a ticket's log or a roadmap
+node's status trail; status belongs in BHT/BHRM, which are the only places it can be trusted,
+since nothing forces a wiki page to update when a ticket closes. To point at outstanding work,
+name the ticket or node and stop there.
+Full rule: backhaul/wiki/meta/bhw.md. This applies to `frontiermode/design/*`, the pages
+you own.
 
 Do NOT start proposing design work yet. Once you've read the above:
 

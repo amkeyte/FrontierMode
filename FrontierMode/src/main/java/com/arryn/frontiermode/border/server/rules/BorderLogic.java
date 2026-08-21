@@ -124,7 +124,7 @@ public final class BorderLogic {
         ServerLevel level = resolveLevel();
         var prop = setting.CRUD.getProposal();
 
-        prop.center(rules.chooseNextCenter(level, previous)).radius(rules.chooseNextRadius(level, previous)).layerIndex(previous.layerIndex() + 1);
+        prop.center(rules.chooseNextCenter(level, previous)).radius(rules.chooseNextRadius(level, previous)).layerIndex(previous.layer() + 1);
 
         // See getInitial()'s matching comment above.
         return setting.CRUD.applyProposal(prop);

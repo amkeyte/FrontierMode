@@ -16,25 +16,13 @@ updated: '2026-08-11'
 
 # Fixture
 
-*Migrated from two source files as part of [SAT_003](../../../tickets/SAT_003_md-migration.md):
-`common/fixture/notes.md` (headed "facet") and `common/fixture/SatchelFacet.md` (headed
-"fixture") — `notes.md` ended with an `<!-- include: SatchelFacet.md --> ` directive, so they're
-merged here in that order, unchanged otherwise.*
+**Fixture and facet are two different things**, at different levels of the hierarchy — not
+synonyms, and not a rename half-applied:
 
-The two source docs use "facet" and "fixture" for what reads like the same concept at a glance,
-but checking against current code shows they're not synonyms left over from a rename — they're
-two distinct, still-live concepts at different levels of the hierarchy, and the terminology only
-looks inconsistent because both source files used the word "facet" loosely before the split had
-a name.
-
-What the code actually shows:
-
-- **Fixture** is the persisted-state unit described below: it extends `SatchelFixture`
+- **Fixture** is the persisted-state unit this page describes: it extends `SatchelFixture`
   (`common/fixture/SatchelFixture.java`), is keyed by `FixtureKey` (`common/identity/FixtureKey.java`),
-  is attached to exactly one bundle, and owns the field-registration/save-load contract. This is
-  the concept `notes.md`'s "facet package" and `SatchelFacet.md`'s "fixture package" were both
-  circling.
-- **Facet**, in current usage, is a *sub-view onto a fixture* — a small accessor class that groups
+  is attached to exactly one bundle, and owns the field-registration/save-load contract.
+- **Facet** is a *sub-view onto a fixture* — a small accessor class that groups
   a related slice of a fixture's read/query API, not a persisted unit in its own right and not
   registered with a bundle. Satchel itself defines no `Facet`-named classes (facets are a pattern
   for fixture authors, not a Satchel-provided type). The clearest live example is FrontierMode's
@@ -45,37 +33,11 @@ What the code actually shows:
   just wraps read-only accessors onto `BordersFixture`). None of the four facet classes extend
   `SatchelFixture` or register their own persisted fields; the fixture is the one thing that does.
 
-So: **fixture** is Satchel's term for "the atomic persisted-state unit" (this page, correctly).
-**Facet** is a mod-author convention for "a grouped-accessor slice of a fixture's API," demonstrated
-in FrontierMode but not itself a Satchel abstraction. The content below (originally headed
-"Fixture," from `SatchelFacet.md`) is the accurate, current description; the "Facet" section that
-preceded it is kept for historical context but should be read as an earlier, less precise pass at
-naming the same unit — not as a description of a separate package.
+In short: **fixture** is Satchel's term for the atomic persisted-state unit. **Facet** is a
+mod-author convention for a grouped-accessor slice of a fixture's API — demonstrated in
+FrontierMode, not a Satchel-provided type.
 
-## Facet (from `notes.md`)
-
-The `facet` package defines Satchel's **atomic unit of state and behavior**. A facet represents
-a single, focused concern within a bundle: it owns its own data, serialization, and logic, and
-assumes nothing beyond the existence of its containing bundle.
-
-Facets are **explicitly composed**, not discovered. They are created and attached by bundles and
-participate in a deterministic lifecycle managed externally. A facet may read from its bundle
-and scope, but must not assume the presence, ordering, or existence of other facets or bundles.
-
-Facets are intentionally **self-contained**. All persisted state must be explicitly declared and
-managed by the facet itself. Facets do not perform persistence, networking, or side checks
-directly; those capabilities are enabled through stitches or orchestration provided by the
-surrounding environment.
-
-The facet package defines *how state is structured and behaves*, not *where it is stored* or
-*how it is synchronized*. Satchel trusts facets to be correct, explicit, and side-safe.
-
-FacetHydrator is a mechanical state-application tool. Persistence, networking, and engines decide
-when it is invoked; the hydrator itself does not imply ownership, lifecycle, or authority.
-
----
-
-## Fixture (from `SatchelFacet.md`)
+## Fixture
 
 The `fixture` package defines Satchel's **primary modder-facing abstraction**. Fixtures are the
 smallest meaningful units of persistent state in Satchel, and most mod-authored code is expected

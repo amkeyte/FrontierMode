@@ -85,7 +85,7 @@ public final class Border {
         return radius;
     }
 
-    public int layerIndex() {
+    public int layer() {
         return layerIndex;
     }
 

@@ -14,6 +14,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * BorderRules implementations propose values only.
@@ -66,5 +67,29 @@ public interface BorderRules {
     boolean growPathCriteria(Level level, BlockPos pos, BlockState placed);
 
     void updateFinderItems(Level level);
+
+    // ------------------------------------------------------------------
+    // Difficulty (Border Vocabulary: Layer is one input to Difficulty, not
+    // the definition of it -- see wiki frontiermode/architecture/difficulty.md).
+    // Kept on this interface rather than a separate DifficultyRules sibling:
+    // one rules helper per module, per project owner's call.
+    // ------------------------------------------------------------------
+
+    /**
+     * Converts a Border's Layer into a difficulty rating. The one shared formula both
+     * ambient (via {@link #ambientDifficultyAt}) and boss difficulty are meant to go through --
+     * safe-baseline placeholder for now, not a locked curve.
+     */
+    int layerToDifficulty(int layer);
+
+    /**
+     * Ambient difficulty at a point: resolves Relevance via {@link #getRelevant} and, if a
+     * Relevant border exists, feeds its layer through {@link #layerToDifficulty}. Empty when
+     * nothing is Relevant at this point -- mirrors {@link #getRelevant}'s own null-for-nothing-
+     * contains-this-point contract. Deliberately does not accept a raw layer: composing
+     * getRelevant()+layerToDifficulty() is the whole point of this method existing, so callers
+     * don't reimplement or skip the Relevance step themselves.
+     */
+    OptionalInt ambientDifficultyAt(List<Border> containing, BlockPos pos);
 }
 

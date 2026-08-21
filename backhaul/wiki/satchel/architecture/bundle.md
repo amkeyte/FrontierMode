@@ -16,11 +16,6 @@ updated: '2026-08-11'
 
 # Bundle
 
-*Migrated from `Satchel/src/main/java/com/arryn/satchel/common/bundle/notes.md` as part of
-[SAT_003](../../../tickets/SAT_003_md-migration.md). Content unchanged except: a leftover
-editorial artifact (an assistant-style response fragment that had been pasted into the source
-file and never cleaned up) was removed between the intro and "Bundle Identity" below.*
-
 The `bundle` package defines Satchel's primary unit of state aggregation. A bundle is a
 **named, keyed container of facets** that represents a coherent body of data attached to a
 scope. Bundles provide identity, lifecycle boundaries, and a synchronization surface, but do not

@@ -77,7 +77,8 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
                 eval.nearestBorderId(),
                 eval.distanceToNearest(),
                 eval.insideNearest(),
-                eval.layerIndex()
+                eval.relevantLayer(),
+                eval.nearestLayer()
         );
     }
 

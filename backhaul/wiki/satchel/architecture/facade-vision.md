@@ -8,7 +8,7 @@ summary: 'Vision: Satchel as the exclusive path to Forge for every module -- eve
   than by thread discipline.'
 keywords: null
 status: draft
-updated: '2026-08-14'
+updated: '2026-08-18'
 ---
 
 <!-- bh-header:start -->
@@ -21,7 +21,7 @@ updated: '2026-08-14'
 the integrated-server (single-player) setup. Explicitly a vision/direction page, not a spec — see
 [BHW's spec-page criterion](../../meta/bhw.md#spec-pages-a-stricter-sibling-of-architecture-pages):
 nothing here is a current contract yet. Stays `draft` by design, the same way
-[Border-Frontier Reconciliation](../../frontiermode/architecture/frontier-reconciliation.md) does
+[Border Vocabulary](../../frontiermode/architecture/border-vocabulary.md) does
 — its job is holding open questions, not reporting a finished state.*
 
 ## The vision

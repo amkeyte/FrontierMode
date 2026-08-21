@@ -6,8 +6,6 @@ import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.items.BorderPathCompass;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -15,6 +13,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Default, opinionated implementation of {@link BorderRules}.
@@ -123,7 +122,7 @@ public final class DefaultBorderRules implements BorderRules {
         double bestCenterDistSq = Double.MAX_VALUE;
 
         for (Border border : containing) {
-            int layer = border.layerIndex();
+            int layer = border.layer();
             double centerDistSq = BorderMath.distanceSqToCenter(border, pos);
 
             if (best == null
@@ -182,6 +181,26 @@ public final class DefaultBorderRules implements BorderRules {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Difficulty
+    // ------------------------------------------------------------------
+
+    @Override
+    public int layerToDifficulty(int layer) {
+        // Safe baseline: identity. Layer and Difficulty are vocabulary-distinct even though this
+        // placeholder happens to make them numerically equal -- replace once there's a real curve
+        // to tune against (Game Designer/playtest territory, same as GROWTH_FACTOR above).
+        return layer;
+    }
+
+    @Override
+    public OptionalInt ambientDifficultyAt(List<Border> containing, BlockPos pos) {
+        Border relevant = getRelevant(containing, pos);
+        if (relevant == null) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of(layerToDifficulty(relevant.layer()));
+    }
 }
 
 

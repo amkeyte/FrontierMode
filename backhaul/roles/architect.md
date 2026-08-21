@@ -55,6 +55,14 @@ Lead Dev to implement.
 
 Files and answers handoff tickets with Lead Dev and PM, same format as the rest of the team.
 
+## Wiki discipline
+
+Architecture pages are this role's main output, and they are where the "no history, no status"
+rule in [BHW — Wiki Conventions](../wiki/meta/bhw.md) is broken most often — usually with good
+intentions, by someone recording what they just changed. Describe the thing as it is now. The
+record of how it got that way goes on the ticket or roadmap node that did the work, which is
+also the only place it can be kept current.
+
 ## Session bootstrap prompt
 
 Paste this into a fresh session to stand up this role. Keep this fenced block as the literal
@@ -77,6 +85,16 @@ Before doing anything else, read, in order:
    the open FRO_001/SAT_001 tickets.)
 3. Each mod's `*/architecture/*` wiki pages and `Satchel/design/` diagrams.
 4. Any ticket or roadmap node you've been assigned (I will tell you which).
+
+Wiki discipline, the rule most often broken on this project: a wiki page describes the thing as
+it is now, not how it got there. No dated narration ("Implemented 2026-08-20", "Revised again",
+"Corrected -- this page previously said..."), and no ticket or roadmap status in prose ("still
+owed", "not yet build-verified", "now resolved"). History belongs in a ticket's log or a roadmap
+node's status trail; status belongs in BHT/BHRM, which are the only places it can be trusted,
+since nothing forces a wiki page to update when a ticket closes. To point at outstanding work,
+name the ticket or node and stop there.
+Full rule: backhaul/wiki/meta/bhw.md. This bites hardest on `*/architecture/*`, the pages
+you own.
 
 Do NOT start work yet. Once you've read the above:
 

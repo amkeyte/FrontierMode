@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-16'
+updated: '2026-08-21'
 ---
 
 <!-- bh-header:start -->
@@ -16,16 +16,46 @@ updated: '2026-08-16'
 
 # Border
 
-*Written 2026-08-11 as part of the post-strip-down documentation/roadmap-backfill pass. This is
-FrontierMode's first `architecture/*` page — none existed before this (see
-[FrontierMode](../frontiermode.md)). Everything below is read directly from current
-source, not migrated from anywhere.*
-
 FrontierMode's world-border system is, at present, the entire substance of the mod: a
 server-authoritative set of world borders that players can query, propose changes to, and see
 rendered client-side, built end-to-end on Satchel's bundle/fixture/facet model and jig/scope
 runtime (see [Bundle](../../satchel/architecture/bundle.md),
 [Fixture](../../satchel/architecture/fixture.md), and Satchel's `common/jig/guts/*`).
+
+Border is also FrontierMode's proof-of-concept module, not just its current entire substance —
+nearly everything else in the mode's design (bosses, guardian mobs, discovery tools, loot/reward
+density, Nether/End difficulty gating) is defined in terms of Border's Layer, Path, or
+distance-from-origin concepts (see [Progression & Frontier
+Mechanics](../design/progression.md)). Future modules are expected to build on Border's public
+surface, which is exactly why `BorderAPI` already being trigger-agnostic — any caller can propose
+a change; nothing is tied to command-handling specifically, see "Commands and client surface"
+below — matters more than it would for a module nothing else depends on.
+
+## Design vocabulary bridge
+
+[Border Vocabulary](border-vocabulary.md) is the canon mapping between Sasha's design-side terms
+and this page's architecture terms. Short version, for a reader arriving from the design side:
+
+- **Border** = a single cylindrical range of blocks (this page's subject) = what a player is told
+  is one **level** ([level is player-facing only](../design/progression.md#terminology-level-is-player-facing-only)
+  by design ruling, not an architecture term).
+- **Layer** (`Border.layer()`) = a Border's immutable sort key, assigned once at creation —
+  see "Data model" below. Only *coincidentally* tied to Path under normal growth, not structurally
+  bound to it — see [Known gaps](#known-gaps) below.
+- **Path** (`BordersPathFacet`'s ordered `borderPath`) = the order a player has actually
+  progressed through the game loop.
+- **Relevance** (`DefaultBorderRules.getRelevant()`) = the single Border that's effective for a
+  runtime decision at a given point — see "Runtime wiring" below.
+- **Difficulty** = broader than Layer; not yet a real concept in this codebase (no
+  `DifficultyRules` exists) — see [Border Vocabulary's "Difficulty"
+  section](border-vocabulary.md#difficulty).
+- **Frontier** = the union of all Borders established so far. **Not currently a named object or
+  computed aggregate anywhere in this architecture** — still genuinely open, not just historically
+  unconfirmed.
+
+Full definitions, the Layer/Path/Difficulty split, and the open questions each one raises live on
+[Border Vocabulary](border-vocabulary.md) — this section only orients a reader, it doesn't restate
+that page.
 
 ## Data model
 
@@ -43,7 +73,7 @@ owning fixture, each covering one slice of the fixture's API:
 - `RULES` (`BordersRulesFacet`) — rule evaluation surface
 - `INFO` (`BordersInfoFacet`) — read-only queries (scope, level, UUID, revision)
 
-This is the concrete example used to resolve Satchel's own fixture/facet terminology drift (see
+This is the canonical example of Satchel's fixture/facet split (see
 [Fixture](../../satchel/architecture/fixture.md)): the fixture is the one persisted unit; facets
 are non-persisted grouped views onto it, not sub-fixtures in their own right.
 
@@ -51,28 +81,32 @@ are non-persisted grouped views onto it, not sub-fixtures in their own right.
 world-scoped (`LevelScope`) bundle described in its own source comment as "intentionally boring:
 no logic, no state beyond fixtures."
 
+### Layer and Path can legitimately diverge
+
+`Border.layer()` is immutable, set once at creation. `BordersPathFacet.moveUp()`/`moveDown()` are
+op-exposed commands that reorder `borderPath` without touching any border's layer — so the two
+orderings can disagree, and `DefaultBorderRules.getRelevant()` sorts strictly by layer.
+`BordersPathFacet.fixLayers()` reconciles them on demand, delegating to a bulk
+`BordersFixture.reassignLayers(Map)`; see [Border Path & Layer
+Reconciliation](path-layer-reconciliation.md) for the mechanism.
+
+**Layer values are not required to be unique.** Layer and Path are definitionally unrelated (see
+[Border Vocabulary](border-vocabulary.md#layer)), and `getRelevant()`'s nearest-center tie-break
+resolves a same-layer overlap on its own — so two borders, on-path or off, can share a layer value
+without anything downstream breaking.
+
 ## Runtime wiring
 
-**Rewritten 2026-08-13** following [FRO_012](../../../tickets/FRO_012_port-border-to-jigconfig-eventhandlers.md),
-which ported this off the dead `SatchelJigRegistrar`/`SatchelStrap` pattern onto Satchel's
-declarative `JigConfig`/`EventHandlers` system. Confirmed by a real `gradlew build` on both repos:
-`BUILD SUCCESSFUL`, zero errors, first time in this investigation. Full before/after story:
-[Jig & Strap Registration](../../satchel/architecture/jig-registration-break.md) and its
-[recovery plan](../../satchel/architecture/jig-registration-recovery-plan.md).
+Border registers through Satchel's declarative `JigConfig`/`EventHandlers` system.
 
 `BorderModule.init()` (`border/BorderModule.java`) is the subsystem's single entry point, called
 once from `FrontierMode`'s constructor. It:
 
 1. Declares a `JigBundles.Schema` (`bundles.schema(...)`) for `BordersBundle`/`BordersFixture` —
    the sole construction path `ScopeEngine_Server.create()`/`ScopeEngine_Client.create()` read.
-   **Corrected 2026-08-16**: this page previously described a second, separate
-   `BundleFactories.registerFactory(...)` call as "still the registry `ScopeEngine.create()`
-   actually reads." That was accurate when written but is now stale —
-   [RM_SAT_012](../../../roadmap/RM_SAT_012_donald.md) consolidated `ScopeEngine` onto the
-   schema (`bundleDecls`) directly, and [FRO_021](../../../tickets/FRO_021_clear-frontiermode-s-remaining-out-of-sp.md)
-   removed `BorderModule`'s now-dead `BundleFactories` call and its by-then-inaccurate comment.
-   `BordersFixture` registration is schema-only now, mirroring `TrackingModule.init()`'s own
-   cleaned-up state (see [Jig & Scope Runtime](../../satchel/architecture/runtime.md#worked-example-trackingmodule)).
+   `BordersFixture` registration is schema-only — there is no separate `BundleFactories` call,
+   matching `TrackingModule.init()` (see
+   [Jig & Scope Runtime](../../satchel/architecture/runtime.md#worked-example-trackingmodule)).
 2. Builds a `JigBundles.BundleDecl<LevelScope, BordersBundle>` wrapping that fixture decl, then a
    `JigBundles.Schema<LevelScope>` wrapping the bundle decl — the two-level `FixtureDecl` →
    `BundleDecl` → `Schema` shape `JigConfigValidator` expects.
@@ -142,16 +176,15 @@ described under "Runtime wiring" above — `BorderPlayerBundle`/`BorderPlayerSta
 against their current level's live border list — a derive-only snapshot (nearest border, distance,
 inside flag), deliberately not persisted or networked, since it's cheap to recompute and has no
 restart-survival requirement. `BorderAPI.getRelevant(ServerPlayer)` and the `@relevant` command
-selector both read off this fixture. See [RM_FRO_006](../../../roadmap/RM_FRO_006_sandra.md) for
-status — this section describes the current shape of the code, not whether that node is closed.
+selector both read off this fixture. Tracked as
+[RM_FRO_006](../../../roadmap/RM_FRO_006_sandra.md).
 
-**Path/layer-index reconciliation.** `BordersPathFacet.moveUp()`/`moveDown()` reorder the
-canonical `borderPath` list; `Border.layerIndex()` — the value
-[DefaultBorderRules.getRelevant()](#runtime-wiring) actually sorts by for oldest-ring-wins overlap
-resolution — is immutable and untouched by either. `fixLayers()`, the method meant to reconcile
-the two, is currently a hardcoded no-op (`return false`). See [Border Path & Layer
-Reconciliation](path-layer-reconciliation.md) for the design and
-[RM_FRO_015](../../../roadmap/RM_FRO_015_margaret.md) for status.
+The code side is settled; the *design* side isn't. This per-player layer doesn't map onto any named
+concept in FrontierMode's design vocabulary — there is no design-side answer to "what is a player's
+own relationship to the Frontier," only an architecture-side mechanism for computing one. Architect's
+question rather than Game Designer's, and deliberately not worth resolving until something needs it:
+the likeliest forcing function is multiplayer's "whose frontier is it," parked in [Multiplayer Sketch
+(Parked)](../design/multiplayer-sketch.md).
 
 **Mutation validation, render lifecycle, and fixture/item robustness gaps.** A source-level
 resilience pass found several structural gaps in the mutation, rendering, and persistence paths
@@ -167,8 +200,8 @@ described above — tracked as roadmap work rather than restated here:
   machinery "Runtime wiring" above plugs into
 - [Bundle](../../satchel/architecture/bundle.md)
 - [Fixture](../../satchel/architecture/fixture.md)
-- [Border-Frontier Reconciliation](frontier-reconciliation.md) — how this architecture maps onto
-  Sasha's Frontier design vocabulary, and what's still open
+- [Border Vocabulary](border-vocabulary.md) — the canon Relevance/Layer/Path/Difficulty
+  definitions this page's "Design vocabulary bridge" section summarizes
 - [Border Path & Layer Reconciliation](path-layer-reconciliation.md) — design for the
   `fixLayers()` gap noted above
 - [Boss](boss.md) — Tier 1's boss entity/spawn system, the first consumer of `BorderAPI.addBorder()`

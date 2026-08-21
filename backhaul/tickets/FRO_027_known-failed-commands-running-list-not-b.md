@@ -5,9 +5,8 @@ number: 27
 client: FrontierMode
 status: open
 title: Known-failed commands (running list, not being worked)
-context: 'Running list of border commands confirmed broken by real playtest. Not being
-  triaged or fixed until further notice -- project owner''s explicit call. First entry:
-  /border delete @all throws and refuses instead of deleting.'
+context: Running list of border commands found broken by playtest. Not being triaged
+  or fixed until further notice -- project owner's explicit call.
 priority: low
 opened: '2026-08-16'
 closed: null
@@ -25,8 +24,12 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
 
 ## Known-failed commands
 
-- [ ] **`/border delete @all`** — throws and refuses instead of deleting. Reported 2026-08-16.
-  Likely root cause (not confirmed, not fixed): `BorderCommands.applySelector()` iterates the
+- [ ] **`/border delete @all`** — displays a generic error. Whether it also fails to delete
+  depends on the world, and the two sightings below disagree; see "Which of these is it" underneath.
+  Reported 2026-08-16.
+
+  **Sighting 1 (2026-08-16, multi-border world): refuses to delete.** Likely root cause (not
+  confirmed, not fixed): `BorderCommands.applySelector()` iterates the
   `List<Border>` returned by `BorderAPI.borders(level) -> b.CRUD.all()` with a plain for-each,
   then calls `BorderCommandHandler::delete` per border inside that loop.
   `BordersFixture.all()` returns `Collections.unmodifiableList(borders)` — an *unmodifiable view*
@@ -39,8 +42,39 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
   `applySelector` rather than the live view — but that's a real code change, intentionally not
   made here.
 
+  **Sighting 2 (2026-08-20, single-border world): deletes correctly, error is cosmetic.** Logged
+  during [RM_FRO_015](../roadmap/RM_FRO_015_margaret.md)'s playtest thread. The border was removed
+  (`[Border] Removed border <uuid>` in the server log) and the client *also* showed Brigadier's
+  generic "An unexpected error occurred trying to execute that command." Investigated at length and
+  found **zero** corroborating evidence in either `run-server/logs/latest.log` or the full
+  DEBUG-level `debug.log` — in particular no `Command exception:` line, which vanilla's
+  `Commands.performCommand` logs unconditionally at ERROR whenever a raw exception escapes a
+  command's `.executes()`. `applySelector`'s own per-border `catch` would have produced its distinct
+  `"[Border] Operation failed for border <id>"` message rather than vanilla's generic one, ruling
+  out the obvious "a second selector match failed" explanation. Root cause undetermined; project
+  owner's call at the time was cosmetic and deprioritized.
+
+  **Which of these is it.** The two are consistent rather than contradictory: sighting 2's world had
+  exactly one border, so `applySelector`'s per-border loop ran once and no concurrent modification
+  was possible. That fits sighting 1's `ConcurrentModificationException` read holding for the
+  multi-border case while something *else*, still unexplained, produces the generic message even
+  when the delete succeeds. **That reconciliation is inference, not evidence — nobody has run the
+  discriminator.** Cheap when someone wants it: run the command against a world with several borders
+  and one with exactly one, and compare. Not run here, since this ticket's standing instruction is
+  that nothing on the list gets triaged without the project owner asking. Tracked as
+  [FRO_035](FRO_035_delete-all-verdict.md).
+
 ## Log
 
+- 2026-08-21: **First entry corrected — it was asserting more than the evidence supported.** The
+  checklist and this ticket's `context` line both said `/border delete @all` "throws and refuses
+  instead of deleting," which [RM_FRO_015](../roadmap/RM_FRO_015_margaret.md) had already
+  contradicted on 2026-08-20 with a real log showing a successful delete. That newer evidence never
+  reached this ticket, so [BOARD.md](../BOARD.md) has carried a summary contradicted by the
+  project's own logs since that day. Both
+  sightings are now recorded side by side with the open question named rather than resolved by
+  assumption. No triage or fix performed — this ticket's parked status is unchanged. Per
+  [FRO_035](FRO_035_delete-all-verdict.md).
 - 2026-08-16: Ticket opened. First entry (`/border delete @all`) logged with a root-cause read
   from static analysis only — not confirmed against a debugger/rebuild, and deliberately not
   fixed. Add further known-failed commands to the checklist above as they're found; this ticket

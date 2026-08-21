@@ -122,9 +122,9 @@ module.
   no-op the foundation's lifecycle pulse until `Satchel.isReady()`, with the bootstrap chain
   itself (`bindFoundation`, `ensureInstalled`, and the client's token-arrival detection) carved
   out as the deliberate exception that has to run unconditionally to make readiness happen at all.
-- **Constructing a `LevelScope` directly is no longer silently safe pre-readiness — it throws.**
-  Earlier, a `LevelScope` built before the world-identity token arrived quietly fell back to a
-  dimension-only UUID instead of a token-folded one — convenient, but a landmine for any caller
+- **Constructing a `LevelScope` directly pre-readiness throws.** A `LevelScope` built before the
+  world-identity token arrives would otherwise fall back to a dimension-only UUID instead of a
+  token-folded one — convenient, but a landmine for any caller
   that treats that UUID as a stable identity (a long-lived cache key, for instance: two different
   UUIDs mean two different map entries for what's really the same level, once the token lands).
   `LevelScope`'s constructor now throws `SatchelException.NotReady` instead of falling back.
@@ -136,10 +136,7 @@ module.
 
 `LevelEvent.Unload` handlers in both ingress classes call `LogicalFoundation.tryRemoveSource`,
 which drives real jig teardown (`onUnload` → `ScopeEngine.unload` → bundle eviction from both
-engines' `active` maps) — fixed by [RM_SAT_014](../../../roadmap/RM_SAT_014_joseph.md). This page
-previously documented a no-op re-announcement here as current-state fact; that was accurate when
-written and is now stale. Confirmed via real play (new world → path → exit → new world → no
-bleed-in), not just reasoned through.
+engines' `active` maps).
 
 ## Related pages
 

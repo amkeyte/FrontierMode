@@ -3,11 +3,11 @@ id: frontiermode/architecture/path-layer-reconciliation
 category: frontiermode/architecture
 slug: path-layer-reconciliation
 title: Border Path & Layer Reconciliation
-summary: Design for reconciling Border.layerIndex to path order after a manual /border
-  path reorder -- the fixLayers() gap RM_FRO_015 tracks.
+summary: How fixLayers() reconciles Border.layer() to borderPath order after a manual
+  reorder, and why the two are allowed to diverge in the first place.
 keywords: null
 status: draft
-updated: '2026-08-16'
+updated: '2026-08-21'
 ---
 
 <!-- bh-header:start -->
@@ -16,98 +16,74 @@ updated: '2026-08-16'
 
 # Border Path & Layer Reconciliation
 
-*Design pass for [RM_FRO_015](../../../roadmap/RM_FRO_015_margaret.md), written before any code
-changes — this is what Lead Dev builds against, not a description of shipped behavior. See
-[Border](border.md) for the surrounding data model this extends.*
+How `BordersPathFacet.fixLayers()` brings `Border.layer()` back in line with `borderPath` order
+after an op reorders the path by hand. See [Border](border.md) for the surrounding data model this
+extends, and [Border Vocabulary](border-vocabulary.md) for what Layer and Path each mean.
 
-## Context
+## Why the two can diverge
 
-`Border.layerIndex()` is immutable — set once, either `0` for a level's initial border
-(`BorderLogic.getInitial()`) or `previous.layerIndex() + 1` for organic growth
-(`BorderLogic.grow()`), so under ordinary play it always equals a border's position in
-`BordersFixture`'s canonical `borderPath`. That equality is load-bearing:
-`DefaultBorderRules.getRelevant()` — the oldest-ring-wins resolver backing both
+`Border.layer()` is immutable — set once at creation, either `0` for a level's initial border
+(`BorderLogic.getInitial()`) or `previous.layer() + 1` for organic growth (`BorderLogic.grow()`).
+Under ordinary play that makes it equal to the border's position in `BordersFixture`'s canonical
+`borderPath`. The equality is a consequence of how borders get made, not an enforced invariant.
+
+It matters because `DefaultBorderRules.getRelevant()` — the oldest-ring-wins resolver behind both
 `BorderAPI.getRelevant(ServerPlayer)` and the `@relevant` command selector — sorts strictly by
-`layerIndex`, not by path position. The two are only the same value by construction, not by any
-enforced invariant.
+`layer`, never by path position.
 
 `BordersPathFacet.moveUp()`/`moveDown()` are live, op-exposed commands
 (`/border path moveup|movedown <selector>`) that reorder `borderPath` (a `List<UUID>`) without
-touching any `Border`'s `layerIndex` — there's no mutator to touch, short of replacing the border
-entirely via a fresh `BorderProposal`. So path order and layer order can now legitimately diverge,
-and `getRelevant()` would keep resolving off the stale `layerIndex` values, not the op's intended
-new path order. `fixLayers()` is where that reconciliation is supposed to happen; today it's a
-hardcoded `return false` (see [Border](border.md#known-gaps)).
+touching any `Border`'s `layer` — there is no mutator to touch, short of replacing the border
+outright via a fresh `BorderProposal`. So an op can put path order and layer order out of step, and
+`getRelevant()` keeps resolving off the layer values rather than the intended new order.
+`fixLayers()` is the reconciliation.
 
-## Why this isn't a one-line fix
+## Layer is not unique, and does not need to be
 
-`BordersCrudFacet.applyProposal()` — the only path that can currently change a `layerIndex` — now
-rejects (RM_FRO_011) any proposal whose `layerIndex` collides with a *different* border's. Calling
-it once per path member, straight down the new path order (`0, 1, 2, ...`), will transiently
-collide with the *next* member still holding its old value the first time two members need to
-swap ranges — the exact case a manual reorder produces. Reassignment has to be planned as a batch,
-not applied one proposal at a time against the live validation path.
+Nothing enforces `layer` uniqueness anywhere in the fixture. A border created off-path (via
+`/border add`) can freely hold the same layer value as a path member, and `fixLayers()` neither
+knows nor cares. `getRelevant()`'s own nearest-center tie-break resolves a same-layer overlap
+correctly on its own.
 
-The other wrinkle: `layerIndex` uniqueness is enforced across **every** border in the fixture, not
-just path members. A border can exist without ever joining the path (e.g. one created directly via
-`/border add`), and its `layerIndex` still occupies a slot `getRelevant()` will compare against.
-Reassigning path members to `0..pathSize-1` has to account for off-path borders that already sit
-in that range.
+This is the direct consequence of Layer and Path being definitionally unrelated — see
+[Border Vocabulary](border-vocabulary.md#layer). Reconciliation aligns them because an op asked for
+it, not because anything downstream requires them to match.
 
 ## Design
 
-**Target semantics:** after `fixLayers()` runs, for every border in `borderPath`, its
-`layerIndex` equals its index in `borderPath` (`0` = oldest = path head). This is the only
-definition of "layer order matches path order" that keeps `getRelevant()`'s oldest-ring-wins
-reading consistent with what the path visibly shows.
+**Target semantics:** after `fixLayers()` runs, every border in `borderPath` has a `layer` equal to
+its index in `borderPath` (`0` = oldest = path head). That is the only reading of "layer order
+matches path order" that keeps `getRelevant()`'s oldest-ring-wins result consistent with what the
+path visibly shows.
 
-**Mechanism: a dedicated fixture-internal bulk reassignment, not a loop of public proposals.**
-`BordersCrudFacet.applyProposal()`'s validation (radius bounds, collision) exists to protect
-against an external, potentially-careless caller — a single op-typed command. `fixLayers()` isn't
-that: it's the fixture re-establishing its own already-owned invariant across borders it already
-holds. Route it through a new package-private method on `BordersFixture` (e.g.
-`reassignLayerIndices(Map<UUID, Integer> targets)`) that:
+**Mechanism: one fixture-internal bulk reassignment, not a loop of public proposals.** A
+package-private `BordersFixture.reassignLayers(Map<UUID, Integer> pathTargets)`:
 
 1. Computes target values for every path member: `target[borderPath.get(i)] = i`.
-2. Finds off-path borders whose *current* `layerIndex` falls inside `[0, pathSize)` — these
-   collide with a path target and must move. Reassign them, in their existing relative
-   `layerIndex` order (stable), to values starting at
-   `max(pathSize, 1 + current max layerIndex across all borders)`, so they land clear of the
-   reserved path range without needing to know anything about path semantics themselves.
-3. Applies every reassignment as one atomic replace against the fixture's internal `borders` list
-   (same shape as `accept()` — remove-by-id then re-add, but for the whole batch, not one border),
-   one `markDirty()`/one revision bump — not `N` sequential validated proposals, so no
-   intermediate state is ever visible to a concurrent reader or re-validated against itself.
-4. Returns `true` if any border's `layerIndex` actually changed, `false` if the path was already
-   consistent (a real, honest no-op — not the current unconditional `false`).
+2. Applies the whole batch as one atomic replace against the fixture's internal `borders` list
+   (same shape as `accept()` — remove-by-id then re-add, but for the batch rather than one border),
+   with a single `markDirty()` and a single revision bump rather than `N` sequential mutations.
+3. Removes any `borderPath` entry whose UUID has no matching `Border`, logging loudly when it does.
+   A stale path entry is real data corruption rather than a normal transient state, and leaving it
+   in place would re-trigger the same warning on every future call forever — there is nothing else a
+   dangling reference can usefully do once found. Same detect-and-log stance
+   [Boss](boss.md#three-questions-three-different-mechanisms)'s own reconciliation check takes.
+4. Returns the count of borders whose layer actually changed, plus any entries self-healed by step
+   3 — `0` meaning the path was already consistent. An `int`, not a `boolean`, so the command layer
+   can report a real number.
 
-`fixLayers()` itself becomes a thin wrapper: build the target map per step 1-2 above, call
-`reassignLayerIndices`, return its result.
-
-**Off-path borders keep their relative order, not a semantic ranking.** This design only
-guarantees off-path borders don't collide with the newly-assigned path range — it does not attempt
-to answer where an off-path border's `layerIndex` *should* sit relative to path members in
-oldest-ring-wins terms. That's a pre-existing modeling question (an off-path border has no defined
-"age" relative to the path at all today) and is explicitly out of scope here; flagging it rather
-than quietly picking an answer.
+**Off-path borders are never touched.** A path member's layer is set to its path index directly;
+whatever an off-path border's layer happens to be is irrelevant and left alone.
 
 ## Command-layer behavior
 
-`BorderCommandHandler.pathFixLayers` should report the two real outcomes distinctly: a changed
-result ("Reconciled N border layer(s) with path order") versus an already-consistent one ("Path
-and layer order already match — no changes made"), replacing the current unconditional "No
-changes made -- layer/path reconciliation isn't implemented yet." string once this lands.
-
-## Done bar
-
-Real build + real command sequence, same standard as RM_FRO_011: reorder a path via
-`moveup`/`movedown`, confirm `getRelevant()` (via `@relevant` or a direct query at a point covered
-by the reordered borders) reflects the new order, confirm an off-path border with a colliding
-`layerIndex` gets bumped and not lost, confirm a no-op case reports honestly.
+`BorderCommandHandler.pathFixLayers` reports the two real outcomes distinctly: a changed result
+("Reconciled N border layer(s) with path order") versus an already-consistent one ("Path and layer
+order already match -- no changes made").
 
 ## Related pages
 
-- [Border](border.md) — the data model this extends, including the current `fixLayers()` gap
+- [Border](border.md) — the data model this extends
+- [Border Vocabulary](border-vocabulary.md) — the Layer/Path split this reconciliation sits on top of
 - [RM_FRO_015](../../../roadmap/RM_FRO_015_margaret.md) — roadmap tracker
-- [RM_FRO_011](../../../roadmap/RM_FRO_011_betty.md) — the validation hardening pass that found
-  this gap and flagged it for a real design pass instead of guessing
+- [RM_FRO_011](../../../roadmap/RM_FRO_011_betty.md) — the validation pass this design came out of

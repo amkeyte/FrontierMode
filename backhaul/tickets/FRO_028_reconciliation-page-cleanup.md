@@ -3,13 +3,13 @@ id: FRO_028
 uid: FRO
 number: 28
 client: FrontierMode
-status: open
+status: done
 title: Clean up frontier-reconciliation.md and path-layer-reconciliation.md — separate
   history from living reference
 context: null
 priority: normal
 opened: '2026-08-17'
-closed: null
+closed: '2026-08-18'
 ---
 
 <!-- board:start -->
@@ -103,6 +103,22 @@ ticket opened when RM_FRO_015 actually ships.
 - 2026-08-17: Ticket opened, scoped from a project-owner request to keep the architecture wiki
   tight. Both pages read in full before this plan was written — see above for why they need
   different treatment rather than one mechanical pass.
+- 2026-08-18: Executed the `frontier-reconciliation.md` half, sequenced ahead of
+  [FRO_029](FRO_029_border-vocab-conformance.md)'s Phase 3/4 (project owner's call — settle the
+  architecture pages before Curtis reconciles his already-completed review against them). Both
+  reusable pieces merged into [Border](../wiki/frontiermode/architecture/border.md) as a new
+  "Design vocabulary bridge" section — written in current Border Vocabulary terms (Relevance/
+  Layer/Path/Difficulty), not copied verbatim, since Border Vocabulary didn't exist when this
+  ticket was originally scoped. Ecosystem-shape framing folded into border.md's intro. Page
+  deleted. Inbound links fixed across five pages, not the two this ticket anticipated —
+  `border.md` and `boss.md` per the original plan, plus `border-vocabulary.md`,
+  `satchel/architecture/facade-vision.md`, and `frontiermode.md`, none of which existed or linked
+  to the retired page when this ticket was written on 2026-08-17. Grepped the full wiki tree after
+  editing to confirm zero remaining references before rebuilding the index. **Closing on this half
+  per the Done bar's own stated option.** `path-layer-reconciliation.md` is untouched, correctly
+  still parked — per this ticket's own guidance, its follow-up (fold the shipped, verified
+  `fixLayers()` behavior into border.md's "Known gaps," retire this page the same way) opens as
+  its own ticket once RM_FRO_015 actually ships, not before.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

@@ -1,7 +1,9 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -181,33 +183,38 @@ public final class BordersPathFacet {
     }
 
     /**
-     * RM_FRO_011: was a no-op that still reported success ({@code BorderCommandHandler
+     * RM_FRO_011 found this as a no-op that still reported success ({@code BorderCommandHandler
      * .pathFixLayers} unconditionally told the command sender "Reconciled border layers with path
      * order" even though this method did nothing) -- {@code moveUp}/{@code moveDown} are fully
-     * wired, op-exposed commands that reorder the *path list*, but {@link Border#layerIndex()} is
+     * wired, op-exposed commands that reorder the *path list*, but {@link Border#layer()} is
      * immutable (only a fresh {@link BorderProposal} can set it), so reordering the path never
-     * touched the layerIndex values {@code DefaultBorderRules.getRelevant()} actually sorts by --
-     * an op could desync path order from difficulty order and the one command whose job is
-     * reconciling that silently didn't.
+     * touched the layer values {@code DefaultBorderRules.getRelevant()} actually sorts by -- an op
+     * could desync path order from difficulty order and the one command whose job is reconciling
+     * that silently didn't. That gap is what RM_FRO_015 exists to close; below is the real fix.
      *
-     * <p>
-     * Still doesn't reorder layerIndex to match path order -- that needs a real design pass, not
-     * a mechanical fix folded into this hardening pass: {@link Border#layerIndex()} can only be
-     * changed via a fresh {@link BorderProposal} through {@link BordersCrudFacet#applyProposal},
-     * which now (also RM_FRO_011) rejects a layerIndex that collides with any other border's --
-     * correct for a single ad-hoc {@code /border add}/{@code /border transform}, but a naive
-     * in-place reassignment of every path member's layerIndex to 0..n-1 can transiently collide
-     * with an off-path border's existing layerIndex partway through, or with another path member
-     * not yet reassigned. That needs either a two-pass reassignment or a temporary validation
-     * bypass, neither of which is a change to make blind, without a real build to verify against.
-     * Reports honestly instead: no mutation, no false "reconciled" success.
+     * <p><b>RM_FRO_015, implemented:</b> builds this path's own target layer assignment --
+     * {@code target[borderPath.get(i)] = i} for every path member -- and delegates the actual bulk
+     * apply to {@link BordersFixture#reassignLayers(Map)}. This still just sets each path member's
+     * layer to its path index, no more and no less -- layer collisions with off-path borders aren't
+     * a concern to route around anymore (see {@code BordersCrudFacet.validateProposal}'s doc: Layer
+     * and Path are definitionally unrelated, and duplicate layers resolve fine via
+     * {@code getRelevant()}'s own nearest-center tie-break). Full design: Border Path & Layer
+     * Reconciliation (architecture wiki).
      *
-     * @return {@code false} — always, until the reorder logic above is actually implemented.
+     * @return the count of borders whose layer actually changed -- {@code 0} is a real, honest
+     * no-op (path and layer order were already consistent), not the previous unconditional
+     * {@code false}.
      */
-    public boolean fixLayers() {
+    public int fixLayers() {
         fixture.requireServerSide();
 
-        return false;
+        Map<UUID, Integer> pathTargets = new LinkedHashMap<>();
+        List<UUID> path = fixture.borderPath;
+        for (int i = 0; i < path.size(); i++) {
+            pathTargets.put(path.get(i), i);
+        }
+
+        return fixture.reassignLayers(pathTargets);
     }
 
 }

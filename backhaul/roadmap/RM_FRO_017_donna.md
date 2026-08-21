@@ -49,9 +49,11 @@ ticket: null
 **Intermediate nodes not yet defined or inserted.** Per [FrontierMode Operational
 Tiers](../wiki/plans/operational-tiers.md#the-tiers), Tier 1 needs real work that doesn't exist as
 roadmap nodes yet — at minimum a boss entity/spawn system, and a defeat-detection caller into
-`BorderAPI.addBorder()` (already able to accept an arbitrary center, per [Border-Frontier
-Reconciliation](../wiki/frontiermode/architecture/frontier-reconciliation.md)'s "missing caller,
-not a missing capability" finding — new-caller work, not new-capability work). The single
+`BorderAPI.addBorder()` — mostly new-caller work rather than new-capability work, though not
+purely: `addBorder()` does accept an arbitrary center, but only touches the border *list*, not the
+canonical `borderPath`, so a small path-aware addition is needed too. See
+[RM_FRO_019](RM_FRO_019_karen.md) ("Karen") for the full finding and the two options for closing
+it. The single
 `depends_on` edge below (this node → RM_FRO_010) is accurate as far as it goes — Tier 1 does need
 Susan's six children resolved — but it is not a complete prerequisite list, and the project owner
 expects it to grow real intermediate nodes over time, not stay a direct edge forever. **Do not

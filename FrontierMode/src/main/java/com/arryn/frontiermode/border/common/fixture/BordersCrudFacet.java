@@ -43,16 +43,22 @@ public class BordersCrudFacet {
     }
 
     /**
-     * RM_FRO_011: was a hardcoded no-op ("pretty much future use") -- neither
-     * {@link BorderConstants#MIN_RADIUS}/{@link BorderConstants#MAX_RADIUS} nor layerIndex
-     * collisions were enforced on this path, even though {@code /border add}/{@code /border
-     * transform} both route through it (the organic growth path enforces radius bounds itself, in
-     * {@code DefaultBorderRules.chooseNextRadius}, but that's a separate call site this method
-     * doesn't gate). Concretely, this used to let {@code /border add ~ ~ ~ 999999999 0} create a
-     * border with an unbounded radius and a {@code layerIndex} that collides with an existing
-     * border's -- {@code layerIndex} is what {@code DefaultBorderRules.getRelevant()} sorts by for
-     * oldest-ring-wins overlap resolution (see the Border wiki page and Progression's design), so
-     * an uncontrolled collision silently corrupts that ordering.
+     * RM_FRO_011 originally added a hardcoded-no-op fix here for two things: neither
+     * {@link BorderConstants#MIN_RADIUS}/{@link BorderConstants#MAX_RADIUS} nor layer collisions
+     * were enforced on this path, even though {@code /border add}/{@code /border transform} both
+     * route through it. Radius bounds are still enforced below. <b>Layer-collision rejection was
+     * removed, RM_FRO_015, 2026-08-20</b> -- project owner's direct design call: Layer and Path are
+     * definitionally unrelated (see Border Vocabulary's own "Layer" section, "only coincidentally
+     * tied to Path"), and {@code DefaultBorderRules.getRelevant()} already fully resolves a
+     * same-layer overlap by nearest center (see that method, and Border Vocabulary's Relevance
+     * section: "lowest Layer wins, tie-broken by nearest center") -- a tie-break that was already
+     * shipped and already correct *before* this uniqueness guard ever existed. The guard was
+     * solving a problem {@code getRelevant()} didn't have: two borders sharing a layer, even two
+     * that geometrically overlap, resolve deterministically without it. Global layer uniqueness was
+     * actively harmful in practice: {@code BorderLogic.getInitial()}/{@code grow()}'s hardcoded
+     * {@code layer = 0} / {@code previous.layer() + 1} would collide with any unrelated off-path
+     * border already holding that value, blocking ordinary path growth for a reason that was never
+     * a real correctness requirement (found via real playtest, RM_FRO_015).
      */
     public boolean validateProposal(BorderProposal proposal) {
         return failureReason(proposal).isEmpty();
@@ -62,7 +68,8 @@ public class BordersCrudFacet {
      * Real validation logic, shared by {@link #validateProposal} (kept boolean, still used
      * directly by {@code BorderLogic}'s organic-growth path) and {@link #applyProposal} (which
      * needs the actual reason text, not just pass/fail, to give the player a useful rejection
-     * message instead of a generic one -- see that method's own comment).
+     * message instead of a generic one -- see that method's own comment). Layer values are
+     * deliberately not checked for uniqueness here -- see {@link #validateProposal}'s own doc.
      */
     private Optional<String> failureReason(BorderProposal proposal) {
         fixture.requireServerSide();
@@ -77,20 +84,7 @@ public class BordersCrudFacet {
 
         int layerIndex = proposal.layerIndex();
         if (layerIndex < 0) {
-            String reason = "negative layerIndex " + layerIndex + ".";
-            OUT.warn("[Border] Rejected proposal: " + reason);
-            return Optional.of(reason);
-        }
-
-        // A proposal updating an existing border (via insert(border)) keeps that border's own id,
-        // so it's correctly excluded from colliding with itself here -- only a *different*
-        // border already holding this layerIndex counts as a real collision.
-
-        boolean collides = fixture.all().stream()
-                .anyMatch(b -> !b.id().equals(proposal.id()) && b.layerIndex() == layerIndex);
-        if (collides) {
-            String reason = "layerIndex " + layerIndex
-                    + " collides with an existing border's layerIndex.";
+            String reason = "negative layer " + layerIndex + ".";
             OUT.warn("[Border] Rejected proposal: " + reason);
             return Optional.of(reason);
         }

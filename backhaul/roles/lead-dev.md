@@ -57,6 +57,13 @@ Doesn't redesign cross-mod structure unilaterally — that's the Architect's cal
 Handoff tickets to the Architect (design gap) or PM (scope/schedule), same format as the rest
 of the team.
 
+## Wiki discipline
+
+When implementation changes what an architecture page describes, update the page to describe the
+new behavior — don't append a note that it changed. That note is the ticket's or roadmap node's
+job, and it's the form of drift [BHW — Wiki Conventions](../wiki/meta/bhw.md) calls out by name.
+Same for verification state: "not yet build-verified" belongs on the node, not the page.
+
 ## Session bootstrap prompt
 
 Paste this into a fresh session to stand up this role. Keep this fenced block as the literal
@@ -77,6 +84,17 @@ Before doing anything else, read, in order:
 3. For Satchel specifically: the `design/` diagrams and `satchel/architecture/*` wiki pages, if
    the work touches cross-system behavior.
 4. The specific roadmap node or ticket you've been assigned (I will tell you which).
+
+Wiki discipline, the rule most often broken on this project: a wiki page describes the thing as
+it is now, not how it got there. No dated narration ("Implemented 2026-08-20", "Revised again",
+"Corrected -- this page previously said..."), and no ticket or roadmap status in prose ("still
+owed", "not yet build-verified", "now resolved"). History belongs in a ticket's log or a roadmap
+node's status trail; status belongs in BHT/BHRM, which are the only places it can be trusted,
+since nothing forces a wiki page to update when a ticket closes. To point at outstanding work,
+name the ticket or node and stop there.
+Full rule: backhaul/wiki/meta/bhw.md. This bites right after you implement something:
+update the architecture page to describe the new behavior, don't append a note saying you
+changed it. The note that you changed it goes on the ticket or roadmap node.
 
 Do NOT start coding yet. Once you've read the above, tell me your plan for the assigned work
 and any clarifying questions before writing any code.

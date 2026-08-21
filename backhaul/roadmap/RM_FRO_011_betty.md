@@ -123,7 +123,12 @@ boilerplate config values referenced anywhere) is enough for those specifically.
   - **Item 2 fixed as described:** `BordersCrudFacet.validateProposal` now rejects radius outside
     `BorderConstants.MIN_RADIUS`/`MAX_RADIUS` and rejects a `layerIndex` colliding with a
     *different* border's (a proposal updating its own border via `insert()` is correctly excluded
-    from colliding with itself). `applyProposal`'s failure message improved slightly (was the
+    from colliding with itself). **[Superseded, 2026-08-20: the layer-collision half of this
+    validation was removed by
+    [RM_FRO_015](../roadmap/RM_FRO_015_margaret.md) — project owner's design call, Layer and Path
+    are definitionally unrelated and `getRelevant()`'s own nearest-center tie-break already
+    resolves a same-layer overlap without a uniqueness guard. The radius-bounds half of this fix is
+    unaffected and still stands. This log entry is left as originally written, not restated.]** `applyProposal`'s failure message improved slightly (was the
     unconditional "Something went wrong").
   - **Item 3 — took the alternative the node's text explicitly sanctioned, not the reorder
     implementation.** Actually reordering `layerIndex` to match path order turns out to interact

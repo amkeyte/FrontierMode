@@ -104,7 +104,7 @@ public final class GrowthTriggerRenderer {
             return;
         }
 
-        Vector3f color = RingColorPalette.get(tip.layerIndex());
+        Vector3f color = RingColorPalette.get(tip.layer());
         spawnParticles(level, anchor, color);
     }
 

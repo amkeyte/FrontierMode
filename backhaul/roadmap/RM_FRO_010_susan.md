@@ -3,7 +3,7 @@ id: RM_FRO_010
 uid: RM_FRO
 number: 10
 kind: convergence
-status: WIP
+status: reached
 title: Prototype hardening
 owner: Arryn
 depends_on:
@@ -45,6 +45,49 @@ re-checks this automatically if either ever regresses — flagged in
 checklist item any time this node's own `reached` flip is being considered, alongside the six
 children below.
 
+- 2026-08-21: **Standing build caveat satisfied — project owner ran a full `gradlew build` and
+  reports it clean.** This settles the "Real full-build verification of the complete Tier 0
+  substrate remains owed" clause in the entry below, and the same caveat carried by
+  [RM_FRO_009](RM_FRO_009_judith.md), [RM_FRO_011](RM_FRO_011_betty.md),
+  [RM_FRO_012](RM_FRO_012_carolyn.md) and [RM_FRO_015](RM_FRO_015_margaret.md) — all five instances
+  had one root cause, documented on [FRO_023](../tickets/FRO_023_playtest-checklist-batch2.md): no
+  agent session had Forge/Mojang maven access, so none could run the build itself. Those entries
+  are left as originally written; this one is the reconciliation.
+
+  **What this does not settle.** A green build is not a green playtest, and three things stay open
+  independently of it: [FRO_031](../tickets/FRO_031_betty-donebar.md) — two items on
+  [RM_FRO_011](RM_FRO_011_betty.md)'s own done bar (`@none` tab-complete, the `/border add`
+  rejection-message retest) that her log leaves unconfirmed, which is the one place this
+  convergence's evidence trail currently claims more than the record supports;
+  [FRO_033](../tickets/FRO_033_margaret-reruns.md) — the specific in-game sequences
+  [RM_FRO_015](RM_FRO_015_margaret.md) lists as owed beyond a build; and
+  [RM_FRO_012](RM_FRO_012_carolyn.md)'s render-cache eviction item, which remains a deliberate,
+  recorded waiver rather than a verified result. `reached` still rests partly on read-through
+  verification and owner-reported confirmation, not solely on independent evidence — narrower than
+  before today, not eliminated.
+
+  Recorded per [FRO_032](../tickets/FRO_032_build-of-0821.md).
+- 2026-08-20: **Reached — all six children now `resolved`, project owner's call.**
+  [RM_FRO_015](RM_FRO_015_margaret.md) ("Margaret") was the last one open; closed today after its
+  own `fixLayers()` design item and a run of four real playtest-found bugs were fixed and confirmed
+  (see its own log). Full roster, all `resolved`: RM_FRO_009 (dead `BorderView` deletion),
+  RM_FRO_011 (validation hardening), RM_FRO_012 (render lifecycle cleanup), RM_FRO_013 (fixture &
+  compass robustness), RM_FRO_006 (`@relevant` real implementation), RM_FRO_015 (command-surface
+  completion). Satchel-side manual checklist re-checked per this node's own instruction above: both
+  still hold — [RM_SAT_017](RM_SAT_017_paul.md) ("Paul") `reached`, [RM_SAT_020](RM_SAT_020_jerry.md)
+  ("Jerry") `resolved`. This is a conscious flip, not automatic, same standard this node used for its
+  earlier (later-reverted) 2026-08-16 attempt and the standard RM_SAT_017 itself used.
+
+  **Standing caveat inherited from every child:** none of this round's FrontierMode-side work has
+  been independently verified by a full `gradlew build` run from this side — the sandbox has no
+  network access to fetch the Gradle distribution, the whole session's constraint. Every fix was
+  manually read-through verified, and several were confirmed live in-game via real server/client
+  logs where the project owner ran an actual build on their own machine. Real full-build
+  verification of the complete Tier 0 substrate remains owed before treating this as more than a
+  conscious, evidence-backed call.
+
+  [RM_FRO_017](RM_FRO_017_donna.md) ("Donna," Tier 1 skeleton) is next per this node's own text
+  above.
 - 2026-08-16: **`depends_on` widened to add [RM_FRO_015](RM_FRO_015_margaret.md) ("Margaret" —
   Border command-surface completion).** Found via an Architect source-level check of the actual
   `border/*` tree (not just the wiki) while scoping "what's still not done for Tier 0" ahead of

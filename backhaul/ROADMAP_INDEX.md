@@ -14,8 +14,7 @@
 
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
-- [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) — Per-player border evaluation
-- [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) — Border command-surface completion
+- [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) — Boss entity/spawn system
 
 ### Dependency structure
 
@@ -28,14 +27,14 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
     - [**RM_FRO_005**](roadmap/RM_FRO_005_carol.md) [work · resolved] Client-side border rendering — depends on: RM_FRO_002
       - [**RM_FRO_007**](roadmap/RM_FRO_007_nancy.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_FRO_003, RM_FRO_004, RM_FRO_005
         - [**RM_FRO_008**](roadmap/RM_FRO_008_sharon.md) [convergence · reached] Border prototype verified end-to-end — depends on: RM_FRO_002, RM_FRO_003, RM_FRO_004, RM_FRO_005, RM_FRO_007
-          - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) [work · open · ACTIONABLE] Per-player border evaluation — depends on: RM_FRO_008
+          - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) [work · resolved] Per-player border evaluation — depends on: RM_FRO_008
           - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) [work · resolved] Clean up dead BorderView code — depends on: RM_FRO_008
           - [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) [work · resolved] Border mutation validation hardening — depends on: RM_FRO_008
           - [**RM_FRO_012**](roadmap/RM_FRO_012_carolyn.md) [work · resolved] Client render lifecycle cleanup — depends on: RM_FRO_008
           - [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) [work · resolved] Border fixture & compass robustness — depends on: RM_FRO_008
-          - [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) [work · open · ACTIONABLE] Border command-surface completion — depends on: RM_FRO_008
-            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · WIP] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013, RM_FRO_006, RM_FRO_015
-              - [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) [work · open] Boss entity/spawn system — depends on: RM_FRO_010
+          - [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) [work · resolved] Border command-surface completion — depends on: RM_FRO_008
+            - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · reached] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013, RM_FRO_006, RM_FRO_015
+              - [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) [work · open · ACTIONABLE] Boss entity/spawn system — depends on: RM_FRO_010
                 - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · open] Boss defeat border-growth caller — depends on: RM_FRO_018
                   - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · WIP] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019
 

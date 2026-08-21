@@ -185,4 +185,95 @@ public final class BordersFixture
         markDirty();
         return border;    // if applicable
     }
+
+    // ------------------------------------------------------------------
+    // RM_FRO_015: fixLayers() bulk reassignment
+    // ------------------------------------------------------------------
+
+    /**
+     * RM_FRO_015: the real fixLayers() reorder logic -- see Border Path & Layer Reconciliation
+     * (architecture wiki) for the full design this implements. Bulk-reassigns
+     * {@link Border#layer()} values to match {@code pathTargets} (built by
+     * {@link BordersPathFacet#fixLayers()} from the current path order:
+     * {@code target[borderPath.get(i)] = i}).
+     *
+     * <p><b>Simplified, 2026-08-20: no longer bumps off-path borders out of the way.</b> Earlier
+     * revision moved any off-path border whose layer collided with the reserved
+     * {@code [0, pathTargets.size())} range clear of it, because {@code BordersCrudFacet} used to
+     * reject layer collisions. That guard is gone (project owner's design call -- Layer and Path
+     * are definitionally unrelated, and {@code DefaultBorderRules.getRelevant()} already resolves a
+     * same-layer overlap by nearest center; see {@code BordersCrudFacet.validateProposal}'s own doc
+     * for the full reasoning), so a path member's layer can simply be set to its path index without
+     * checking what any off-path border currently holds -- duplicate layers are legitimate, not a
+     * collision to avoid.
+     *
+     * <p>Applied as one atomic batch replace against the internal {@code borders} list, one
+     * {@link #markDirty()} for the whole batch -- not a loop of
+     * {@link BordersCrudFacet#applyProposal} calls, simply to keep this as one clean revision bump
+     * rather than {@code N}.
+     *
+     * <p>Returns the count of borders whose layer actually changed, plus the count of stale path
+     * entries self-healed (see below) -- 0 means an honest no-op, path and layer order were
+     * already consistent and clean.
+     *
+     * <p><b>Self-heals stale path entries, found by real playtest (RM_FRO_015, 2026-08-20):</b> a
+     * {@code borderPath} entry whose UUID has no matching {@link Border} at all is real data
+     * corruption -- old {@code fixLayers()} never walked the path against real borders, so nothing
+     * before this method could ever have caught or cleaned one up, and it would otherwise
+     * re-trigger the same warning below forever. Rather than just detect-and-skip it, this method
+     * also removes it from {@code borderPath} -- there's nothing else a stale reference can
+     * meaningfully do once found, and leaving it in place only guarantees the same warning fires on
+     * every future call. Still logged loudly either way, so the fact that it happened isn't lost.
+     */
+    int reassignLayers(Map<UUID, Integer> pathTargets) {
+        requireServerSide();
+
+        List<Border> replacements = new ArrayList<>();
+        List<UUID> phantomPathEntries = new ArrayList<>();
+        for (Map.Entry<UUID, Integer> entry : pathTargets.entrySet()) {
+            Optional<Border> existing = get(entry.getKey());
+            if (existing.isEmpty()) {
+                // Real data corruption, not a normal transient state -- self-heal by dropping the
+                // phantom reference from the path (see this method's own doc for why), and log
+                // loudly so it isn't silently lost history, same "detect and log, don't paper over"
+                // stance Boss's own reconciliation check takes for the equivalent mismatch.
+                if (borderPath.contains(entry.getKey())) {
+                    phantomPathEntries.add(entry.getKey());
+                }
+                OUT.warn("[Border] fixLayers(): " + entry.getKey() + " is in the reassignment set "
+                        + "but has no matching border -- removing it from the path.");
+                continue;
+            }
+
+            Border border = existing.get();
+            int targetLayer = entry.getValue();
+            if (border.layer() == targetLayer) {
+                continue; // already correct -- not a change
+            }
+
+            replacements.add(new Border(
+                    border.authority(),
+                    border.id(),
+                    border.displayName(),
+                    border.center(),
+                    border.radius(),
+                    targetLayer
+            ));
+        }
+
+        boolean pathCleaned = !phantomPathEntries.isEmpty()
+                && borderPath.removeAll(phantomPathEntries);
+
+        if (replacements.isEmpty() && !pathCleaned) {
+            return 0;
+        }
+
+        for (Border replacement : replacements) {
+            borders.removeIf(b -> b.id().equals(replacement.id()));
+            borders.add(replacement);
+        }
+        markDirty();
+
+        return replacements.size() + phantomPathEntries.size();
+    }
 }

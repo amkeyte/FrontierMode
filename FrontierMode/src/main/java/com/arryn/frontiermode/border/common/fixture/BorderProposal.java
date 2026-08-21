@@ -113,7 +113,7 @@ public final class BorderProposal {
         displayName(b.displayName());
         center(b.center());
         radius(b.radius());
-        layerIndex(b.layerIndex());
+        layerIndex(b.layer());
         return this;
     }
 

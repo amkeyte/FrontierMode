@@ -16,10 +16,6 @@ updated: '2026-08-11'
 
 # Networking
 
-*Migrated from `Satchel/src/main/java/com/arryn/satchel/common/net/notes.md` as part of
-[SAT_003](../../../tickets/SAT_003_md-migration.md). Content unchanged — no drift or artifacts
-found when reviewed.*
-
 The `net` package defines Satchel's **transport-only networking layer**. It exists solely to
 move serialized bundle data and explicit client requests between sides. Networking does not
 define state, policy, or gameplay behavior.
@@ -58,8 +54,7 @@ distribution logic, not a fix to this cast.
   [SAT_030](../../../tickets/SAT_030_client-refresh-single-shot-hydrate.md), every parcel past the
   first for a given bundle called `hydrateAll` again, which throws once the bundle has already
   left `CREATED` — client bundles were permanently frozen at their first snapshot, silently
-  dropping every real update after it. (This page previously named the method `bundle.loadAll` —
-  that name doesn't exist in the current code; corrected here.)
+  dropping every real update after it.
 
 **Client → Server**
 

@@ -3,7 +3,7 @@ id: RM_FRO_006
 uid: RM_FRO
 number: 6
 kind: work
-status: open
+status: resolved
 title: Per-player border evaluation
 owner: Arryn
 depends_on:
@@ -19,6 +19,69 @@ ticket: null
 
 ## Per-player border evaluation
 
+- 2026-08-20: **Resolved — project owner's call.** All three done-bar items now have real positive
+  evidence (see the two entries below): build/playtest confirmed item 2 directly, the project
+  owner's `@relevant` test confirmed item 3 directly and item 1 indirectly (the same
+  `BorderPlayerLogic.evaluate()` chain `@relevant` runs through). [FRO_026](../tickets/FRO_026_sandra-implementation.md)
+  closed alongside this node.
+- 2026-08-20: **First real build + playtest pass, read from `run/logs/latest.log` and
+  `run-server/logs/latest.log`.** Real `gradlew build` confirmed `BUILD SUCCESSFUL` (12s, 7
+  actionable tasks). A login/dimension-change/logout cycle ran: `Dev` logged into the overworld
+  (20:35:31), `frontiermode:border_player_bundle` wasn't present yet for that `PlayerScope` and
+  fell through to create — the normal first-touch path, same shape every other bundle in this
+  server log takes, not an error. Player then traveled overworld → the_nether (20:35:51) → back to
+  overworld (20:35:56), then logged out cleanly (20:36:07). No error, exception, or
+  `AccessFailed` was logged for `border_player_bundle` at any point in that cycle — created once,
+  survived the dimension round-trip and logout without incident. Read against this node's own
+  three-part done bar:
+  1. **Four pure-logic files behave unchanged** — not directly evidenced either way by this log;
+     they're not independently logged, so a clean run is consistent with correctness but doesn't
+     positively confirm it.
+  2. **`BorderPlayerStatusFixture`/`BorderPlayerBundle` construct correctly across a
+     login/dimension-change/logout cycle** — reasonably well supported. Construction succeeded at
+     login, no bundle-related error surfaced during the nether round-trip or at logout. Not as
+     strong as it could be: unlike Satchel's own `PlayerTracking` verification aid (which logs an
+     explicit `TICK`/`LOADED`/`UNLOADED` line every cycle), `BorderPlayerStatusFixture` has no
+     dedicated log output of its own, so this is "no evidence of failure" rather than a positive
+     per-tick confirmation.
+  3. **`@relevant` resolves to a real border, not the old empty-list stub** — **not exercised this
+     session.** No `/border` command or `@relevant` selector was run in either log; this pass was a
+     pure login/travel/logout cycle, no command testing. Still open.
+
+  **Separately observed, not part of this node's own scope:** the client log shows a repeating
+  `[engine] CLIENT bundle became dirty (read-only violation)` WARN for `BordersBundle` — once per
+  dimension load (overworld, the_nether, overworld again). That's the world-scoped borders bundle,
+  not this node's player-scoped one, so it doesn't bear on Sandra's own done bar — flagging only so
+  it isn't lost; worth a look wherever `BordersBundle`'s client-side read-only handling is next
+  touched.
+
+  **[Answered 2026-08-21: not a fault.** It is the client's normal first-creation path, once per new
+  scope — hence the per-dimension cadence. Now documented on [Jig & Scope
+  Runtime](../wiki/satchel/architecture/runtime.md), so the next log reader lands on the explanation
+  instead of re-flagging it; see [FRO_040](../tickets/FRO_040_bordersbundle-warn.md). This entry is
+  left as originally written.]**
+
+  **Net: items 2 (partial, positive) and update on 1 (no evidence either way); item 3 still
+  needs a real `/border`/`@relevant` command exercised in a future pass before this node's own
+  done bar is actually met.** Left `open`.
+- 2026-08-20: **Item 3 confirmed — project owner reports `/border info @relevant` was tested
+  separately and resolves correctly.** Not captured in the logs read above (that pass never
+  exercised a command); this is the project owner's own direct report, same category as other
+  owner-reported confirmations logged elsewhere in this project. Worth noting this also bears on
+  item 1, not just item 3: `@relevant` resolving correctly exercises the same chain item 1 asks
+  about — `BorderAPI.getRelevant(ServerPlayer)`/`@relevant` read off `BorderPlayerStatusFixture`
+  (see [Border § Known gaps](../wiki/frontiermode/architecture/border.md#known-gaps)), which is
+  populated each tick by `BorderPlayerLogic.evaluate()` — one of the four "pure-logic" files item 1
+  names, and the specific one this ticket's own 2026-08-16 fix touched. A correct `@relevant`
+  result is real evidence that file behaves correctly, not just consistent-with-correctness the
+  way "no crash" was. `BorderPlayerEval`/`BorderPlayerStatus` are exercised the same way, as the
+  data this evaluation reads/writes; `BorderPlayerStatusProposal` is the one file this doesn't
+  directly speak to.
+
+  **All three done-bar items now have real, positive evidence behind them** (item 1 indirectly via
+  `@relevant`'s own correctness, items 2 and 3 directly). Whether that's enough to call this node
+  `resolved` is the project owner's own call, not assumed here — flagging that the bar looks met,
+  not closing it unilaterally.
 - 2026-08-16: **Implemented by Lead Dev (Curtis) — pending real build/playtest.** All six
   `border/common/player/*` files uncommented/rewritten per this node's own plan: the four
   pure-logic files (`BorderPlayerEval`, `BorderPlayerLogic`, `BorderPlayerStatus`,

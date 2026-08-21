@@ -43,7 +43,7 @@ public final class BorderCommandHandler {
             border = BorderAPI.addBorder(level, pos, radius, layer);
         } catch (IllegalStateException e) {
             // RM_FRO_011's validation (BordersCrudFacet.applyProposal/validateProposal) throws a
-            // raw IllegalStateException on rejection (bad radius, negative/colliding layerIndex).
+            // raw IllegalStateException on rejection (bad radius, negative/colliding layer).
             // Uncaught, that surfaces to the player as Brigadier's generic "An unexpected error
             // occurred" -- confirmed from a real /border add ~ ~ ~ 999999999 0 test (FRO_023):
             // the server log showed a clean "[Border] Rejected proposal: radius ... outside
@@ -120,11 +120,21 @@ public final class BorderCommandHandler {
             UUID id
     ) {
 
-        BorderAPI.border(ctx.getSource().getLevel(), id).ifPresentOrElse(
-                b -> ctx.getSource().sendSuccess(
-                        () -> msg(BorderDisplay.shortInfo(b)),
-                        false
-                ),
+        ServerLevel level = ctx.getSource().getLevel();
+
+        BorderAPI.border(level, id).ifPresentOrElse(
+                b -> {
+                    // LEV is this border's position in the canonical path order, distinct from LAY
+                    // (Border.layer()) -- see RM_FRO_015: the two are definitionally unrelated, so
+                    // both are shown rather than conflating them the way the old "L:" label did.
+                    int pathIndex = BorderAPI.borders(level)
+                            .map(f -> f.PATH.indexOf(id))
+                            .orElse(-1);
+                    ctx.getSource().sendSuccess(
+                            () -> msg(BorderDisplay.shortInfo(b, pathIndex)),
+                            false
+                    );
+                },
                 () -> ctx.getSource().sendFailure(
                         msg("Border not found: " + id)
                 )
@@ -172,17 +182,30 @@ public final class BorderCommandHandler {
 
         ServerLevel level = ctx.getSource().getLevel();
 
-        var borders = BorderAPI.borders(level)
-                .map(b -> b.CRUD.all())
-                .orElse(List.of());
+        // RM_FRO_015: removed an "if no borders exist, refuse to grow" guard that used to sit
+        // here. It was backwards -- BordersPathFacet.grow() already branches internally on an
+        // empty path (Optional<Border> tip absent) and calls BorderLogic.getInitial() for exactly
+        // that case, which is precisely how a level's very first border is supposed to get
+        // created. This guard intercepted that branch before it could ever run, so `/border path
+        // grow` on a fresh level (0 borders) always failed with "No borders exist to grow." --
+        // confirmed by real playtest: the gold-block trigger (BordersTriggers.growPath) calls
+        // BorderAPI.grow(level) directly, has no such guard, and was never affected. Command and
+        // trigger now behave the same way.
 
-        if (borders.isEmpty()) {
-            throw new SimpleCommandExceptionType(
-                    Component.literal("No borders exist to grow.")
-            ).create();
+        try {
+            BorderAPI.grow(level);
+        } catch (IllegalStateException e) {
+            // RM_FRO_015: same rejection path/fix as addExplicit()'s matching comment
+            // (RM_FRO_011/FRO_023) -- just never applied here until testing the fixLayers() work
+            // turned up the gap (at the time, growth's layer = previous.layer() + 1 could
+            // legitimately collide with an off-path border already holding that value; that specific
+            // trigger no longer applies now that layer collisions aren't rejected at all -- see
+            // BordersCrudFacet.validateProposal's doc -- but this stays as real defense for the
+            // other rejection failureReason() still checks, chiefly radius bounds, which organic
+            // growth's own GROWTH_FACTOR curve could in principle still exceed over enough growths).
+            ctx.getSource().sendFailure(msg("Rejected: " + e.getMessage()));
+            return 0;
         }
-
-        BorderAPI.grow(level);
 
         ctx.getSource().sendSuccess(
                 () -> msg("Advanced border progression"),
@@ -298,23 +321,25 @@ public final class BorderCommandHandler {
                 .map(b -> b.PATH)
                 .orElseThrow();
 
-        // RM_FRO_011: fixLayers() no longer claims success it didn't earn -- see its own doc for
-        // why this is still a real no-op rather than a false "reconciled" positive.
-        boolean reconciled = path.fixLayers();
+        // RM_FRO_015: fixLayers() is now the real reorder-to-match-path-order reconciliation --
+        // reports the two real outcomes distinctly instead of the old unconditional "not
+        // implemented yet" placeholder (see Border Path & Layer Reconciliation, "Command-layer
+        // behavior").
+        int changedCount = path.fixLayers();
 
-        if (!reconciled) {
+        if (changedCount == 0) {
             ctx.getSource().sendSuccess(
-                    () -> msg("No changes made -- layer/path reconciliation isn't implemented yet."),
+                    () -> msg("Path and layer order already match -- no changes made."),
                     false
             );
             return 0;
         }
 
         ctx.getSource().sendSuccess(
-                () -> msg("Reconciled border layers with path order."),
+                () -> msg("Reconciled " + changedCount + " border layer(s) with path order."),
                 false
         );
-        return 1;
+        return changedCount;
     }
 
     public static int debug(CommandContext<CommandSourceStack> ctx) {

@@ -47,9 +47,8 @@ to any individual roadmap node — the node cites the convention, it doesn't res
 hardened: Satchel's foundation/jig/scope runtime, and Border's world-border mechanics built on it.
 This is infrastructure, not gameplay — a player dropped into a fresh world at this tier has
 nothing to actually do yet, since nothing currently calls `BorderAPI.grow()`/`addBorder()` except
-an admin command and a debug trigger (see [Border-Frontier
-Reconciliation](../frontiermode/architecture/frontier-reconciliation.md)'s "missing caller, not a
-missing capability" finding).
+an admin command and a debug trigger — see [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md)
+("Karen") for what building the first real caller actually takes.
 
 **Tier 1 — Core loop operational.** The loop [Frontier Mode
 Overview](../frontiermode/design/overview.md) describes is actually playable, even crudely: a boss

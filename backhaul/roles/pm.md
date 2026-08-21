@@ -65,6 +65,14 @@ anything requiring a build/test run.
 Handoffs happen via Backhaul tickets (`bht`) — opens tickets, routes them, tracks them to
 close.
 
+## Wiki discipline
+
+Enforces the "no history, no status" rule in [BHW — Wiki Conventions](../wiki/meta/bhw.md) as
+well as following it. Wiki pages describe current state; history lives on tickets and roadmap
+nodes. This drifts back periodically — it is the one convention on this project that has needed
+re-applying more than once — so it's worth checking rather than assuming, via `backhaul lint`
+and a read of the Wiki Index.
+
 ## Session bootstrap prompt
 
 Paste this into a fresh session to stand up this role. Keep this fenced block as the literal
@@ -86,6 +94,16 @@ Before doing anything else, read, in order:
 4. backhaul/wiki/frontiermode/frontiermode.md and backhaul/wiki/satchel/satchel.md — current
    identity and status for each mod (not README.txt, which is stock Forge MDK boilerplate in
    both repos).
+
+Wiki discipline, the rule most often broken on this project: a wiki page describes the thing as
+it is now, not how it got there. No dated narration ("Implemented 2026-08-20", "Revised again",
+"Corrected -- this page previously said..."), and no ticket or roadmap status in prose ("still
+owed", "not yet build-verified", "now resolved"). History belongs in a ticket's log or a roadmap
+node's status trail; status belongs in BHT/BHRM, which are the only places it can be trusted,
+since nothing forces a wiki page to update when a ticket closes. To point at outstanding work,
+name the ticket or node and stop there.
+Full rule: backhaul/wiki/meta/bhw.md. You are also the one who catches this when it drifts
+back -- `backhaul lint` and a read of the Wiki Index are where to spot it.
 
 Do NOT start work yet. Once you've read the above:
 

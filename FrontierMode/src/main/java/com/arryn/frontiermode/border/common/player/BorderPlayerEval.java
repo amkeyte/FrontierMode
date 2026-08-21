@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.border.common.player;
 
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -10,10 +11,18 @@ import java.util.UUID;
  * - has no identity beyond its values
  * - is not persisted or synced
  * - is produced only by BorderPlayerLogic
+ *
+ * {@code relevantLayer} and {@code nearestLayer} were split from a single overloaded
+ * {@code layer} field (Border Vocabulary Conformance Checklist item 2.4): {@code
+ * relevantLayer} is populated only when {@code insideNearest} is true (a real Relevance
+ * resolution, per Border Vocabulary); {@code nearestLayer} is always populated and is the
+ * nearest-surface fallback border's layer, which is *not* a Relevance result and must not be
+ * treated as one.
  */
 record BorderPlayerEval(
         UUID nearestBorderId,
         int distanceToNearest,
         boolean insideNearest,
-        int layerIndex
+        OptionalInt relevantLayer,
+        int nearestLayer
 ) {}
