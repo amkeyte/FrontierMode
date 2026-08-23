@@ -100,16 +100,30 @@ one reconcile cycle.
 - 2026-08-22: Node opened by PM off the project owner's ruling. Architect ticket:
   [SAT_037](../tickets/SAT_037_mobjig-sidedness.md).
 
-- 2026-08-22: **Design settled — [SAT_037](../tickets/SAT_037_mobjig-sidedness.md) closed, full
-  reasoning there.** Shape: a new `MobEntityLookup` interface (`Optional<Mob> resolve(Level level,
-  UUID uuid)`, no sided type on it), chosen per side at foundation boot exactly the way
-  `ScopeEngine` already is — `ASatchelFoundationBooter.mobEntityLookup()`, implemented by
-  `MobEntityLookup_Server`/`MobEntityLookup_Client`. `MobJig.reconcile()`'s both phases and
-  `MobInterestSupplier.interestedMobs()` (→ `Map<Level, Set<UUID>>`) resolve through it instead of
-  touching `ServerLevel` directly. Fixes the latent client-side teardown bug above as a consequence
-  of unifying the mechanism, not a separate patch. Ruled a neighbour of
-  [RM_SAT_018](RM_SAT_018_edward.md) ("Edward"), not a piece of it — no `depends_on` edit. This
-  node's own `depends_on`/scope are unchanged; it now has a settled design to build against.
+- 2026-08-23: **Design settled — [SAT_037](../tickets/SAT_037_mobjig-sidedness.md) closed, full
+  reasoning there.** Shape: a new `ForgeEgress` interface (`common/jig/guts/`,
+  `Optional<Entity> getEntity(Level level, UUID uuid)` — a growing surface, not `MobJig`-specific),
+  implemented by `ServerForgeEgress`/`ClientForgeEgress` (`server/lifecycle/`/`client/lifecycle/`,
+  paired with `ServerForgeIngress`/`ClientForgeIngress`), installed from inside each booter's own
+  `installFoundation()` and reached via `LogicalFoundation.egress()` directly — `booter()` never
+  appears in the call chain, and `ASatchelFoundationBooter` itself gains no new abstract method.
+  `MobJig.reconcile()`'s both phases and `MobInterestSupplier.interestedMobs()`
+  (→ `Map<Level, Set<UUID>>`) resolve through it instead of touching `ServerLevel` directly. Fixes
+  the latent client-side teardown bug above as a consequence of unifying the mechanism, not a
+  separate patch. Ruled a neighbour of [RM_SAT_018](RM_SAT_018_edward.md) ("Edward"), not a piece of
+  it — no `depends_on` edit. Adjacent finding split out to
+  [SAT_038](../tickets/SAT_038_booter-visibility.md) rather than folded in here. This node's own
+  `depends_on`/scope are unchanged; it now has a settled design to build against.
+
+- 2026-08-23: **Verification-tooling gap flagged, tracked separately:
+  [SAT_039](../tickets/SAT_039_jig-self-test-audit.md).** Nothing in either repo currently registers
+  a `CLIENT`/`BOTH`-applicability `MobJig` consumer — `MobTrackingModule` stays `SERVER` by its own
+  choice, `BossModule` stays `SERVER` by its own design — so this node's own done bar ("a
+  client-side consumer... verified against a real dedicated server plus a connected client") has
+  nothing to point at yet. SAT_039 covers building that test path, generalized to every jig kind
+  rather than a one-off for Mob; this node's build should lean on whatever it produces rather than
+  reaching for a FrontierMode consumer to test against, which would defeat the point of building
+  this module-neutral.
 
 ## Required By
 

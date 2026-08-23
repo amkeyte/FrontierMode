@@ -296,7 +296,7 @@ public final class LogicalFoundation {
         this.booter = Objects.requireNonNull(booter, "booter");
         OUT.debug("Foundation booter installed for side " + side);
     }
-    public ASatchelFoundationBooter booter() {
+    private ASatchelFoundationBooter booter() {
         if (booter == null) {
             throw new IllegalStateException(
                     "ASatchelFoundationBooter not installed for side: " + side

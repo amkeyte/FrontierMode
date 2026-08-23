@@ -44,7 +44,7 @@ natural grouping (they're what's gating RM_FRO_010 from reaching), RM_SAT_020 is
 independent. Pick order freely, or run in parallel.
 
 **Not ready — hold back from assignment:**
-- [RM_SAT_018](../roadmap/RM_SAT_018_edward.md) — its own body says it outright: "still mostly
+- RM_SAT_018 — its own body says it outright: "still mostly
   undecomposed" beyond RM_SAT_019. Needs Architect (Douglas) scoping before this is
   ticket-shaped work for Lead Dev, not a Lead Dev judgment call to fill in the gaps himself.
 - [RM_FRO_006](../roadmap/RM_FRO_006_sandra.md) — unchanged from FRO_020: graph-actionable but

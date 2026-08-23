@@ -108,20 +108,23 @@ deployment removes the net; it doesn't introduce the class of bug.
 
 ## Sequencing
 
-Deliberately not decomposed into roadmap work nodes yet — see
-[RM_SAT_018](../../../roadmap/RM_SAT_018_edward.md), the convergence node tracking this vision.
+Deliberately not decomposed into roadmap work nodes yet, and deliberately not tracked by a
+convergence either — a convergence marks a state that gets *reached*, and a direction has no such
+moment until it has pieces to gather.
 Depended on [RM_SAT_017](../../../roadmap/RM_SAT_017_paul.md) (prototype hardening) landing
 first, on the reasoning that building guaranteed-sidedness scaffolding on top of a foundation with
 known, unresolved fragility (the unload-path gap, unconfirmed silent-inertness cases) would be
 building on sand. RM_SAT_017 has since reached — both the unload-path gap
 ([RM_SAT_014](../../../roadmap/RM_SAT_014_joseph.md)) and the silent-inertness question
 ([RM_SAT_013](../../../roadmap/RM_SAT_013_gary.md)) are resolved/confirmed, so that precondition
-is now satisfied. Real work nodes get inserted under RM_SAT_018 as pieces of this get scoped, not
-invented wholesale now.
+is now satisfied. Real work nodes get scoped out of this page's open list as they become
+concrete, not invented wholesale now; a convergence to gather them is worth opening once two or
+three exist.
 
 ## Related pages
 
 - [Forge Integration & Sidedness Contract](../spec/forge-integration.md)
 - [Jig & Scope Runtime](runtime.md)
 - [Satchel mod summary](../satchel.md)
-- [RM_SAT_018](../../../roadmap/RM_SAT_018_edward.md)
+- [RM_SAT_023](../../../roadmap/RM_SAT_023_raymond.md) — the neighbouring convergence this
+  vision's first concrete instance (side-agnostic `MobJig`) actually lands under

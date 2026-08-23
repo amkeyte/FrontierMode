@@ -100,8 +100,8 @@ that doesn't describe the mod; see [SAT_001](../../tickets/SAT_001_readme-boiler
 All pages above are `verified`.
 
 - [Universal Sidedness Facade](architecture/facade-vision.md) — `draft`, deliberately: a
-  vision/direction page holding open questions, not a completed description. See
-  [RM_SAT_018](../../roadmap/RM_SAT_018_edward.md) for its roadmap tracker.
+  vision/direction page holding open questions, not a completed description. No roadmap node
+  tracks it; one gets opened once it decomposes into concretely scoped work.
 
 ## Spec
 

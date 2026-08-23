@@ -62,7 +62,8 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | George | Roadmap node slug, [RM_SAT_015](../../roadmap/RM_SAT_015_george.md) |
 | Kenneth | Roadmap node slug, [RM_SAT_016](../../roadmap/RM_SAT_016_kenneth.md) |
 | Paul | Roadmap node slug, [RM_SAT_017](../../roadmap/RM_SAT_017_paul.md) |
-| Edward | Roadmap node slug, [RM_SAT_018](../../roadmap/RM_SAT_018_edward.md) |
+| Edward | Roadmap node slug, RM_SAT_018 — node retired 2026-08-23, name not reissued |
+| Raymond | Roadmap node slug, [RM_SAT_023](../../roadmap/RM_SAT_023_raymond.md) |
 | Dennis | Roadmap node slug, [RM_SAT_019](../../roadmap/RM_SAT_019_dennis.md) |
 | Jerry | Roadmap node slug, [RM_SAT_020](../../roadmap/RM_SAT_020_jerry.md) |
 | Frank | Roadmap node slug, [RM_SAT_021](../../roadmap/RM_SAT_021_frank.md) |
@@ -78,7 +79,7 @@ own log). Both names were reused the same day for real new nodes — Shirley for
 [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md), Karen for
 [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) — under new numbers, since the old node numbers
 themselves stay retired (IDs aren't reused once minted). Both names are now used again; the next
-unused RM_FRO name is Joyce (rank 18); the next unused RM_SAT name is Raymond (rank 23).
+unused RM_FRO name is Joyce (rank 18); the next unused RM_SAT name is Daniel (rank 24). Edward (rank 18) is **not** back in the pool despite RM_SAT_018's retirement — see the no-reuse rule in [BHRM — Roadmap Conventions](../meta/bhrm.md).
 
 ## Full list
 

@@ -94,9 +94,9 @@ than folding straight into that one because facade-vision.md is the broader "no 
 touches Forge directly, for anything" ambition (rendering, command registration, config —
 including things this page explicitly doesn't try to solve), while this page is narrower and more
 concrete: just the raw-gameplay-event slice, sketched further than the vision page currently goes,
-still not committed to. If this ever gets scoped into real roadmap work, it would sit under
-[RM_SAT_018](../../../roadmap/RM_SAT_018_edward.md) alongside whatever else gets pulled out of the
-facade vision's own open list — not a new convergence node of its own.
+still not committed to. If this ever gets scoped into real roadmap work, it would be one of the
+pieces pulled out of the facade vision's own open list — and enough of those existing at once is
+what would justify opening a convergence to gather them.
 
 `BorderModule.onBlockPlaced` would be the natural first migration candidate once/if this gets
 built — same role Border already plays for the rest of the jig/scope system.

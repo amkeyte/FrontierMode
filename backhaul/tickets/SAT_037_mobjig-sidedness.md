@@ -62,7 +62,7 @@ and that is cheaper to answer now than to migrate later.
   now a description of a bug rather than a design, and should not be left standing while the fix is
   pending.
 - **[Universal Sidedness Facade](../wiki/satchel/architecture/facade-vision.md)** argues exactly
-  this case in the abstract, and [RM_SAT_018](../roadmap/RM_SAT_018_edward.md) ("Edward") is the
+  this case in the abstract, and RM_SAT_018 ("Edward") is the
   actionable convergence tracking it. Worth deciding whether Roger is a piece of Edward or a
   neighbour — if the former, Edward's `depends_on` should say so per
   [BKHL_002](BKHL_002_convergence-gate.md)'s convergence-gate convention.

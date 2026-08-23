@@ -6,8 +6,8 @@ title: Boss
 summary: Boss entity/spawn system design for Tier 1 -- data model, spawn algorithm,
   and the defeat-detection caller into BorderAPI. RM_FRO_018/019 build against this.
 keywords: null
-status: draft
-updated: '2026-08-18'
+status: verified
+updated: '2026-08-23'
 ---
 
 <!-- bh-header:start -->
@@ -131,8 +131,22 @@ A new `BossModule.init()`, following the same shape `BorderModule.init()` alread
    though `MobScope` has no pre-existing bundle to fold into. A `MobJigConfig`,
    `sideApplicability = SERVER` — Boss's own explicit choice (defeat-detection is server-only), not
    a default `MobJig` itself imposes; `MobJigConfig` ships with no opinionated default, per
-   [RM_SAT_021](../../../roadmap/RM_SAT_021_frank.md)'s own design. Also registers `BossModule` as
-   a `MobJig` interest supplier — see "Three questions, three different mechanisms" below.
+   [RM_SAT_021](../../../roadmap/RM_SAT_021_frank.md)'s own design.
+
+   **Registering interest is a separate call, not part of the `MobJigConfig` above.**
+   `MobJigConfig`/`Presets`/`CompiledJigConfig` have no generic slot for it, and `JigInfo` — what
+   `MobJig.reconcile` actually receives each pulse — never holds a reference back to the
+   originating config instance, so Frank shipped a standalone registry instead:
+   `MobInterestRegistry.register(key, supplier)`, keyed by the same `JigKey` `reconcile` already
+   has in hand as `info.key`. `MobTrackingModule` is the shipped worked example — its own `init()`
+   calls `MobInterestRegistry.register(JIG, () -> INTERESTS)` right alongside
+   `Satchel.registerJigConfig(config)`; `BossModule.init()` follows the identical shape. `init()`
+   itself must actually be invoked from `SatchelMod`'s constructor —
+   `MobTrackingModule` compiled clean but was never installed the first time because that call was
+   missing, so its jig was never registered at all
+   ([SAT_035](../../../tickets/SAT_035_mobjig-build.md)); worth checking for explicitly rather than
+   assuming the wiring is done because it compiles. See "Three questions, three different
+   mechanisms" below for what the registered supplier itself answers.
 4. `EventHandlers` subscribing materialization + the defensive reconciliation check (see "What can
    actually go wrong" below) to `BOSS_JIG`'s own `ScopeEvent.Tick`, guarded by jig key per checklist
    item 3, plus handlers on `MobJigConfig`'s own `ScopeEvent.Loaded`/`Unloaded` that attach/release
@@ -303,15 +317,35 @@ after, as a sibling step, extracting `position`/`layer` from the `Border` that c
 - **`growCenteredOn(center)`, post-defeat.** The caller is [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)'s
   own `LivingDeathEvent` handler — it already calls growth; it just also calls `BossModule`'s
   "create a boss record for this border" right after, in the same handler.
-- **`getInitial()`, a level's first border.** Needs the identical paired call, but this design pass
-  didn't trace where `getInitial()` itself is currently invoked from (presumably some
-  `BorderModule`-owned level-bootstrap path) — worth Lead Dev confirming the real call site before
-  wiring this, rather than assuming; flagged rather than guessed.
+- **`getInitial()`, a level's first border.** Traced: `getInitial()` has exactly one call site in
+  the codebase — `BordersPathFacet.grow()`'s own empty-path branch, which already falls through to
+  it correctly. The real gap wasn't a hidden call site; it's that nothing currently calls `grow()`
+  automatically when a level first loads. See [Border's Known
+  gaps](border.md#known-gaps) for the settled fix — a persisted `seeded` flag on `BordersFixture`
+  plus a `BorderModule` subscription to Satchel's own `ScopeEvent.Loaded` that calls
+  `BorderAPI.grow(level)` for an unseeded level. This record's paired boss-creation call belongs at
+  that same hook, right after `grow()` succeeds for a level's very first border.
 - **Anything else that calls `grow()`/`addBorder()` directly** (Tier 0's own description mentions
   "an admin command and a debug trigger" as existing callers) only needs the paired call if it's
   meant to produce a real progression border. If it's producing an off-path/debug border, it
   correctly gets no boss by doing nothing extra — consistent with "Data model" above's point that
   not every `Border` needs one.
+
+## Known gaps
+
+- **`getInitial()`'s real call site is now traced, and the bootstrap gap has a settled design** —
+  see "Defeat detection and the border-growth gap" above and [Border's Known
+  gaps](border.md#known-gaps). Not yet built; when it is, this record's paired boss-creation call
+  goes at the same `ScopeEvent.Loaded` hook.
+- **`MobInterestSupplier.interestedMobs()`'s exact map-key type is provisional.** Frank shipped it
+  typed against `ServerLevel`. [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md) ("Roger") has
+  since settled a side-neutral resolution design (a new `ForgeEgress`, `Level`-keyed) that reverses
+  this, not yet built. `BossModule` implements this interface, so write it against whatever Roger
+  ships, not against `ServerLevel` — Boss's own `sideApplicability` stays `SERVER` either way;
+  defeat detection is server-only regardless of the map's key type.
+- **A tracked boss removed by something that never fires `LivingDeathEvent` still needs its own
+  reconciliation check** — see "What can actually go wrong" above. An open design question, not an
+  assumed answer.
 
 ## Related pages
 

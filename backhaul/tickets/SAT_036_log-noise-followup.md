@@ -3,13 +3,13 @@ id: SAT_036
 uid: SAT
 number: 36
 client: Satchel
-status: open
+status: done
 title: Retro-track two shared-framework log fixes
 context: SAT_035 changed SatchelException and Tracer outside its scope. Curtis flagged
   both for splitting out.
 priority: low
 opened: '2026-08-22'
-closed: null
+closed: '2026-08-23'
 ---
 
 <!-- board:start -->
@@ -79,9 +79,23 @@ Low priority: both changes are live and working, and neither blocks anything.
 
 ## Log
 
-[Arryn] Tracer is a debug logging utility only. mostly for my own use. we can close this.
+
 
 - 2026-08-22: Ticket opened.
+
+- 2026-08-23: **Closed — project owner's call.** Checked item 1 directly rather than leaving it
+  open: grepped `OUT.TRACE()` across both repos. Every call site is Satchel-internal diagnostic
+  logging — bundle creation/dirty-parcel handling in both `ScopeEngine_Server`/`ScopeEngine_Client`,
+  jig readiness/scope-acceptance in `ASatchelJig`/`SatchelFixture`, parcel enqueue/drain in
+  `ParcelInbox`, saved-data creation in `BundleSavedData`/`WorldIdentitySavedData`, plus
+  `OUT_Tester`'s own demo calls. Nothing in FrontierMode calls `OUT.TRACE()` at all — no hit outside
+  `Satchel/`. Nothing here reads as a diagnostic anyone's actually relying on at DEBUG; the change
+  is exactly what it was described as doing. Item 2 (wiki mention) was already effectively answered
+  in this ticket's own body — change 1 needs no wiki correction (the page it touches is still
+  accurate), change 2 is a dev-environment log-level convention, not an architecture fact, not worth
+  a line. Project owner's explicit framing: this started as "make the log spam go away," Curtis did
+  exactly that, and nothing about it is broken — closing rather than continuing to track it as open
+  work. Re-open if a real symptom (a diagnostic someone actually needed at DEBUG) ever surfaces.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/Satchel)
 <!-- bh-header:end -->

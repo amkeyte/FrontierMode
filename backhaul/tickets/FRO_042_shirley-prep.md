@@ -35,15 +35,13 @@ shipped with a different registration shape, for a reason recorded in
   (see its module-wiring section, and "Three questions, three different mechanisms").
 - **What shipped** is a standalone `MobInterestRegistry`, deliberately outside that framework:
   `MobInterestRegistry.register(JigKey<?> key, MobInterestSupplier supplier)` / `.unregister(key)`.
-- **`MobInterestSupplier.interestedMobs()` — signature settled, not yet shipped.** It returns
-  `Map<ServerLevel, Set<UUID>>` in source today and **widens to `Map<Level, Set<UUID>>`** under
-  [RM_SAT_022](../roadmap/RM_SAT_022_roger.md) ("Roger"), per Architect's ruling on
-  [SAT_037](SAT_037_mobjig-sidedness.md). `BossModule` implements this interface, so write it
-  against `Level`, not `ServerLevel`. Shirley's own `sideApplicability` stays `SERVER` regardless —
-  a real `ServerLevel` is always legal where a `Level` is asked for, so nothing about her becomes
-  side-agnostic. **Sequencing worth a decision:** Roger is designed but unbuilt, so
-  `MobInterestSupplier` still reads `ServerLevel` in source right now. Either Roger lands first, or
-  Shirley is written against the agreed target and compiles once it does.
+- **`MobInterestSupplier.interestedMobs()` returns `Map<ServerLevel, Set<UUID>>`** — and **this
+  signature is being reversed**. Project owner ruled 2026-08-22 that `MobJig` should not be
+  server-bound; see [RM_SAT_022](../roadmap/RM_SAT_022_roger.md) ("Roger") and
+  [SAT_037](SAT_037_mobjig-sidedness.md). Shirley's own `sideApplicability` stays `SERVER` either
+  way, but `BossModule` implements this interface, so **whether `interestedMobs()` is typed against
+  `ServerLevel` or something wider should be settled before Shirley is written, not after.** Treat
+  the current signature as provisional.
 - **`MobTrackingModule` is the worked example** — `watch(ServerLevel, UUID)` /
   `unwatch(ServerLevel, UUID)` / `currentInterests()`, with `init()` called from `SatchelMod`'s
   constructor. `BossModule` should follow that shape, including the `init()` call: SAT_035 found
@@ -105,6 +103,33 @@ will be reading it either way.
 
 
 - 2026-08-22: Ticket opened.
+
+- 2026-08-23: **Items 1 and 2 done (Architect).** [Boss](../wiki/frontiermode/architecture/boss.md)
+  corrected: "Module wiring" step 3 now describes the real, shipped registration mechanism —
+  `MobInterestRegistry.register(key, supplier)`, a call separate from configuring `MobJigConfig`,
+  mirroring `MobTrackingModule`'s worked pattern (`MobInterestRegistry.register(JIG, ...)` alongside
+  `Satchel.registerJigConfig(config)`) — and the `init()`-must-actually-be-called gotcha SAT_035
+  found is now called out explicitly, so it isn't repeated. A new "Known gaps" section (mirroring
+  [Jig & Scope Runtime](../wiki/satchel/architecture/runtime.md)'s own) consolidates the three
+  things still genuinely open: `getInitial()`'s untraced call site (item 3, project owner's own),
+  `interestedMobs()`'s map-key type being provisional pending
+  [RM_SAT_022](../roadmap/RM_SAT_022_roger.md) ("Roger")'s not-yet-built `ForgeEgress`, and the
+  expected-but-absent reconciliation question already in "What can actually go wrong." Promoted
+  `draft` → `verified` — six revisions in, this is the design of record Lead Dev builds Shirley
+  against, and `runtime.md` is the live precedent that `verified` + an honest "Known gaps" section
+  aren't in tension. Item 4 (promoting `mobscope-getfor.md`) not part of this pass — separate page,
+  separate decision, still open.
+
+- 2026-08-23: **Item 3 done (project owner).** `getInitial()` traced to its one real call site —
+  `BordersPathFacet.grow()`'s own empty-path branch, which already falls through to it correctly.
+  The actual gap was never a hidden call site; it's that nothing auto-bootstraps a fresh level's
+  first border. Settled design: a persisted `seeded` flag on `BordersFixture` plus a `BorderModule`
+  subscription to `ScopeEvent.Loaded` calling `BorderAPI.grow(level)` for an unseeded level — keeps
+  the admin in control, per the project owner's own framing. Written up on
+  [Border](../wiki/frontiermode/architecture/border.md#known-gaps),
+  [Boss](../wiki/frontiermode/architecture/boss.md#known-gaps), and
+  [RM_FRO_018](../roadmap/RM_FRO_018_shirley.md)'s log. Design only, not yet built. All of items 1-3
+  are now done; item 4 remains open.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

@@ -45,7 +45,7 @@ the old files only as a sketch of intent, not a starting point. See
 [Jig & Scope Runtime](../wiki/satchel/architecture/runtime.md) for the pattern to follow.
 
 **Sequencing note, not a hard gate:** this doesn't depend on
-[RM_SAT_018](RM_SAT_018_edward.md) (universal sidedness facade) — that vision is still
+RM_SAT_018 (universal sidedness facade) — that vision is still
 undecomposed and gating a ruled, concrete feature on it would stall real progress. If facade work
 lands first, this jig's ingress can be built against whatever generic forwarding mechanism it
 introduces instead of a dedicated ingress class; if this lands first, it just follows the current

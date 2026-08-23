@@ -27,18 +27,41 @@ Everything this design leans on Satchel for now exists and is dedicated-server v
 presence poll, and the `MobJig`-scoped fixture shape `BossMobFixture` needs. Build against
 [Jig & Scope Runtime § MobJig](../wiki/satchel/architecture/runtime.md#mobjig), not Frank's own log.
 
-**Architect prep first: [FRO_042](../tickets/FRO_042_shirley-prep.md).** Four items, one of them
-substantive — [Boss](../wiki/frontiermode/architecture/boss.md) describes `BossModule` registering
-its `MobJig` interest through `MobJigConfig`, but Frank shipped a standalone `MobInterestRegistry`
-outside that framework. The design page and the shipped API disagree, and that gap surfaces as
-compile errors mid-build if nobody reconciles it first. Also on that ticket: `boss.md`'s `draft`
-status, the untraced `getInitial()` call site this node's own 2026-08-18 entry flags, and promoting
-the `getFor` spec page.
+**Architect prep: [FRO_042](../tickets/FRO_042_shirley-prep.md), items 1-3 done.**
+[Boss](../wiki/frontiermode/architecture/boss.md) now describes `BossModule`'s real registration
+mechanism (`MobInterestRegistry.register(...)`, a call separate from `MobJigConfig`), is promoted to
+`verified`, and the `getInitial()` call site this node's own 2026-08-18 entry flagged as untraced is
+now traced with its bootstrap gap resolved to a settled design — see the 2026-08-23 entry below.
+Item 4 (promoting the `getFor` spec page) is still open, not blocking this node.
 
 *Name note: "Shirley" also named RM_FRO_014, a Tier 0 convergence deleted 2026-08-16 — so a bare
 "Shirley" in older prose may mean either node. Always pair the name with its ID. Reusing a retired
 node's persona is no longer done; see [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md).*
 
+- 2026-08-23: **`getInitial()` traced, and the real gap resolved: nothing auto-bootstraps a fresh
+  level's first border — not a hidden call site.** `getInitial()` has exactly one call site in the
+  entire codebase — `BordersPathFacet.grow()`'s own empty-path branch, which already falls through
+  to it correctly (restored by [RM_FRO_015](RM_FRO_015_margaret.md)'s "pathGrow's backwards
+  empty-path bootstrap guard" fix). So the 2026-08-18 entry below's "flagged for Lead Dev to
+  confirm" is answered: there's no separate level-bootstrap call site to find, because nothing
+  currently calls `grow()` on level load at all — and `isEmpty()` alone can't tell "fresh world"
+  from "admin removed every border," so an automatic hook can't just check emptiness.
+  **Settled design (project owner):** a new persisted `seeded` boolean on `BordersFixture`, set once
+  inside `BordersPathFacet.grow()`'s own append (covering every caller uniformly, cleared by
+  nothing), plus a new `BorderModule` subscription to Satchel's own `ScopeEvent.Loaded` (not a raw
+  Forge listener — `LevelJig` already fires it, via `ServerForgeIngress.onLevelDiscover`), filtered
+  to `LevelJig`'s key and the overworld dimension, calling `BorderAPI.grow(level)` only when
+  `!seeded`. This delivers exactly the property project owner asked for directly: "a Path may become
+  empty when all its borders are removed, but that does not immediately call for a `getInitial()`
+  call in and of itself... this leaves the admin in control of the situation" — removal never
+  re-triggers auto-creation; only a later real `grow()` call (organic or admin) repopulates the
+  path. **This is also where this node's own paired boss-record-creation call for a level's first
+  border belongs** — the same `ScopeEvent.Loaded` hook, right after `BorderAPI.grow(level)`
+  succeeds for a level's very first border, extracting `position`/`layer` from the `Border` it
+  returns exactly as the 2026-08-18 entry below already describes for `growCenteredOn()`'s
+  post-defeat case. Design only, not yet built. Full detail on both pages:
+  [Border § Known gaps](../wiki/frontiermode/architecture/border.md#known-gaps) and
+  [Boss § Defeat detection and the border-growth gap](../wiki/frontiermode/architecture/boss.md#defeat-detection-and-the-border-growth-gap).
 - 2026-08-22: **Frank landed — this node is unblocked.**
   [RM_SAT_021](RM_SAT_021_frank.md) is `resolved`, built and verified against a real dedicated
   server (see [SAT_035](../tickets/SAT_035_mobjig-build.md)). The standing note above is updated to

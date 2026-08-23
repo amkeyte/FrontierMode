@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-21'
+updated: '2026-08-23'
 ---
 
 <!-- bh-header:start -->
@@ -185,6 +185,23 @@ own relationship to the Frontier," only an architecture-side mechanism for compu
 question rather than Game Designer's, and deliberately not worth resolving until something needs it:
 the likeliest forcing function is multiplayer's "whose frontier is it," parked in [Multiplayer Sketch
 (Parked)](../design/multiplayer-sketch.md).
+
+**Nothing currently auto-bootstraps a fresh level's first border.** `BordersPathFacet.grow()`
+already self-bootstraps correctly when the path is empty — `tip()` absent falls through to
+`fixture.logic.getInitial()` in the same branch that otherwise calls `logic.grow(previous)`,
+restored to correct behavior by [RM_FRO_015](../../../roadmap/RM_FRO_015_margaret.md)'s "pathGrow's
+backwards empty-path bootstrap guard" fix. `getInitial()` has exactly one call site in the
+codebase — this one — so an empty path only becomes a border again when something calls `grow()`,
+and nothing does that automatically on level load. `isEmpty()` can't be trusted to mean "brand-new
+world," either: an admin who removes every border produces the identical empty state, and
+auto-recreating from that would take the admin out of control of their own world. Settled fix, not
+yet built: a persisted `seeded` flag on `BordersFixture` (set once, inside this same `grow()`
+append, cleared by nothing) plus a `BorderModule` subscription to Satchel's own `ScopeEvent.Loaded`
+(not a new raw Forge listener) that calls `BorderAPI.grow(level)` only when `!seeded` — a fresh
+world bootstraps once, and a later removal stays removed until something really calls `grow()`
+again. Tracked on [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md), since
+[Boss](boss.md#defeat-detection-and-the-border-growth-gap)'s own paired record-creation call for a
+level's first border belongs at this exact hook.
 
 **Mutation validation, render lifecycle, and fixture/item robustness gaps.** A source-level
 resilience pass found several structural gaps in the mutation, rendering, and persistence paths

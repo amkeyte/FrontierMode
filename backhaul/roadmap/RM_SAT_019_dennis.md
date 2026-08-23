@@ -189,7 +189,7 @@ Satchel becomes the authority that issues an explicit identity value, rather tha
 (or in this case, every side) re-deriving one from whatever ambient signal happens to be
 available. This is the first concretely scoped piece of that vision.
 
-- 2026-08-15: Originally wired directly into [RM_SAT_018](RM_SAT_018_edward.md)'s `depends_on`,
+- 2026-08-15: Originally wired directly into RM_SAT_018's `depends_on`,
   in parallel with RM_SAT_018's dependency on [RM_SAT_017](RM_SAT_017_paul.md) — that routed
   around RM_SAT_017's own convergence gate. Moved: this node is now one of RM_SAT_017's
   prerequisites instead, so RM_SAT_018 reaches it by depending on RM_SAT_017 alone. The
