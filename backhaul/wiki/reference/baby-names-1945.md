@@ -66,6 +66,7 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Dennis | Roadmap node slug, [RM_SAT_019](../../roadmap/RM_SAT_019_dennis.md) |
 | Jerry | Roadmap node slug, [RM_SAT_020](../../roadmap/RM_SAT_020_jerry.md) |
 | Frank | Roadmap node slug, [RM_SAT_021](../../roadmap/RM_SAT_021_frank.md) |
+| Roger | Roadmap node slug, [RM_SAT_022](../../roadmap/RM_SAT_022_roger.md) |
 
 Roadmap node slugs follow a fixed pattern: girls' names for RM_FRO, boys' names for RM_SAT,
 assigned in list rank order — so a slug's gender alone tells you which mod's graph it belongs to.
@@ -77,7 +78,7 @@ own log). Both names were reused the same day for real new nodes — Shirley for
 [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md), Karen for
 [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) — under new numbers, since the old node numbers
 themselves stay retired (IDs aren't reused once minted). Both names are now used again; the next
-unused RM_FRO name is Joyce (rank 18).
+unused RM_FRO name is Joyce (rank 18); the next unused RM_SAT name is Raymond (rank 23).
 
 ## Full list
 

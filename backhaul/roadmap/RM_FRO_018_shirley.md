@@ -19,25 +19,30 @@ ticket: null
 
 ## Boss entity/spawn system
 
-**Not startable yet — [RM_SAT_021](RM_SAT_021_frank.md) ("Frank," `MobJig`/`MobScope`) goes first,
-project owner's call, 2026-08-21.** This node's design is built directly on machinery Frank has not
-shipped: `MobScope.getFor(mob)` as the boss-tagging entry point, a `MobJig`-scoped `BossMobFixture`
-as the reverse pointer [RM_FRO_019](RM_FRO_019_karen.md)'s defeat handler resolves in O(1), and
-`MobJig`'s foundation-pulse presence poll. Frank is `open`.
+**Prerequisite satisfied — [RM_SAT_021](RM_SAT_021_frank.md) ("Frank," `MobJig`/`MobScope`) is
+`resolved` as of 2026-08-22, so this node is now genuinely startable, not just graph-actionable.**
+Everything this design leans on Satchel for now exists and is dedicated-server verified:
+`MobScope.getFor(mob)` as the boss-tagging entry point (contract on
+[MobScope.getFor() Contract](../wiki/satchel/spec/mobscope-getfor.md)), `MobJig`'s foundation-pulse
+presence poll, and the `MobJig`-scoped fixture shape `BossMobFixture` needs. Build against
+[Jig & Scope Runtime § MobJig](../wiki/satchel/architecture/runtime.md#mobjig), not Frank's own log.
+
+**Architect prep first: [FRO_042](../tickets/FRO_042_shirley-prep.md).** Four items, one of them
+substantive — [Boss](../wiki/frontiermode/architecture/boss.md) describes `BossModule` registering
+its `MobJig` interest through `MobJigConfig`, but Frank shipped a standalone `MobInterestRegistry`
+outside that framework. The design page and the shipped API disagree, and that gap surfaces as
+compile errors mid-build if nobody reconciles it first. Also on that ticket: `boss.md`'s `draft`
+status, the untraced `getInitial()` call site this node's own 2026-08-18 entry flags, and promoting
+the `getFor` spec page.
 
 *Name note: "Shirley" also named RM_FRO_014, a Tier 0 convergence deleted 2026-08-16 — so a bare
 "Shirley" in older prose may mean either node. Always pair the name with its ID. Reusing a retired
 node's persona is no longer done; see [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md).*
 
-`bhrm` graphs are UID-independent by design (a `depends_on` naming a node under another UID is a
-hard error — see [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md)), so there is no edge enforcing
-this and `bhrm frontier --uid RM_FRO` cannot know about it. **This node will therefore keep showing
-up under "Actionable now" in [ROADMAP_INDEX.md](../ROADMAP_INDEX.md) while it is not actually
-implementable.** Same shape [RM_FRO_006](RM_FRO_006_sandra.md) ("Sandra") carried against
-[RM_SAT_020](RM_SAT_020_jerry.md), and it is stated here rather than only in the log because a log
-entry is not where someone picking work from the menu will look. Tracked as
-[FRO_030](../tickets/FRO_030_frank-first.md).
-
+- 2026-08-22: **Frank landed — this node is unblocked.**
+  [RM_SAT_021](RM_SAT_021_frank.md) is `resolved`, built and verified against a real dedicated
+  server (see [SAT_035](../tickets/SAT_035_mobjig-build.md)). The standing note above is updated to
+  match; the ordering entry below is left as written.
 - 2026-08-21: **Ordering ruled: Frank first.** Project owner's call — Satchel's `MobJig`/`MobScope`
   lands before any FrontierMode-side boss work starts. Recorded as the standing note above rather
   than only here, and mirrored onto [RM_SAT_021](RM_SAT_021_frank.md) so the scheduling is visible

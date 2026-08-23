@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.jig.guts;
 
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
@@ -30,6 +31,21 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
     void onTick(ScopeInfo info);
 
     void onUnload(ScopeInfo info);
+
+    /**
+     * Poll-driven scope reconciliation, called once per {@link JigInfo} every foundation pulse,
+     * before the per-{@link ScopeInfo} handleExecutionPulse/onTick walk (see
+     * FoundationLifecycleDispatcher.pulse()). Default no-op -- only a jig kind whose sources
+     * aren't discovered via a Forge join/load event (i.e. MobJig, RM_SAT_021) overrides this;
+     * LevelJig and PlayerJig inherit the no-op unchanged.
+     *
+     * @param info the JigInfo this jig kind is compiled into for this side -- gives a
+     *             reconciling jig its own registered scopes ({@code info.scopeInfos()}) and its
+     *             own {@code JigKey} ({@code info.key}) without needing a separate parameter.
+     */
+    default void reconcile(JigInfo info) {
+        // no-op
+    }
 
     <B extends SatchelBundle> B get(
             SatchelScope scope,

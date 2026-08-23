@@ -58,6 +58,11 @@ public final class FoundationLifecycleDispatcher {
         if (phase == Phase.STARTED) {
 
             for (var jInfo:foundation.jigInfos()){
+                // RM_SAT_021: poll-driven scope reconciliation, ahead of the per-ScopeInfo walk
+                // below. No-op for every jig kind except MobJig -- see SatchelJig.reconcile's
+                // docs.
+                jInfo.jig.reconcile(jInfo);
+
                 for (ScopeInfo sInfo : jInfo.scopeInfos()) {
                     jInfo.jig.handleExecutionPulse(sInfo);
                     jInfo.jig.onTick(sInfo);

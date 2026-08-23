@@ -232,7 +232,7 @@ facets — see [Fixture](fixture.md)):
 - **`JigBundlesConfig<S>`** — the `JigBundles.Schema<S>` this jig's scopes expose.
 
 `LevelJigConfig` (`common/newconfig/newnew/LevelJigConfig.java`) was the first concrete `JigConfig`
-subclass built, and the pattern `PlayerJigConfig` and (designed) `MobJigConfig` both mirror — it
+subclass built, and the pattern `PlayerJigConfig` and `MobJigConfig` both mirror — it
 pins `jigType`/`couplerType` to `LevelJig`/`LevelScopeCoupler`, `scopeType`/`sourceType` to
 `LevelScope`/`Level`, wires `scopeResolver`/`uuidDeterminer` to `LevelResolver`, defaults
 `sideApplicability` to `SERVER`, and leaves `bundles.schema` unset (a consumer must call
@@ -363,8 +363,9 @@ entirely; no code in either repo currently does this.
 
 ## The jig kinds (`ModelJig` deleted, see below)
 
-Three jig kinds are real or on track to be: `LevelJig` and `PlayerJig` have live consumers today;
-`MobJig` is designed and tracked for build. Reading the current state directly, not by inference:
+Three jig kinds are real. `LevelJig` and `PlayerJig` have live consumers in FrontierMode;
+`MobJig` is built and installed, with `MobTrackingModule` as its consumer. Reading the current
+state directly, not by inference:
 
 ### `LevelJig`
 
@@ -395,7 +396,8 @@ FrontierMode's `BorderModule` and `BorderAPI` both consume `PlayerScope` today.
 
 ### `MobJig`
 
-`common/jig/mob/*`, designed. The mob/entity generalization of `Scope`: a boss or other tagged
+`common/jig/mob/*` — `MobJig`, `MobScope`, `MobScopeCoupler`, `MobInterestRegistry`,
+`MobInterestSupplier`, `MobReconcileLogic`. The mob/entity generalization of `Scope`: a boss or other tagged
 `Mob` has state (which `Border`/level it belongs to, alive/defeated) that has to travel with the
 entity itself rather than get derived fresh from wherever it happens to be standing. Scoped to
 `Mob` specifically, not the broader `LivingEntity` — `LivingEntity` includes `Player`/
@@ -418,15 +420,30 @@ per chunk load, and a tracked entity (a boss, especially) spends most of its lif
 chunk, where no join/leave event fires on any predictable schedule. `MobJig` therefore doesn't
 wait to be told a mob exists or stops existing — a consumer registers a `MobJigConfig` interest
 supplier (the UUIDs it cares about, per level), and `MobJig` adds a reconciliation step inside
-`foundationLifecycle().pulse()` that, roughly every 20 ticks, calls `Level.getEntity(UUID)` for
-every UUID any registered supplier is interested in. A UUID that resolves and isn't yet scoped
-gets introduced (`ScopeEvent.Loaded`); a UUID that was scoped last cycle and no longer resolves
-gets torn down (`ScopeEvent.Unloaded`) — reason-agnostic, on purpose: a chunk unload and a genuine
-removal (death, discard) are indistinguishable to `Level.getEntity(UUID)` and are treated
-identically by design, the same reason-agnostic contract `LevelEvent.Unload`/
-`PlayerLoggedOutEvent` teardown already gives the other two jig kinds. `MobScope.getFor(Mob mob)`
-is a fast path onto this same machinery, not a second ingress mechanism — see its own spec page
-for what it guarantees.
+`foundationLifecycle().pulse()` that, roughly every 20 ticks, calls `ServerLevel.getEntity(UUID)`
+for every UUID any registered supplier is interested in -- `ServerLevel` specifically, not the
+common `Level`: UUID-keyed entity lookup is a server-only capability in vanilla Minecraft/Forge,
+so the poll itself is server-side only today. **That is a defect under repair, not settled
+design** — see [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md), which reverses it; a
+`CLIENT`- or `BOTH`-applicability consumer is legal at the config layer today and its scopes are
+torn down every cycle. A UUID that resolves and isn't yet scoped gets
+introduced (`ScopeEvent.Loaded`).
+
+Teardown isn't limited to whatever the interest walk just covered, though — every currently-scoped
+UUID gets its own resolvability check each cycle, not only the ones a registered supplier named
+this time. A scope attached through `MobScope.getFor(mob)` alone, with no matching interest entry
+at all, is re-resolved directly (the scope's own held `Mob` reference gives up its `Level`, cast
+to `ServerLevel`, for the same `getEntity(UUID)` check) rather than being judged solely by
+interest-supplier membership. This is what makes reason-agnostic teardown actually uniform across
+every scoped mob rather than a special case for the ones under active interest: a UUID that was
+scoped last cycle and, by either path, no longer resolves gets torn down (`ScopeEvent.Unloaded`)
+— on purpose reason-agnostic, since a chunk unload and a genuine removal (death, discard) are
+indistinguishable to `ServerLevel.getEntity(UUID)` and are treated identically by design, the
+same reason-agnostic contract `LevelEvent.Unload`/`PlayerLoggedOutEvent` teardown already gives
+the other two jig kinds. `MobScope.getFor(Mob mob)` is a fast path onto this same machinery, not
+a second ingress mechanism, and its scope is held to the exact same "stays scoped while
+resolvable, torn down when it isn't" standard as one introduced through interest alone — see its
+own spec page for what it guarantees.
 
 **A torn-down scope's backing reference is never stale, by construction.** Introducing a source
 captures its `source` reference exactly once, on the `addScope` call that creates its `ScopeInfo`

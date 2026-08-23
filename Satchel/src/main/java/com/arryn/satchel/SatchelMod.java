@@ -1,9 +1,12 @@
 package com.arryn.satchel;
 
 import com.arryn.satchel.common.net.SatchelNetwork;
+import com.arryn.satchel.common.newconfig.MobTrackingModule;
 import com.arryn.satchel.common.newconfig.PlayerTrackingModule;
 import com.arryn.satchel.common.newconfig.TrackingModule;
 import com.arryn.satchel.common.util.out.OUT;
+import com.arryn.satchel.server.commands.MobTrackCommands;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod(SatchelMod.MODID)
@@ -31,5 +34,14 @@ public class SatchelMod {
         // checklist in FRO_023 actually be checked before then.
         PlayerTrackingModule.init();
 
+        // RM_SAT_021 ("Frank") verification aid -- see MobTrackingModule's own class doc. Real
+        // consumer (Boss, RM_FRO_018) hasn't landed yet. Registering this is what makes MobJig
+        // exist as an installed jig at all -- without this call the class compiles but nothing
+        // ever reaches Satchel.registerJigConfig(...), so MobJig never actually runs.
+        MobTrackingModule.init();
+
+        // /satchel mobtrack -- the in-game surface for exercising MobTrackingModule's
+        // watch/unwatch/getFor without needing code access or a debugger.
+        MinecraftForge.EVENT_BUS.addListener(MobTrackCommands::onRegisterCommands);
     }
 }

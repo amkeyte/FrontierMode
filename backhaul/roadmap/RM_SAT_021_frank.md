@@ -3,7 +3,7 @@ id: RM_SAT_021
 uid: RM_SAT
 number: 21
 kind: work
-status: open
+status: resolved
 title: Build MobJig/MobScope
 owner: Arryn
 depends_on:
@@ -251,6 +251,8 @@ assumed).
   change to the done bar below — this was a design question, not a new verification requirement.
   Consolidated into the wiki along with the rest of this node's design per
   [SAT_034](../tickets/SAT_034_mobjig-docs.md).
+
+- 2026-08-22: **Resolved.** [SAT_035](../tickets/SAT_035_mobjig-build.md) closed `done` -- `MobJig`/`MobScope` built, and the done bar's full checklist (poll-cycle delay on introduce, tick reaching the scope, teardown within one cycle for both chunk-unload and genuine removal, no leaked scope, immediate `getFor` fast-path attachment) confirmed against a real dedicated server, not just integrated/singleplayer, including a live kill to exercise the genuine-removal teardown path distinctly from chunk-unload. [RM_FRO_018](RM_FRO_018_shirley.md) ("Shirley") is the waiting cross-graph consumer and can now build on `MobScope.getFor(mob)`, `MobJig`-scoped fixtures, and the presence poll as documented on [Jig & Scope Runtime § MobJig](../wiki/satchel/architecture/runtime.md#mobjig).
 
 ## Required By
 

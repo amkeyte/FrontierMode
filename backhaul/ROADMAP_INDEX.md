@@ -47,7 +47,7 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
 - [**RM_SAT_018**](roadmap/RM_SAT_018_edward.md) — Universal sidedness facade
-- [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) — Build MobJig/MobScope
+- [**RM_SAT_022**](roadmap/RM_SAT_022_roger.md) — Make MobJig side-agnostic
 
 ### Dependency structure
 
@@ -73,5 +73,6 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                     - [**RM_SAT_017**](roadmap/RM_SAT_017_paul.md) [convergence · reached] Prototype hardening — depends on: RM_SAT_012, RM_SAT_013, RM_SAT_014, RM_SAT_015, RM_SAT_016, RM_SAT_019
                       - [**RM_SAT_018**](roadmap/RM_SAT_018_edward.md) [convergence · WIP · ACTIONABLE] Universal sidedness facade — depends on: RM_SAT_017
                       - [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) [work · resolved] Build PlayerJig/PlayerScope — depends on: RM_SAT_017
-                      - [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) [work · open · ACTIONABLE] Build MobJig/MobScope — depends on: RM_SAT_017
+                      - [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) [work · resolved] Build MobJig/MobScope — depends on: RM_SAT_017
+                        - [**RM_SAT_022**](roadmap/RM_SAT_022_roger.md) [work · open · ACTIONABLE] Make MobJig side-agnostic — depends on: RM_SAT_021
 

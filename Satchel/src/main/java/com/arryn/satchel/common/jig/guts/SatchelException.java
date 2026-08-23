@@ -23,6 +23,43 @@ public abstract class SatchelException extends RuntimeException {
         OUT.error(message, cause);
     }
 
+    /**
+     * Silent variant -- for a subtype that is routinely thrown and caught as expected control
+     * flow rather than surfaced as a real error (see {@link BundleNotFound}'s own constructors).
+     * The two constructors above log at construction time, unconditionally, which is the right
+     * call for every other subtype here: none of them are caught anywhere in the codebase
+     * (confirmed by a repo-wide grep), so logging eagerly is the only way to guarantee a failure
+     * is visible even if some future caller catches and silently swallows it. {@code
+     * BundleNotFound} is the one exception -- {@code AScopeCoupler.getOrCreate} catches it every
+     * time {@code get()}'s internal lookup misses, specifically to fall through to creating the
+     * bundle. That's a normal "doesn't exist yet" event, not an error, but the old unconditional
+     * super(message) log meant every single scope-load across every jig kind logged an ERROR
+     * line for it anyway, doubled up with the WARN {@code getOrCreate} already logs for the same
+     * event right after. This constructor lets {@code BundleNotFound} opt out of that eager log
+     * without changing anything about the other subtypes, and without going silent on a genuine
+     * failure either: a {@code BundleNotFound} thrown somewhere that does NOT catch it (e.g.
+     * {@code get()} called directly rather than through {@code getOrCreate}) is still an
+     * uncaught {@code RuntimeException} and still surfaces via the JVM's/Forge's own stack trace
+     * reporting regardless of whether this constructor pre-logged it.
+     */
+    protected SatchelException(String message, boolean logAsError) {
+        super(message);
+        if (logAsError) {
+            OUT.error(message);
+        }
+    }
+
+    /**
+     * Cause-carrying counterpart to the silent variant above -- same reasoning, just preserves
+     * the cause chain instead of dropping it, for a subtype that wants both.
+     */
+    protected SatchelException(String message, Throwable cause, boolean logAsError) {
+        super(message, cause);
+        if (logAsError) {
+            OUT.error(message, cause);
+        }
+    }
+
     /* =============================================================
      * Access denied (policy / lifecycle violation)
      * ========================================================== */
@@ -74,11 +111,14 @@ public abstract class SatchelException extends RuntimeException {
                 "A requested bundle was not found: ";
 
         public BundleNotFound(String message) {
-            super(PREAMBLE + message);
+            super(PREAMBLE + message, false);
         }
 
         public BundleNotFound(String message, Throwable cause) {
-            super(PREAMBLE + message, cause);
+            // Unused today (every real throw site passes no cause), but kept consistent with
+            // the no-arg constructor above -- same exception type, same expected-control-flow
+            // role, so the same silent behavior applies if a cause-carrying variant ever is used.
+            super(PREAMBLE + message, cause, false);
         }
     }
 
