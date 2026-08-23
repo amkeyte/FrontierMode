@@ -1,9 +1,9 @@
 package com.arryn.satchel;
 
 import com.arryn.satchel.common.net.SatchelNetwork;
-import com.arryn.satchel.common.newconfig.MobTrackingModule;
 import com.arryn.satchel.common.newconfig.PlayerTrackingModule;
 import com.arryn.satchel.common.newconfig.TrackingModule;
+import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.commands.MobTrackCommands;
 import net.minecraftforge.common.MinecraftForge;
@@ -34,13 +34,16 @@ public class SatchelMod {
         // checklist in FRO_023 actually be checked before then.
         PlayerTrackingModule.init();
 
-        // RM_SAT_021 ("Frank") verification aid -- see MobTrackingModule's own class doc. Real
-        // consumer (Boss, RM_FRO_018) hasn't landed yet. Registering this is what makes MobJig
-        // exist as an installed jig at all -- without this call the class compiles but nothing
-        // ever reaches Satchel.registerJigConfig(...), so MobJig never actually runs.
-        MobTrackingModule.init();
+        // SAT_039 -- MobJig health check (relocated from the old MobTrackingModule, with
+        // sideApplicability widened SERVER -> BOTH) plus the always-on coordinator that
+        // spawns/discovers the canary mob. Registering this is what makes MobJig exist as an
+        // installed jig at all -- without this call the class compiles but nothing ever reaches
+        // Satchel.registerJigConfig(...), so MobJig never actually runs. See SatchelHealth's own
+        // class doc for the full mechanism, and for why it's expected to crash loudly on a real
+        // connected client until RM_SAT_022 ("Roger") lands.
+        SatchelHealth.init();
 
-        // /satchel mobtrack -- the in-game surface for exercising MobTrackingModule's
+        // /satchel mobtrack -- the in-game surface for exercising SatchelHealth's own
         // watch/unwatch/getFor without needing code access or a debugger.
         MinecraftForge.EVENT_BUS.addListener(MobTrackCommands::onRegisterCommands);
     }

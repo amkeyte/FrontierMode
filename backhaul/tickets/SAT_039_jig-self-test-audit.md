@@ -108,6 +108,21 @@ whatever `MobJig` self-test comes out of this ticket.
 
 ## Log
 
+- 2026-08-23: **Sequenced ahead of [RM_SAT_022](../roadmap/RM_SAT_022_roger.md) ("Roger") —
+  project owner's call.** This ticket lands first; Roger's build follows and leans on whatever
+  `MobJig` coverage comes out of it, rather than improvising a narrow test path inside its own
+  build. That matches item 4 above: the `CLIENT`/`BOTH` gap is the most urgent single item, and
+  it's what makes Roger's done bar checkable at all. Roger's own Lead Dev build ticket is owed and
+  gets opened once this one's `MobJig` half is in hand, so it can point at real coverage instead of
+  a promise.
+
+  **Standing constraint worth stating before anyone starts:** the agent sandbox has no
+  Gradle/Forge/JDK access — every node in this project has hit it. Tests can be *written* there but
+  not compiled or run, so "silent on pass, loud on fail" cannot be demonstrated from a session; the
+  first real green/red signal comes from the project owner's own machine. Plan the handoff around
+  that rather than discovering it at the done bar. If the audit concludes GameTest is the right
+  vehicle for the in-game half, note that it's also the half a session can least verify.
+
 - 2026-08-23: Ticket opened.
 
 - 2026-08-23: **Requirement added (project owner): tests must be external test-class routines, not
@@ -115,6 +130,53 @@ whatever `MobJig` self-test comes out of this ticket.
   and item 3 above rather than as a separate section — this is a constraint on the same deliverable,
   not a new one. Motivation stated directly: tests have to remain a distinguishable concern, not
   something peppered throughout the codebase.
+- 2026-08-23: **Shape changed from build-time tests to a live-run module, project owner's
+  explicit call — [SatchelHealth](../wiki/satchel/architecture/satchel-health.md) built for the
+  `MobJig` slice.** Not JUnit or GameTest: a permanent in-repo module (`common/tracking/
+  SatchelHealth.java`) that checks a jig kind's real behavior every time someone actually runs a
+  client/server, silent on pass, loud (log + hard crash, unconditional for now) on fail. Absorbs
+  the old `MobTrackingModule` (retired, empty stub left in place — this session's tooling has no
+  file-delete access) under the same registered IDs, with its `MobJigConfig` widened
+  `SERVER` → `BOTH`. A canary `Bat`, auto-spawned/discovered near world spawn, exercises the
+  actual client-side path via `MobScope.getFor()`; the violation check is `Mob.isRemoved()` still
+  `false` at teardown — see the wiki page for the full mechanism.
+
+  **This is expected to crash on the first real connected client, and that is success, not a
+  bug.** `RM_SAT_022` ("Roger") hasn't landed yet, so the canary's client-side scope should still
+  hit the exact latent teardown bug that node exists to fix — this module existing and catching
+  it live is the proof SAT_039 was opened to produce. First real signal has to come from the
+  project owner's own machine — this session's sandbox has no Gradle/Forge network access (Java
+  21 + Gradle are present, but maven.minecraftforge.net/Mojang/Maven Central are not reachable
+  from here), so nothing here has been compiled or run. Verification loop: project owner runs it
+  locally and reports back before this ticket's `MobJig` slice is called done.
+
+  **Scope split, not full ticket closure.** `LevelJig`/`PlayerJig` health absorption is
+  deliberately deferred — split out to [SAT_040](SAT_040_health-followup.md) at the project
+  owner's direction, so this ticket stays scoped to the one gap it was actually opened to close
+  (item 4's `MobJig` `CLIENT`/`BOTH` case). This ticket's own audit findings for `LevelJig`/
+  `PlayerJig` (no test file exists anywhere in `src/test/`) still stand and are SAT_040's starting
+  point.
+
+- 2026-08-23: **Fixed a real compile error in `SatchelHealth.java`, reported directly from the
+  project owner's own build:** `import net.minecraft.world.entity.animal.Bat;` failed with
+  `cannot find symbol` (package resolved, the class member didn't) -- isolated to that one import;
+  every other `net.minecraft.world.entity.*` import in the same file compiled fine, so this wasn't
+  a general classpath/mapping problem. Rather than chase the exact cause blind from a sandbox with
+  no Gradle/Forge access of its own, the canary's dependency on the concrete `Bat` class was
+  removed instead: `SatchelHealth` now references the species only via `EntityType.BAT`
+  (`CANARY_TYPE`) and handles the canary as a plain `Mob` everywhere -- `getEntitiesOfClass` scans
+  by `Mob.class` with a type + custom-name predicate, and spawning goes through
+  `CANARY_TYPE.create(level)` instead of `new Bat(...)`. No source line in the class names the
+  `Bat` class at all anymore. This also directly addresses the project owner's own "Bat is
+  problematic" flag -- whatever the underlying objection turns out to be (this compile error, or
+  something behavioral), swapping the canary species now is a one-line change to `CANARY_TYPE`,
+  not a type change scattered across every method that touches it. Wiki page updated to match.
+  **Still unverified** -- same sandbox constraint as every other line in this ticket: pushed to the
+  project owner's machine, not compiled here. If this doesn't clear the error, the isolated (only
+  `Bat`, nothing else in the package) failure shape is worth a `./gradlew clean --refresh-dependencies`
+  before assuming it's a code problem -- that symptom (package resolves, one specific member
+  doesn't) is a classic stale-decompiled-sources-cache signature, not typically a real mapping gap.
+
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/Satchel)
 <!-- bh-header:end -->

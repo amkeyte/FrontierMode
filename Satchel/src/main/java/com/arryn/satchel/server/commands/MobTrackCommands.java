@@ -1,7 +1,7 @@
 package com.arryn.satchel.server.commands;
 
 import com.arryn.satchel.common.jig.mob.MobScope;
-import com.arryn.satchel.common.newconfig.MobTrackingModule;
+import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -26,13 +26,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * RM_SAT_021 ("Frank") verification aid -- the in-game surface for
- * {@link MobTrackingModule#watch}/{@link MobTrackingModule#unwatch} and
+ * {@link SatchelHealth#watch}/{@link SatchelHealth#unwatch} and
  * {@link MobScope#getFor}, so the done bar's checklist can be exercised from chat without code
  * access or a debugger attached to the running server. Mirrors
  * {@code BorderCommands}/{@code BorderCommandHandler}'s Brigadier registration idiom (own class
  * doc, same package shape) -- the only pattern for touching
  * {@code MinecraftForge.EVENT_BUS}'s {@code RegisterCommandsEvent} already proven out in this
  * codebase.
+ *
+ * <p>
+ * As of SAT_039, {@code watch}/{@code unwatch}/{@code currentInterests} live on
+ * {@link SatchelHealth} (relocated from the old {@code MobTrackingModule}, same IDs and
+ * behavior) -- this class's own commands are unchanged, only the class they call into moved.
  *
  * <p>
  * {@code watch}/{@code getfor} target "the nearest {@link Mob} to the command source" rather than
@@ -97,7 +102,7 @@ public final class MobTrackCommands {
         ServerLevel level = source.getLevel();
         Mob mob = findNearestMob(source, level);
 
-        MobTrackingModule.watch(level, mob.getUUID());
+        SatchelHealth.watch(level, mob.getUUID());
 
         Entity caller = source.getEntity();
         if (caller != null) {
@@ -110,7 +115,7 @@ public final class MobTrackCommands {
         source.sendSuccess(
                 () -> msg("Watching " + mob.getType() + " " + mob.getUUID()
                         + " in " + level.dimension().location()
-                        + " -- expect a [MobTracking] LOADED line within one poll cycle (up to 1s)."),
+                        + " -- expect a [SatchelHealth] LOADED line within one poll cycle (up to 1s)."),
                 false
         );
         return 1;
@@ -137,12 +142,12 @@ public final class MobTrackCommands {
         LastWatched last = caller == null ? null : LAST_WATCHED.get(caller.getUUID());
 
         if (last != null) {
-            MobTrackingModule.unwatch(last.level(), last.mobUuid());
+            SatchelHealth.unwatch(last.level(), last.mobUuid());
             LAST_WATCHED.remove(caller.getUUID());
             source.sendSuccess(
                     () -> msg("Unwatched " + last.label() + " " + last.mobUuid()
                             + " -- the existing scope (if any) tears down on the next poll cycle,"
-                            + " not instantly; expect a [MobTracking] UNLOADED line within ~1s."),
+                            + " not instantly; expect a [SatchelHealth] UNLOADED line within ~1s."),
                     false
             );
             return 1;
@@ -153,12 +158,12 @@ public final class MobTrackCommands {
         // clearly labelled as a fallback rather than silently guessing.
         ServerLevel level = source.getLevel();
         Mob mob = findNearestMob(source, level);
-        MobTrackingModule.unwatch(level, mob.getUUID());
+        SatchelHealth.unwatch(level, mob.getUUID());
         source.sendSuccess(
                 () -> msg("No recorded watch target for you -- falling back to nearest mob."
                         + " Unwatched " + mob.getType() + " " + mob.getUUID()
                         + " -- the existing scope (if any) tears down on the next poll cycle,"
-                        + " not instantly; expect a [MobTracking] UNLOADED line within ~1s."),
+                        + " not instantly; expect a [SatchelHealth] UNLOADED line within ~1s."),
                 false
         );
         return 1;
@@ -190,7 +195,7 @@ public final class MobTrackCommands {
     private static int list(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
 
-        Map<ServerLevel, Set<UUID>> interests = MobTrackingModule.currentInterests();
+        Map<ServerLevel, Set<UUID>> interests = SatchelHealth.currentInterests();
 
         if (interests.isEmpty() || interests.values().stream().allMatch(Set::isEmpty)) {
             source.sendSuccess(() -> msg("No mobs currently watched."), false);
@@ -201,7 +206,7 @@ public final class MobTrackCommands {
         // that removes an entry here. A mob whose scope already tore down via chunk unload (see
         // MobJig's reason-agnostic teardown) still shows up in this list until it's explicitly
         // unwatched -- interest and "currently has a live MobScope" are two different things.
-        // Check [MobTracking] LOADED/UNLOADED lines in the server log for the latter.
+        // Check [SatchelHealth] LOADED/UNLOADED lines in the server log for the latter.
         int total = 0;
         for (Map.Entry<ServerLevel, Set<UUID>> entry : interests.entrySet()) {
             if (entry.getValue().isEmpty()) {

@@ -93,9 +93,9 @@ one reconcile cycle.
 - [Jig & Scope Runtime § MobJig](../wiki/satchel/architecture/runtime.md#mobjig) — currently states
   the server-only constraint as settled design; corrected as part of this node's work
 - [MobScope.getFor() Contract](../wiki/satchel/spec/mobscope-getfor.md)
-- [Universal Sidedness Facade](../wiki/satchel/architecture/facade-vision.md) — this node is a
-  concrete instance of that vision's argument, worth reading alongside
-  [RM_SAT_018](RM_SAT_018_edward.md)
+- [Universal Sidedness Facade](../wiki/satchel/architecture/facade-vision.md) — this node is the
+  first concrete instance of that vision's argument
+- [RM_SAT_023](RM_SAT_023_raymond.md) ("Raymond") — the convergence this node reaches
 
 - 2026-08-22: Node opened by PM off the project owner's ruling. Architect ticket:
   [SAT_037](../tickets/SAT_037_mobjig-sidedness.md).
@@ -110,11 +110,18 @@ one reconcile cycle.
   `MobJig.reconcile()`'s both phases and `MobInterestSupplier.interestedMobs()`
   (→ `Map<Level, Set<UUID>>`) resolve through it instead of touching `ServerLevel` directly. Fixes
   the latent client-side teardown bug above as a consequence of unifying the mechanism, not a
-  separate patch. Ruled a neighbour of [RM_SAT_018](RM_SAT_018_edward.md) ("Edward"), not a piece of
+  separate patch. Ruled a neighbour of RM_SAT_018 ("Edward"), not a piece of
   it — no `depends_on` edit. Adjacent finding split out to
   [SAT_038](../tickets/SAT_038_booter-visibility.md) rather than folded in here. This node's own
   `depends_on`/scope are unchanged; it now has a settled design to build against.
 
+- 2026-08-23: **Sequenced behind [SAT_039](../tickets/SAT_039_jig-self-test-audit.md) — project
+  owner's call.** SAT_039 builds the per-jig-kind self-test coverage first; this node's build
+  follows and verifies against it. The design here is settled and unchanged
+  ([SAT_037](../tickets/SAT_037_mobjig-sidedness.md)) — this is purely about not implementing
+  something whose done bar has nothing to check it. **This node's own Lead Dev build ticket is owed,
+  not yet opened**, deliberately: it gets written once SAT_039's `MobJig` half exists, so it can
+  point at real coverage rather than at a promise.
 - 2026-08-23: **Verification-tooling gap flagged, tracked separately:
   [SAT_039](../tickets/SAT_039_jig-self-test-audit.md).** Nothing in either repo currently registers
   a `CLIENT`/`BOTH`-applicability `MobJig` consumer — `MobTrackingModule` stays `SERVER` by its own
