@@ -23,6 +23,12 @@ public final class BordersFixture
     private static final String KEY_BORDERS = "borders";
     // Canonical progression order
     private static final String KEY_BORDER_PATH = "border_path";
+    // RM_FRO_018: whether this level's path has ever had a border appended to it, ever -- set
+    // once inside BordersPathFacet.grow()'s own append (every caller, not just the bootstrap
+    // case), cleared by nothing. isEmpty() alone can't distinguish "brand-new world" from "an
+    // admin removed every border," so this is what BorderModule's own ScopeEvent.Loaded bootstrap
+    // hook checks instead -- see Border's "Known gaps" section.
+    private static final String KEY_SEEDED = "seeded";
     public final BordersPathFacet PATH = new BordersPathFacet(this);
     ;
     public final BordersCrudFacet CRUD = new BordersCrudFacet(this);
@@ -36,6 +42,7 @@ public final class BordersFixture
     // ---------------------------------------------------------------------
     final List<UUID> borderPath = new ArrayList<>();
     private final List<Border> borders;
+    private boolean seeded = false;
 
     // ---------------------------------------------------------------------
     // Authority
@@ -52,6 +59,16 @@ public final class BordersFixture
                 KEY_BORDERS,
                 this::saveBorders,
                 this::loadBorders
+        );
+
+        registerCustom(
+                KEY_SEEDED,
+                tag -> tag.putBoolean(KEY_SEEDED, seeded),
+                tag -> {
+                    if (tag.contains(KEY_SEEDED)) {
+                        seeded = tag.getBoolean(KEY_SEEDED);
+                    }
+                }
         );
     }
 
@@ -112,6 +129,23 @@ public final class BordersFixture
         return scope() != null
                 ? scope().uuid()
                 : new UUID(0L, 0L);
+    }
+
+    boolean seeded() {
+        return seeded;
+    }
+
+    /**
+     * Marks this level's path as seeded -- called once by {@link BordersPathFacet#grow()} inside
+     * its own path append, covering every caller uniformly (organic growth, an admin command, a
+     * future debug trigger). Never cleared once set, including by border removal -- see this
+     * class's {@code KEY_SEEDED} field doc and Border's "Known gaps" wiki section for why
+     * {@code isEmpty()} alone can't stand in for this.
+     */
+    void markSeeded() {
+        if (!seeded) {
+            seeded = true;
+        }
     }
 
     // ---------------------------------------------------------------------

@@ -81,6 +81,11 @@ public final class BordersPathFacet {
     /**
      * Advance the canonical border progression by one step.
      * Creates a new border and appends it to the path tip.
+     *
+     * <p>RM_FRO_018: also marks this level's path {@code seeded} -- once, inside this same
+     * append, covering every caller uniformly (organic growth, an admin command, a future debug
+     * trigger, and the {@code getInitial()} bootstrap branch below). Never cleared once set, even
+     * by later removing every border -- see {@code BordersFixture}'s {@code KEY_SEEDED} field doc.
      */
     public Border grow() {
         fixture.requireServerSide();
@@ -96,6 +101,7 @@ public final class BordersPathFacet {
 
         // append to canonical path
         fixture.borderPath.add(border.id());
+        fixture.markSeeded();
         fixture.markPathDirty();
 
         return border;

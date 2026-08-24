@@ -31,6 +31,15 @@ public final class BordersInfoFacet {
         return setting.revision();
     }
 
+    /**
+     * RM_FRO_018: whether this level's path has ever had a border appended to it, ever. See
+     * {@code BordersFixture}'s {@code KEY_SEEDED} field doc and Border's "Known gaps" wiki
+     * section -- {@code BorderModule}'s own bootstrap hook reads this, not {@code PATH.isEmpty()}.
+     */
+    public boolean seeded() {
+        return setting.seeded();
+    }
+
     //package private accessors
 
     /**

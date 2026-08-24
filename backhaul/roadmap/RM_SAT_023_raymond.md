@@ -3,7 +3,7 @@ id: RM_SAT_023
 uid: RM_SAT
 number: 23
 kind: convergence
-status: WIP
+status: reached
 title: Scope generalizes beyond Level
 owner: Arryn
 depends_on:
@@ -40,9 +40,9 @@ data point.
   poll-driven ingress: presence is actively re-verified rather than announced by a Forge
   join/leave event, because a tracked mob spends most of its life in an unloaded chunk.
   Dedicated-server verified.
-- **[RM_SAT_022](RM_SAT_022_roger.md) ("Roger") — side-agnostic `MobJig`**, `open`. The last
+- **[RM_SAT_022](RM_SAT_022_roger.md) ("Roger") — side-agnostic `MobJig`**, `resolved`. The last
   piece, and the one that makes the claim honest: a jig kind whose mechanism does not assume a
-  side. Reaches this node when it lands.
+  side.
 
 ## Why this is a convergence and the facade vision isn't
 
@@ -68,12 +68,18 @@ Tier 2-3.
 
 ## Reaching this node
 
-All three children `resolved`, which today means Roger. Not automatic: a conscious flip on real
-evidence, same standard [RM_SAT_017](RM_SAT_017_paul.md) ("Paul") used. The specific thing worth
-confirming before flipping is that Roger's side-agnostic mechanism is verified on both sides
-rather than only argued — Roger's own done bar names a dedicated server plus a connected client
-for exactly that reason.
+Reached 2026-08-24. All three children resolved, and the thing worth confirming before flipping —
+Roger's side-agnostic mechanism verified on both sides, not only argued — is confirmed:
+[SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md)'s second, longer verification run
+showed a client-scoped `MobScope` surviving thirteen consecutive reconcile cycles over a full
+minute, then unloading cleanly with no violation on a real teardown, against a real dedicated
+server plus a connected client. Same standard [RM_SAT_017](RM_SAT_017_paul.md) ("Paul") used.
 
+- 2026-08-24: **Reached — flipped by PM.** All three children (`RM_SAT_020`/`RM_SAT_021`/
+  `RM_SAT_022`) confirmed `resolved`; Roger's side-agnostic mechanism is live-verified per
+  [SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md), not just argued. Flagged as ready by
+  [FRO_042](../tickets/FRO_042_shirley-prep.md)'s own closing note, which found this node's prose
+  stale while closing out unrelated work and correctly left the flip itself to PM.
 - 2026-08-23: Node opened by PM, replacing the retired RM_SAT_018 as this graph's forward
   convergence. Project owner's call.
 

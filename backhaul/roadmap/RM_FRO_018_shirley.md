@@ -10,7 +10,7 @@ depends_on:
 - RM_FRO_010
 created: '2026-08-16'
 superseded_by: null
-ticket: null
+ticket: FRO_043
 ---
 
 <!-- bh-header:start -->
@@ -37,6 +37,31 @@ Item 4 (promoting the `getFor` spec page) is still open, not blocking this node.
 *Name note: "Shirley" also named RM_FRO_014, a Tier 0 convergence deleted 2026-08-16 — so a bare
 "Shirley" in older prose may mean either node. Always pair the name with its ID. Reusing a retired
 node's persona is no longer done; see [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md).*
+
+- 2026-08-24: **[FRO_043](../tickets/FRO_043_boss-build.md) closed** — real build, real
+  dedicated-server + client playtest (a client-side crash found and fixed mid-pass; see
+  the ticket's own log), fresh-level bootstrap and the two-fixture data model both
+  confirmed working. This node stays `open` rather than moving to `resolved`: its own
+  done bar below isn't literally fully met yet. The `/kill` self-heal bullet is accepted
+  as unmet, on the project owner's own call — not an oversight.
+
+  **Note on the done bar's own wording, added closing out FRO_043:** "bootstrap
+  catch-up" below still describes bullet 4's original design above — a recurring
+  `BORDERS_JIG` tick check against the path-tip border, claimed there to self-heal a
+  `/kill` even without a `LivingDeathEvent` listener. `boss.md` walked that back to the
+  one-shot `seeded`-flag bootstrap FRO_043 actually built, explicitly punting self-heal
+  to [RM_FRO_019](RM_FRO_019_karen.md) as an open design question rather than inventing
+  a heuristic. Nothing updated this done bar's text to match that walk-back at the time
+  — it still promises more than the settled design delivers on its own. Left as-is here
+  rather than silently rewritten, per this project's "don't rewrite history" convention;
+  treat the gap as known, not as a regression, until either RM_FRO_019 closes it for
+  real or the done bar itself is deliberately revised.
+
+- 2026-08-24: **Lead Dev build ticket opened: [FRO_043](../tickets/FRO_043_boss-build.md).**
+  Architect prep ([FRO_042](../tickets/FRO_042_shirley-prep.md)) closed — `boss.md` and the
+  `getFor` spec page both `verified` — and both Satchel prerequisites this node leans on
+  ([RM_SAT_021](RM_SAT_021_frank.md) "Frank", [RM_SAT_022](RM_SAT_022_roger.md) "Roger") are
+  `resolved` and live-verified. `ticket:` field set to FRO_043.
 
 - 2026-08-23: **`getInitial()` traced, and the real gap resolved: nothing auto-bootstraps a fresh
   level's first border — not a hidden call site.** `getInitial()` has exactly one call site in the

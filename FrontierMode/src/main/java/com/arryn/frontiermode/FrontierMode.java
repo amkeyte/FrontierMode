@@ -3,6 +3,7 @@ package com.arryn.frontiermode;
 import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
+import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
@@ -56,6 +57,11 @@ public final class FrontierMode {
 
         // Initialize the Border module (fixtures, tick handler, commands)
         BorderModule.init();
+
+        // RM_FRO_018 (Shirley): Boss entity/spawn system. Depends on Border -- must init after
+        // it, never the reverse (Boss's level-bootstrap pairing reads Border's own
+        // ScopeEvent.Loaded hook; see BorderModule's own bootstrap handler).
+        BossModule.init();
     }
 
     // ------------------------------------------------------------

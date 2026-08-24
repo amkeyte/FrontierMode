@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-23'
+updated: '2026-08-24'
 ---
 
 <!-- bh-header:start -->
@@ -29,7 +29,9 @@ distance-from-origin concepts (see [Progression & Frontier
 Mechanics](../design/progression.md)). Future modules are expected to build on Border's public
 surface, which is exactly why `BorderAPI` already being trigger-agnostic — any caller can propose
 a change; nothing is tied to command-handling specifically, see "Commands and client surface"
-below — matters more than it would for a module nothing else depends on.
+below — matters more than it would for a module nothing else depends on. [Boss](boss.md) is the
+first such consumer: its bootstrap and record-creation hooks read `BordersFixture` and
+`BorderAPI` directly (see "Runtime wiring" below).
 
 ## Design vocabulary bridge
 
@@ -60,10 +62,10 @@ that page.
 ## Data model
 
 `BordersFixture` (`border/common/fixture/BordersFixture.java`) is the persisted-state unit — a
-`SatchelFixture` holding the list of `Border` objects and a `borderPath` (an ordered progression
-of border UUIDs). It registers its state with `registerCustom(...)`, hand-rolling save/load for
-the border list and path rather than using the primitive field helpers, since both are
-collections of structured objects.
+`SatchelFixture` holding the list of `Border` objects, a `borderPath` (an ordered progression of
+border UUIDs), and a `seeded` boolean (see "Runtime wiring" below). It registers its state with
+`registerCustom(...)`, hand-rolling save/load for the border list and path rather than using the
+primitive field helpers, since both are collections of structured objects.
 
 It exposes four **facets** — small accessor classes constructed with a back-reference to the
 owning fixture, each covering one slice of the fixture's API:
@@ -71,7 +73,7 @@ owning fixture, each covering one slice of the fixture's API:
 - `PATH` (`BordersPathFacet`) — border progression order
 - `CRUD` (`BordersCrudFacet`) — create/read/update/delete on individual borders
 - `RULES` (`BordersRulesFacet`) — rule evaluation surface
-- `INFO` (`BordersInfoFacet`) — read-only queries (scope, level, UUID, revision)
+- `INFO` (`BordersInfoFacet`) — read-only queries (scope, level, UUID, revision, `seeded()`)
 
 This is the canonical example of Satchel's fixture/facet split (see
 [Fixture](../../satchel/architecture/fixture.md)): the fixture is the one persisted unit; facets
@@ -130,11 +132,29 @@ once from `FrontierMode`'s constructor. It:
    ([FRO_014](../../../tickets/FRO_014_border-persistence-crash.md)), not by reading source alone —
    `LevelJigConfig`'s default `Persistence` policy (`persistent = false`) compiles cleanly with
    javac, so this was invisible to every prior "does it compile" check in this project's history.
-5. Builds an `EventHandlers` (`EventHandlers.builder().on(ScopeEvent.Tick.class, ...).build()`)
-   subscribing `BordersTriggers::updateFinderItems` and `Rendering::onClientTick`, attached via
-   `config.execution().eventHandlers(...)` — replaces the old `BorderStrap` entirely; no wrapper
-   abstraction needed, `LogicalFoundation.installConfigs()` calls `.install(bus)` on it directly.
+5. Builds an `EventHandlers` (`EventHandlers.builder().on(ScopeEvent.Tick.class, ...).on(ScopeEvent.Loaded.class, ...).build()`)
+   subscribing `BordersTriggers::updateFinderItems` and `Rendering::onClientTick` to `Tick`, and
+   `onBordersScopeLoaded` (see below) to `Loaded` — attached via `config.execution().eventHandlers(...)` —
+   replaces the old `BorderStrap` entirely; no wrapper abstraction needed,
+   `LogicalFoundation.installConfigs()` calls `.install(bus)` on it directly.
 6. Registers the finished config with `Satchel.registerJigConfig(config)`.
+
+**A fresh level's first border bootstraps itself, without any command or trigger.**
+`BordersFixture.INFO.seeded()` (backed by the persisted `seeded` boolean set once inside
+`BordersPathFacet.grow()`'s own path append, and never cleared afterward — including by later
+removing every border) is what distinguishes a level that has never had a border from one an
+admin has cleared down to empty; `PATH.isEmpty()` alone can't make that distinction, so it isn't
+what this checks. `onBordersScopeLoaded`, subscribed to `BORDERS_JIG`'s own `ScopeEvent.Loaded`
+and filtered to the overworld, calls `BorderAPI.grow(level)` when `seeded()` is false, then hands
+the resulting `Border` to `BossAPI.createBoss(level, border)` in the same handler. Server-side
+only, guarded the same way `BordersTriggers`' own `Tick` handlers already are
+(`Satchel.require().side() == LogicalSide.CLIENT`) — `BORDERS_JIG` is `BOTH`-applicability, so
+`ScopeEvent.Loaded` fires on the client's own `LevelJig` too, and both calls here mutate
+persisted state — see
+[Boss § Defeat detection and the border-growth gap](boss.md#defeat-detection-and-the-border-growth-gap)
+for the paired-call convention this follows, and why the call lives here rather than on Boss's own
+side (Boss depends on Border, never the reverse; `BossModule.init()` runs after
+`BorderModule.init()` for the same reason).
 
 Rule evaluation is server-side: `BorderLogic` + `DefaultBorderRules` (`border/server/rules/*`)
 decide whether a proposed border change is legal; `BordersTriggers` hooks world events (e.g.
@@ -185,23 +205,6 @@ own relationship to the Frontier," only an architecture-side mechanism for compu
 question rather than Game Designer's, and deliberately not worth resolving until something needs it:
 the likeliest forcing function is multiplayer's "whose frontier is it," parked in [Multiplayer Sketch
 (Parked)](../design/multiplayer-sketch.md).
-
-**Nothing currently auto-bootstraps a fresh level's first border.** `BordersPathFacet.grow()`
-already self-bootstraps correctly when the path is empty — `tip()` absent falls through to
-`fixture.logic.getInitial()` in the same branch that otherwise calls `logic.grow(previous)`,
-restored to correct behavior by [RM_FRO_015](../../../roadmap/RM_FRO_015_margaret.md)'s "pathGrow's
-backwards empty-path bootstrap guard" fix. `getInitial()` has exactly one call site in the
-codebase — this one — so an empty path only becomes a border again when something calls `grow()`,
-and nothing does that automatically on level load. `isEmpty()` can't be trusted to mean "brand-new
-world," either: an admin who removes every border produces the identical empty state, and
-auto-recreating from that would take the admin out of control of their own world. Settled fix, not
-yet built: a persisted `seeded` flag on `BordersFixture` (set once, inside this same `grow()`
-append, cleared by nothing) plus a `BorderModule` subscription to Satchel's own `ScopeEvent.Loaded`
-(not a new raw Forge listener) that calls `BorderAPI.grow(level)` only when `!seeded` — a fresh
-world bootstraps once, and a later removal stays removed until something really calls `grow()`
-again. Tracked on [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md), since
-[Boss](boss.md#defeat-detection-and-the-border-growth-gap)'s own paired record-creation call for a
-level's first border belongs at this exact hook.
 
 **Mutation validation, render lifecycle, and fixture/item robustness gaps.** A source-level
 resilience pass found several structural gaps in the mutation, rendering, and persistence paths

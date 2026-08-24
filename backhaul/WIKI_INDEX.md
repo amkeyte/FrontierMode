@@ -75,6 +75,7 @@
 | [New Module Checklist](wiki/satchel/architecture/new-module-checklist.md) | draft | Footguns every new Satchel jig/module consumer has hit at least once -- register schema only, wire executionPulse if sync is needed, wire Forge listeners, respect LogicalSideContext thread discipline, keep bundles single-concern. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/new-module-checklist.md) |
 | [Persistence](wiki/satchel/architecture/persistence.md) | verified | Server-side per-bundle persistence architecture (Satchel 2.0) -- BundleSavedData, identity rules, dirty propagation. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/persistence.md) |
 | [Jig & Scope Runtime](wiki/satchel/architecture/runtime.md) | verified | The jig/scope/foundation tick-and-event delivery machinery underneath Satchel -- foundations, the dispatch chain, JigConfig registration, and the three jig kinds. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/runtime.md) |
+| [SatchelHealth](wiki/satchel/architecture/satchel-health.md) | draft | Satchel's run-monitoring / self-verification home -- live regression checks for MobJig, LevelJig, and PlayerJig, checked every real client/server run rather than gated behind gradle test. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/satchel-health.md) |
 
 ## satchel/spec
 

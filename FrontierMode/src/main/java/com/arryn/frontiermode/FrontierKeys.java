@@ -4,11 +4,16 @@ import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
+import com.arryn.frontiermode.boss.common.bundle.BossBundle;
+import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
+import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.level.LevelJig;
+import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.player.PlayerJig;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -52,6 +57,48 @@ public final class FrontierKeys {
             new JigKey<>(
                     "frontiermode:border_player_jig",
                     PlayerJig.class
+            );
+
+    // RM_FRO_018 (Shirley): Boss entity/spawn system. Two independent jig configs -- BossFixture
+    // is LevelJig-scoped (one record collection per level, persisted), BossMobFixture is
+    // MobJig-scoped (one live view per currently-materialized boss entity, not persisted). See
+    // BossModule.init() for the schema/config wiring, and wiki/frontiermode/architecture/boss.md
+    // for the design these keys back.
+
+    public static final BundleKey<BossBundle> BOSS_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:boss_bundle",
+                    BossBundle.class
+            );
+
+    public static final FixtureKey<BossFixture> BOSS =
+            new FixtureKey<>(
+                    "frontiermode:boss_fixture",
+                    BossFixture.class
+            );
+
+    public static final JigKey<LevelJig> BOSS_JIG =
+            new JigKey<>(
+                    "frontiermode:boss_jig",
+                    LevelJig.class
+            );
+
+    public static final BundleKey<BossMobBundle> BOSS_MOB_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:boss_mob_bundle",
+                    BossMobBundle.class
+            );
+
+    public static final FixtureKey<BossMobFixture> BOSS_MOB =
+            new FixtureKey<>(
+                    "frontiermode:boss_mob_fixture",
+                    BossMobFixture.class
+            );
+
+    public static final JigKey<MobJig> BOSS_MOB_JIG =
+            new JigKey<>(
+                    "frontiermode:boss_mob_jig",
+                    MobJig.class
             );
 
 
