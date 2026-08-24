@@ -7,8 +7,8 @@ summary: 'The static-factory boundary contract BossModule and Shirley''s defeat 
   depend on: fast-path semantics, the Optional.empty() removed-reference case, and
   what it guarantees about poll-cycle timing.'
 keywords: null
-status: draft
-updated: '2026-08-21'
+status: verified
+updated: '2026-08-24'
 ---
 
 <!-- bh-header:start -->
@@ -78,7 +78,11 @@ reference to.
   unresolvable, the poll tears the scope down — treated identically to a genuine removal (see
   [Jig & Scope Runtime](../architecture/runtime.md#mobjig)) — and a previously-returned `MobScope`
   refers to state that no longer exists. A consumer needing the current, guaranteed-live entity
-  re-resolves it fresh via `Level.getEntity(UUID)` rather than caching the object `getFor` returned.
+  re-resolves it fresh via `Satchel.require().egress().getEntity(level, uuid)` (`ForgeEgress`, the
+  side-resolved lookup [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md) ("Roger") shipped — see
+  [Jig & Scope Runtime § MobJig](../architecture/runtime.md#mobjig)) rather than caching the object
+  `getFor` returned. Note the return type is `Optional<Entity>`, not `Optional<Mob>` — a caller
+  narrowing back to `Mob` is responsible for its own check.
 - **`getFor` carries no domain meaning of its own.** `introduceSource` only makes the `Mob` visible
   to Satchel's scope machinery — it doesn't make a mob a boss, or tracked, or anything else. Domain
   meaning (a `BossMobFixture`, defeat handling) is entirely the calling module's responsibility,

@@ -420,27 +420,31 @@ per chunk load, and a tracked entity (a boss, especially) spends most of its lif
 chunk, where no join/leave event fires on any predictable schedule. `MobJig` therefore doesn't
 wait to be told a mob exists or stops existing — a consumer registers a `MobJigConfig` interest
 supplier (the UUIDs it cares about, per level), and `MobJig` adds a reconciliation step inside
-`foundationLifecycle().pulse()` that, roughly every 20 ticks, calls `ServerLevel.getEntity(UUID)`
-for every UUID any registered supplier is interested in -- `ServerLevel` specifically, not the
-common `Level`: UUID-keyed entity lookup is a server-only capability in vanilla Minecraft/Forge,
-so the poll itself is server-side only today. **That is a defect under repair, not settled
-design** — see [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md), which reverses it; a
-`CLIENT`- or `BOTH`-applicability consumer is legal at the config layer today and its scopes are
-torn down every cycle. A UUID that resolves and isn't yet scoped gets
-introduced (`ScopeEvent.Loaded`).
+`foundationLifecycle().pulse()` that, roughly every 20 ticks, resolves every UUID any registered
+supplier is interested in through `ForgeEgress` (`common/jig/guts/ForgeEgress`,
+`Optional<Entity> getEntity(Level, UUID)`) -- side-resolved at foundation boot exactly like
+`ScopeEngine` already is, not cast to `ServerLevel` directly. [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md)
+("Roger") built this: before it, the poll called `ServerLevel.getEntity(UUID)` directly, which
+meant a `CLIENT`- or `BOTH`-applicability consumer was legal at the config layer but had its
+scopes torn down every cycle regardless of the mob's real state, since nothing could resolve a
+UUID on the client side at all. `ServerForgeEgress` (`server/lifecycle/`) is that same
+`ServerLevel.getEntity(UUID)` call, relocated unchanged; `ClientForgeEgress`
+(`client/lifecycle/`) resolves by iterating `ClientLevel#entitiesForRendering()` for a UUID
+match, since `ClientLevel` has no UUID-keyed index the way `ServerLevel` does. A UUID that
+resolves and isn't yet scoped gets introduced (`ScopeEvent.Loaded`).
 
 Teardown isn't limited to whatever the interest walk just covered, though — every currently-scoped
 UUID gets its own resolvability check each cycle, not only the ones a registered supplier named
 this time. A scope attached through `MobScope.getFor(mob)` alone, with no matching interest entry
-at all, is re-resolved directly (the scope's own held `Mob` reference gives up its `Level`, cast
-to `ServerLevel`, for the same `getEntity(UUID)` check) rather than being judged solely by
-interest-supplier membership. This is what makes reason-agnostic teardown actually uniform across
-every scoped mob rather than a special case for the ones under active interest: a UUID that was
-scoped last cycle and, by either path, no longer resolves gets torn down (`ScopeEvent.Unloaded`)
-— on purpose reason-agnostic, since a chunk unload and a genuine removal (death, discard) are
-indistinguishable to `ServerLevel.getEntity(UUID)` and are treated identically by design, the
-same reason-agnostic contract `LevelEvent.Unload`/`PlayerLoggedOutEvent` teardown already gives
-the other two jig kinds. `MobScope.getFor(Mob mob)` is a fast path onto this same machinery, not
+at all, is re-resolved directly (the scope's own held `Mob` reference gives up its `Level`,
+resolved through the same `ForgeEgress` the interest walk uses -- no cast, either side) rather
+than being judged solely by interest-supplier membership. This is what makes reason-agnostic
+teardown actually uniform across every scoped mob rather than a special case for the ones under
+active interest: a UUID that was scoped last cycle and, by either path, no longer resolves gets
+torn down (`ScopeEvent.Unloaded`) -- on purpose reason-agnostic, since a chunk unload and a
+genuine removal (death, discard) are indistinguishable to `ForgeEgress#getEntity` and are treated
+identically by design, the same reason-agnostic contract `LevelEvent.Unload`/
+`PlayerLoggedOutEvent` teardown already gives the other two jig kinds. `MobScope.getFor(Mob mob)` is a fast path onto this same machinery, not
 a second ingress mechanism, and its scope is held to the exact same "stays scoped while
 resolvable, torn down when it isn't" standard as one introduced through interest alone — see its
 own spec page for what it guarantees.

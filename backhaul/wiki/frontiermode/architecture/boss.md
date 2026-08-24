@@ -7,7 +7,7 @@ summary: Boss entity/spawn system design for Tier 1 -- data model, spawn algorit
   and the defeat-detection caller into BorderAPI. RM_FRO_018/019 build against this.
 keywords: null
 status: verified
-updated: '2026-08-23'
+updated: '2026-08-24'
 ---
 
 <!-- bh-header:start -->
@@ -138,7 +138,11 @@ A new `BossModule.init()`, following the same shape `BorderModule.init()` alread
    `MobJig.reconcile` actually receives each pulse — never holds a reference back to the
    originating config instance, so Frank shipped a standalone registry instead:
    `MobInterestRegistry.register(key, supplier)`, keyed by the same `JigKey` `reconcile` already
-   has in hand as `info.key`. `MobTrackingModule` is the shipped worked example — its own `init()`
+   has in hand as `info.key`. `MobInterestSupplier.interestedMobs()` returns
+   `Map<Level, Set<UUID>>` — widened from the `ServerLevel`-keyed shape Frank shipped, now that
+   [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md) ("Roger") has shipped `ForgeEgress`; write
+   `BossModule`'s supplier against `Level`, even though its own `sideApplicability` stays `SERVER`.
+   `MobTrackingModule` is the shipped worked example — its own `init()`
    calls `MobInterestRegistry.register(JIG, () -> INTERESTS)` right alongside
    `Satchel.registerJigConfig(config)`; `BossModule.init()` follows the identical shape. `init()`
    itself must actually be invoked from `SatchelMod`'s constructor —
@@ -188,9 +192,12 @@ materialization.
 `LevelJig`/`PlayerJig` have no equivalent mechanism to reuse here — `MobJig` accepts a per-consumer
 interest supplier ("here are the UUIDs I care about, on this level") and runs a reconciliation
 step inside `foundationLifecycle().pulse()` — the same pulse `ServerForgeIngress.onExecutionPulse`
-already drives every server tick — checking `Level.getEntity(UUID)` for each supplied UUID.
-`Level.getEntity` doesn't require the chunk to already be loaded to safely call it; it's a lookup
-against whatever's currently present and simply returns null otherwise, so this can run
+already drives every server tick — checking
+`Satchel.require().egress().getEntity(level, uuid)` for each supplied UUID (`ForgeEgress`, the
+side-resolved lookup [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md) ("Roger") shipped; Boss's
+own consumer stays `SERVER`-applicability, so for `BossModule` this still only ever runs through
+`ServerForgeIngress`). This doesn't require the chunk to already be loaded to safely call it; it's
+a lookup against whatever's currently present and simply returns empty otherwise, so this can run
 unconditionally rather than waiting for some other signal to say "check now." Found-and-not-yet-
 scoped fires `ScopeEvent.Loaded` (triggers `BossModule`'s attach handler); previously-scoped-and-
 now-absent fires `ScopeEvent.Unloaded` (triggers the release handler) — reason-agnostic, the same
@@ -337,12 +344,6 @@ after, as a sibling step, extracting `position`/`layer` from the `Border` that c
   see "Defeat detection and the border-growth gap" above and [Border's Known
   gaps](border.md#known-gaps). Not yet built; when it is, this record's paired boss-creation call
   goes at the same `ScopeEvent.Loaded` hook.
-- **`MobInterestSupplier.interestedMobs()`'s exact map-key type is provisional.** Frank shipped it
-  typed against `ServerLevel`. [RM_SAT_022](../../../roadmap/RM_SAT_022_roger.md) ("Roger") has
-  since settled a side-neutral resolution design (a new `ForgeEgress`, `Level`-keyed) that reverses
-  this, not yet built. `BossModule` implements this interface, so write it against whatever Roger
-  ships, not against `ServerLevel` — Boss's own `sideApplicability` stays `SERVER` either way;
-  defeat detection is server-only regardless of the map's key type.
 - **A tracked boss removed by something that never fires `LivingDeathEvent` still needs its own
   reconciliation check** — see "What can actually go wrong" above. An open design question, not an
   assumed answer.

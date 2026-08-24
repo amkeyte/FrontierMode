@@ -3,13 +3,13 @@ id: FRO_042
 uid: FRO
 number: 42
 client: FrontierMode
-status: open
+status: done
 title: Architect prep for Shirley (RM_FRO_018)
 context: boss.md describes a MobJig interest API that shipped differently, and is
   still draft.
 priority: high
 opened: '2026-08-22'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -130,6 +130,34 @@ will be reading it either way.
   [Boss](../wiki/frontiermode/architecture/boss.md#known-gaps), and
   [RM_FRO_018](../roadmap/RM_FRO_018_shirley.md)'s log. Design only, not yet built. All of items 1-3
   are now done; item 4 remains open.
+
+- 2026-08-24: **Item 4 done, ticket closed (Architect).** [RM_SAT_022](../roadmap/RM_SAT_022_roger.md)
+  ("Roger") shipped — [SAT_041](SAT_041_mobjig-side-agnostic-build.md), confirmed live against a
+  real dedicated server plus a connected client. [MobScope.getFor() Contract](../wiki/satchel/spec/mobscope-getfor.md)
+  promoted `draft` → `verified`. Its one inaccuracy is fixed as part of this promotion, not left
+  standing: "What this contract does not guarantee" named re-resolution via `Level.getEntity(UUID)`,
+  a method that never existed on `Level` — corrected to name the actual shipped mechanism,
+  `Satchel.require().egress().getEntity(level, uuid)` (`ForgeEgress`), with a note that it returns
+  `Optional<Entity>`, not `Optional<Mob>`. Everything else on the page (fast-path/idempotency
+  guarantees, the `Optional.empty()` cases, threading) was already accurate and needed no change —
+  the contract itself was correct even before Roger; only this one forward-looking sentence was
+  wrong.
+
+  Found and fixed the same class of staleness on [Boss](../wiki/frontiermode/architecture/boss.md)
+  while in the area, since it's already `verified` and is what Shirley builds from: "Three
+  questions, three different mechanisms" named the same nonexistent `Level.getEntity(UUID)` call
+  for `MobJig`'s presence poll, corrected the same way. "Known gaps"' `interestedMobs()` map-key-type
+  bullet is resolved, not just provisional, now that Roger has shipped — removed from Known gaps and
+  folded into "Module wiring" as a stated fact (`Map<Level, Set<UUID>>`) instead, since it's no
+  longer open.
+
+  Also checked before treating the record as trustworthy: [SAT_037](SAT_037_mobjig-sidedness.md)'s
+  own closing text still names a superseded design (`MobEntityLookup`) that never shipped — already
+  corrected via its own 2026-08-24 log entry (opened while scoping SAT_041), not something this
+  ticket needed to fix. [RM_SAT_023](../roadmap/RM_SAT_023_raymond.md) ("Raymond") — the convergence
+  RM_SAT_022 feeds — is still `status: WIP` and its own "What it gathers" bullet for Roger still
+  reads `open`; both look reachable/stale-worded now that Roger is `resolved`, but flipping a
+  convergence and correcting its prose are PM's call, not folded into this close.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

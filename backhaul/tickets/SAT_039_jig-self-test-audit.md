@@ -3,7 +3,7 @@ id: SAT_039
 uid: SAT
 number: 39
 client: Satchel
-status: open
+status: done
 title: Audit and build automatic self-test coverage for every Jig kind
 context: 'Found while scoping RM_SAT_022 (Roger): nothing in Satchel exercises MobJig''s
   CLIENT/BOTH path at all, so a real regression (client-scoped MobScopes torn down
@@ -12,7 +12,7 @@ context: 'Found while scoping RM_SAT_022 (Roger): nothing in Satchel exercises M
   repeated by hand each time.'
 priority: high
 opened: '2026-08-23'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -217,6 +217,19 @@ whatever `MobJig` self-test comes out of this ticket.
   per the original ask) is closed. This ticket's `MobJig` slice is functionally done; status left
   at the project owner's discretion to formally close, since that also unblocks opening RM_SAT_022
   ("Roger")'s own Lead Dev build ticket, deferred until this exact confirmation.
+
+- 2026-08-24: **Done -- project owner's own call to close.** This ticket's own scope (audit +
+  build automatic, in-repo self-test coverage for every jig kind) is complete and proven, not
+  just built: `MobJig`'s slice was confirmed live back on 2026-08-23, catching the real
+  RM_SAT_022 latent bug on a live client the moment it existed to catch it. Its sibling ticket,
+  [SAT_040](SAT_040_health-followup.md) (`LevelJig`/`PlayerJig`), closed the same way after two
+  failed deferral attempts and a third that actually worked, both confirmed live. And the very
+  bug this audit was opened to generalize protection against is now itself fixed --
+  [RM_SAT_022](../roadmap/RM_SAT_022_roger.md) ("Roger") resolved via
+  [SAT_041](SAT_041_mobjig-side-agnostic-build.md), verified against this ticket's own coverage
+  rather than a promise, exactly as intended when SAT_041 was deliberately sequenced behind this
+  one. All three jig kinds -- `MobJig`, `LevelJig`, `PlayerJig` -- now have working, live-proven
+  self-test coverage in `SatchelHealth`. Nothing left open in this ticket's own scope.
 
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/Satchel)
