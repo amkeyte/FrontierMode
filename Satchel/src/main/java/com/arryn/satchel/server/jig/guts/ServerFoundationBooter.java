@@ -6,6 +6,7 @@ import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
+import com.arryn.satchel.server.lifecycle.ServerForgeEgress;
 import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -35,6 +36,7 @@ public class ServerFoundationBooter extends ASatchelFoundationBooter {
 
         Satchel.installFoundation(foundation);
         foundation.installBooter(this);
+        foundation.installEgress(new ServerForgeEgress());
         foundation.installEventBus();
         foundation.installFoundationLifecycle();
         foundation.installScopeLifecycle();

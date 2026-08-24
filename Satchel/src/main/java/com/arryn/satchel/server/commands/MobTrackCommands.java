@@ -10,6 +10,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
@@ -195,7 +196,10 @@ public final class MobTrackCommands {
     private static int list(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
 
-        Map<ServerLevel, Set<UUID>> interests = SatchelHealth.currentInterests();
+        // RM_SAT_022: SatchelHealth.currentInterests() is Level-keyed now (MobJig's poll
+        // resolves through ForgeEgress, not a ServerLevel cast) -- this command only ever
+        // watches server-side, but the map itself is honestly typed as Level.
+        Map<Level, Set<UUID>> interests = SatchelHealth.currentInterests();
 
         if (interests.isEmpty() || interests.values().stream().allMatch(Set::isEmpty)) {
             source.sendSuccess(() -> msg("No mobs currently watched."), false);
@@ -208,7 +212,7 @@ public final class MobTrackCommands {
         // unwatched -- interest and "currently has a live MobScope" are two different things.
         // Check [SatchelHealth] LOADED/UNLOADED lines in the server log for the latter.
         int total = 0;
-        for (Map.Entry<ServerLevel, Set<UUID>> entry : interests.entrySet()) {
+        for (Map.Entry<Level, Set<UUID>> entry : interests.entrySet()) {
             if (entry.getValue().isEmpty()) {
                 continue;
             }

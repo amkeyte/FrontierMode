@@ -306,6 +306,28 @@ public final class LogicalFoundation {
     }
 
     /* =============================================================
+     * Forge egress (RM_SAT_022, "Roger")
+     * ========================================================== */
+    private ForgeEgress egress;
+
+    /**
+     * Installed once per foundation from inside each concrete booter's own
+     * {@code installFoundation()} -- {@code ServerFoundationBooter} installs {@code
+     * ServerForgeEgress}, {@code ClientFoundationBooter} installs {@code ClientForgeEgress}.
+     * Deliberately not routed through {@link #booter()} -- {@code booter()} is private (SAT_038),
+     * and a side-agnostic caller like {@code MobJig} should never need it just to resolve a UUID.
+     */
+    public void installEgress(ForgeEgress egress) {
+        this.egress = Objects.requireNonNull(egress, "egress");
+        OUT.debug("ForgeEgress installed for side " + side);
+    }
+
+    public ForgeEgress egress() {
+        requireInstalled(egress, "ForgeEgress");
+        return egress;
+    }
+
+    /* =============================================================
      * Diagnostics
      * ========================================================== */
 

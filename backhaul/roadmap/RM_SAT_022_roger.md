@@ -10,8 +10,14 @@ depends_on:
 - RM_SAT_021
 created: '2026-08-22'
 superseded_by: null
-ticket: SAT_037
+ticket: SAT_041
 ---
+
+- 2026-08-24: **Lead Dev build ticket opened: [SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md).**
+  Unblocked now that SAT_039's `MobJig` self-test slice and SAT_040's `LevelJig`/`PlayerJig` slices
+  are both done and confirmed live, not just compiled -- this node's own build gets to point at
+  real coverage rather than a promise, exactly as the 2026-08-23 sequencing entry above intended.
+  `ticket:` field updated from SAT_037 (design, closed) to SAT_041 (build, open).
 
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Roadmap Index](../ROADMAP_INDEX.md) · RM_SAT

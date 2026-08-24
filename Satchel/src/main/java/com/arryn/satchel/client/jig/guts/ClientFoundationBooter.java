@@ -5,6 +5,7 @@ import com.arryn.satchel.common.jig.guts.ASatchelFoundationBooter;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
+import com.arryn.satchel.client.lifecycle.ClientForgeEgress;
 import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
 import net.minecraftforge.fml.LogicalSide;
@@ -48,6 +49,10 @@ public final class ClientFoundationBooter extends ASatchelFoundationBooter {
 
         // Install booter FIRST so engine() is available
         foundation.installBooter(this);
+
+        // RM_SAT_022 ("Roger"): install this side's ForgeEgress alongside the booter, before
+        // anything that might run a reconcile pulse needs it.
+        foundation.installEgress(new ClientForgeEgress());
 
         // Glue-only installs (no logic) -- must precede installConfigs(): it installs
         // each jig's EventHandlers onto the event bus as it's processed, so the bus has

@@ -177,6 +177,47 @@ whatever `MobJig` self-test comes out of this ticket.
   before assuming it's a code problem -- that symptom (package resolves, one specific member
   doesn't) is a classic stale-decompiled-sources-cache signature, not typically a real mapping gap.
 
+- 2026-08-23: **Compile fix confirmed -- `BUILD SUCCESSFUL` on the project owner's machine**, read
+  directly from `build.log`/`run/logs/latest.log`/`run-server/logs/latest.log` after a real
+  client+server run. The `EntityType`/`Mob`-based rewrite cleared the `Bat` symbol error cleanly.
+
+  **Second, separate bug found from the same run's logs: the canary was never actually exercised.**
+  Server-side, `SatchelHealth` spawned and ticked the canary fine at the hardcoded anchor
+  `(0, -60, 0)`. But the connecting player (`Dev`) joined at `(107.5, 72.0, 41.5)` -- this world's
+  real spawn point, nowhere near the guessed coordinate (roughly 130 blocks off both horizontally
+  and vertically, and well below the search radius either way). The client never got within range
+  to discover the canary, `MobScope.getFor()` was never called client-side, and the actual point of
+  this pass -- catching RM_SAT_022's latent client-teardown bug live -- never got a chance to run.
+  No crash was logged, but that's an untested check, not a passing one.
+
+  **Fixed**: `anchorPos()` now calls `Level#getSharedSpawnPos()` instead of a hardcoded guess --
+  works identically on both sides (synced to the client from the server), so the canary sits at
+  wherever this world's spawn actually is. `CANARY_SEARCH_RADIUS` widened `8.0` -> `16.0` blocks to
+  comfortably cover vanilla's default `spawnRadius` gamerule (10 blocks) -- a fresh player can
+  legitimately land anywhere in that ring around shared spawn, not exactly on top of it.
+
+  **Still not actually verified as catching the RM_SAT_022 bug** -- this fixes what should have
+  been a straightforward, no-extra-effort trigger (a player joining near spawn, the normal case)
+  rather than requiring anyone to manually walk to a specific coordinate. The real signal is still
+  owed: project owner runs this build, connects near spawn, and reports whether the expected
+  client-side crash actually fires.
+
+- 2026-08-23: **Verification loop closed -- confirmed live on the project owner's machine.**
+  Fresh client+server run, read from `run/logs/latest.log` / `run-server/logs/latest.log`: the
+  canary spawned at the real shared spawn point (`BlockPos{x=112, y=72, z=48}`), right next to
+  where the player actually joined (`107.5, 72.0, 41.5`) -- the anchor fix worked. Client-side scan
+  found it, `MobScope.getFor()` attached a client-side scope, and on the very next reconcile cycle
+  that scope was torn down while the mob was still present. `SatchelHealth` logged the violation
+  and threw, crashing the client with a full stack trace through `MobJig.reconcile()` ->
+  `ASatchelJig.onUnload()` -> `SatchelHealth.onMobScopeUnloaded()`.
+
+  **This is success, exactly as predicted two log entries up**: the self-test is proven live,
+  against a real client, to actually catch the RM_SAT_022 latent teardown bug -- not a promise, a
+  demonstrated regression backstop. `MobJig`'s `CLIENT`/`BOTH` gap (this ticket's most urgent item,
+  per the original ask) is closed. This ticket's `MobJig` slice is functionally done; status left
+  at the project owner's discretion to formally close, since that also unblocks opening RM_SAT_022
+  ("Roger")'s own Lead Dev build ticket, deferred until this exact confirmation.
+
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/Satchel)
 <!-- bh-header:end -->

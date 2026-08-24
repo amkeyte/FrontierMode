@@ -203,3 +203,10 @@ tasks.register('copyToFrontierMode', Copy) {
 tasks.named('jar').configure {
     finalizedBy tasks.named('copyToFrontierMode')
 }
+
+// Gradle's JavaExec doesn't forward stdin to the child process by default, so console
+// commands typed into the IntelliJ Run window (stop, op, etc.) silently go nowhere even
+// though the server is alive and listening. This wires it through. Same fix as FrontierMode.
+tasks.matching { it.name == 'runServer' }.configureEach {
+    standardInput = System.in
+}

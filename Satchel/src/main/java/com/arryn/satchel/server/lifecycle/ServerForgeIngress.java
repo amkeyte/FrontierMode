@@ -6,6 +6,7 @@ import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
+import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
 import net.minecraft.server.level.ServerLevel;
@@ -196,6 +197,13 @@ public final class ServerForgeIngress {
 
         BOOTER.bindFoundation();
         ensureInstalled();
+
+        // SAT_040: drain SatchelHealth's pending-health-check queue once per server tick,
+        // unconditionally -- deliberately ahead of the isReady() gate below, since these checks
+        // don't depend on LogicalFoundation being ready, and pumping them from a call chain
+        // genuinely later than whatever queued them is the entire point (see
+        // SatchelHealth#pumpPendingHealthChecks for the full reasoning).
+        SatchelHealth.pumpPendingHealthChecks();
 
         // isReady() gate: no-op the actual jig tick pulse until Satchel is ready for this side.
         // In practice this never actually skips server-side -- the token is bound synchronously

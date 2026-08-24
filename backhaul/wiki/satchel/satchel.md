@@ -103,7 +103,7 @@ All pages above are `verified`.
   vision/direction page holding open questions, not a completed description. No roadmap node
   tracks it; one gets opened once it decomposes into concretely scoped work.
 - [SatchelHealth](architecture/satchel-health.md) — `draft`: run-monitoring / self-verification
-  home, currently covering `MobJig` only.
+  home, covering `MobJig`, `LevelJig`, and `PlayerJig`.
 
 ## Spec
 

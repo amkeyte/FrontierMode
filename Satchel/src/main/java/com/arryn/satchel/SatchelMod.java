@@ -1,8 +1,6 @@
 package com.arryn.satchel;
 
 import com.arryn.satchel.common.net.SatchelNetwork;
-import com.arryn.satchel.common.newconfig.PlayerTrackingModule;
-import com.arryn.satchel.common.newconfig.TrackingModule;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.commands.MobTrackCommands;
@@ -26,21 +24,15 @@ public class SatchelMod {
         // even after a bundle is created. See SAT_026.
         SatchelNetwork.register();
 
-        //set up the tracking module.
-        TrackingModule.init();
-
-        // RM_SAT_020 verification aid -- see PlayerTrackingModule's own class doc. Real consumer
-        // (RM_FRO_006) hasn't landed yet; this is what lets the login/dimension-change/logout
-        // checklist in FRO_023 actually be checked before then.
-        PlayerTrackingModule.init();
-
-        // SAT_039 -- MobJig health check (relocated from the old MobTrackingModule, with
-        // sideApplicability widened SERVER -> BOTH) plus the always-on coordinator that
-        // spawns/discovers the canary mob. Registering this is what makes MobJig exist as an
-        // installed jig at all -- without this call the class compiles but nothing ever reaches
-        // Satchel.registerJigConfig(...), so MobJig never actually runs. See SatchelHealth's own
-        // class doc for the full mechanism, and for why it's expected to crash loudly on a real
-        // connected client until RM_SAT_022 ("Roger") lands.
+        // SAT_039/SAT_040 -- SatchelHealth is now the single registration point for every jig
+        // kind's health check: MobJig (relocated from MobTrackingModule, sideApplicability
+        // widened SERVER -> BOTH, SAT_039), LevelJig (relocated from TrackingModule, widened
+        // SERVER -> BOTH, SAT_040), and PlayerJig (relocated from PlayerTrackingModule, stays
+        // SERVER -- PlayerScope has no client-side existence to widen into). Registering this is
+        // what makes all three exist as installed jigs at all -- without this call the classes
+        // compile but nothing ever reaches Satchel.registerJigConfig(...). See SatchelHealth's
+        // own class doc for the full mechanism, and for why the MobJig half is expected to crash
+        // loudly on a real connected client until RM_SAT_022 ("Roger") lands.
         SatchelHealth.init();
 
         // /satchel mobtrack -- the in-game surface for exercising SatchelHealth's own

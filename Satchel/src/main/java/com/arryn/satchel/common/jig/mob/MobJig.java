@@ -7,15 +7,16 @@ import com.arryn.satchel.common.jig.guts.JigInfo;
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.util.throttle.TickThrottler;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -79,14 +80,24 @@ public final class MobJig extends ASatchelJig<MobScope> {
      *
      * <p>
      * Two phases, both reason-agnostic by design (a chunk unload and a genuine removal are
-     * indistinguishable via {@code ServerLevel.getEntity(UUID)} and are treated identically):
+     * indistinguishable via {@link com.arryn.satchel.common.jig.guts.ForgeEgress#getEntity} and
+     * are treated identically):
      * <ol>
      *   <li>Introduce: for every UUID any registered {@link MobInterestSupplier} reports, resolve
-     *   it via {@code ServerLevel.getEntity(UUID)} and introduce it if it resolves to a live,
-     *   non-removed {@link Mob}.</li>
+     *   it via {@code Satchel.require().egress().getEntity(level, uuid)} and introduce it if it
+     *   resolves to a live, non-removed {@link Mob}.</li>
      *   <li>Tear down: any UUID this jig currently has a scope for that did not resolve this
      *   cycle gets torn down.</li>
      * </ol>
+     *
+     * <p>
+     * RM_SAT_022 ("Roger"): both phases used to cast to {@code ServerLevel} directly, which is
+     * why a {@code CLIENT}/{@code BOTH}-applicability consumer's scopes were torn down every
+     * cycle regardless of the mob's real state -- Phase 2's cast guard simply {@code continue}d
+     * for anything that wasn't a {@code ServerLevel}. Resolving through {@code ForgeEgress}
+     * instead fixes that as a consequence of unifying the mechanism, not a separate patch: a
+     * client-side scope now re-resolves through {@code ClientForgeEgress} exactly like a
+     * server-side one resolves through {@code ServerForgeEgress}.
      */
     @Override
     public void reconcile(JigInfo info) {
@@ -97,15 +108,15 @@ public final class MobJig extends ASatchelJig<MobScope> {
         }
 
         MobInterestSupplier supplier = MobInterestRegistry.get(info.key);
-        Map<ServerLevel, Set<UUID>> interests = supplier.interestedMobs();
+        Map<Level, Set<UUID>> interests = supplier.interestedMobs();
 
         Set<UUID> resolvedThisCycle = new HashSet<>();
 
-        for (Map.Entry<ServerLevel, Set<UUID>> entry : interests.entrySet()) {
-            ServerLevel level = entry.getKey();
+        for (Map.Entry<Level, Set<UUID>> entry : interests.entrySet()) {
+            Level level = entry.getKey();
             for (UUID uuid : entry.getValue()) {
-                Entity entity = level.getEntity(uuid);
-                if (entity instanceof Mob mob && !mob.isRemoved()) {
+                Optional<Entity> resolved = Satchel.require().egress().getEntity(level, uuid);
+                if (resolved.isPresent() && resolved.get() instanceof Mob mob && !mob.isRemoved()) {
                     resolvedThisCycle.add(uuid);
                     // Idempotent via JigInfo.hasScope's existing guard -- safe to call every
                     // cycle even for a mob already scoped, same reliance MobScope.getFor has on
@@ -130,9 +141,13 @@ public final class MobJig extends ASatchelJig<MobScope> {
         // a getFor'd scope was torn down about one throttle cycle after attaching, with the mob
         // still standing right there, unmoved. So every currently-scoped UUID the interest walk
         // didn't already reconfirm gets its own direct re-resolution here, via the same
-        // ServerLevel.getEntity(UUID) mechanism Phase 1 uses -- reason-agnostic teardown still
-        // applies, it now just applies uniformly to every scoped mob, not only interest-backed
-        // ones.
+        // ForgeEgress mechanism Phase 1 uses -- reason-agnostic teardown still applies, it now
+        // just applies uniformly to every scoped mob, not only interest-backed ones.
+        //
+        // RM_SAT_022 ("Roger"): this used to guard with `instanceof ServerLevel`, `continue`-ing
+        // for anything else -- exactly why a client-scoped MobScope was torn down every cycle
+        // regardless of the mob's real state. mob().level() is already Level-typed (Entity's own
+        // field), so there is no cast to guard here anymore; ForgeEgress handles both sides.
         for (ScopeInfo scopeInfo : snapshot) {
             UUID scopedUuid = scopeInfo.scope().uuid();
             if (resolvedThisCycle.contains(scopedUuid)) {
@@ -141,11 +156,9 @@ public final class MobJig extends ASatchelJig<MobScope> {
             if (!(scopeInfo.scope() instanceof MobScope mobScope)) {
                 continue;
             }
-            if (!(mobScope.mob().level() instanceof ServerLevel serverLevel)) {
-                continue;
-            }
-            Entity reresolved = serverLevel.getEntity(scopedUuid);
-            if (reresolved instanceof Mob mob && !mob.isRemoved()) {
+            Level level = mobScope.mob().level();
+            Optional<Entity> reresolved = Satchel.require().egress().getEntity(level, scopedUuid);
+            if (reresolved.isPresent() && reresolved.get() instanceof Mob mob && !mob.isRemoved()) {
                 resolvedThisCycle.add(scopedUuid);
             }
         }

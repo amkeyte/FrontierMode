@@ -159,6 +159,20 @@ The build. That is Lead Dev's, off whatever this ticket concludes, tracked on
   something to write against unbuilt behavior.
 
   Design concludes here. Handing off to RM_SAT_022's own done bar for the build.
+- 2026-08-24: **Correction, found while opening [SAT_041](SAT_041_mobjig-side-agnostic-build.md)
+  (the build ticket): this ticket's own closing entry above does not match what
+  [RM_SAT_022](../roadmap/RM_SAT_022_roger.md)'s own log and [SAT_038](SAT_038_booter-visibility.md)
+  both say was decided.** This ticket's text names `MobEntityLookup` (`common/jig/mob/`, reached
+  through a new `ASatchelFoundationBooter.mobEntityLookup()` via `booter()`). RM_SAT_022's log and
+  SAT_038's own stated reasoning both name `ForgeEgress` (`common/jig/guts/`, reached via a new
+  `LogicalFoundation.egress()`, deliberately bypassing `booter()` -- SAT_038 closed specifically
+  on "the new `ForgeEgress` installed there deliberately never routes through `booter()` at all").
+  SAT_038 already shipped, and `booter()` really is `private` in source -- this ticket's own
+  `booter().mobEntityLookup()` text cannot compile against that, so it is the stale one, not the
+  other two. Left standing above rather than edited, per this project's own convention of logging
+  corrections rather than rewriting history -- SAT_041 was built against `ForgeEgress`/`egress()`
+  instead, with the project owner's explicit sign-off on which version to trust.
+
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/Satchel)
 <!-- bh-header:end -->
