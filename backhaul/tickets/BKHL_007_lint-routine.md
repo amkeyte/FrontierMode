@@ -3,13 +3,13 @@ id: BKHL_007
 uid: BKHL
 number: 7
 client: Backhaul
-status: open
+status: done
 title: lint/dashboard not in any refresh routine
 context: backhaul lint catches today's broken links for free and BACKHAUL.md was stale
   on all 3 counts.
 priority: normal
 opened: '2026-08-21'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -99,6 +99,13 @@ this gets built — the distinction is semantic, and an ignore list would grow w
 retirement.
 
 ## Log
+
+- 2026-08-24: **Closed.** Both real findings here are tracked upstream in the Backhaul repo, not
+  fixable from this project alone: BH_014 (a single `backhaul refresh` orchestrator command) and
+  BH_015 (the historical-link marker convention — the ticket's own "not optional" finding, since
+  the broken-link count can't reach zero without it). The `--check` filter for the two
+  re-drifting `bhw` wiki-convention rules is noted as a lower-priority follow-up inside BH_015
+  rather than a separate ticket, to build once the marker convention and `refresh` both exist.
 
 - 2026-08-21: Ticket opened by PM off a doc audit of Susan's subtree. `backhaul dashboard` and the
   four index commands were re-run the same day, so the specific staleness above is already

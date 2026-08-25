@@ -3,13 +3,13 @@ id: BKHL_006
 uid: BKHL
 number: 6
 client: Backhaul
-status: open
+status: done
 title: 'status: closed outside BHT vocabulary'
 context: 'bht.md defines open/in-progress/blocked/done. Six tickets carry status:
   closed and pass unvalidated.'
 priority: low
 opened: '2026-08-21'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -48,6 +48,13 @@ Two independent pieces, either useful alone:
    being completed," which BHT has no state for and which would be a real gap rather than a typo.
 
 ## Log
+
+- 2026-08-24: **Closed.** Project owner's call: no distinct meaning intended by `closed` — normalize
+  and move on. All six tickets (FRO_020, FRO_022, FRO_023, FRO_024, FRO_025, SAT_033) had
+  `status: closed` changed to `status: done` directly, each with its own log entry citing this
+  ticket. The write-time-validation half is tracked upstream in the Backhaul repo as BH_010 (`bht
+  open`/`close` should reject an out-of-vocabulary status, not just this project fixing it by hand
+  after the fact).
 
 - 2026-08-21: Ticket opened by PM off a doc audit of Susan's subtree.
 

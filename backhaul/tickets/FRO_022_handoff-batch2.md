@@ -3,7 +3,7 @@ id: FRO_022
 uid: FRO
 number: 22
 client: FrontierMode
-status: closed
+status: done
 title: Hand off next batch to Lead Dev
 context: FRO_009/011/012/013 + RM_SAT_020 ready for Curtis. RM_SAT_018 needs Douglas
   first. RM_FRO_006 still blocked. All five confirmed resolved as of 2026-08-16 (see
@@ -52,6 +52,8 @@ independent. Pick order freely, or run in parallel.
 
 ## Log
 
+- 2026-08-24: Normalized `status: closed` -> `done` per [BKHL_006](BKHL_006_closed-status.md) —
+  outside BHT's `open/in-progress/blocked/done` vocabulary, no distinct meaning intended.
 - 2026-08-16: **Closed — all five items confirmed resolved** against real builds and real play
   (see [FRO_023](FRO_023_playtest-checklist-batch2.md) for the full playtest record). RM_FRO_006
   remains blocked on nothing from this batch anymore — RM_SAT_020 is genuinely done, not just

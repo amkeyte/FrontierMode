@@ -3,12 +3,13 @@ id: BKHL_005
 uid: BKHL
 number: 5
 client: Backhaul
-status: open
+status: done
 title: Required By blocks never regenerate
-context: Every RM_FRO node's Required By says nothing depends on it. Ten have real dependents.
+context: Every RM_FRO node's Required By says nothing depends on it. Ten have real
+  dependents.
 priority: normal
 opened: '2026-08-21'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -62,6 +63,10 @@ Option 1 is preferred — the section is genuinely useful when accurate.
 
 ## Log
 
+- 2026-08-24: **Closed.** Not hand-patched here — the stale Required By blocks stay stale until the
+  real fix lands, deliberately, rather than risk a manual rewrite drifting from what `dependents()`
+  actually computes. Tracked upstream in the Backhaul repo as BH_011 (wire `dependents()` into the
+  same marked-block regeneration BH_008 already established for the HTML graphs).
 - 2026-08-21: Ticket opened by PM off a doc audit of Susan's subtree. Filed under BKHL per this
   project's convention that reports about the Backhaul CLI itself land here rather than routing
   through the Backhaul repo's own tracker (see

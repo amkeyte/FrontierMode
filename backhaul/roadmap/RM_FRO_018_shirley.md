@@ -3,7 +3,7 @@ id: RM_FRO_018
 uid: RM_FRO
 number: 18
 kind: work
-status: open
+status: resolved
 title: Boss entity/spawn system
 owner: Arryn
 depends_on:
@@ -38,12 +38,27 @@ Item 4 (promoting the `getFor` spec page) is still open, not blocking this node.
 "Shirley" in older prose may mean either node. Always pair the name with its ID. Reusing a retired
 node's persona is no longer done; see [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md).*
 
-- 2026-08-24: **[FRO_043](../tickets/FRO_043_boss-build.md) closed** — real build, real
-  dedicated-server + client playtest (a client-side crash found and fixed mid-pass; see
-  the ticket's own log), fresh-level bootstrap and the two-fixture data model both
-  confirmed working. This node stays `open` rather than moving to `resolved`: its own
-  done bar below isn't literally fully met yet. The `/kill` self-heal bullet is accepted
-  as unmet, on the project owner's own call — not an oversight.
+- 2026-08-24: **Resolved by PM, after verifying FRO_043's close claims directly against
+  source.** Read `BorderModule.java`/`BossModule.java`/`FrontierMode.java` and the reobf
+  build log on the project owner's own machine, not just the ticket's own account: the
+  client-side guard (`Satchel.require().side() == LogicalSide.CLIENT`, right after the
+  jig-key check in `onBordersScopeLoaded`) is really there, matching the crash-fix
+  claim exactly; `BossModule.init()` is really called from `FrontierMode.java` (the
+  SAT_035-style gotcha didn't repeat); `MobInterestRegistry.register(BOSS_MOB_JIG, ...)`
+  is really wired alongside `Satchel.registerJigConfig(config)` with an explicit
+  `sideApplicability(SERVER)`; the reobf jar's own log lists the compiled `boss/`
+  classes. Real, not read-through-only.
+
+  Marking `resolved` rather than leaving `open`: three of the done bar's four bullets
+  are real-playtest-verified (fresh-level bootstrap, recognizable tagged mob,
+  `BossFixture`/`BossMobFixture` agreement), and the fourth (`/kill` self-heal) is
+  accepted as unmet by the project owner's own explicit call, with the gap owned
+  outright by [RM_FRO_019](RM_FRO_019_karen.md) ("Karen")'s own scope rather than left
+  dangling — same shape [FRO_031](../tickets/FRO_031_betty-donebar.md) used to resolve
+  Betty with two unconfirmed items tracked separately. No new tracking ticket opened
+  for the gap here since Karen already owns it by design, per `boss.md`'s own "Defeat
+  detection and the border-growth gap" section — a second ticket would just duplicate
+  that ownership.
 
   **Note on the done bar's own wording, added closing out FRO_043:** "bootstrap
   catch-up" below still describes bullet 4's original design above — a recurring

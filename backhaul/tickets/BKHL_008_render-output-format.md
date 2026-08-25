@@ -3,13 +3,13 @@ id: BKHL_008
 uid: BKHL
 number: 8
 client: Backhaul
-status: open
+status: done
 title: bhrm render --output ignores file extension
 context: Pointing the markdown renderer at a .html path silently overwrites a generated
   graph with markdown.
 priority: low
 opened: '2026-08-22'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -58,6 +58,10 @@ Related but distinct: [BKHL_003](BKHL_003_html-slug.md) covered `render_html()`'
 the CLI's output-format handling.
 
 ## Log
+
+- 2026-08-24: **Closed.** Cheatsheet clarified directly in `backhaul/wiki/meta/bhrm.md` (which
+  command writes what, and the exact failure mode to avoid). The actual guard — `render` refusing
+  or erroring on a `.html` `--output` path — needs Backhaul code and is tracked upstream as BH_012.
 
 
 

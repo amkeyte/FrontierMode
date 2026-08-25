@@ -3,12 +3,12 @@ id: BKHL_004
 uid: BKHL
 number: 4
 client: Backhaul
-status: open
+status: done
 title: 'Deprecated-convergence tracking: no terminal status, no stale-reference detection'
 context: null
 priority: normal
 opened: '2026-08-16'
-closed: null
+closed: '2026-08-24'
 ---
 
 <!-- board:start -->
@@ -60,6 +60,10 @@ log). A future case that needs the history kept on disk won't get that same free
 
 ## Log
 
+- 2026-08-24: **Closed.** Project owner's decision: reuse `superseded` for both `work` and
+  `convergence` kinds rather than a convergence-specific terminal status name. Tracked upstream in
+  the Backhaul repo as BH_013 (schema vocabulary change + stale `superseded_by`-reference check —
+  not yet implemented; this ticket's diagnosis is complete, the fix lives there now).
 - 2026-08-16: **Resolved differently than filed — deleted instead of deprecated.** Project owner's
   call: no reason to keep Shirley/Karen on disk when neither added anything Susan didn't already
   carry. Both gaps described above are still real for the general case (a node that needs to be

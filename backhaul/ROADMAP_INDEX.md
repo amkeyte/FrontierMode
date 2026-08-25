@@ -14,7 +14,7 @@
 
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
-- [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) — Boss entity/spawn system
+- [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) — Boss defeat border-growth caller
 
 ### Dependency structure
 
@@ -34,8 +34,8 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
           - [**RM_FRO_013**](roadmap/RM_FRO_013_judy.md) [work · resolved] Border fixture & compass robustness — depends on: RM_FRO_008
           - [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) [work · resolved] Border command-surface completion — depends on: RM_FRO_008
             - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · reached] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013, RM_FRO_006, RM_FRO_015
-              - [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) [work · open · ACTIONABLE] Boss entity/spawn system — depends on: RM_FRO_010
-                - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · open] Boss defeat border-growth caller — depends on: RM_FRO_018
+              - [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) [work · resolved] Boss entity/spawn system — depends on: RM_FRO_010
+                - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · open · ACTIONABLE] Boss defeat border-growth caller — depends on: RM_FRO_018
                   - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · WIP] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019
 
 ## RM_SAT

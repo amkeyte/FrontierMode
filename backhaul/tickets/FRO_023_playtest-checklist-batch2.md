@@ -3,7 +3,7 @@ id: FRO_023
 uid: FRO
 number: 23
 client: FrontierMode
-status: closed
+status: done
 title: 'Build+playtest checklist: Sat020/Fro009-013'
 context: Sandbox has no Forge/Mojang maven access; owner runs real gradlew build +
   playtest per checklist in ticket body. All five nodes (RM_SAT_020, RM_FRO_009/011/012/013)
@@ -110,6 +110,8 @@ is sufficient (no networking-boundary dependency).
 
 ## Log
 
+- 2026-08-24: Normalized `status: closed` -> `done` per [BKHL_006](BKHL_006_closed-status.md) —
+  outside BHT's `open/in-progress/blocked/done` vocabulary, no distinct meaning intended.
 - 2026-08-16: **All five nodes confirmed — ticket closed.** Malformed-entry test (RM_FRO_013's
   last open item) confirmed on a fresh server start: correct skip warning, five borders loaded
   (not six), server ran normally. RM_SAT_020, RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013 all

@@ -3,7 +3,7 @@ id: FRO_020
 uid: FRO
 number: 20
 client: FrontierMode
-status: closed
+status: done
 title: Hand off hardening batch to Lead Dev
 context: Satchel-side hardening ready for Curtis; FrontierMode follows once it proves
   out. See RM_SAT_012-015, RM_FRO_009/006. All five nodes resolved, FRO_016 already
@@ -52,6 +52,8 @@ visible on the graph, not part of this immediate handoff.
 
 ## Log
 
+- 2026-08-24: Normalized `status: closed` -> `done` per [BKHL_006](BKHL_006_closed-status.md) —
+  outside BHT's `open/in-progress/blocked/done` vocabulary, no distinct meaning intended.
 - 2026-08-16: **Closed — everything in this batch's scope is resolved.** RM_SAT_012/013/014/015
   and RM_FRO_009 all show `status: resolved` on their own nodes; `FRO_016` was already `done`
   (closed 2026-08-14, predates this check); `RM_FRO_008` already shows `reached`. Nothing left

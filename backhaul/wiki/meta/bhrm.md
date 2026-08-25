@@ -69,6 +69,29 @@ detail (specific classes/files/packages involved) in the node's body instead of 
 the title. Several nodes from the initial roadmap backfill run well over this — worth trimming
 next time they're touched, not urgent enough to warrant a dedicated pass on its own.
 
+## Done-bar citations — link to what a claim depends on
+
+A done bar's claim can go stale without any link breaking — every link involved stays valid, the
+claim just stops being true once the design page it was based on narrows or changes. Happened for
+real: a node's done bar promised a specific self-heal mechanism an architecture page had already
+walked back to an open question by the time the done bar was checked (see
+`backhaul/tickets/BKHL_009_done-bar-drift.md`, closed). Nothing catches this structurally — no
+amount of link validation does, since nothing was broken in the sense `backhaul lint` checks for.
+
+**If a done-bar bullet depends on a specific wiki section, cite it inline** — the same
+`[Title](path.md#anchor)` style this project already uses everywhere else — rather than restating
+the claim with no pointer back to its source. This doesn't catch drift by itself, but it means the
+next reader (or a future lint heuristic flagging citation-free done-bar bullets) has something to
+check against instead of having to already know where the claim came from.
+
+**The moment to reread a done bar against its source: right after promoting the wiki page it cites
+to `verified`.** That's the specific point at which a design settled into something narrower or
+different than what an earlier done bar assumed — the same way this project already has a named
+moment for updating an architecture page right after implementing something. A rule without a
+mechanism has the same weakness as any other reminder in prose (it's already what happened to the
+two no-status/no-changelog rules above) — worth stating anyway, since the alternative is nobody
+having a moment to check at all.
+
 ## Status vocabulary (kind-dependent)
 
 - **work**: `open` -> `resolved` | `superseded` (terminal once left `open`).
@@ -82,11 +105,19 @@ bhrm new --client <name> --title "..." --owner <name> [--kind work|convergence] 
 bhrm validate --uid RM_XXX
 bhrm frontier --uid RM_XXX
 bhrm dependents <ID>   |   bhrm downstream <ID>   |   bhrm blocking <ID>
-bhrm render --uid RM_XXX [--output PATH] [--title "..."]
+bhrm render --uid RM_XXX [--output PATH] [--title "..."]   # writes MARKDOWN, always — --output's extension is not checked
 bhrm export-json --uid RM_XXX [--out PATH]
-bhrm index [--output PATH] [--title "..."]    # every UID's graph, its own section
+bhrm index [--output PATH] [--title "..."]    # rebuilds ROADMAP_INDEX.md AND every ROADMAP_GRAPH_<UID>.html
 bhrm projects
 ```
+
+**`render` vs `index` write different things.** `render` always produces markdown, whether printed
+to stdout or sent to `--output` — it does not look at the output path's extension, so pointing it at
+a `.html` path silently overwrites that file with markdown (hit live in this project once — see
+`backhaul/tickets/BKHL_008_render-output-format.md`, closed, tracked upstream as Backhaul's own
+BH_012). **`bhrm index` is what regenerates the HTML graph views** (`ROADMAP_GRAPH_<UID>.html`), as a
+side effect of rebuilding `ROADMAP_INDEX.md`. To regenerate a graph's HTML, run `bhrm index`, not
+`bhrm render --output *.html`.
 
 `--project <name>` / `--config <path>` selects the project. Every subcommand except `projects`
 refuses to run if `"roadmap"` isn't in that project's `enabled_modules`.

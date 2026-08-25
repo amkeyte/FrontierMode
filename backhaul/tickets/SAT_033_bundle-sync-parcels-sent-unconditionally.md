@@ -3,7 +3,7 @@ id: SAT_033
 uid: SAT
 number: 33
 client: Satchel
-status: closed
+status: done
 title: Bundle sync parcels sent unconditionally, ignoring dirty state and connected
   players
 context: 'Observed in a real server log with no client connected: pulseSync() fires
@@ -65,6 +65,8 @@ data corruption), but worth cleaning up given it runs on every bundle, every ses
 
 ## Log
 
+- 2026-08-24: Normalized `status: closed` -> `done` per [BKHL_006](../tickets/BKHL_006_closed-status.md) —
+  outside BHT's `open/in-progress/blocked/done` vocabulary, no distinct meaning intended.
 - 2026-08-16: **Design question answered by project owner, fixed, closed.** Keep the periodic
   resend un-gated by `bundle.isDirty()` — parcels have no delivery acknowledgment and there's no
   client-side "my state might be stale, please resend" request path, so the timer is the only

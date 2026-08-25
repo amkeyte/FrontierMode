@@ -3,7 +3,7 @@ id: FRO_025
 uid: FRO
 number: 25
 client: FrontierMode
-status: closed
+status: done
 title: 'Client crash: BORDERS_JIG not installed on CLIENT side'
 context: 'First real client+dedicated-server run after FRO_024''s fix: client crashed
   on render thread with JigNotFound for frontiermode:borders_jig. Server installed
@@ -86,6 +86,8 @@ should be enough to close this out on the next pass.
 
 ## Log
 
+- 2026-08-24: Normalized `status: closed` -> `done` per [BKHL_006](BKHL_006_closed-status.md) —
+  outside BHT's `open/in-progress/blocked/done` vocabulary, no distinct meaning intended.
 - 2026-08-16: **Resolved on re-run.** Project owner rebuilt and reran with the diagnostic logging
   in place. New `[JigConfigCompiler]` lines confirm: on CLIENT, `register()` and
   `compileForSide()` now see the **same map identity** (`mapIdentity=1233264370` both times) and

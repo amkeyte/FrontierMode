@@ -3,7 +3,7 @@ id: FRO_024
 uid: FRO
 number: 24
 client: FrontierMode
-status: closed
+status: done
 title: Rendering eager static crashes dedicated server
 context: WorldBordersRenderer built in Rendering's <clinit>; RuntimeDistCleaner blocks
   MultiBufferSource on DEDICATED_SERVER. First real runServer crash. Confirmed fixed
@@ -71,6 +71,8 @@ wrong.
 
 ## Log
 
+- 2026-08-24: Normalized `status: closed` -> `done` per [BKHL_006](BKHL_006_closed-status.md) —
+  outside BHT's `open/in-progress/blocked/done` vocabulary, no distinct meaning intended.
 - 2026-08-16: **Confirmed fixed, closed.** Every dedicated-server session since the fix (10+
   rolled log files, plus the freshest `latest.log` from today's RM_FRO_013 malformed-entry test)
   reaches `Done (...)!` with zero occurrences of `Rendering.<clinit>`, `MultiBufferSource`, or

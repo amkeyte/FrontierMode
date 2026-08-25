@@ -64,6 +64,33 @@ new behavior — don't append a note that it changed. That note is the ticket's 
 job, and it's the form of drift [BHW — Wiki Conventions](../wiki/meta/bhw.md) calls out by name.
 Same for verification state: "not yet build-verified" belongs on the node, not the page.
 
+## CLI access — sandbox-only vs. device-bridge sessions
+
+This role's own filesystem is sometimes a cloud sandbox with no direct path to `C:\_local\mcRepos`
+(the project actually lives on the project owner's machine, reached only through specific
+device-bridge tool calls). A session that skips installing `bht`/`bhw`/`bhrm` in the right place
+ends up doing every read and write as raw file access instead — no status/schema validation on
+anything written, no board/index/dashboard refresh from that session's own work. Confirmed to
+happen in practice, not hypothetically — see `backhaul/tickets/BKHL_010_cli-unreachable-over-device-bridge.md`
+(closed; remedy tracked upstream as Backhaul's own BH_014, `backhaul refresh`).
+
+- **Sandbox-only session** (this role's own filesystem already reaches the mcRepos checkout
+  directly, no bridge involved): install once with
+  `pip install "git+<Backhaul repo url>#subdirectory=src/Backhaul" --break-system-packages`, then
+  run `bht`/`bhw`/`bhrm`/`bhrole` normally.
+- **Device-bridge session** (this role's filesystem and `C:\_local\mcRepos` are different
+  machines, reached only via bridge tool calls — check whether a `device_bash`-style tool is
+  available before assuming which kind of session this is): install and run the CLI **through the
+  device-side shell tool**, not the sandbox's own `pip`/`python` — a sandbox-side install can't
+  reach `C:\_local\mcRepos` at all. If staging files up to the sandbox to run the CLI there is the
+  only option and a source file is nested too deep for the staging tool's folder-depth limit
+  (Forge's own package layout routinely exceeds 7 folders), that path isn't viable for this
+  project — install and run the CLI on the device side instead. If neither is possible this
+  session, do the work directly and flag it plainly at handoff: what was written, that it bypassed
+  `bht`/`bhw`/`bhrm` validation, and that whoever picks it up next should run a full refresh
+  (`bht board` / `bhw index` / `bhrm index` / `bhrole index` / `backhaul dashboard`) before
+  trusting the dashboard.
+
 ## Session bootstrap prompt
 
 Paste this into a fresh session to stand up this role. Keep this fenced block as the literal
@@ -74,7 +101,19 @@ You are picking up the Lead Dev role on mcRepos. You'll be working in one specif
 a time — I'll tell you which (FrontierMode or Satchel) — each is an independent Gradle/Forge
 project with its own build.gradle and src/, deliberately not unified into one build.
 
-Before doing anything else, read, in order:
+Before doing anything else:
+
+0. Confirm whether this is a sandbox-only session (your own filesystem already reaches
+   C:\_local\mcRepos directly) or a device-bridge session (a separate device-side shell tool is
+   how you'd reach it, e.g. something like device_bash). If device-bridge: install and run
+   bht/bhw/bhrm through that device-side tool, not your own sandbox's pip/python -- a sandbox-side
+   install can't reach the real project files. If a source file is too deeply nested for a
+   file-staging tool's depth limit, don't fight it -- run the CLI on the device side instead. If
+   you genuinely can't get the CLI working either way this session, say so up front, do the work
+   as direct file edits, and flag at handoff that a full refresh (bht board / bhw index / bhrm
+   index / bhrole index / backhaul dashboard) is owed before the dashboard can be trusted.
+
+Then read, in order:
 
 1. BACKHAUL.md (repo root) — the root status point. Follow its links: Work Board, Wiki Index,
    Roadmap, Team.
