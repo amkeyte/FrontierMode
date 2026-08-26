@@ -3,7 +3,7 @@ id: FRO_045
 uid: FRO
 number: 45
 client: FrontierMode
-status: open
+status: blocked
 title: Build Boss defeat border-growth caller (RM_FRO_019)
 context: Lead Dev build for Karen. growCenteredOn() three-layer addition, LivingDeathEvent
   defeat handler with MobScope.getFor() race fallback, BossAPI.createBoss() pairing.
@@ -118,6 +118,8 @@ on read-through/self-review alone.
 - 2026-08-24: Ticket opened. Architect prep ([FRO_044](FRO_044_karen-prep.md)) closed — both design
   calls ruled and source-verified; [RM_FRO_018](../roadmap/RM_FRO_018_shirley.md) ("Shirley")
   resolved and live-verified.
+
+- 2026-08-25: **Blocked on [FRO_046](FRO_046_growcenteredon-proposal-contract.md).** Grounding `growCenteredOn` against real source (`BorderLogic`/`BordersPathFacet`/`BorderAPI`/`BordersCrudFacet`/`BorderProposal`) surfaced a proposal-application failure-contract question that reaches every existing `applyProposal` caller, not just this node's new method — `growCenteredOn`'s own return shape at all three layers depends on how it's ruled. Opened as its own Architect ticket rather than decided mid-build. Nothing built yet on this ticket.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->
