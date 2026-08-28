@@ -8,7 +8,7 @@ summary: 'Vision: Satchel as the exclusive path to Forge for every module -- eve
   than by thread discipline.'
 keywords: null
 status: draft
-updated: '2026-08-18'
+updated: '2026-08-27'
 ---
 
 <!-- bh-header:start -->
@@ -69,7 +69,7 @@ deployment removes the net; it doesn't introduce the class of bug.
   `sideApplicability`, applied to a different question (which world is this, not which side am
   I). `LogicalFoundation.tryScopeInfo` alongside it is the first real instance of "ask, don't
   assume" replacing a throwing `require*` call at a call site outside the ingress classes
-  ([BorderAPI.borders](../../frontiermode/architecture/border.md) now uses it). Both are scoped
+  ([BorderAPI's facet resolvers](../../frontiermode/architecture/border.md) now use it). Both are scoped
   narrowly to world/scope identity, not sidedness itself — but they're evidence the "declared
   centrally, resolved safely" pattern generalizes beyond the one place it started, which is
   exactly the bet this vision is making.

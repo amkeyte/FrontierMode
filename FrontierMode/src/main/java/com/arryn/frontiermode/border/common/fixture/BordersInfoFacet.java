@@ -40,6 +40,17 @@ public final class BordersInfoFacet {
         return setting.seeded();
     }
 
+    /**
+     * FRO_047: exposes {@code SatchelFixture.isReady()} without leaking the fixture itself --
+     * {@code RenderContext.standby()} needs this specifically (a fixture can be resolved via
+     * {@code BorderAPI}'s facet resolvers -- scope known, world-identity token bound -- while
+     * still mid-hydration, a narrower and later readiness state than what those resolvers already
+     * gate on).
+     */
+    public boolean isReady() {
+        return setting.isReady();
+    }
+
     //package private accessors
 
     /**

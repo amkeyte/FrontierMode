@@ -7,7 +7,7 @@ summary: 'Canon terminology for FrontierMode''s Border system: Relevance, Layer,
   and Difficulty, replacing overloaded use of ''level'' across the wiki and code.'
 keywords: null
 status: verified
-updated: '2026-08-21'
+updated: '2026-08-27'
 ---
 
 <!-- bh-header:start -->
@@ -51,7 +51,7 @@ live consumer anywhere in either repo, `getRelevant()`'s comparison. Works like 
 editor: a metric for ordering, closest-to-0-wins, with no inherent geometric or gameplay meaning of
 its own.
 
-**Only coincidentally tied to Path.** Under normal growth, `BorderLogic.grow()` assigns the next
+**Only coincidentally tied to Path.** Under normal growth, `BordersPathFacet.grow()` assigns the next
 path slot and the next `layer` from the same call, so they move together — but nothing
 structurally binds them. `BordersPathFacet.moveUp()`/`moveDown()` reorder the path without ever
 touching `layer` — see [Border Path & Layer Reconciliation](path-layer-reconciliation.md) for how

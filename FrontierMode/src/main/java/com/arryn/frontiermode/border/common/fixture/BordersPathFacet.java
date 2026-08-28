@@ -1,5 +1,8 @@
 package com.arryn.frontiermode.border.common.fixture;
 
+import com.arryn.frontiermode.border.server.rules.BorderRules;
+import net.minecraft.server.level.ServerLevel;
+
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -79,32 +82,51 @@ public final class BordersPathFacet {
     }
 
     /**
-     * Advance the canonical border progression by one step.
-     * Creates a new border and appends it to the path tip.
+     * Advance the canonical border progression by one step. Builds and applies the proposal
+     * directly -- FRO_047 folded {@code BorderLogic.getInitial()}/{@code grow()}'s mechanics in
+     * here rather than delegating to a separate logic class, per the eliminated-{@code BorderLogic}
+     * ruling. An empty path takes the bootstrap branch ({@link BorderRules#chooseInitialCenter}/
+     * {@link BorderRules#chooseInitialRadius}, layer 0); a non-empty path grows from the tip
+     * ({@link BorderRules#chooseNextCenter}/{@link BorderRules#chooseNextRadius}, layer
+     * {@code previous.layer() + 1}) -- same branch structure {@code BorderLogic.getInitial()}/
+     * {@code grow()} used, just inlined.
      *
-     * <p>RM_FRO_018: also marks this level's path {@code seeded} -- once, inside this same
-     * append, covering every caller uniformly (organic growth, an admin command, a future debug
-     * trigger, and the {@code getInitial()} bootstrap branch below). Never cleared once set, even
-     * by later removing every border -- see {@code BordersFixture}'s {@code KEY_SEEDED} field doc.
+     * <p>Returns whatever {@link Result} {@link BordersCrudFacet#applyProposal} produces --
+     * on failure, the path is left untouched (no partial append). On success, appends to the path
+     * tip and marks this level's path {@code seeded} -- once, inside this same append, covering
+     * every caller uniformly (organic growth, an admin command, a future debug trigger). Never
+     * cleared once set, even by later removing every border -- see {@code BordersFixture}'s
+     * {@code KEY_SEEDED} field doc.
      */
-    public Border grow() {
+    public Result grow() {
         fixture.requireServerSide();
 
-        Border border;
+        ServerLevel level = fixture.resolveLevel();
+        BorderProposal prop = fixture.CRUD.getProposal();
 
         Optional<Border> tipOpt = tip();
         if (tipOpt.isPresent()) {
-            border = fixture.logic.grow(tipOpt.get());
+            Border previous = tipOpt.get();
+            prop.center(BorderRules.ACTIVE.chooseNextCenter(level, previous))
+                    .radius(BorderRules.ACTIVE.chooseNextRadius(level, previous))
+                    .layerIndex(previous.layer() + 1);
         } else {
-            border = fixture.logic.getInitial();
+            prop.center(BorderRules.ACTIVE.chooseInitialCenter(level))
+                    .radius(BorderRules.ACTIVE.chooseInitialRadius(level))
+                    .layerIndex(0);
+        }
+
+        Result result = fixture.CRUD.applyProposal(prop);
+        if (!result.isSuccess()) {
+            return result;
         }
 
         // append to canonical path
-        fixture.borderPath.add(border.id());
+        fixture.borderPath.add(result.border().id());
         fixture.markSeeded();
         fixture.markPathDirty();
 
-        return border;
+        return result;
     }
 
     public int insertAll(int index, Collection<Border> borders) {
@@ -202,7 +224,7 @@ public final class BordersPathFacet {
      * {@code target[borderPath.get(i)] = i} for every path member -- and delegates the actual bulk
      * apply to {@link BordersFixture#reassignLayers(Map)}. This still just sets each path member's
      * layer to its path index, no more and no less -- layer collisions with off-path borders aren't
-     * a concern to route around anymore (see {@code BordersCrudFacet.validateProposal}'s doc: Layer
+     * a concern to route around anymore (see {@code BordersCrudFacet}'s doc: Layer
      * and Path are definitionally unrelated, and duplicate layers resolve fine via
      * {@code getRelevant()}'s own nearest-center tie-break). Full design: Border Path & Layer
      * Reconciliation (architecture wiki).

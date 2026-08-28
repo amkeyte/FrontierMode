@@ -2,7 +2,12 @@ package com.arryn.frontiermode.border;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
+import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
+import com.arryn.frontiermode.border.common.fixture.BordersRulesFacet;
+import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
@@ -36,12 +41,16 @@ import java.util.UUID;
  * <p>
  * All enforcement and validation is delegated to:
  * <ul>
- *   <li>{@link BordersFixture}</li>
+ *   <li>{@link BordersFixture} and its facets</li>
  *   <li>Satchel scope / bundle infrastructure</li>
  * </ul>
  *
  * <p>
- * If Borders are not available for a given level, methods will fail loudly.
+ * If Borders are not available for a given level, query methods degrade to {@code Optional.empty()}
+ * / an empty list, and mutating methods return a failed {@link Result} -- see each method's own
+ * doc. {@link BordersFixture} itself is never handed to another module; the four facet resolvers
+ * below ({@link #PATH}, {@link #CRUD}, {@link #RULES}, {@link #INFO}) are the only way anything
+ * outside {@code border.common.fixture} reaches Border's state.
  */
 public final class BorderAPI {
 
@@ -77,43 +86,21 @@ public final class BorderAPI {
      * {@code ServerForgeIngress} binds the world-identity token before introducing any source, so
      * {@code LevelScope}'s UUID is already stable (token-folded) the first time this could
      * possibly run.
-     * <p>
-     * Since the isReady()/{@code SatchelException.NotReady} redesign, this can throw if called
-     * before {@code Satchel.isReady()} -- never actually happens from this method's real
-     * (server-only) call site, per the above, but it does happen for the other caller of
-     * {@code new LevelScope(...)}-shaped construction: {@link #borders(Level)} below, which
-     * checks {@code Satchel.isReady()} proactively before calling this, precisely so it never
-     * has to find out the hard way. If a genuinely client-side caller of this method specifically
-     * is ever added, it needs the same proactive check -- see {@code RenderContext.getInstance()}
-     * for the pattern (it hit the real version of this problem before the redesign: two different
-     * UUIDs for the same level, before vs. after the token, corrupting a long-lived cache key).
      */
     public static LevelScope scope(Level level) {
         return new LevelScope(level);
     }
 
-    public static Optional<Border> border(Level level, UUID borderId) {
-        Optional<BordersFixture> opt = borders(level);
-
-        if (opt.isEmpty()) {
-            OUT.debug(
-                    "[BorderAPI] border(): no BordersFixture "
-                            + "level=" + level.dimension().location()
-                            + " id=" + borderId
-            );
-            return Optional.empty();
-        }
-
-        return opt.flatMap(b -> b.CRUD.get(borderId));
-    }
-
-
-
-    public static Optional<BordersFixture> borders(LevelScope scope) {
-        return borders(scope.level());
-    }
-
-    public static Optional<BordersFixture> borders(Level level) {
+    /**
+     * FRO_047: resolves this level's {@link BordersFixture} -- kept private, replacing the old
+     * public {@code borders(Level)}/{@code borders(LevelScope)} surface. {@link #PATH}/
+     * {@link #CRUD}/{@link #RULES}/{@link #INFO} below are the only way outside code reaches into
+     * it now; the fixture type itself never crosses this method's boundary as a return value.
+     * Same "standby, don't crash" body {@code borders(Level)} always had -- isReady() gate, then
+     * scope-info known/ready checks, each falling through to {@code Optional.empty()} rather than
+     * throwing.
+     */
+    private static Optional<BordersFixture> resolveFixture(Level level) {
         // isReady() gate: scope(level) constructs a LevelScope directly (not through
         // LevelResolver), and LevelScope now throws SatchelException.NotReady rather than
         // silently falling back if the world-identity token isn't bound yet -- see the
@@ -123,7 +110,7 @@ public final class BorderAPI {
         // don't crash" philosophy as the two checks below it.
         if (!Satchel.isReady()) {
             OUT.debug(
-                    "[BorderAPI] borders(): Satchel not ready yet → Optional.empty "
+                    "[BorderAPI] resolveFixture(): Satchel not ready yet → Optional.empty "
                             + "level=" + level.dimension().location()
             );
             return Optional.empty();
@@ -142,7 +129,7 @@ public final class BorderAPI {
 
         if (infoOpt.isEmpty()) {
             OUT.debug(
-                    "[BorderAPI] borders(): scope not yet known → Optional.empty "
+                    "[BorderAPI] resolveFixture(): scope not yet known → Optional.empty "
                             + "level=" + level.dimension().location()
             );
             return Optional.empty();
@@ -152,7 +139,7 @@ public final class BorderAPI {
 
         if (!info.isReady()) {
             OUT.debug(
-                    "[BorderAPI] borders(): scope NOT ready → Optional.empty "
+                    "[BorderAPI] resolveFixture(): scope NOT ready → Optional.empty "
                             + "level=" + level.dimension().location()
                             + " phase=" + info.phase()
             );
@@ -167,7 +154,7 @@ public final class BorderAPI {
 
             if (result.isEmpty()) {
                 OUT.debug(
-                        "[BorderAPI] borders(): bundle present but Borders facet ABSENT "
+                        "[BorderAPI] resolveFixture(): bundle present but Borders facet ABSENT "
                                 + "level=" + level.dimension().location()
                 );
             }
@@ -183,22 +170,56 @@ public final class BorderAPI {
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Facet resolvers -- the only way outside code reaches Border's state
+    // ---------------------------------------------------------------------
+
+    public static Optional<BordersPathFacet> PATH(Level level) {
+        return resolveFixture(level).map(f -> f.PATH);
+    }
+
+    public static Optional<BordersCrudFacet> CRUD(Level level) {
+        return resolveFixture(level).map(f -> f.CRUD);
+    }
+
+    public static Optional<BordersRulesFacet> RULES(Level level) {
+        return resolveFixture(level).map(f -> f.RULES);
+    }
+
+    public static Optional<BordersInfoFacet> INFO(Level level) {
+        return resolveFixture(level).map(f -> f.INFO);
+    }
 
     // ---------------------------------------------------------------------
     // Queries (safe on both sides)
     // ---------------------------------------------------------------------
 
-    public static List<Border> bordersContaining(Level level, BlockPos pos) {
-        BordersFixture borders = borders(level)
-                .orElseThrow(() ->
-                        new SatchelException.ScopeNotReady(
-                                "bordersContaining called before BordersFixture ready "
-                                        + "level=" + level.dimension().location()
-                                        + " pos=" + pos
-                        )
-                );
+    public static Optional<Border> border(Level level, UUID borderId) {
+        return CRUD(level).flatMap(c -> c.get(borderId));
+    }
 
-        return borders.RULES.containing(pos);
+    /**
+     * FRO_047: throws {@code SatchelException.ScopeNotReady} when the level's Border facet isn't
+     * resolvable yet -- same shape this method always had, just resolved via {@link #RULES}
+     * instead of the raw fixture. Not-ready is only ever a routine, expected state for callers
+     * reachable from a render/tick loop before something else is confirmed ready ({@link
+     * BordersFixture}'s own doc, {@code RenderContext} being the real example) -- this method's
+     * actual callers ({@code BorderSelector}'s {@code @containing}/{@code @coord} selectors) run
+     * from ordinary server-side command dispatch, where the Border facet is expected to already
+     * be resolvable by the time a player can even type a command. A not-ready call from there
+     * isn't a routine state to quietly route around -- it would mean something else is already
+     * wrong, and that should surface loudly rather than be swallowed into an empty list a caller
+     * never explicitly asked to distinguish from a real "nothing here."
+     */
+    public static List<Border> bordersContaining(Level level, BlockPos pos) {
+        BordersRulesFacet rules = RULES(level)
+                .orElseThrow(() -> new SatchelException.ScopeNotReady(
+                        "bordersContaining called before BordersFixture ready "
+                                + "level=" + level.dimension().location()
+                                + " pos=" + pos
+                ));
+
+        return rules.containing(pos);
     }
 
 
@@ -206,8 +227,8 @@ public final class BorderAPI {
      * RM_FRO_006: resolves {@code player}'s live {@link BorderPlayerStatus} snapshot -- the
      * per-player, {@code PlayerJig}-scoped derived-evaluation state ({@code BorderModule.init()}'s
      * {@code onPlayerScopeTick} handler keeps this current every tick). Follows the same
-     * "standby, don't crash" discipline as {@link #borders(Level)}: not ready yet (Satchel not
-     * booted, scope not yet known, scope known but not ready) all fall through to
+     * "standby, don't crash" discipline as {@link #resolveFixture(Level)}: not ready yet (Satchel
+     * not booted, scope not yet known, scope known but not ready) all fall through to
      * {@code Optional.empty()} rather than throwing, since callers like
      * {@code BorderSelector.resolveRelevant} run in ordinary command-dispatch context and a
      * player who hasn't ticked even once yet (e.g. mid-login) is a real, expected transient state,
@@ -262,81 +283,73 @@ public final class BorderAPI {
     }
 
     // ---------------------------------------------------------------------
-    // Mutations (authority enforced by fixture)
+    // Mutations -- every operation that can fail returns a Result (FRO_047 / FRO_046's ruling)
     // ---------------------------------------------------------------------
 
-    public static Border grow(Level level) {
-        BordersFixture borders = borders(level)
-                .orElseThrow(() ->
-                        new SatchelException.ScopeNotReady(
-                                "Attempted to grow border but BordersFixture not available "
-                                        + "level=" + level.dimension().location()
-                        )
-                );
-
-        return borders.PATH.grow();
+    /**
+     * Thin wrapper over {@link BordersPathFacet#grow()} -- not-ready degrades to
+     * {@link Result#notReady} instead of the old {@code orElseThrow(ScopeNotReady)}.
+     */
+    public static Result grow(Level level) {
+        return PATH(level)
+                .map(BordersPathFacet::grow)
+                .orElseGet(() -> Result.notReady(
+                        "Attempted to grow border but BordersFixture not available "
+                                + "level=" + level.dimension().location()
+                ));
     }
 
 
-    public static Border addBorder(
+    public static Result addBorder(
             Level level,
             BlockPos center,
             int radius,
             int layerIndex
     ) {
-        BordersFixture borders = borders(level)
-                .orElseThrow(() ->
-                        new SatchelException.ScopeNotReady(
-                                "addBorder called but BordersFixture not available "
-                                        + "level=" + level.dimension().location()
-                        )
-                );
+        Optional<BordersCrudFacet> crudOpt = CRUD(level);
+        if (crudOpt.isEmpty()) {
+            return Result.notReady(
+                    "addBorder called but BordersFixture not available "
+                            + "level=" + level.dimension().location()
+            );
+        }
 
-        var proposal = borders.CRUD.getProposal();
+        BordersCrudFacet crud = crudOpt.get();
+        var proposal = crud.getProposal();
         proposal.center(center)
                 .radius(radius)
                 .layerIndex(layerIndex);
 
-        // Not a second validation pass -- applyProposal() below already calls
-        // validateProposal() itself and throws if it fails (BordersCrudFacet.applyProposal).
-        // This used to call validateProposal() here too and discard the boolean result, which
-        // did nothing but double the "[Border] Rejected proposal" log line on every rejection
-        // (confirmed from a real /border add ~ ~ ~ 999999999 0 test -- see FRO_023/RM_FRO_011).
-        return borders.CRUD.applyProposal(proposal);
+        return crud.applyProposal(proposal);
     }
 
-    public static Border transformBorder(
+    public static Result transformBorder(
             Level level,
             UUID borderId,
             BlockPos newCenter,
             Integer newRadius
     ) {
-        BordersFixture borders = borders(level)
-                .orElseThrow(() ->
-                        new SatchelException.ScopeNotReady(
-                                "transformBorder called but BordersFixture not available "
-                                        + "level=" + level.dimension().location()
-                        )
-                );
+        Optional<BordersCrudFacet> crudOpt = CRUD(level);
+        if (crudOpt.isEmpty()) {
+            return Result.notReady(
+                    "transformBorder called but BordersFixture not available "
+                            + "level=" + level.dimension().location()
+            );
+        }
 
-        Border border = borders.CRUD.get(borderId)
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "No such border: " + borderId
-                        )
-                );
+        BordersCrudFacet crud = crudOpt.get();
 
-        var proposal = borders.CRUD.getProposal();
+        Optional<Border> existing = crud.get(borderId);
+        if (existing.isEmpty()) {
+            return Result.notFound("No such border: " + borderId);
+        }
+
+        var proposal = crud.getProposal();
 
         // RM_FRO_011: proposal.insert(border) seeds center/radius from the existing border first
         // -- a null newCenter/newRadius means "leave that seeded value alone," not "pass null
-        // through." BorderProposal.radius(int) takes a primitive, so a null Integer auto-unboxes
-        // and throws NPE before this method is even entered if passed directly (hit by
-        // /border transform <selector> here and <selector> <pos>, both of which omit radius);
-        // a null center reaches Border's constructor instead, which requireNonNull()s it (hit by
-        // /border transform <selector> radius <r>, which omits position). Only the two forms that
-        // supply both center and radius worked before this fix.
-        proposal.insert(border);
+        // through."
+        proposal.insert(existing.get());
         if (newCenter != null) {
             proposal.center(newCenter);
         }
@@ -344,20 +357,37 @@ public final class BorderAPI {
             proposal.radius(newRadius);
         }
 
-        // See addBorder()'s matching comment above -- applyProposal() already validates.
-        return borders.CRUD.applyProposal(proposal);
+        return crud.applyProposal(proposal);
     }
 
-    public static boolean removeBorder(Level level, UUID id) {
-        BordersFixture borders = borders(level)
-                .orElseThrow(() ->
-                        new SatchelException.ScopeNotReady(
-                                "addBorder called but BordersFixture not available "
-                                        + "level=" + level.dimension().location()
-                        )
-                );
+    /**
+     * FRO_047: returns {@link Result} instead of {@code boolean} -- looks the border up first so
+     * a successful removal can still hand the caller the {@link Border} that was removed, same
+     * "Border on success" shape every other mutating operation here follows.
+     */
+    public static Result removeBorder(Level level, UUID id) {
+        Optional<BordersCrudFacet> crudOpt = CRUD(level);
+        if (crudOpt.isEmpty()) {
+            return Result.notReady(
+                    "removeBorder called but BordersFixture not available "
+                            + "level=" + level.dimension().location()
+            );
+        }
 
+        BordersCrudFacet crud = crudOpt.get();
 
-        return borders.CRUD.remove(id);
+        Optional<Border> existing = crud.get(id);
+        if (existing.isEmpty()) {
+            return Result.notFound("No such border: " + id);
+        }
+
+        boolean removed = crud.remove(id);
+        if (!removed) {
+            // Shouldn't happen given the get() above just succeeded, but stay defensive rather
+            // than assume -- same discipline the rest of this refactor follows.
+            return Result.notFound("No such border: " + id);
+        }
+
+        return Result.success(existing.get());
     }
 }

@@ -9,8 +9,9 @@ import java.util.UUID;
 /**
  * Immutable materialized border.
  * <p>
- * Borders are capability-bound to a {@link BorderAuthority} and can only be
- * constructed within this package.
+ * Borders can only be constructed within this package -- {@link BorderProposal#create()} is the
+ * only real caller ({@link BordersFixture#reassignLayers} also constructs directly, for the
+ * layer-reassignment replace-in-place case).
  */
 public final class Border {
 
@@ -20,12 +21,6 @@ public final class Border {
 
     private final UUID id;
     private final String displayName;
-
-    // ============================================================
-    // Authority
-    // ============================================================
-
-    private final BorderAuthority authority;
 
     // ============================================================
     // Geometry
@@ -46,7 +41,6 @@ public final class Border {
     // ============================================================
 
     public Border(
-            BorderAuthority authority,
             UUID id,
             String displayName,
             BlockPos center,
@@ -55,7 +49,6 @@ public final class Border {
     ) {
         this.id = Objects.requireNonNull(id, "id");
         this.displayName = displayName; // nullable is allowed
-        this.authority = Objects.requireNonNull(authority, "authority");
         this.center = Objects.requireNonNull(center, "center");
         this.radius = radius;
         this.layerIndex = layerIndex;
@@ -71,10 +64,6 @@ public final class Border {
 
     public String displayName() {
         return displayName;
-    }
-
-    public BorderAuthority authority() {
-        return authority;
     }
 
     public BlockPos center() {
@@ -114,9 +103,8 @@ public final class Border {
         return tag;
     }
 
-    static Border load(BorderAuthority authority, CompoundTag tag) {
+    static Border load(CompoundTag tag) {
         return new Border(
-                authority,
                 tag.getUUID("id"),
                 tag.getString("displayName"),
                 new BlockPos(

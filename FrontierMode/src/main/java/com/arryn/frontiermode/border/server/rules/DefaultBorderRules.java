@@ -4,6 +4,7 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.server.rules.items.BorderPathCompass;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -147,13 +148,13 @@ public final class DefaultBorderRules implements BorderRules {
     public boolean growPathCriteria(Level level, BlockPos pos, BlockState placed) {
         if (!placed.is(Blocks.GOLD_BLOCK)) return false;
 
-        var tipOpt = BorderAPI.borders(level)
-                .flatMap(b -> b.PATH.tip());
+        var tipOpt = BorderAPI.PATH(level)
+                .flatMap(BordersPathFacet::tip);
 
         // No path tip yet is a real, expected state -- a fresh world/fixture before any border
         // has ever been grown -- not an error. BordersPathFacet.grow() already treats this case
-        // as first-class (falls back to fixture.logic.getInitial(), which ignores `pos` and is
-        // always spawn-centered per DefaultBorderRules' own class doc above). So here: any gold
+        // as first-class (its own empty-path branch, which ignores `pos` and is always
+        // spawn-centered per DefaultBorderRules' own class doc above). So here: any gold
         // block placement is valid to trigger that initial growth when there's nothing to be
         // "close enough" to yet. Was `.orElseThrow()` -- crashed the server on the very first
         // gold block ever placed in a fresh world. See SAT_023-adjacent finding, FRO_015.
@@ -165,8 +166,8 @@ public final class DefaultBorderRules implements BorderRules {
     @Override
     public void updateFinderItems(Level level) {
 
-        var tipOpt = BorderAPI.borders(level)
-                .flatMap(b -> b.PATH.tip());
+        var tipOpt = BorderAPI.PATH(level)
+                .flatMap(BordersPathFacet::tip);
 
         // Same "no path tip yet" state as growPathCriteria above -- nothing to point players at
         // until a border exists, not an error. Was `.orElseThrow()`, which crashed the server

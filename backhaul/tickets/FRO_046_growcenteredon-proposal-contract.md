@@ -3,13 +3,13 @@ id: FRO_046
 uid: FRO
 number: 46
 client: FrontierMode
-status: open
+status: done
 title: Border external interface ruling
 context: 'BorderLogic removed, proposals stay public with a Result type, BorderAPI exposes
   facets.'
 priority: high
 opened: '2026-08-25'
-closed: null
+closed: '2026-08-28'
 ---
 
 <!-- board:start -->
@@ -121,12 +121,26 @@ it). Remove the interface, `Border.authority()`, and `BordersFixture implements 
 - `BordersCrudFacet.applyProposal`'s current `IllegalStateException`-on-rejection is what
   `BorderCommandHandler` catches and relays to players today — that call site moves to reading the
   new `Result`.
-- `BorderAPI.borders(Level)`'s only outside caller is `BossModule` (item 3) — moves to the new
-  per-facet resolvers.
+- `BorderAPI.borders(Level)` has real callers well beyond `BossModule` — `BorderCommandHandler`,
+  `BorderSelector`, `RenderContext`, `DefaultBorderRules`, and `BorderModule` itself all resolve
+  it and reach a facet directly today. Every one moves to the new per-facet resolvers; Lead Dev
+  should expect this to touch most of `border.server.commands` and `border.client.render`, not
+  just Boss.
 
 ## Log
 
-- 2026-08-25: Ticket rewritten (Architect) to reflect the settled design above.
+- 2026-08-27: Ticket rewritten (Architect) to reflect the settled design above.
+
+- 2026-08-28: **Ruling closed (Architect).** Design fully propagated into the architecture wiki as
+  canon — [Border](../wiki/frontiermode/architecture/border.md) (Mutation surface, facet-resolver
+  data model, readiness), [Border Vocabulary](../wiki/frontiermode/architecture/border-vocabulary.md),
+  and [Path/Layer Reconciliation](../wiki/frontiermode/architecture/path-layer-reconciliation.md)
+  all rewritten to the settled design; the Satchel-side pages that named `BorderAPI.borders(Level)`
+  or read directly off `BordersFixture` as illustrative examples (`satchel.md`, `facade-vision.md`,
+  `forge-integration.md`) updated to match. [FRO_045](FRO_045_karen-build.md)'s own build spec
+  rewritten against this ruling. Nothing in `border.server.rules`/`border.common.fixture`/
+  `border/BorderAPI.java` has actually been touched yet — that's Lead Dev's job, same as FRO_044
+  closing didn't mean RM_FRO_019 was built.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-24'
+updated: '2026-08-27'
 ---
 
 <!-- bh-header:start -->
@@ -30,8 +30,9 @@ Mechanics](../design/progression.md)). Future modules are expected to build on B
 surface, which is exactly why `BorderAPI` already being trigger-agnostic — any caller can propose
 a change; nothing is tied to command-handling specifically, see "Commands and client surface"
 below — matters more than it would for a module nothing else depends on. [Boss](boss.md) is the
-first such consumer: its bootstrap and record-creation hooks read `BordersFixture` and
-`BorderAPI` directly (see "Runtime wiring" below).
+first such consumer: its bootstrap and record-creation hooks reach Border exclusively through
+`BorderAPI`'s facet resolvers (see "Runtime wiring" below) — `BordersFixture` itself is never
+handed to another module.
 
 ## Design vocabulary bridge
 
@@ -74,6 +75,12 @@ owning fixture, each covering one slice of the fixture's API:
 - `CRUD` (`BordersCrudFacet`) — create/read/update/delete on individual borders
 - `RULES` (`BordersRulesFacet`) — rule evaluation surface
 - `INFO` (`BordersInfoFacet`) — read-only queries (scope, level, UUID, revision, `seeded()`)
+
+`BordersFixture` itself is package-private — it never leaves `border.common.fixture`. `BorderAPI`
+exposes the four facets directly (`BorderAPI.PATH(Level)`, `.CRUD(Level)`, `.RULES(Level)`,
+`.INFO(Level)`), each resolving the level's fixture internally and handing back the requested
+facet, never the fixture itself. Nothing outside this package ever holds a `BordersFixture`
+reference.
 
 This is the canonical example of Satchel's fixture/facet split (see
 [Fixture](../../satchel/architecture/fixture.md)): the fixture is the one persisted unit; facets
@@ -156,9 +163,30 @@ for the paired-call convention this follows, and why the call lives here rather 
 side (Boss depends on Border, never the reverse; `BossModule.init()` runs after
 `BorderModule.init()` for the same reason).
 
-Rule evaluation is server-side: `BorderLogic` + `DefaultBorderRules` (`border/server/rules/*`)
-decide whether a proposed border change is legal; `BordersTriggers` hooks world events (e.g.
-block placement) to drive border growth.
+Rule evaluation is server-side: `DefaultBorderRules` (`border/server/rules/*`, reached through
+the shared `BorderRules.ACTIVE` singleton) supplies the values — center, radius, next layer —
+that `BordersPathFacet`/`BordersCrudFacet` turn into a proposal and apply directly;
+`BordersTriggers` hooks world events (e.g. block placement) to drive border growth.
+
+## Mutation surface
+
+Every mutation goes through a proposal: `BordersCrudFacet.getProposal()` returns a fresh,
+unconfigured `BorderProposal`; the caller configures it (`center()`, `radius()`, `layerIndex()`,
+or `insert(Border)` to seed all three from an existing border) and hands it back to
+`CRUD.applyProposal(proposal)`, which validates it against `BorderConstants`' radius bounds and
+applies it atomically if it passes. `BorderProposal`'s own constructor is package-private — only
+`CRUD.getProposal()` can mint one — but the type and its configuration methods are otherwise
+public and general-purpose, on the same footing as `getProposal()`/`applyProposal()` themselves.
+`BorderAPI`'s named operations (`grow`, `addBorder`, `transformBorder`, `growCenteredOn`) are the
+safe, easy path for the common cases, not a closed set — any caller can build and apply its own
+proposal directly for a case the named operations don't cover.
+
+`applyProposal()` — and every other `BorderAPI` operation that can fail — returns a `Result`
+rather than throwing or returning `Optional.empty()`: an outcome enum, a failure-kind enum
+(populated only on failure, distinguishing a transient not-ready state from a permanent
+validation rejection from a not-found lookup), a message string, and the `Border` itself on
+success. `BorderSelectorResult` (`border/server/commands/BorderSelectorResult.java`) is the
+established in-repo shape this follows — static factories, final fields, tagged by an enum.
 
 ## Commands and client surface
 
@@ -172,13 +200,14 @@ block placement) to drive border growth.
   Satchel's tick), while `GrowthTriggerRenderer` spawns the `frontier_ring` particle effect
   (`assets/frontiermode/particles/frontier_ring.json`) off `ScopeEvent.Tick` via `Rendering.onClientTick`,
   subscribed through the `EventHandlers` wiring described above. `RenderContext` is the shared per-level cache both
-  renderers read from (`BordersFixture` pulled via `BorderAPI`, refreshed every 20 ticks via
+  renderers read from (`BorderAPI`'s facet resolvers, refreshed every 20 ticks via
   `BordersRevisionMonitor`). `BorderView` is dead — fully commented out, not part of the live
   pipeline despite the name suggesting otherwise.
-- **Readiness**: `BorderAPI.borders(Level)` — the one place both renderers and the command layer
-  actually reach `BordersFixture` through — proactively checks `Satchel.isReady()`
-  ([SAT_032](../../../tickets/SAT_032_isready-gate.md)) before doing anything else, since it's
-  reachable from the client render path before the world-identity token has necessarily arrived.
+- **Readiness**: every `BorderAPI` facet resolver (`PATH`/`CRUD`/`RULES`/`INFO`) proactively
+  checks `Satchel.isReady()` ([SAT_032](../../../tickets/SAT_032_isready-gate.md)) before doing
+  anything else, since they're reachable from the client render path before the world-identity
+  token has necessarily arrived — a not-ready call surfaces through the same `Result` the
+  mutating operations use (see "Mutation surface" above), not a thrown exception.
   `RenderContext.getInstance()` goes through `LevelResolver.resolveScope` rather than constructing
   a `LevelScope` directly, for the same reason — direct construction now throws
   `SatchelException.NotReady` pre-readiness instead of silently falling back, which would corrupt

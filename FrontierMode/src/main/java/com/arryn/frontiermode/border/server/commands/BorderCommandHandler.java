@@ -4,6 +4,7 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
+import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -38,21 +39,15 @@ public final class BorderCommandHandler {
     ) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        Border border;
-        try {
-            border = BorderAPI.addBorder(level, pos, radius, layer);
-        } catch (IllegalStateException e) {
-            // RM_FRO_011's validation (BordersCrudFacet.applyProposal/validateProposal) throws a
-            // raw IllegalStateException on rejection (bad radius, negative/colliding layer).
-            // Uncaught, that surfaces to the player as Brigadier's generic "An unexpected error
-            // occurred" -- confirmed from a real /border add ~ ~ ~ 999999999 0 test (FRO_023):
-            // the server log showed a clean "[Border] Rejected proposal: radius ... outside
-            // allowed range" WARN, but the player just saw the scary generic message instead of
-            // that reason. This is the fix: same rejection, but the player actually sees why.
-            ctx.getSource().sendFailure(msg("Rejected: " + e.getMessage()));
+        // FRO_047: BorderAPI.addBorder now returns Result instead of throwing -- same rejection
+        // (bad radius, negative layer), but read as data instead of an IllegalStateException.
+        Result result = BorderAPI.addBorder(level, pos, radius, layer);
+        if (!result.isSuccess()) {
+            ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
 
+        Border border = result.border();
         ctx.getSource().sendSuccess(
                 () -> msg("Created border " + border.id()),
                 false
@@ -68,20 +63,19 @@ public final class BorderCommandHandler {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
-        Border border;
-        try {
-            border = BorderAPI.addBorder(
-                    sp.serverLevel(),
-                    sp.blockPosition(),
-                    radius,
-                    layer
-            );
-        } catch (IllegalStateException e) {
+        Result result = BorderAPI.addBorder(
+                sp.serverLevel(),
+                sp.blockPosition(),
+                radius,
+                layer
+        );
+        if (!result.isSuccess()) {
             // See addExplicit()'s matching comment above.
-            sp.sendSystemMessage(msg("Rejected: " + e.getMessage()));
+            sp.sendSystemMessage(msg("Rejected: " + result.message()));
             return 0;
         }
 
+        Border border = result.border();
         sp.sendSystemMessage(
                 msg("Created border " + border.id() + " at your location")
         );
@@ -96,11 +90,12 @@ public final class BorderCommandHandler {
             CommandContext<CommandSourceStack> ctx,
             UUID id
     ) {
-        boolean removed =
-                BorderAPI.removeBorder(ctx.getSource().getLevel(), id);
+        // FRO_047: removeBorder now returns Result instead of boolean -- carries the real reason
+        // (not-ready vs. not-found) instead of a single generic failure message.
+        Result result = BorderAPI.removeBorder(ctx.getSource().getLevel(), id);
 
-        if (!removed) {
-            ctx.getSource().sendFailure(msg("Failed to remove border."));
+        if (!result.isSuccess()) {
+            ctx.getSource().sendFailure(msg("Failed to remove border: " + result.message()));
             return 0;
         }
 
@@ -127,8 +122,8 @@ public final class BorderCommandHandler {
                     // LEV is this border's position in the canonical path order, distinct from LAY
                     // (Border.layer()) -- see RM_FRO_015: the two are definitionally unrelated, so
                     // both are shown rather than conflating them the way the old "L:" label did.
-                    int pathIndex = BorderAPI.borders(level)
-                            .map(f -> f.PATH.indexOf(id))
+                    int pathIndex = BorderAPI.PATH(level)
+                            .map(p -> p.indexOf(id))
                             .orElse(-1);
                     ctx.getSource().sendSuccess(
                             () -> msg(BorderDisplay.shortInfo(b, pathIndex)),
@@ -152,17 +147,17 @@ public final class BorderCommandHandler {
             BlockPos center,
             Integer radius
     ) {
-        try {
-            BorderAPI.transformBorder(
-                    ctx.getSource().getLevel(),
-                    id,
-                    center,
-                    radius
-            );
-        } catch (IllegalStateException e) {
+        Result result = BorderAPI.transformBorder(
+                ctx.getSource().getLevel(),
+                id,
+                center,
+                radius
+        );
+
+        if (!result.isSuccess()) {
             // See BorderCommandHandler#addExplicit's matching comment -- same rejection path,
             // same fix (RM_FRO_011 / FRO_023).
-            ctx.getSource().sendFailure(msg("Rejected: " + e.getMessage()));
+            ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
 
@@ -184,26 +179,15 @@ public final class BorderCommandHandler {
 
         // RM_FRO_015: removed an "if no borders exist, refuse to grow" guard that used to sit
         // here. It was backwards -- BordersPathFacet.grow() already branches internally on an
-        // empty path (Optional<Border> tip absent) and calls BorderLogic.getInitial() for exactly
-        // that case, which is precisely how a level's very first border is supposed to get
-        // created. This guard intercepted that branch before it could ever run, so `/border path
-        // grow` on a fresh level (0 borders) always failed with "No borders exist to grow." --
-        // confirmed by real playtest: the gold-block trigger (BordersTriggers.growPath) calls
-        // BorderAPI.grow(level) directly, has no such guard, and was never affected. Command and
-        // trigger now behave the same way.
+        // empty path and bootstraps for exactly that case, which is precisely how a level's very
+        // first border is supposed to get created. Command and trigger behave the same way.
 
-        try {
-            BorderAPI.grow(level);
-        } catch (IllegalStateException e) {
+        Result result = BorderAPI.grow(level);
+        if (!result.isSuccess()) {
             // RM_FRO_015: same rejection path/fix as addExplicit()'s matching comment
             // (RM_FRO_011/FRO_023) -- just never applied here until testing the fixLayers() work
-            // turned up the gap (at the time, growth's layer = previous.layer() + 1 could
-            // legitimately collide with an off-path border already holding that value; that specific
-            // trigger no longer applies now that layer collisions aren't rejected at all -- see
-            // BordersCrudFacet.validateProposal's doc -- but this stays as real defense for the
-            // other rejection failureReason() still checks, chiefly radius bounds, which organic
-            // growth's own GROWTH_FACTOR curve could in principle still exceed over enough growths).
-            ctx.getSource().sendFailure(msg("Rejected: " + e.getMessage()));
+            // turned up the gap.
+            ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
 
@@ -226,9 +210,7 @@ public final class BorderCommandHandler {
         var level = source.getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, player);
-        var path = BorderAPI.borders(level)
-                .map(b -> b.PATH)
-                .orElseThrow();
+        var path = BorderAPI.PATH(level).orElseThrow();
 
         path.insert(path.size(), border); //probably crashes, but it's a TODO anyway
 
@@ -250,9 +232,7 @@ public final class BorderCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, player);
 
-        var path = BorderAPI.borders(level)
-                .map(b -> b.PATH)
-                .orElseThrow();
+        var path = BorderAPI.PATH(level).orElseThrow();
 
         boolean removed = path.remove(border);
 
@@ -278,9 +258,7 @@ public final class BorderCommandHandler {
         var level = source.getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, player);
-        var path = BorderAPI.borders(level)
-                .map(b -> b.PATH)
-                .orElseThrow();
+        var path = BorderAPI.PATH(level).orElseThrow();
         path.moveUp(border);
 
         source.sendSuccess(
@@ -301,9 +279,7 @@ public final class BorderCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, player);
 
-        var path = BorderAPI.borders(level)
-                .map(b -> b.PATH)
-                .orElseThrow();
+        var path = BorderAPI.PATH(level).orElseThrow();
         path.moveDown(border);
 
         source.sendSuccess(
@@ -317,9 +293,7 @@ public final class BorderCommandHandler {
             CommandContext<CommandSourceStack> ctx
     ) {
         var level = ctx.getSource().getLevel();
-        var path = BorderAPI.borders(level)
-                .map(b -> b.PATH)
-                .orElseThrow();
+        var path = BorderAPI.PATH(level).orElseThrow();
 
         // RM_FRO_015: fixLayers() is now the real reorder-to-match-path-order reconciliation --
         // reports the two real outcomes distinctly instead of the old unconditional "not
@@ -345,7 +319,7 @@ public final class BorderCommandHandler {
     public static int debug(CommandContext<CommandSourceStack> ctx) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        var opt = BorderAPI.borders(level);
+        var opt = BorderAPI.CRUD(level);
 
         if (opt.isEmpty()) {
             ctx.getSource().sendSuccess(
@@ -355,7 +329,7 @@ public final class BorderCommandHandler {
             return 0;
         }
 
-        var borders = opt.get().CRUD.all();
+        var borders = opt.get().all();
 
         ctx.getSource().sendSuccess(
                 () -> Component.literal(
@@ -366,6 +340,16 @@ public final class BorderCommandHandler {
 
         return borders.size();
     }
+
+    /**
+     * Deliberately bypasses the {@code isReady()} standby gate every other accessor in this class
+     * goes through ({@link BorderAPI}'s facet resolvers) -- calls the raw jig directly so it can
+     * distinguish "bundle exists but Borders facet ABSENT" from "not ready yet," a distinction the
+     * gated accessors collapse into one "not available" state on purpose. Debug-only; not part of
+     * FRO_047's blast radius -- {@code BordersFixture} stays a public type for exactly this kind
+     * of low-level probe (see that class's own doc for why it can't be made literally
+     * package-private).
+     */
     public static int debugCreate(CommandContext<CommandSourceStack> ctx) {
         ServerLevel level = ctx.getSource().getLevel();
 

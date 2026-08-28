@@ -8,7 +8,7 @@ summary: Which classes may touch Forge's event buses directly, which bus each le
   Satchel must follow.
 keywords: null
 status: verified
-updated: '2026-08-15'
+updated: '2026-08-27'
 ---
 
 <!-- bh-header:start -->
@@ -117,7 +117,8 @@ module.
   the same precondition `tryScopeInfo`'s deferral above exists for, generalized to apply anywhere,
   not just scope lookup. Code that can run before readiness (rendering, commands, anything outside
   the two ingress classes) should check this proactively and skip gracefully, the same "standby,
-  don't crash" pattern `BorderAPI.borders(Level)` and `RenderContext.getInstance()` both use.
+  don't crash" pattern `BorderAPI`'s facet resolvers (`PATH`/`CRUD`/`RULES`/`INFO`) and
+  `RenderContext.getInstance()` both use.
   Ticking itself is gated on this too: `ServerForgeIngress`/`ClientForgeIngress.onExecutionPulse`
   no-op the foundation's lifecycle pulse until `Satchel.isReady()`, with the bootstrap chain
   itself (`bindFoundation`, `ensureInstalled`, and the client's token-arrival detection) carved

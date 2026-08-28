@@ -3,7 +3,8 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
+import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
@@ -207,15 +208,20 @@ public final class BossModule {
      * world editing) -- logged loudly, never silently self-healed.
      */
     private static void reconcilePathAgainstBossRecords(ServerLevel level, BossFixture fixture) {
-        Optional<BordersFixture> bordersOpt = BorderAPI.borders(level);
-        if (bordersOpt.isEmpty()) {
+        // FRO_047: BorderAPI.borders(Level) is gone -- resolves PATH/CRUD directly instead of a
+        // raw BordersFixture reference (this was already the one behavior-bearing migration
+        // FRO_047's own done bar calls out by name).
+        Optional<BordersPathFacet> pathOpt = BorderAPI.PATH(level);
+        Optional<BordersCrudFacet> crudOpt = BorderAPI.CRUD(level);
+        if (pathOpt.isEmpty() || crudOpt.isEmpty()) {
             return;
         }
-        BordersFixture borders = bordersOpt.get();
+        BordersPathFacet path = pathOpt.get();
+        BordersCrudFacet crud = crudOpt.get();
 
         Set<Integer> pathLayers = new HashSet<>();
-        for (UUID id : borders.PATH.all()) {
-            borders.CRUD.get(id).ifPresent(b -> pathLayers.add(b.layer()));
+        for (UUID id : path.all()) {
+            crud.get(id).ifPresent(b -> pathLayers.add(b.layer()));
         }
 
         Set<Integer> missing = new HashSet<>(pathLayers);

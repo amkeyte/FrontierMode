@@ -23,12 +23,19 @@ public final class BordersRevisionMonitor {
      * Public API (gated)
      * ------------------------------------------------------------------ */
 
+    /**
+     * FRO_047: {@code BorderAPI.borders(Level)} is gone -- routes through
+     * {@code BorderAPI.INFO(level)} and {@link BordersInfoFacet#owner()} instead (a
+     * package-private escape hatch built for exactly this: this class lives in
+     * {@code border.common.fixture} alongside {@link BordersFixture}, so it can still poll the
+     * fixture directly via {@link #poll(BordersFixture)} below without that type crossing this
+     * method's own public boundary).
+     */
     public boolean poll(Level level) {
         Objects.requireNonNull(level, "level");
 
-        var borders = BorderAPI.borders(level);
-
-        return borders
+        return BorderAPI.INFO(level)
+                .map(BordersInfoFacet::owner)
                 .map(this::poll)
                 .orElse(false);
     }

@@ -4,7 +4,9 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.Rendering;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusProposal;
@@ -234,8 +236,8 @@ public final class BorderModule {
                 bundle.getOrCreateFixture(FrontierKeys.BORDER_PLAYER_STATUS, BorderPlayerStatusFixture::new);
 
         List<Border> borders =
-                BorderAPI.borders(player.serverLevel())
-                        .map(b -> b.CRUD.all())
+                BorderAPI.CRUD(player.serverLevel())
+                        .map(BordersCrudFacet::all)
                         .orElseGet(List::of);
 
         fixture.accept(
@@ -285,19 +287,26 @@ public final class BorderModule {
             return;
         }
 
-        var bordersOpt = BorderAPI.borders(level);
-        if (bordersOpt.isEmpty()) {
+        var infoOpt = BorderAPI.INFO(level);
+        if (infoOpt.isEmpty()) {
             OUT.warn("[Border] onBordersScopeLoaded(): BordersFixture not resolvable for overworld"
                     + " level " + level.dimension().location() + " right after its own ScopeEvent.Loaded"
                     + " -- skipping the bootstrap check this cycle.");
             return;
         }
 
-        if (bordersOpt.get().INFO.seeded()) {
+        if (infoOpt.get().seeded()) {
             return;
         }
 
-        Border border = BorderAPI.grow(level);
-        BossAPI.createBoss(level, border);
+        // FRO_047: BorderAPI.grow() now returns Result instead of a bare Border.
+        Result result = BorderAPI.grow(level);
+        if (!result.isSuccess()) {
+            OUT.warn("[Border] onBordersScopeLoaded(): initial grow() failed for overworld level "
+                    + level.dimension().location() + ": " + result.message());
+            return;
+        }
+
+        BossAPI.createBoss(level, result.border());
     }
 }

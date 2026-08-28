@@ -1,13 +1,14 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import com.arryn.frontiermode.border.server.rules.BorderLogic;
+import com.arryn.frontiermode.border.server.rules.BorderRules;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 
 import java.util.UUID;
 
 public final class BorderProposal {
 
-    private final BorderLogic logic;
+    private final BordersFixture fixture;
 
     private boolean consumed = false;
 
@@ -36,9 +37,9 @@ public final class BorderProposal {
     // ============================================================
 
     BorderProposal(
-            BorderLogic logic
+            BordersFixture fixture
     ) {
-        this.logic = logic;
+        this.fixture = fixture;
         applyDefaults();
     }
 
@@ -54,12 +55,19 @@ public final class BorderProposal {
 
     private void applyIdentityDefaults() {
         this.id = UUID.randomUUID();
-        this.displayName = logic.getDefaultDisplayName();
+        this.displayName = fixture.CRUD.getDefaultDisplayName();
     }
 
+    /**
+     * FRO_047: calls {@link BorderRules#ACTIVE} directly instead of going through the deleted
+     * {@code BorderLogic.defaultCenter()}/{@code defaultRadius()} -- those two just forwarded to
+     * {@code rules.chooseInitialCenter(resolveLevel())}/{@code chooseInitialRadius(...)} with no
+     * logic of their own.
+     */
     private void applyGeometryDefaults() {
-        this.center = logic.defaultCenter();
-        this.radius = logic.defaultRadius();
+        ServerLevel level = fixture.resolveLevel();
+        this.center = BorderRules.ACTIVE.chooseInitialCenter(level);
+        this.radius = BorderRules.ACTIVE.chooseInitialRadius(level);
     }
 
     private void applyTopologyDefaults() {
@@ -124,12 +132,11 @@ public final class BorderProposal {
 
 
 
-    Border create(BorderAuthority authority) {
+    Border create() {
         requireNotConsumed();
         consumed = true;
 
         return new Border(
-                authority,
                 id,
                 displayName,
                 center,

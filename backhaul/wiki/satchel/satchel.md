@@ -7,7 +7,7 @@ summary: Core data & utility mod for FrontierMode -- bundles/fixtures, networkin
   and per-bundle persistence.
 keywords: null
 status: verified
-updated: '2026-08-13'
+updated: '2026-08-27'
 ---
 
 <!-- bh-header:start -->
@@ -55,7 +55,8 @@ facet data server-side and, client-side, does nothing more than `bundle.loadAll(
 server-authoritative sync, no logic in the packet path. Once loaded, client code reads that state
 through the same Fixture/facet API a server-side consumer would use, not a hand-written mirror
 class. FrontierMode's client-side border rendering, for example, pulls border and path-tip data
-off the identical `CRUD`/`PATH` facets on `BordersFixture` that server-side growth logic uses.
+off the identical `CRUD`/`PATH` facets, reached via `BorderAPI`'s facet resolvers, that
+server-side growth logic uses.
 That's a deliberate goal of the facade: avoid duplicating a `client`/`common`/`server` triad of
 near-identical objects for every module. It isn't absolute, though — some work has no server-side
 equivalent to unify against. Border's rendering package (`border/client/render/level/*`) is real

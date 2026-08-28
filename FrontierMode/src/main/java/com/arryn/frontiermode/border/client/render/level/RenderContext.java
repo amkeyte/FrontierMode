@@ -2,7 +2,9 @@ package com.arryn.frontiermode.border.client.render.level;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
+import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
+import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersRevisionMonitor;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.level.LevelResolver;
@@ -94,15 +96,34 @@ class RenderContext {
         CACHE.remove(scope);
     }
 
-    //fixture has to lazy load because render tick will be called
-    //before satchel is available
-    private Optional<BordersFixture> fixture = Optional.empty();
+    // FRO_047: three facets instead of one raw BordersFixture -- BordersFixture is no longer
+    // reachable from outside border.common.fixture (see that class's own doc for why the Java
+    // modifier itself can't follow). Each lazy-loads and memoizes independently, same "render
+    // tick fires before Satchel is ready" reasoning the old single fixture() cache had -- retry
+    // while empty, keep once resolved.
+    private Optional<BordersCrudFacet> crud = Optional.empty();
+    private Optional<BordersPathFacet> path = Optional.empty();
+    private Optional<BordersInfoFacet> info = Optional.empty();
 
-    private Optional<BordersFixture> fixture() {
-        if (fixture.isEmpty()) {
-            fixture = BorderAPI.borders(scope);
+    private Optional<BordersCrudFacet> crud() {
+        if (crud.isEmpty()) {
+            crud = BorderAPI.CRUD(scope.level());
         }
-        return fixture;
+        return crud;
+    }
+
+    private Optional<BordersPathFacet> path() {
+        if (path.isEmpty()) {
+            path = BorderAPI.PATH(scope.level());
+        }
+        return path;
+    }
+
+    private Optional<BordersInfoFacet> info() {
+        if (info.isEmpty()) {
+            info = BorderAPI.INFO(scope.level());
+        }
+        return info;
     }
 
 
@@ -127,15 +148,15 @@ class RenderContext {
 
     //
     public List<Border> borders() {
-        cachedBorders = fixture()
-                .map(b -> b.CRUD.all())
+        cachedBorders = crud()
+                .map(BordersCrudFacet::all)
                 .orElseGet(List::of);
         return cachedBorders;
     }
 
     public Optional<Border> pathTip() {
-        cachedPathTip = fixture()
-                .flatMap(b -> b.PATH.tip());
+        cachedPathTip = path()
+                .flatMap(BordersPathFacet::tip);
 
         return cachedPathTip;
     }
@@ -149,26 +170,26 @@ class RenderContext {
      */
     public boolean standby() {
 
-        Optional<BordersFixture> opt = fixture();
+        Optional<BordersInfoFacet> infoOpt = info();
 
         // No fixture yet → standby
-        if (opt.isEmpty()) {
+        if (infoOpt.isEmpty()) {
             return true;
         }
 
-        BordersFixture f = opt.get();
+        BordersInfoFacet infoFacet = infoOpt.get();
 
         // Fixture exists but not ready → standby
-        if (!f.isReady()) {
+        if (!infoFacet.isReady()) {
             return true;
         }
 
         // Refresh if:
         // 1) revision poll
         // 2) cold start after hydration
-        if (revisionMonitor.poll(f.INFO.level()) || cachedBorders.isEmpty()) {
-            cachedBorders = f.CRUD.all();
-            cachedPathTip = f.PATH.tip();
+        if (revisionMonitor.poll(infoFacet.level()) || cachedBorders.isEmpty()) {
+            cachedBorders = crud().map(BordersCrudFacet::all).orElseGet(List::of);
+            cachedPathTip = path().flatMap(BordersPathFacet::tip);
         }
 
         // Still nothing to draw

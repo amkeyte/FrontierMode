@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.border.server.commands;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.BorderAPI;
 
 import com.mojang.brigadier.StringReader;
@@ -97,8 +98,8 @@ public final class BorderSelector {
 
         ServerLevel level = player.serverLevel();
         List<Border> borders =
-                BorderAPI.borders(level)
-                        .map(b -> b.CRUD.all())
+                BorderAPI.CRUD(level)
+                        .map(BordersCrudFacet::all)
                         .orElseGet(List::of);
 
         return switch (sel.mode) {
@@ -120,8 +121,8 @@ public final class BorderSelector {
     }
 
     private static List<Border> resolveAll(ServerLevel level) {
-        return BorderAPI.borders(level)
-                        .map(b -> b.CRUD.all())
+        return BorderAPI.CRUD(level)
+                        .map(BordersCrudFacet::all)
                         .orElseGet(List::of);
     }
 

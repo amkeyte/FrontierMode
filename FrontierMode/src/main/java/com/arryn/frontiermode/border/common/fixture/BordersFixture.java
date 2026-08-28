@@ -1,24 +1,36 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import com.arryn.frontiermode.border.server.rules.BorderLogic;
-import com.arryn.frontiermode.border.server.rules.DefaultBorderRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
+import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
 
 /**
  * BorderSetting class to become package private. Use facet accessors instead.
+ *
+ * <p><b>FRO_047:</b> the Java modifier stays {@code public} -- Satchel's
+ * {@code FixtureKey<T extends SatchelFixture>} requires {@code T} to be accessible everywhere its
+ * key is constructed and consumed, which reaches this class from three sibling packages that
+ * aren't part of Border's own surface: {@code FrontierKeys} (top-level key registry),
+ * {@code BordersBundle} (bundle wiring, {@code border.common.bundle}), and
+ * {@code BorderModule.init()}'s own {@code FixtureDecl}/schema registration
+ * ({@code border}). Making this literally package-private would require moving those out of
+ * their own packages, which is a bigger restructuring than this ticket scopes. The encapsulation
+ * this ticket actually cares about -- nothing outside Border reaching through the raw fixture --
+ * is enforced instead by removing {@code BorderAPI.borders(Level)} and exposing only the four
+ * facets below through {@code BorderAPI.PATH/CRUD/RULES/INFO(Level)}. Flagged per this ticket's
+ * own item 5, not silently worked around.
  */
 public final class BordersFixture
-        extends SatchelFixture
-        implements BorderAuthority {
+        extends SatchelFixture {
 
     private static final String KEY_BORDERS = "borders";
     // Canonical progression order
@@ -30,12 +42,10 @@ public final class BordersFixture
     // hook checks instead -- see Border's "Known gaps" section.
     private static final String KEY_SEEDED = "seeded";
     public final BordersPathFacet PATH = new BordersPathFacet(this);
-    ;
     public final BordersCrudFacet CRUD = new BordersCrudFacet(this);
     //RULES
     public final BordersRulesFacet RULES = new BordersRulesFacet(this);
     public final BordersInfoFacet INFO = new BordersInfoFacet(this);
-    final BorderLogic logic = new BorderLogic(this, new DefaultBorderRules());
 
     // ---------------------------------------------------------------------
     // Persistence
@@ -43,10 +53,6 @@ public final class BordersFixture
     final List<UUID> borderPath = new ArrayList<>();
     private final List<Border> borders;
     private boolean seeded = false;
-
-    // ---------------------------------------------------------------------
-    // Authority
-    // ---------------------------------------------------------------------
 
     // ---------------------------------------------------------------------
     // Construction + persistence registration
@@ -104,7 +110,7 @@ public final class BordersFixture
             // tag.getUUID("id")/etc. and aborted hydration of the *entire* list for this world,
             // not just the one bad entry.
             try {
-                borders.add(Border.load(this, (CompoundTag) t));
+                borders.add(Border.load((CompoundTag) t));
             } catch (RuntimeException e) {
                 OUT.warn("[Border] Skipping malformed border entry during load: " + e);
             }
@@ -123,13 +129,6 @@ public final class BordersFixture
     // ---------------------------------------------------------------------
     // Queries
     // ---------------------------------------------------------------------
-
-    @Override
-    public UUID authorityId() {
-        return scope() != null
-                ? scope().uuid()
-                : new UUID(0L, 0L);
-    }
 
     boolean seeded() {
         return seeded;
@@ -205,13 +204,30 @@ public final class BordersFixture
         markDirty();
     }
 
+    /**
+     * FRO_047: the level a proposal's default geometry and organic-growth math are computed
+     * against -- moved here from the deleted {@code BorderLogic.resolveLevel()}, same body.
+     * Shared by {@link BordersPathFacet#grow()} and {@link BorderProposal}'s own defaulting.
+     */
+    ServerLevel resolveLevel() {
+        if (!(scope() instanceof LevelScope levelScope)) {
+            throw new IllegalStateException("Non level scope.");
+        }
+
+        if (!(levelScope.level() instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("Non server level");
+        }
+
+        return serverLevel;
+    }
+
     // ------------------------------------------------------------------
     // New accept path (temporary)
     // ------------------------------------------------------------------
     Border accept(BorderProposal proposal) {
         requireServerSide();
 
-        Border border = proposal.create(this);
+        Border border = proposal.create();
 
         borders.removeIf(b -> b.id().equals(border.id()));
         borders.add(border);
@@ -236,7 +252,7 @@ public final class BordersFixture
      * {@code [0, pathTargets.size())} range clear of it, because {@code BordersCrudFacet} used to
      * reject layer collisions. That guard is gone (project owner's design call -- Layer and Path
      * are definitionally unrelated, and {@code DefaultBorderRules.getRelevant()} already resolves a
-     * same-layer overlap by nearest center; see {@code BordersCrudFacet.validateProposal}'s own doc
+     * same-layer overlap by nearest center; see {@code BordersCrudFacet}'s own doc
      * for the full reasoning), so a path member's layer can simply be set to its path index without
      * checking what any off-path border currently holds -- duplicate layers are legitimate, not a
      * collision to avoid.
@@ -286,7 +302,6 @@ public final class BordersFixture
             }
 
             replacements.add(new Border(
-                    border.authority(),
                     border.id(),
                     border.displayName(),
                     border.center(),

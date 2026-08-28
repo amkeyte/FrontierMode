@@ -7,7 +7,7 @@ summary: How fixLayers() reconciles Border.layer() to borderPath order after a m
   reorder, and why the two are allowed to diverge in the first place.
 keywords: null
 status: draft
-updated: '2026-08-21'
+updated: '2026-08-27'
 ---
 
 <!-- bh-header:start -->
@@ -23,7 +23,8 @@ extends, and [Border Vocabulary](border-vocabulary.md) for what Layer and Path e
 ## Why the two can diverge
 
 `Border.layer()` is immutable — set once at creation, either `0` for a level's initial border
-(`BorderLogic.getInitial()`) or `previous.layer() + 1` for organic growth (`BorderLogic.grow()`).
+(`BordersPathFacet.grow()`'s own empty-path branch) or `previous.layer() + 1` for organic growth
+(the same method's normal branch).
 Under ordinary play that makes it equal to the border's position in `BordersFixture`'s canonical
 `borderPath`. The equality is a consequence of how borders get made, not an enforced invariant.
 
