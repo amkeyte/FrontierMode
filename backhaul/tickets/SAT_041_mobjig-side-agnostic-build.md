@@ -5,9 +5,9 @@ number: 41
 client: Satchel
 status: done
 title: Build MobJig side-agnostic resolution (RM_SAT_022)
-context: Lead Dev build for Roger. Built against ForgeEgress/egress() (RM_SAT_022's own
-  log + SAT_038), not SAT_037's own closing text (MobEntityLookup via booter()), which
-  was stale and can't compile against SAT_038's already-shipped private booter().
+context: Lead Dev build for Roger. Built against ForgeEgress/egress() (RM_SAT_022's
+  own log + SAT_038), not SAT_037's own closing text (MobEntityLookup via booter()),
+  which was stale and can't compile against SAT_038's already-shipped private booter().
   Project owner's call, 2026-08-24.
 priority: high
 opened: '2026-08-24'

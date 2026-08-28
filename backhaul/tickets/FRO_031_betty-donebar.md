@@ -5,7 +5,8 @@ number: 31
 client: FrontierMode
 status: open
 title: Betty resolved with 2 unconfirmed items
-context: RM_FRO_011's own log leaves an @none tab-complete check and an add-rejection retest unconfirmed.
+context: RM_FRO_011's own log leaves an @none tab-complete check and an add-rejection
+  retest unconfirmed.
 priority: low
 opened: '2026-08-21'
 closed: null

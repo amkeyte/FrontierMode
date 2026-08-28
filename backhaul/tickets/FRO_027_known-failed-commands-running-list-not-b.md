@@ -64,8 +64,30 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
   that nothing on the list gets triaged without the project owner asking. Tracked as
   [FRO_035](FRO_035_delete-all-verdict.md).
 
+- [ ] **`/border ... @coord <x> <y> <z>`** — suspect only, not confirmed. Surfaced during
+  [FRO_047](FRO_047_border-interface-refactor.md)'s build+playtest review, 2026-08-28: project
+  owner reported "@coord isn't working" while everything else that session (including
+  `@containing`) worked fine. Checked both fresh `run/logs/latest.log` and
+  `run-server/logs/latest.log` from that session end to end -- zero trace of the attempt: no
+  exception, no stack trace, no `Command exception:` line, not even a failed-parse log entry, only
+  the player's own chat message about it not working. `BorderSelector.parseBlockPos()` /
+  `resolveCoord()` are untouched by FRO_047's diff (confirmed against `git show` on the refactor
+  commit) and `resolveCoord` calls the identical `BorderAPI.bordersContaining()` that
+  `@containing`'s `resolveInside` calls, just with an explicit position -- so the underlying
+  plumbing is the same code that worked minutes earlier in the same session. Two live
+  explanations, neither confirmed: (1) `parseBlockPos()` only ever does three plain
+  `reader.readInt()` calls -- it does not understand Minecraft's `~` relative-coordinate notation,
+  only literal integers (its own usage string is `@coord <x> <y> <z>`, examples show
+  `@coord 100 64 100`) -- a `~ ~ ~` attempt would fail client-side as a normal Brigadier parse
+  error and never touch the server log at all, which matches what's (not) in the log; (2) the
+  literal coordinates given, if they were literal integers, simply weren't inside any border, so
+  "no borders matched" would be the correct, non-buggy result. What exact string was typed was
+  never captured. Not triaged or fixed here per this ticket's standing instruction -- reported
+  2026-08-28.
+
 ## Log
 
+- 2026-08-28: Added `@coord` to the checklist as a suspect, not a confirmed failure -- flagged during FRO_047's build+playtest review, no corroborating log evidence either way. See the checklist entry itself for the full writeup. No triage performed, per this ticket's standing instruction.
 - 2026-08-21: **First entry corrected — it was asserting more than the evidence supported.** The
   checklist and this ticket's `context` line both said `/border delete @all` "throws and refuses
   instead of deleting," which [RM_FRO_015](../roadmap/RM_FRO_015_margaret.md) had already
