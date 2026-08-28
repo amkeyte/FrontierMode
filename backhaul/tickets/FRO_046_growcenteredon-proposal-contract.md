@@ -5,8 +5,8 @@ number: 46
 client: FrontierMode
 status: done
 title: Border external interface ruling
-context: 'BorderLogic removed, proposals stay public with a Result type, BorderAPI exposes
-  facets.'
+context: BorderLogic removed, proposals stay public with a Result type, BorderAPI
+  exposes facets.
 priority: high
 opened: '2026-08-25'
 closed: '2026-08-28'

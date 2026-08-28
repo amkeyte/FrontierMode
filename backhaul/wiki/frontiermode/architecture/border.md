@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-27'
+updated: '2026-08-28'
 ---
 
 <!-- bh-header:start -->
@@ -76,11 +76,15 @@ owning fixture, each covering one slice of the fixture's API:
 - `RULES` (`BordersRulesFacet`) — rule evaluation surface
 - `INFO` (`BordersInfoFacet`) — read-only queries (scope, level, UUID, revision, `seeded()`)
 
-`BordersFixture` itself is package-private — it never leaves `border.common.fixture`. `BorderAPI`
-exposes the four facets directly (`BorderAPI.PATH(Level)`, `.CRUD(Level)`, `.RULES(Level)`,
-`.INFO(Level)`), each resolving the level's fixture internally and handing back the requested
-facet, never the fixture itself. Nothing outside this package ever holds a `BordersFixture`
-reference.
+`BordersFixture` stays a public Java type — Satchel's `FixtureKey<T extends SatchelFixture>`
+requires `T` accessible everywhere its key is built and consumed, and `FrontierKeys`,
+`BordersBundle`, and `BorderModule.init()`'s own `FixtureDecl` registration all reference the
+class by name from outside `border.common.fixture`, so literal package-privacy isn't available
+here. Encapsulation is enforced the way it actually matters instead: `BorderAPI.borders(Level)` is
+gone, and `BorderAPI.PATH(Level)`, `.CRUD(Level)`, `.RULES(Level)`, `.INFO(Level)` — each resolving
+the level's fixture internally and handing back the requested facet, never the fixture itself —
+are the only path in from outside the package. Nothing outside `border.common.fixture` holds a
+`BordersFixture` reference in practice, even though the class itself is public.
 
 This is the canonical example of Satchel's fixture/facet split (see
 [Fixture](../../satchel/architecture/fixture.md)): the fixture is the one persisted unit; facets
@@ -181,12 +185,18 @@ public and general-purpose, on the same footing as `getProposal()`/`applyProposa
 safe, easy path for the common cases, not a closed set — any caller can build and apply its own
 proposal directly for a case the named operations don't cover.
 
-`applyProposal()` — and every other `BorderAPI` operation that can fail — returns a `Result`
-rather than throwing or returning `Optional.empty()`: an outcome enum, a failure-kind enum
-(populated only on failure, distinguishing a transient not-ready state from a permanent
-validation rejection from a not-found lookup), a message string, and the `Border` itself on
-success. `BorderSelectorResult` (`border/server/commands/BorderSelectorResult.java`) is the
-established in-repo shape this follows — static factories, final fields, tagged by an enum.
+`applyProposal()` — and every other mutating `BorderAPI` operation (`grow`, `addBorder`,
+`transformBorder`, `removeBorder`, `growCenteredOn`) — returns a `Result` rather than throwing or
+returning `Optional.empty()`: an outcome enum, a failure-kind enum (populated only on failure,
+distinguishing a transient not-ready state from a permanent validation rejection from a not-found
+lookup), a message string, and the `Border` itself on success. `BorderSelectorResult`
+(`border/server/commands/BorderSelectorResult.java`) is the established in-repo shape this
+follows — static factories, final fields, tagged by an enum.
+
+`bordersContaining(Level, BlockPos)` is the one deliberate exception: it's a zero-to-many query,
+not a single-outcome mutation, and `Result`'s "the `Border` itself on success" shape doesn't fit
+a query. It throws `SatchelException.ScopeNotReady` on a not-ready level, same as it always has —
+`Result` is reserved for a rejected mutation a caller must act on, never for query absence.
 
 ## Commands and client surface
 
@@ -203,15 +213,22 @@ established in-repo shape this follows — static factories, final fields, tagge
   renderers read from (`BorderAPI`'s facet resolvers, refreshed every 20 ticks via
   `BordersRevisionMonitor`). `BorderView` is dead — fully commented out, not part of the live
   pipeline despite the name suggesting otherwise.
-- **Readiness**: every `BorderAPI` facet resolver (`PATH`/`CRUD`/`RULES`/`INFO`) proactively
+- **Readiness**: not-ready degrades differently depending on who's calling, not through one
+  uniform mechanism. Every `BorderAPI` facet resolver (`PATH`/`CRUD`/`RULES`/`INFO`) proactively
   checks `Satchel.isReady()` ([SAT_032](../../../tickets/SAT_032_isready-gate.md)) before doing
   anything else, since they're reachable from the client render path before the world-identity
-  token has necessarily arrived — a not-ready call surfaces through the same `Result` the
-  mutating operations use (see "Mutation surface" above), not a thrown exception.
-  `RenderContext.getInstance()` goes through `LevelResolver.resolveScope` rather than constructing
-  a `LevelScope` directly, for the same reason — direct construction now throws
-  `SatchelException.NotReady` pre-readiness instead of silently falling back, which would corrupt
-  `RenderContext.CACHE`'s key stability if it were ever hit. See
+  token has necessarily arrived — there, not-ready is routine and silent: the resolver returns
+  `Optional.empty()`, same as it always has. Server-side command dispatch is different: by the
+  time a player can type a command, Border is expected to already be resolvable, so a not-ready
+  state there means something else is already wrong, not a state to paper over —
+  `bordersContaining(Level, BlockPos)`, the query `BorderSelector`'s `@containing`/`@coord`
+  selectors call, throws `SatchelException.ScopeNotReady` rather than returning anything. `Result`
+  (see "Mutation surface" above) is reserved for a rejected mutation a caller must act on and
+  covers neither of these readiness cases. `RenderContext.getInstance()` goes through
+  `LevelResolver.resolveScope` rather than constructing a `LevelScope` directly, for the same
+  render-path reason — direct construction now throws `SatchelException.NotReady` pre-readiness
+  instead of silently falling back, which would corrupt `RenderContext.CACHE`'s key stability if
+  it were ever hit. See
   [Forge Integration & Sidedness Contract](../../satchel/spec/forge-integration.md#sidedness--the-contract-not-just-the-mechanism)
   for the general contract this follows.
 

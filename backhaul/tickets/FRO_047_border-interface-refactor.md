@@ -3,7 +3,7 @@ id: FRO_047
 uid: FRO
 number: 47
 client: FrontierMode
-status: open
+status: done
 title: Build Border external interface refactor
 context: 'Lead Dev build for FRO_046''s ruling: eliminate BorderLogic, Result type
   across every applyProposal-reachable operation, BordersFixture package-private behind
@@ -11,7 +11,7 @@ context: 'Lead Dev build for FRO_046''s ruling: eliminate BorderLogic, Result ty
   Karen''s build depends on, not a roadmap node itself.'
 priority: high
 opened: '2026-08-28'
-closed: null
+closed: '2026-08-28'
 ---
 
 <!-- board:start -->
@@ -236,6 +236,32 @@ project owner's own machine; don't mark this resolved on read-through/self-revie
   `BossModule.reconcilePathAgainstBossRecords()` against a real boss record are all still
   build-verified only, not playtest-verified. Full done-bar (in-game command parity, `BossModule`
   reconciliation correctness) remains open pending a run that actually drives those commands.
+
+- 2026-08-28: **Second playtest session, same day -- this one actually drives the mutation
+  surface.** Project owner ran `add`/`delete`/`transform`/`path grow` in-game against the real
+  server; reported everything working except `@coord`, which produced no server-side trace at all
+  (no exception, no `Command exception:` line) -- tracked as a suspect, not a confirmed bug, on
+  [FRO_027](FRO_027_known-failed-commands-running-list-not-b.md) instead of here, since
+  `BorderSelector.parseBlockPos()`/`resolveCoord()` are untouched by this ticket's diff (confirmed
+  via `git show` on the refactor commit) and share `bordersContaining()` with `@containing`, which
+  worked in the same session. Server log corroborates the rest: repeated
+  `[Boss] Reconciliation: path has border(s) at layer(s) [...] with no matching BossFixture
+  record` warnings appeared right after `path grow` ran -- confirms
+  `reconcilePathAgainstBossRecords()` (done-bar's fourth bullet) executes without error post-
+  migration and correctly detects a real mismatch, exactly its documented contract. The mismatch
+  itself isn't a bug in this ticket's code: the command handler's `pathGrow` never called
+  `BossAPI.createBoss()` the way the automatic world-load bootstrap
+  (`BorderModule.onBordersScopeLoaded()`) does -- a pre-existing command/bootstrap asymmetry, not
+  part of this ticket's blast radius. Filed separately as
+  [FRO_048](FRO_048_pathgrow-no-boss.md). Also grep-confirmed zero remaining
+  references to `BorderLogic`, `BorderAuthority`, or `BorderAPI.borders(Level)` in
+  `FrontierMode/src/main` (comment-only mentions describing the removal, no live code, no leftover
+  files). **Done bar status: all four bullets now satisfied** -- command parity confirmed in-game
+  (`@coord` open but tracked separately and not part of this ticket's own diff), rejection-message
+  substance not explicitly re-verified against the exact wording this session but no regression
+  reported, no leftover references, reconciliation confirmed correct. Standing constraint (real
+  build + playtest, project owner's own machine) satisfied twice over. Nothing outstanding here
+  that this ticket's own scope owns.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

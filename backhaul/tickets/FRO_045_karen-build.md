@@ -3,12 +3,10 @@ id: FRO_045
 uid: FRO
 number: 45
 client: FrontierMode
-status: blocked
+status: open
 title: Build Boss defeat border-growth caller (RM_FRO_019)
 context: Lead Dev build for Karen. growCenteredOn() two-layer addition, LivingDeathEvent
   defeat handler with MobScope.getFor() race fallback, BossAPI.createBoss() pairing.
-  Blocked on FRO_047 (general Border-interface refactor -- facet resolvers, Result type --
-  split out and not roadmap-tracked).
 priority: high
 opened: '2026-08-24'
 closed: null
@@ -39,12 +37,13 @@ section is the other authoritative source — both agree as of FRO_044's close.
 and [Border](../wiki/frontiermode/architecture/border.md) are the design authority.** The *what*
 above is unchanged; "What to build" below is written to FRO_046's design.
 
-**Blocked on [FRO_047](FRO_047_border-interface-refactor.md).** "What to build" below already
-assumes the facet-resolver (`fixture.CRUD`, `PATH(level)`) and `Result`-returning shapes FRO_046
-ruled — those don't exist in source until FRO_047 builds them. FRO_047 is the general
-Border-interface refactor split out of this ticket once FRO_046 closed and its ruling turned out to
-reach well beyond Karen; it's standalone architecture/health work, not itself tied to
-[RM_FRO_019](../roadmap/RM_FRO_019_karen.md) or any roadmap node — only this ticket is.
+[FRO_047](FRO_047_border-interface-refactor.md) — the general Border-interface refactor split out
+of this ticket once FRO_046 closed and its ruling turned out to reach well beyond Karen — is now
+`done`, built and playtest-verified. "What to build" below's facet-resolver (`fixture.CRUD`,
+`PATH(level)`) and `Result`-returning shapes exist in source now. `BordersFixture` itself stayed a
+public Java type rather than going literally package-private (FRO_047's own first logged
+deviation, Satchel's `FixtureKey` requires it) — doesn't change anything below, since this ticket
+never referenced the fixture's own visibility directly.
 
 ## What to build
 
@@ -162,6 +161,14 @@ on read-through/self-review alone.
   the `LivingDeathEvent` handler, and the `BossAPI.createBoss` pairing — nothing in "What to build"
   changed, since it was already scoped this way. Blocked on FRO_047 landing the facet/`Result`
   shapes this ticket builds against.
+
+- 2026-08-28: **Unblocked — [FRO_047](FRO_047_border-interface-refactor.md) closed, built and
+  playtest-verified twice.** Status moves back to `open`. Confirmed nothing in this ticket's own
+  "What to build" needs a further rewrite: `PATH(level)`, `fixture.CRUD.getProposal()`/
+  `applyProposal()`, and mutation-`Result` all match what FRO_047 actually shipped, including its
+  logged deviations (`BordersFixture` public rather than package-private; `bordersContaining()`
+  throwing instead of `Result`/`Optional` — neither claim was ever made on this ticket). Genuinely
+  startable now.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->
