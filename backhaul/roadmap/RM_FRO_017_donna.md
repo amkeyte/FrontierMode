@@ -3,12 +3,13 @@ id: RM_FRO_017
 uid: RM_FRO
 number: 17
 kind: convergence
-status: WIP
+status: reached
 title: 'Tier 1: Core loop operational'
 owner: Arryn
 depends_on:
 - RM_FRO_018
 - RM_FRO_019
+- RM_FRO_022
 created: '2026-08-16'
 superseded_by: null
 ticket: null
@@ -19,6 +20,74 @@ ticket: null
 <!-- bh-header:end -->
 
 ## Tier 1: Core loop operational
+
+- 2026-08-30: **Reached — project owner's call.** All three real `depends_on` children are
+  `resolved`: [RM_FRO_018](RM_FRO_018_shirley.md) ("Shirley," boss entity/spawn system, ticket
+  FRO_043), [RM_FRO_019](RM_FRO_019_karen.md) ("Karen," defeat-detection caller into `BorderAPI`,
+  ticket FRO_045), and [RM_FRO_022](RM_FRO_022_joyce.md) ("Joyce," boss control commands, ticket
+  FRO_057) — the last of the three to close, playtest-verified six-for-six. The loop [Frontier Mode
+  Overview](../wiki/frontiermode/design/overview.md) describes is actually playable: a boss exists,
+  can be found, can be killed, killing it grows the border and spawns the next one, and it can now
+  be exercised/debugged from chat without a code change. This settles the "do not treat this node as
+  actionable or close to reaching" caution every earlier entry on this node carried — that caution
+  was correct until today; it no longer is.
+
+  [RM_FRO_021](RM_FRO_021_susan-02.md) ("Susan_02," the Susan epoch's own end container) stays
+  un-wired here per this node's entry directly below and [BHRM's
+  corollary](../wiki/meta/bhrm.md#epoch-maintenance-nodes-containers) — real, open, non-blocking
+  work, not a gate on this flip. [FRO_064](../tickets/FRO_064_boss-defeat-cascade-grows-border-level-r.md)
+  specifically re-checked one more time against today's flip: it's a gap in how Joyce's own new
+  `/boss add` admin capability interacts with the existing grow trigger, not a regression on
+  anything this node's three children's own verified done bars actually cover (ordinary-combat,
+  path-tip defeats only). Stands as accepted, named, non-blocking scope.
+
+  Opens the next epoch — "the Donna epoch." Two standing maintenance containers opened alongside
+  this flip, [RM_FRO_024](RM_FRO_024_donna-01.md) ("Donna epoch maintenance 1") and
+  [RM_FRO_025](RM_FRO_025_donna-02.md) ("Donna epoch review/fix"), per [BHRM — Roadmap Conventions
+  § Epoch maintenance nodes](../wiki/meta/bhrm.md#epoch-maintenance-nodes-containers)'s
+  two-standing-containers-by-default convention. [RM_FRO_023](RM_FRO_023_kathleen.md) ("Kathleen,"
+  Tier 2 skeleton) is the epoch's next planned node — stays un-wired to either container for now,
+  same corollary as above: wire only if something on them actually turns out to block it.
+
+- 2026-08-30: **[RM_FRO_021](RM_FRO_021_susan-02.md) ("Susan epoch review/fix") un-folded —
+  reversing the entry directly below, project owner's explicit call.** Checked against everything
+  actually sitting on that container as of today, seven items, not the four it had when first
+  folded in: display/visual-only bugs, a future audit, two closed-and-superseded validation
+  findings now tracked on FRO_060's own build ticket, an already-fixed console-spam bug, an open
+  design question with no ruling yet, and — the one worth naming specifically —
+  [FRO_064](../tickets/FRO_064_boss-defeat-cascade-grows-border-level-r.md), a real bug where
+  defeating an off-path boss (creatable via Joyce's own `/boss add`) triggers the grow cascade
+  anyway. That one's real, but it's a gap in how a *new* admin capability interacts with an
+  *existing* trigger, not a regression on anything [RM_FRO_019](RM_FRO_019_karen.md) ("Karen")'s
+  own verified done bar actually covers (ordinary-combat, path-tip defeats only) — full reasoning
+  on Susan_02's own log. Nothing here is an actual blocker on "core loop operational." Reading
+  Donna's own "fold siblings in" instruction as covering *any* container that happens to be open
+  during this epoch, rather than specifically real Tier-1-blocking scope, was over-literal.
+  **Refined reading, going forward: a maintenance container only needs a `depends_on` edge here if
+  it holds (or is reasonably suspected to hold) something that actually blocks this convergence —
+  not merely because it's real, logged, and open.** Susan_02 stays open in its own right (real
+  work, just not Donna's gate); it no longer appears below. `depends_on` now: RM_FRO_018,
+  RM_FRO_019, RM_FRO_022.
+
+- 2026-08-29: **Two more real siblings folded in, per this node's own standing instruction above**
+  ("fold those siblings into this node's own `depends_on` ... don't let them feed some future Tier
+  2 node directly and skip this one"), found the same day [RM_FRO_019](RM_FRO_019_karen.md)
+  ("Karen") resolved and its playtest surfaced real new scope:
+
+  - [RM_FRO_022](RM_FRO_022_joyce.md) ("Joyce") — a real feature node, in-game admin command
+    surface for `BossFixture`/`BossAPI`, gap found during Karen's playtest (`border/` and
+    mob-tracking both have a command layer, `boss/` has none). Depends on Karen directly.
+  - [RM_FRO_021](RM_FRO_021_susan-02.md) ("Susan epoch review/fix") — the epoch's standing
+    end-of-epoch maintenance container, per
+    [BHRM — Roadmap Conventions § Epoch maintenance nodes](../wiki/meta/bhrm.md#epoch-maintenance-nodes-containers).
+    Still collecting (`status: open`, not yet `resolved`) — folded in now because it already holds
+    real, IDed scope (four tickets as of this entry), not because it's finished. This node still
+    isn't close to reaching: nothing has changed about that, this just makes the graph honest about
+    one more real thing standing between here and there.
+
+  Still **do not treat this node as actionable or close to reaching** — both new siblings are
+  themselves unresolved (Joyce not yet built/scoped past capture, the maintenance container still
+  open), and more Tier 1 scope may yet surface the same way these two did.
 
 - 2026-08-16: **First real intermediate work scoped and folded in, `depends_on` repointed off
   RM_FRO_010 onto the two new nodes directly** (same convergence-gate correction as every sibling

@@ -1,7 +1,9 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
@@ -15,6 +17,7 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Side-agnostic ingress API for interacting with Bosses -- mirrors {@code BorderAPI}'s shape and
@@ -85,6 +88,81 @@ public final class BossAPI {
         }
 
         var position = RULES.choosePosition(level, border);
-        return Optional.of(fixtureOpt.get().create(position, border.layer()));
+        // FRO_058: BossFixture.create() now returns Optional<BossRecord> itself (empty on a
+        // rejected negative layer) -- no wrapping needed here anymore.
+        return fixtureOpt.get().create(position, border.layer());
+    }
+
+    /**
+     * Bundles {@link #forceDefeat}'s outcome -- {@code borderResult} is exactly what
+     * {@code BorderAPI.grow} returned (its own {@code border()} is the newly grown
+     * <em>border</em>, not a boss), and {@code nextBoss} is the actual {@link BossRecord}
+     * {@link #createBoss} produced for it, if any. FRO_057 playtest turned up that reporting
+     * {@code borderResult.border().id()} as "the next boss" was actively wrong -- a border id
+     * and a boss id are different UUIDs, and the chat feedback was showing the former labeled as
+     * the latter.
+     */
+    public record DefeatOutcome(Result borderResult, Optional<BossRecord> nextBoss) {
+    }
+
+    /**
+     * Force-defeats a boss record without combat, then runs the same cascade a real death does
+     * ({@code BorderAPI.grow} centered on the record's own stored position, then
+     * {@link #createBoss} for the resulting border) -- FRO_057's {@code /boss transform defeat},
+     * built to reproduce the full "boss defeated -> border grows -> next boss queued" effect on
+     * demand, not just flip the record's {@code alive} flag. Mirrors {@code BossModule
+     * .onLivingDeath}'s own cascade shape, but keyed off a selector-resolved {@code bossId}
+     * instead of a dying {@code Mob}, and centered on the record's stored {@code position()}
+     * rather than a live entity's block position -- deliberately not refactored to share code
+     * with {@code onLivingDeath} itself, which is Karen's own already playtest-verified path and
+     * out of this ticket's scope to touch.
+     *
+     * @return a {@link DefeatOutcome} -- {@code borderResult} is {@code notFound} if no record
+     *         matches {@code bossId}, {@code notReady} if the level's Boss/Border data isn't
+     *         resolvable yet, {@code validationRejected} if the record is already defeated
+     *         (FRO_058's guard -- see {@code BossFixture.markDefeated}), otherwise whatever
+     *         {@code grow} itself returns; {@code nextBoss} is empty whenever {@code borderResult}
+     *         isn't a success, and also (rarer) if {@code createBoss} itself couldn't resolve a
+     *         {@code BossFixture} for the newly-grown border -- see its own warn log in that case.
+     */
+    public static DefeatOutcome forceDefeat(Level level, UUID bossId) {
+        Optional<BossFixture> fixtureOpt = boss(level);
+        if (fixtureOpt.isEmpty()) {
+            return new DefeatOutcome(
+                    Result.notReady("BossFixture not available for level "
+                            + level.dimension().location()),
+                    Optional.empty());
+        }
+        BossFixture fixture = fixtureOpt.get();
+
+        Optional<BossRecord> recordOpt = fixture.get(bossId);
+        if (recordOpt.isEmpty()) {
+            return new DefeatOutcome(
+                    Result.notFound("No boss record for id " + bossId), Optional.empty());
+        }
+        BossRecord record = recordOpt.get();
+
+        // FRO_058: markDefeated() now guards against an already-defeated record itself, returning
+        // false rather than mutating -- check it before running the grow/createBoss cascade.
+        // Without this check, running /boss transform defeat a second time against the same
+        // already-dead boss re-triggered the full grow-and-spawn cascade with no real defeat
+        // behind it (shipped bug, playtest-verified in FRO_057, closed by boss.md's "Mutation
+        // validation boundary" ruling).
+        if (!fixture.markDefeated(bossId)) {
+            return new DefeatOutcome(
+                    Result.validationRejected("Boss " + bossId + " is already defeated."),
+                    Optional.empty());
+        }
+
+        Result result = BorderAPI.grow(level, record.position());
+        if (!result.isSuccess()) {
+            OUT.warn("[Boss] forceDefeat(): BorderAPI.grow(level, " + record.position()
+                    + ") failed for bossId=" + bossId + ": " + result.message()
+                    + " -- not calling createBoss without a border.");
+            return new DefeatOutcome(result, Optional.empty());
+        }
+
+        Optional<BossRecord> nextBoss = createBoss(level, result.border());
+        return new DefeatOutcome(result, nextBoss);
     }
 }

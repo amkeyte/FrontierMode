@@ -60,6 +60,21 @@ TRIAGE NOTE (carried over from BH_002, still unresolved): this may already be ad
 
 ## Log
 
+- 2026-08-28: **Recurred, root-caused as a discoverability gap, and fixed structurally.** A
+  device-bridge/sandbox session hit this exact failure again — CLI wouldn't run against
+  `config.local.json`'s real Windows paths — and, not knowing this ticket or the
+  `BACKHAUL_LOCAL_ROOT` fix existed, hand-edited `BOARD.md` directly instead of filing anything.
+  Traced why: the fix has been correctly documented in `backhaul/wiki/meta/bhrole.md` since this
+  ticket closed, but three of the four role bootstrap prompts (Architect, PM, Game Designer) never
+  pointed a session at that page at all, and the fourth (Lead Dev) only gained CLI-install guidance
+  this same day, without the `BACKHAUL_LOCAL_ROOT` step. All four role files now carry the export
+  step directly in their bootstrap prompts rather than behind a reference a session could skip.
+  Also worth noting for the record: the session that hit this tonight initially cited `BKHL_014`
+  as the tracked cause of its own failure — that was a misattribution. `BKHL_014` is a real,
+  separately-filed bug (default config resolution falling back to the package's own install
+  location when `--project`/`--config` are both omitted, tracked upstream as `BH_019`), but it
+  isn't this one. Tonight's actual symptom — literal Windows paths in `content_roots` refusing to
+  resolve on a non-Windows mount — is this ticket's failure mode, not `BKHL_014`'s.
 - 2026-08-11: Ticket opened.
 - 2026-08-11: Reformatted to fit BOARD.md's length standard (meta/bht.md) -- original long title/context (which broke the board's markdown table by embedding a full multi-paragraph report and blank lines into a table cell) moved verbatim into this Full report section; title/context frontmatter shortened to match convention.
 - 2026-08-11: Triage confirmed by the original reporter (Architect). Root cause was exactly what

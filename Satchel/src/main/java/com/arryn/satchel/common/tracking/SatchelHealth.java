@@ -606,7 +606,10 @@ public final class SatchelHealth {
         tracker.countLoaded();
 
         MobScope scope = (MobScope) info.scope();
-        OUT.info(
+        // Downgraded to .debug -- SAT_039's own "silent on pass" principle: an ordinary mob
+        // scope load is not an event worth INFO-level noise on every ambient mob in the world,
+        // every few seconds. Still fully visible in debug.log.
+        OUT.debug(
                 "[SatchelHealth] LOADED mob=" + scope.mob().getType()
                         + " scope=" + scope.debugName()
                         + " side=" + Satchel.require().side()
@@ -639,7 +642,8 @@ public final class SatchelHealth {
                 .flatMap(b -> b.get(MOB_TRACKER))
                 .ifPresent(TrackerFixture::countUnloaded);
 
-        OUT.info("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side);
+        // Downgraded to .debug alongside the matching LOADED line above -- same reasoning.
+        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side);
 
         if (!mob.isRemoved()) {
             String message = "[SatchelHealth] VIOLATION: MobScope torn down on side=" + side
@@ -673,11 +677,16 @@ public final class SatchelHealth {
 
                     int count = tickCounters.merge(scope.uuid(), 1, Integer::sum);
                     if (count % MOB_TICK_LOG_EVERY_N_TICKS == 0) {
-                        OUT.info(
-                                "[SatchelHealth] TICK mob=" + scope.mob().getType()
-                                        + " scope=" + scope.debugName()
-                                        + " side=" + Satchel.require().side()
-                        );
+                        // Commented out for now (2026-08-29 playtest): still reaching the dev
+                        // console at forge.logging.console.level=debug even after the .debug
+                        // downgrade, and OUT funnels all call sites through one shared logger
+                        // (see OUT.java), so there's no per-class filter to reach for yet.
+                        // Re-enable (or replace with a real per-class filter) once that's built.
+                        // OUT.debug(
+                        //         "[SatchelHealth] TICK mob=" + scope.mob().getType()
+                        //                 + " scope=" + scope.debugName()
+                        //                 + " side=" + Satchel.require().side()
+                        // );
                     }
                 });
     }
@@ -828,7 +837,8 @@ public final class SatchelHealth {
         tracker.countLoaded();
 
         PlayerScope scope = (PlayerScope) info.scope();
-        OUT.info(
+        // Downgraded to .debug, same "silent on pass" reasoning as the MobJig handlers above.
+        OUT.debug(
                 "[PlayerTracking] LOADED player=" + scope.player().getGameProfile().getName()
                         + " scope=" + scope.debugName()
                         + " dim=" + scope.player().serverLevel().dimension().location()
@@ -872,7 +882,8 @@ public final class SatchelHealth {
 
         playerTickCounters.remove(scope.uuid());
 
-        OUT.info(
+        // Downgraded to .debug alongside the matching LOADED line above -- same reasoning.
+        OUT.debug(
                 "[PlayerTracking] UNLOADED player=" + scope.player().getGameProfile().getName()
                         + " scope=" + scope.debugName()
         );
@@ -924,11 +935,13 @@ public final class SatchelHealth {
 
                     int count = playerTickCounters.merge(scope.uuid(), 1, Integer::sum);
                     if (count % PLAYER_TICK_LOG_EVERY_N_TICKS == 0) {
-                        OUT.info(
-                                "[PlayerTracking] TICK player=" + scope.player().getGameProfile().getName()
-                                        + " scope=" + scope.debugName()
-                                        + " dim=" + scope.player().serverLevel().dimension().location()
-                        );
+                        // Commented out for now (2026-08-29 playtest) -- same reasoning as the
+                        // mob TICK log above; see that comment.
+                        // OUT.debug(
+                        //         "[PlayerTracking] TICK player=" + scope.player().getGameProfile().getName()
+                        //                 + " scope=" + scope.debugName()
+                        //                 + " dim=" + scope.player().serverLevel().dimension().location()
+                        // );
                     }
                 });
     }

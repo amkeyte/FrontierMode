@@ -3,13 +3,13 @@ id: BKHL_012
 uid: BKHL
 number: 12
 client: Backhaul
-status: open
+status: done
 title: bht has no command for in-progress/blocked status
 context: open/close are the only write verbs; the two middle lifecycle states can
   only be set by hand-editing frontmatter.
 priority: normal
 opened: '2026-08-28'
-closed: null
+closed: '2026-08-28'
 ---
 
 <!-- board:start -->
@@ -46,6 +46,10 @@ should also accept a `--reason` (mirroring how `close` presumably records a clos
 deciding at implementation time, not asserted here.
 
 ## Log
+
+- 2026-08-28: **Closed.** Tracked upstream in the Backhaul repo as BH_017 (`bht status <id>
+  <in-progress|blocked|open>`), noted there as natural to build alongside BH_010's vocabulary
+  validation given the shared logic.
 
 - 2026-08-28: Ticket opened, off FRO_047's build cycle -- same session and same reporting
   perspective as [BKHL_011](BKHL_011_log-append-command.md).

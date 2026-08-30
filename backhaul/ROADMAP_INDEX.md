@@ -14,7 +14,9 @@
 
 Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
 
-- [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) — Boss defeat border-growth caller
+- [**RM_FRO_021**](roadmap/RM_FRO_021_susan-02.md) — Susan epoch review/fix
+- [**RM_FRO_023**](roadmap/RM_FRO_023_kathleen.md) — Tier 2: Guided loop operational
+- [**RM_FRO_024**](roadmap/RM_FRO_024_donna-01.md) — Donna epoch maintenance 1
 
 ### Dependency structure
 
@@ -35,8 +37,14 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
           - [**RM_FRO_015**](roadmap/RM_FRO_015_margaret.md) [work · resolved] Border command-surface completion — depends on: RM_FRO_008
             - [**RM_FRO_010**](roadmap/RM_FRO_010_susan.md) [convergence · reached] Prototype hardening — depends on: RM_FRO_009, RM_FRO_011, RM_FRO_012, RM_FRO_013, RM_FRO_006, RM_FRO_015
               - [**RM_FRO_018**](roadmap/RM_FRO_018_shirley.md) [work · resolved] Boss entity/spawn system — depends on: RM_FRO_010
-                - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · open · ACTIONABLE] Boss defeat border-growth caller — depends on: RM_FRO_018
-                  - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · WIP] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019
+              - [**RM_FRO_020**](roadmap/RM_FRO_020_susan-01.md) [work · resolved] Susan epoch maintenance 1 — depends on: RM_FRO_010
+                - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · resolved] Boss defeat border-growth caller — depends on: RM_FRO_018, RM_FRO_020
+                - [**RM_FRO_021**](roadmap/RM_FRO_021_susan-02.md) [work · open · ACTIONABLE] Susan epoch review/fix — depends on: RM_FRO_020
+                  - [**RM_FRO_022**](roadmap/RM_FRO_022_joyce.md) [work · resolved] Boss control commands — depends on: RM_FRO_019
+                    - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · reached] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019, RM_FRO_022
+                      - [**RM_FRO_023**](roadmap/RM_FRO_023_kathleen.md) [convergence · WIP · ACTIONABLE] Tier 2: Guided loop operational — depends on: RM_FRO_017
+                      - [**RM_FRO_024**](roadmap/RM_FRO_024_donna-01.md) [work · open · ACTIONABLE] Donna epoch maintenance 1 — depends on: RM_FRO_017
+                        - [**RM_FRO_025**](roadmap/RM_FRO_025_donna-02.md) [work · open] Donna epoch review/fix — depends on: RM_FRO_024
 
 ## RM_SAT
 

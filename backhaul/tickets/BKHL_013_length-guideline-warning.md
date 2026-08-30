@@ -3,13 +3,13 @@ id: BKHL_013
 uid: BKHL
 number: 13
 client: Backhaul
-status: open
+status: done
 title: bht open doesn't warn on oversized title/context
 context: bht.md's own title<=40/context<=100 standard isn't checked on write; easy
   to blow past without noticing.
 priority: low
 opened: '2026-08-28'
-closed: null
+closed: '2026-08-28'
 ---
 
 <!-- board:start -->
@@ -41,6 +41,9 @@ intent intact while closing the actual gap: right now nothing says anything, eve
 value is dramatically over.
 
 ## Log
+
+- 2026-08-28: **Closed.** Tracked upstream in the Backhaul repo as BH_018 (soft stderr warning on
+  `bht open`, non-blocking, matching the doc's own "target, not a hard rule" framing).
 
 - 2026-08-28: Ticket opened, off FRO_047's build cycle -- same session and same reporting
   perspective as [BKHL_011](BKHL_011_log-append-command.md).

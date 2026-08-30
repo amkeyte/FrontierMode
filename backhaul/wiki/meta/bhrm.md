@@ -6,7 +6,7 @@ title: BHRM — Roadmap Conventions
 summary: Roadmap node ID scheme, why short slugs matter here, and CLI cheatsheet.
 keywords: null
 status: draft
-updated: '2026-08-11'
+updated: '2026-08-30'
 ---
 
 <!-- bh-header:start -->
@@ -69,55 +69,118 @@ detail (specific classes/files/packages involved) in the node's body instead of 
 the title. Several nodes from the initial roadmap backfill run well over this — worth trimming
 next time they're touched, not urgent enough to warrant a dedicated pass on its own.
 
-## Done-bar citations — link to what a claim depends on
-
-A done bar's claim can go stale without any link breaking — every link involved stays valid, the
-claim just stops being true once the design page it was based on narrows or changes. Happened for
-real: a node's done bar promised a specific self-heal mechanism an architecture page had already
-walked back to an open question by the time the done bar was checked (see
-`backhaul/tickets/BKHL_009_done-bar-drift.md`, closed). Nothing catches this structurally — no
-amount of link validation does, since nothing was broken in the sense `backhaul lint` checks for.
-
-**If a done-bar bullet depends on a specific wiki section, cite it inline** — the same
-`[Title](path.md#anchor)` style this project already uses everywhere else — rather than restating
-the claim with no pointer back to its source. This doesn't catch drift by itself, but it means the
-next reader (or a future lint heuristic flagging citation-free done-bar bullets) has something to
-check against instead of having to already know where the claim came from.
-
-**The moment to reread a done bar against its source: right after promoting the wiki page it cites
-to `verified`.** That's the specific point at which a design settled into something narrower or
-different than what an earlier done bar assumed — the same way this project already has a named
-moment for updating an architecture page right after implementing something. A rule without a
-mechanism has the same weakness as any other reminder in prose (it's already what happened to the
-two no-status/no-changelog rules above) — worth stating anyway, since the alternative is nobody
-having a moment to check at all.
-
 ## Status vocabulary (kind-dependent)
 
 - **work**: `open` -> `resolved` | `superseded` (terminal once left `open`).
 - **convergence**: `WIP` <-> `reached` (reversible — a milestone can un-converge on real
   evidence of a gap, with a `ReachedLog` recording every time it was reached, never erased).
 
-## CLI cheatsheet
+## Epoch maintenance nodes (containers)
+
+An **epoch** is the span of work between two convergence nodes, named for the one that opens it —
+e.g. "the Susan epoch" for everything after [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md)
+("Susan") reached. Real work inside an epoch isn't always feature-shaped: a ruling's blast radius
+turns out to reach past the ticket that provoked it, a build turns up a bug against something
+unrelated, a later node casts doubt on an earlier one's done bar. That work still needs a place to
+live on the graph — otherwise it only exists by being found in the tickets folder, which is
+exactly the "search to find it" problem this convention exists to remove.
+
+**A maintenance node (a "container") is an ordinary `kind: work` node that doesn't represent a
+design goal.** It doesn't get a persona name — persona names are reserved for feature work (see
+above) — it gets a slug keyed to the epoch instead: `<epoch>-01`, `<epoch>-02`, etc.,
+e.g. `susan-01`. It doesn't carry a `ticket:` field, the same way a convergence node doesn't —
+`ticket: null`, and what actually landed on it is tracked in its own log, since a container can
+gather more than one ticket over its life and a single frontmatter pointer would misrepresent that.
+No new `kind` value for these — they render in the graph like any other `work` node for now. A
+dedicated `kind: maintenance` (distinct color/shape in `bhrm index`'s HTML output) is worth
+revisiting once the pattern has proven out; deliberately not built yet.
+
+**Every epoch gets two standing containers by default: a start container and an end container,**
+opened together rather than waited on until something obviously needs one — cheap to have sitting
+there empty, expensive to reconstruct after the fact once nobody remembers the epoch had a start.
+The start container is where early-epoch rework tends to land (a ruling's fallout, the first real
+thing found). The end container is the epoch's review/fix gate: things too small or too unrelated
+to block whatever's currently being built get dropped there instead of stalling it, and the epoch's
+next planned node depends on the end container clearing — so nothing carries forward unaddressed
+into the next epoch. **Additional containers get inserted in the middle only when a set of tickets
+is big enough to warrant its own marker** — a judgment call each time, not an automatic trigger.
+
+**Wiring is real, not decorative.** A `depends_on` edge onto a container means the dependent is
+genuinely blocked on it clearing, the same as any other node. Wire a container to whatever it
+actually gates, wherever that lands — that can mean a node several persona-names back, if that's
+what the container's contents actually touch, not just the node currently in flight.
+
+**Corollary, learned the hard way on the first real end-container (`susan-02`, 2026-08-29/30): a
+container earns a `depends_on` edge onto a convergence only when it holds — or is reasonably
+suspected to hold — something that actually blocks that convergence, not merely because it's real,
+IDed, logged scope that happens to be open during the epoch.** The first pass at this container got
+folded into the epoch's Tier-1 convergence on a too-literal reading of "fold real siblings in as
+they're found" — and even after the container grew to seven real items (including one genuine,
+sharp-edged bug), none of them turned out to actually threaten what the convergence was claiming.
+Reversed the same day it was added. A container can be real, open, and completely un-wired to
+anything — that's the normal state for "side quest" work being deliberately parked, not a gap in
+the graph. Wire it when something on it is an actual blocker; until then it just sits there,
+tracked and findable, waiting.
+
+**Reopening a `resolved` node on real evidence is the intended mechanism, not a violation of this
+project's history.** Rework sometimes means re-proving an earlier node's done bar, not just noting
+that it might be affected — that's real QA work, and a maintenance container is where it gets
+tracked in order rather than happening ad hoc. Earlier caution around ever flipping a `resolved`
+node's status back was circumstantial, not structural: the original roadmap was written while
+learning and stabilizing an inherited codebase, not planning one being built forward. Now that the
+codebase is owned outright, reopening on real evidence is expected practice — logged as a new dated
+entry on the reopened node itself (never a silent edit of what's already there, still the rule for
+the log itself), cross-referenced from the container that forced it.
+
+**Regression doubt gets chased back one hop, for now.** If a node's work casts real doubt on the
+node immediately before it, that node reopens. Doubt about something further back than one hop gets
+named and logged as accepted risk rather than triggering a deeper sweep — the graph is still
+churning enough, this early, that a full downstream audit would likely be re-litigating ground
+that's going to move again anyway. Revisit this boundary once the graph is stable enough that the
+math changes. See [BKHL_017](../../tickets/BKHL_017_epoch-maintenance-node-backport.md) for
+tracking this convention into Backhaul's own default docs.
+
+**A container's `status` tracks whether it's currently blocking anything, not whether every ticket
+ever logged on it is closed.** A container can gather more than one ticket over its life, and they
+won't all carry equal weight — one might be the real blocker a dependent needs, another incidental
+low-priority follow-up with no downstream relevance. Flip `resolved` once nothing currently gating
+a dependent remains open; non-blocking content can stay logged and open underneath that without
+holding the flip back. (First real case: [RM_FRO_020](../../roadmap/RM_FRO_020_susan-01.md) gathered
+its actual blocker alongside unrelated polish within hours of each other — see its own log.)
+
+**Required shape when that happens: a `Deferred, non-blocking:` callout at the top of the
+container's body, not just a mention buried partway into its log.** A short bullet list of what's
+still open and why it isn't holding the status back — a reader shouldn't have to read the full log
+to find out a `resolved`/`clear` container still has loose ends. This is a body-content convention,
+not a schema field; nothing enforces it mechanically today. A first-class `kind: maintenance` with
+its own `collecting <-> clear` status pair (mirroring convergence's reversible `WIP <-> reached`,
+since a container can pick up a new blocker after looking clear) would make this structural instead
+of a documentation habit — tracked as part of [BKHL_017](../../tickets/BKHL_017_epoch-maintenance-node-backport.md)'s
+ask, deliberately not built yet. This callout convention is the interim version.
+
+**Ticket-side signal: a `[<Container>]` prefix on the ticket's own `context`.** The container's
+own callout (above) is the record that a ticket is attached, but it only reaches a reader who
+opens the roadmap node — `BOARD.md` is the view that actually gets scanned day to day, and
+without a matching signal there a container-attached ticket reads exactly like a loose one still
+waiting on someone. Prepend `[<Epoch>_<NN>]` — the container's own persona name, capitalized, plus
+its two-digit sequence, matching its slug (`susan-02` → `[Susan_02]`) — to the front of the
+ticket's `context` field, the same day it's logged on the container. This is a BHT `context`-field
+convention, not a wiki-page one, so it doesn't fall under BHW's no-status-in-prose rule — a
+container attachment is exactly the kind of live-status fact `context` exists to carry, unlike an
+architecture page. It does share `bht.md`'s length standard: `context` is still capped at ~100
+characters including the tag, so trim the surrounding wording to make room rather than skip the
+tag or blow the budget.
 
 ```
 bhrm new --client <name> --title "..." --owner <name> [--kind work|convergence] [--slug code] [--depends-on ID,ID]
 bhrm validate --uid RM_XXX
 bhrm frontier --uid RM_XXX
 bhrm dependents <ID>   |   bhrm downstream <ID>   |   bhrm blocking <ID>
-bhrm render --uid RM_XXX [--output PATH] [--title "..."]   # writes MARKDOWN, always — --output's extension is not checked
+bhrm render --uid RM_XXX [--output PATH] [--title "..."]
 bhrm export-json --uid RM_XXX [--out PATH]
-bhrm index [--output PATH] [--title "..."]    # rebuilds ROADMAP_INDEX.md AND every ROADMAP_GRAPH_<UID>.html
+bhrm index [--output PATH] [--title "..."]    # every UID's graph, its own section
 bhrm projects
 ```
-
-**`render` vs `index` write different things.** `render` always produces markdown, whether printed
-to stdout or sent to `--output` — it does not look at the output path's extension, so pointing it at
-a `.html` path silently overwrites that file with markdown (hit live in this project once — see
-`backhaul/tickets/BKHL_008_render-output-format.md`, closed, tracked upstream as Backhaul's own
-BH_012). **`bhrm index` is what regenerates the HTML graph views** (`ROADMAP_GRAPH_<UID>.html`), as a
-side effect of rebuilding `ROADMAP_INDEX.md`. To regenerate a graph's HTML, run `bhrm index`, not
-`bhrm render --output *.html`.
 
 `--project <name>` / `--config <path>` selects the project. Every subcommand except `projects`
 refuses to run if `"roadmap"` isn't in that project's `enabled_modules`.
@@ -127,3 +190,5 @@ refuses to run if `"roadmap"` isn't in that project's `enabled_modules`.
 - [BHT — Ticket Conventions](../meta/bht.md)
 - [BHW — Wiki Conventions](../meta/bhw.md)
 - [BHRole — Agent Role Conventions](../meta/bhrole.md)
+- [Git Branching by Epoch](../meta/git-branching.md) — evaluated and deferred, 2026-08-30: parking
+  a container's leftover content on its own branch, on top of leaving it un-wired on the graph

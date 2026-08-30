@@ -3,11 +3,12 @@ id: frontiermode/architecture/boss
 category: frontiermode/architecture
 slug: boss
 title: Boss
-summary: Boss entity/spawn system for Tier 1 -- data model, spawn algorithm, and
-  the defeat-detection caller into BorderAPI. RM_FRO_019 builds against this.
+summary: Boss entity/spawn system for Tier 1 -- data model, mutation validation boundary,
+  spawn algorithm, and the defeat-detection caller into BorderAPI. RM_FRO_019 builds
+  against this.
 keywords: null
 status: verified
-updated: '2026-08-24'
+updated: '2026-08-29'
 ---
 
 <!-- bh-header:start -->
@@ -111,6 +112,61 @@ because the entity happens to be loaded this tick" — and it's fine for it to h
 reference directly, since its whole lifecycle is bounded by confirmed presence (see "[Three
 questions, three different mechanisms](#three-questions-three-different-mechanisms)" below), not by
 an assumption that might quietly go stale.
+
+## Mutation validation boundary
+
+[FRO_054](../../../tickets/FRO_054_mutation-data-security.md)'s QA pass found `BossFixture` had no
+validation boundary at all -- `create()`/`materialize()`/`markDefeated()`/`remove()` accepted
+whatever they were given, unlike `BordersCrudFacet`'s own `failureReason()` (radius bounds,
+non-negative `layerIndex`). [FRO_058](../../../tickets/FRO_058_boss-mutation-validation-reconciliation.md)
+asked the Architect to settle the shape before Lead Dev builds against it. Ruling below.
+
+**Shape: stay with Boss's own existing lighter idiom, don't adopt Border's `Result`.** Border's
+`Result` carries a rejection message because `BorderProposal` validation spans several
+independently-failing fields (radius, `layerIndex`, soon `center` -- see
+[FRO_059](../../../tickets/FRO_059_border-proposal-center-bounds-id-display.md)) and a caller
+building a raw proposal needs to know which field failed. Boss's mutations each have at most one
+thing to reject, and the fixture already has a working boolean/`Optional` idiom (`remove()` returns
+`boolean`; `get()` returns `Optional<BossRecord>`) --
+[FRO_057](../../../tickets/FRO_057_boss-control-commands-build.md)'s own `MaterializeOutcome`/
+`DefeatOutcome` are exactly this pattern taken one step further, and it shipped and played fine.
+Introducing `Result` here would be a second validation-carrier convention for Boss to maintain
+alongside the one that already works. So: reject -> log via `OUT.warn` (matching Border's own
+`failureReason()` discipline of always warning on rejection) -> return the type's own "nothing
+happened" value. No new carrier type needed.
+
+- **`create(BlockPos, int layer)` should reject `layer < 0`,** mirroring
+  `BordersCrudFacet.failureReason()`'s identical check on `layerIndex` exactly. Return
+  `Optional<BossRecord>` (empty on rejection) instead of the current unconditional `BossRecord` --
+  matches the `Optional` idiom already used elsewhere on this fixture.
+- **`materialize()` needs an already-materialized guard at the fixture level, not just at the
+  caller.** Today `BossModule.forceMaterialize` checks `record.materialized()` before calling in,
+  but the fixture method itself has no defense -- any other future caller re-materializes a live
+  record with a fresh `entityId`, silently orphaning the old one. Change `materialize()` to return
+  `boolean` (mirroring `remove()`'s own signature): `true` if the record existed, was
+  unmaterialized, and is now materialized; `false` if the record is missing or already
+  materialized -- logged via `OUT.warn`, no state change.
+- **`markDefeated()` needs the same guard, and it's not hypothetical -- it's a real, shipped bug.**
+  `BossAPI.forceDefeat(Level, UUID)` ([FRO_057](../../../tickets/FRO_057_boss-control-commands-build.md),
+  `/boss transform defeat`) calls `fixture.markDefeated(bossId)` with no check that `record.alive()`
+  is still `true` first, then unconditionally runs `BorderAPI.grow` + `createBoss`. Running
+  `/boss transform defeat <selector>` a second time against an already-defeated boss re-triggers
+  the full grow-and-spawn cascade a second time -- a duplicate progression step with no real defeat
+  behind it, reachable through the exact command FRO_057 just shipped and playtest-verified. Fix:
+  `markDefeated()` returns `boolean` (`true` = was alive, now defeated; `false` = record missing or
+  already dead, logged, no state change) and `BossAPI.forceDefeat()` must check that return value
+  -- on `false`, return a `DefeatOutcome` signaling nothing happened (no `grow`, no `createBoss`)
+  rather than proceeding. The combat path (`onLivingDeath`, "Defeat detection and the
+  border-growth gap" below) is naturally immune to this -- a `Mob` can only die once -- so this
+  guard matters specifically for the command-triggered path, and belongs there, not retrofitted
+  onto Karen's already-verified listener.
+- **`remove(UUID)` is already validated in the sense that matters (its existence check via the
+  `boolean` return); what's still open is what happens to a *materialized* record's live entity.**
+  Not hypothetical: `/boss delete` shipped in FRO_057 and calls straight through to `remove()`
+  today, so removing a materialized boss this way already, in production, leaves the live entity
+  behind -- untracked, but still standing in the world. Not resolved by this pass -- see "Known
+  gaps" below -- flagged here because, unlike the three items above (all latent -- no shipped
+  command reaches them incorrectly yet), this one is live today.
 
 ## Module wiring
 
@@ -280,35 +336,47 @@ not every scenario that sounds scary is a real gap:
   log records the call to leave this unmet rather than invent an unproven heuristic to close it.
 - **A `Border` that entered the level's progression has no matching boss record.** Given creation
   is a direct, paired call at the moment a border is created (see "Defeat detection and the
-  border-growth gap" below), this should never legitimately happen — every wired call site creates
+  border-growth gap" below), this should never legitimately happen -- every wired call site creates
   its boss record in the same breath as the border. If it ever does, that's a real data bug (a
-  missed call site, a crash between the two calls, manual world editing) — not a normal transient
+  missed call site, a crash between the two calls, manual world editing) -- not a normal transient
   state to tolerate the way an unmaterialized record is. `BOSS_JIG`'s own tick runs a defensive
-  reconciliation check alongside materialization: compare the path's set of `layer()` values
-  against `BossFixture`'s set of `layer` values, using that value itself as the correlating key (no
-  live `Border` reference needed, matching the decoupling in "Data model" above). A mismatch is
-  logged loudly, never silently self-healed.
+  reconciliation check alongside materialization: `BossModule.reconcilePathAgainstBossRecords()`
+  computes the path's set of `layer()` values minus `BossFixture`'s own set of `layer` values,
+  using that value itself as the correlating key (no live `Border` reference needed, matching the
+  decoupling in "Data model" above). **This check is one-directional only** -- it catches a path
+  border with no boss record, and stops there. A mismatch is logged loudly, never silently
+  self-healed.
+
+  **The reverse direction -- a boss record whose `layer` matches no real path border -- is
+  deliberately not checked, and that's a ruling, not an oversight.**
+  [FRO_058](../../../tickets/FRO_058_boss-mutation-validation-reconciliation.md) asked whether to
+  add it; the answer is not yet, and not with `layer` alone. A hand-placed off-path boss
+  (`/boss add <pos> <layer>`, shipped in FRO_057) can legitimately hold any `layer` value with no
+  border behind it at all -- that's the whole point of the command. A naive reverse check using
+  `layer` as the correlating key can't tell "this boss's border went missing" from "this boss was
+  deliberately hand-placed for testing" -- every legitimate use of `/boss add` off-path would log a
+  false positive. The precise version needs the still-proposal `borderId` field
+  ([Boss Command Surface](boss-commands.md)'s Selector scheme) to distinguish "on-path, tracking a
+  real border" from "intentionally standalone" -- until that field exists, an imprecise heuristic
+  is worse than no check: it trains whoever reads the log to ignore reconciliation warnings.
+  Revisit once `borderId` lands.
 
 ## Defeat detection and the border-growth gap
 
-[RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) owns the `LivingDeathEvent` handler itself; the
-one thing worth documenting here is a real gap it found in Border's own surface. Border's public
-mutation surface is already trigger-agnostic — `BorderAPI.addBorder()` accepts an arbitrary
-center from any caller, not just commands — but that alone isn't sufficient: it doesn't touch
-`borderPath`; `BordersPathFacet.grow()` maintains the path but always
-computes its own random center via `DefaultBorderRules.chooseNextCenter()`, with no parameter for
-"center here instead." Neither alone satisfies
-[Progression & Frontier Mechanics](../design/progression.md#the-core-loop)'s "centered on the
-defeated boss's home block" requirement while keeping the path consistent.
-
-**Recommended fix, small and targeted:** a new `BordersPathFacet.growCenteredOn(BlockPos center)`
-— same two-step shape `grow()` already has (rules-driven proposal, then path append), but taking
-an explicit center instead of deferring to `chooseNextCenter()`. Radius and `layer` still come
-from the existing rules (`chooseNextRadius()`, `previous.layer() + 1`) — only the center
-differs. This keeps "create a border and keep the path consistent" atomic, the same guarantee every
-other `BordersPathFacet` mutation already provides, rather than leaving two calls
-(`addBorder()` + `PATH.insert()`) for every future "grow to a specific point" caller to remember to
-sequence correctly.
+[RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen") owns the `LivingDeathEvent` handler
+itself. Growing a border centered on the defeated boss's home block, while keeping `borderPath`
+consistent, is Border's own job: `BordersPathFacet.grow(BlockPos center)` — an overload of the
+no-arg `grow()`, not a separately-named method — takes an explicit center in place of
+`DefaultBorderRules.chooseNextCenter()`'s own random pick; radius and `layer` are unaffected,
+coming from the same rules either overload uses (`chooseNextRadius()`, `previous.layer() + 1`).
+This keeps "create a border and keep the path consistent" atomic, the same guarantee every other
+`BordersPathFacet` mutation already provides, rather than leaving two calls (`addBorder()` +
+`PATH.insert()`) for a caller to remember to sequence correctly. An absent path tip is not a
+special case for this overload: it bootstraps exactly like the no-arg `grow()`'s own empty-path
+branch (`getInitial()`'s rules-driven radius, `layer 0`), just with the caller's center substituted
+for whatever `getInitial()` would otherwise pick — the same mechanism `grow()` already needs for a
+level's very first border, not a failure case unique to a caller-supplied center. Full method and
+`Result` contract: [Border § Mutation surface](border.md#mutation-surface).
 
 **Pairing boss-record creation with border creation — the actual trigger for "Should a boss record
 exist at all?" above.** This isn't Border's job and isn't a Border-side hook — Border doesn't know
@@ -316,10 +384,19 @@ exist at all?" above.** This isn't Border's job and isn't a Border-side hook —
 fixed. Instead, whoever *calls* a border-creating operation also calls into `BossAPI` right after,
 as a sibling step, extracting `position`/`layer` from the `Border` that call just returned:
 
-- **`growCenteredOn(center)`, post-defeat.** Belongs to
-  [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen"), not this page's own build: its
-  `LivingDeathEvent` handler calls growth, then calls `BossAPI.createBoss` right after, in the
-  same handler.
+- **`grow(center)`, post-defeat.** Belongs to [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)
+  ("Karen"): its `LivingDeathEvent` handler resolves the dying entity's boss record (its
+  `BossMobFixture` if `MobJig` already attached one, with a synchronous `MobScope.getFor(mob)`
+  fallback otherwise — see [MobScope.getFor() Contract](../../satchel/spec/mobscope-getfor.md)),
+  marks that record defeated, calls `BorderAPI.grow(level, deathLocation)`, and — once that
+  succeeds — calls `BossAPI.createBoss` right after, in the same handler.
+- **`BossAPI.forceDefeat(Level, UUID)`, command-triggered.** [FRO_057](../../../tickets/FRO_057_boss-control-commands-build.md)
+  (`/boss transform defeat`, [RM_FRO_022](../../../roadmap/RM_FRO_022_joyce.md) "Joyce"): the
+  same cascade as the combat path above — `markDefeated`, then `BorderAPI.grow` centered on the
+  record's own stored `position()`, then `createBoss` for the resulting border — but keyed off a
+  selector-resolved `bossId` instead of a dying `Mob`, so it works on an unmaterialized record
+  with no live entity at all. Deliberately not sharing code with `onLivingDeath` above; that
+  handler is Karen's own already-verified path and stays untouched.
 - **`getInitial()`, a level's first border.** `getInitial()` has exactly one call site in the
   codebase — `BordersPathFacet.grow()`'s own empty-path branch. `BorderModule` subscribes to
   Satchel's own `ScopeEvent.Loaded` (filtered to `BORDERS_JIG`'s key and the overworld dimension);
@@ -336,8 +413,17 @@ as a sibling step, extracting `position`/`layer` from the `Border` that call jus
 ## Known gaps
 
 - **A tracked boss removed by something that never fires `LivingDeathEvent` still needs its own
-  reconciliation check** — see "What can actually go wrong" above. An open design question, not an
+  reconciliation check** -- see "What can actually go wrong" above. An open design question, not an
   assumed answer.
+- **Reverse-direction reconciliation (a boss record whose `layer` matches no real path border) is
+  deferred, not built** -- see "What can actually go wrong" above. Needs `borderId` (still
+  proposal, [Boss Command Surface](boss-commands.md)) to be precise; not worth an imprecise interim
+  version.
+- **`remove()` on a materialized record leaves its live entity orphaned -- untracked, but still
+  standing in the world.** Real today, not latent: `/boss delete` (FRO_057) reaches this path in
+  production. See "Mutation validation boundary" above. Whether `/boss delete` should also despawn
+  the entity, or whether orphaning-then-relying-on-`MobJig`'s-own-teardown is fine, is undecided --
+  flagged for a follow-up pass, not resolved here.
 
 ## Related pages
 
@@ -346,3 +432,4 @@ as a sibling step, extracting `position`/`layer` from the `Border` that call jus
 - [FrontierMode Operational Tiers](../../plans/operational-tiers.md) — Tier 1's definition
 - [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md) / [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) — roadmap trackers
 - [RM_SAT_021](../../../roadmap/RM_SAT_021_frank.md) — the `MobJig` prerequisite
+- [FRO_058](../../../tickets/FRO_058_boss-mutation-validation-reconciliation.md) — the mutation validation/reconciliation spec review this page's "Mutation validation boundary" section and "Known gaps" answer

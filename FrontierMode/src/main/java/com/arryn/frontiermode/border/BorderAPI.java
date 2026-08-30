@@ -299,6 +299,21 @@ public final class BorderAPI {
                 ));
     }
 
+    /**
+     * Overload of {@link #grow(Level)} taking an explicit center -- mirrors
+     * {@link BordersPathFacet#grow(BlockPos)} one layer up, same not-ready degrade as the no-arg
+     * form. RM_FRO_019 ("Karen")'s defeat handler is the first consumer, growing a border
+     * centered on the death location.
+     */
+    public static Result grow(Level level, BlockPos center) {
+        return PATH(level)
+                .map(path -> path.grow(center))
+                .orElseGet(() -> Result.notReady(
+                        "Attempted to grow border but BordersFixture not available "
+                                + "level=" + level.dimension().location()
+                ));
+    }
+
 
     public static Result addBorder(
             Level level,

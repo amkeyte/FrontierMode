@@ -4,6 +4,9 @@ package com.arryn.frontiermode.border.common.fixture;
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.border.WorldBorder;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -80,6 +83,44 @@ public class BordersCrudFacet {
             return Optional.of(reason);
         }
 
+        // FRO_059: displayName gets a real bound -- no sanctioned pattern needs an unbounded one,
+        // every named operation already sources it from either the curated default pool or
+        // insert()'s carry-forward. See border.md's "Proposal identity and validation" section.
+        String displayName = proposal.displayName();
+        if (displayName == null || displayName.isBlank()) {
+            String reason = "displayName is blank.";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
+        }
+        if (displayName.length() > BorderConstants.MAX_DISPLAY_NAME_LENGTH) {
+            String reason = "displayName \"" + displayName + "\" exceeds max length "
+                    + BorderConstants.MAX_DISPLAY_NAME_LENGTH + ".";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
+        }
+
+        // FRO_059: center gets a real bounds check mirrored off vanilla's own world limits, not a
+        // bespoke gameplay number -- a corrupt-input guard, not a gameplay-balance constraint the
+        // way radius/layerIndex are. Same "Proposal identity and validation" ruling.
+        BlockPos center = proposal.center();
+        double horizontalLimit = WorldBorder.MAX_SIZE / 2.0;
+        if (Math.abs(center.getX()) > horizontalLimit || Math.abs(center.getZ()) > horizontalLimit) {
+            String reason = "center " + center + " outside the world's horizontal coordinate limit"
+                    + " [-" + horizontalLimit + ", " + horizontalLimit + "].";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
+        }
+
+        ServerLevel level = fixture.resolveLevel();
+        int minY = level.getMinBuildHeight();
+        int maxY = level.getMaxBuildHeight();
+        if (center.getY() < minY || center.getY() >= maxY) {
+            String reason = "center " + center + " outside this level's build height range ["
+                    + minY + ", " + maxY + ").";
+            OUT.warn("[Border] Rejected proposal: " + reason);
+            return Optional.of(reason);
+        }
+
         return Optional.empty();
     }
 
@@ -99,8 +140,21 @@ public class BordersCrudFacet {
         return fixture.get(uuid);
     }
 
+    /**
+     * FRO_060 hotfix (Border side, preemptive -- no live bug today): {@code fixture.all()}
+     * stays a package-private live view over the fixture's mutable backing list (cheap, correct
+     * for the internal same-call-frame reads {@code getDefaultDisplayName()} below and
+     * {@code BordersPathFacet} already make), but this is the public boundary the data crosses
+     * out through -- copied here, the same place {@link BordersPathFacet#all()} already copies
+     * {@code fixture.borderPath} for the identical reason. Closes the same
+     * {@code ConcurrentModificationException} shape found (and fixed) on
+     * {@code BossFixture.all()} via real playtest: no current Border operation reachable through
+     * a selector adds a new border as a side effect mid-loop, so nothing exercises this today,
+     * but the hazard is structurally identical and {@link BordersPathFacet#all()} is the
+     * established in-repo precedent for copying right here rather than at the fixture.
+     */
     public List<Border> all() {
-        return fixture.all();
+        return List.copyOf(fixture.all());
     }
 
     /**

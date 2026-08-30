@@ -5,8 +5,8 @@ number: 48
 client: FrontierMode
 status: open
 title: Path grow doesn't create paired boss
-context: Manual path grow doesn't create a paired boss record, unlike the automatic
-  bootstrap grow.
+context: '[Susan_02] Manual path grow doesn''t create a paired boss record, unlike
+  automatic bootstrap grow.'
 priority: low
 opened: '2026-08-28'
 closed: null
@@ -65,6 +65,16 @@ path growth is supposed to spawn a boss at all -- project owner's call, not infe
 - 2026-08-28: Ticket opened. Found via FRO_047's second playtest session; write-up above is from
   static analysis of `BorderCommandHandler.pathGrow()` vs. `BorderModule.onBordersScopeLoaded()`
   plus the corroborating `[Boss] Reconciliation:` log lines -- not yet triaged or fixed.
+- 2026-08-30: **Project owner's ruling, the exact call this ticket's write-up said was needed:**
+  `/border path grow` stays boss-less, permanently by design -- not fixed by having it call
+  `BossAPI.createBoss()` itself, and not fixed by having reconciliation backfill the missing
+  record either (neither of the two "likely fix shapes" originally proposed above). Instead: a
+  future `/boss attach` operation (see [FRO_063](FRO_063_boss-can-a-path-layer-legitimately-be-bo.md))
+  pairs a boss onto the new tip as a deliberate second step. Manual path growth becomes a two-step
+  admin job -- grow, then attach -- until attach exists, at which point that's simply how it's
+  meant to work, not a stopgap. Not implemented (attach doesn't exist yet); this ticket stays open
+  pending that build, but its own question ("is manual path growth supposed to spawn a boss at
+  all") is now answered: no, never automatically.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

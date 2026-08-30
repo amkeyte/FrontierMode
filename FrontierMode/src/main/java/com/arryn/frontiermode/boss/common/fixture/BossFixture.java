@@ -10,7 +10,6 @@ import net.minecraft.nbt.Tag;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -82,8 +81,27 @@ public final class BossFixture extends SatchelFixture {
     // Queries
     // ------------------------------------------------------------------
 
+    /**
+     * FRO_060 hotfix, found via real playtest (not by reading source alone): this used to return
+     * {@code Collections.unmodifiableList(bosses)} -- a live *view* over the mutable backing
+     * list, not a snapshot. {@code BossSelector.resolve()}'s {@code @all} case hands this
+     * straight to {@code BossCommands.applySelector}'s {@code for (BossRecord b : bosses)} loop,
+     * and {@code /boss transform defeat @all} is the one boss operation that adds a brand-new
+     * record as a side effect mid-loop ({@code forceDefeat} -> {@code createBoss} ->
+     * {@code create()} -> {@code bosses.add(...)}) -- structurally modifying the exact list the
+     * for-each is iterating, which throws {@code ConcurrentModificationException} on the
+     * iterator's next advance. That exception is thrown by the for-each's own iterator
+     * bookkeeping, not by {@code op.run(...)}, so it lands outside
+     * {@code applySelector}'s per-boss {@code try/catch} and aborts the whole command --
+     * "defeats one boss, then errors out" is exactly what that looks like from the chat. A real
+     * defensive copy here (not a live wrapper) closes it at the fixture boundary, the same
+     * "fix it where the data crosses out of the fixture" shape FRO_058's validation boundary
+     * used -- every current caller (selector resolution, {@code BossCommandHandler.info}'s
+     * {@code indexOf}, {@code BossModule}'s one-shot lookups) already treats the result as a
+     * point-in-time snapshot, so this changes nothing for them.
+     */
     public List<BossRecord> all() {
-        return Collections.unmodifiableList(bosses);
+        return List.copyOf(bosses);
     }
 
     public Optional<BossRecord> get(UUID bossId) {
@@ -125,10 +143,22 @@ public final class BossFixture extends SatchelFixture {
      * border-creation call site (see {@code boss.md}'s "Defeat detection and the border-growth
      * gap"). {@code position}'s Y is a placeholder until materialization resolves real ground
      * height; see {@link BossRecord}'s own docs.
+     *
+     * <p><b>FRO_058:</b> rejects {@code layer < 0}, mirroring
+     * {@code BordersCrudFacet.failureReason()}'s identical check on {@code layerIndex} -- see
+     * boss.md's "Mutation validation boundary" section for the ruling. Returns
+     * {@code Optional<BossRecord>} (empty on rejection, logged via {@code OUT.warn}) rather than
+     * throwing, matching the {@code Optional}/{@code boolean} idiom already used elsewhere on
+     * this fixture.
      */
-    public BossRecord create(BlockPos position, int layer) {
+    public Optional<BossRecord> create(BlockPos position, int layer) {
         requireServerSide();
         Objects.requireNonNull(position, "position");
+
+        if (layer < 0) {
+            OUT.warn("[Boss] create(): rejected -- negative layer " + layer + " at " + position + ".");
+            return Optional.empty();
+        }
 
         BossRecord record = new BossRecord(
                 UUID.randomUUID(),
@@ -140,7 +170,7 @@ public final class BossFixture extends SatchelFixture {
 
         bosses.add(record);
         markDirty();
-        return record;
+        return Optional.of(record);
     }
 
     /**
@@ -148,19 +178,85 @@ public final class BossFixture extends SatchelFixture {
      * tagged via {@code MobScope.getFor(mob)}. Replaces the record in place (records are
      * immutable) -- same remove-then-add-back shape {@code BordersFixture.reassignLayers} uses.
      */
-    public void materialize(UUID bossId, BlockPos resolvedPosition, UUID entityId) {
+    public boolean materialize(UUID bossId, BlockPos resolvedPosition, UUID entityId) {
         requireServerSide();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
             OUT.warn("[Boss] materialize(): no record for bossId=" + bossId + " -- ignoring.");
-            return;
+            return false;
         }
 
-        BossRecord updated = existing.get().materializedAt(resolvedPosition, entityId);
+        BossRecord record = existing.get();
+        if (record.materialized()) {
+            // FRO_058: fixture-level guard -- BossModule.forceMaterialize already checks
+            // record.materialized() before calling in, but the fixture itself had no defense of
+            // its own. Without this, any other future caller could re-materialize a live record
+            // with a fresh entityId, silently orphaning the old one.
+            OUT.warn("[Boss] materialize(): bossId=" + bossId + " is already materialized"
+                    + " (entity " + record.bossEntityId() + ") -- ignoring.");
+            return false;
+        }
+
+        BossRecord updated = record.materializedAt(resolvedPosition, entityId);
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         markDirty();
+        return true;
+    }
+
+    /**
+     * Marks a boss record defeated (`alive: false`), addressed by its own {@code bossId} --
+     * never via any {@code Border} reference, this fixture isn't keyed by one (see this class's
+     * own doc and boss.md's "Data model" section). Replaces the record in place (records are
+     * immutable), same remove-then-add-back shape {@link #materialize} uses. RM_FRO_019
+     * ("Karen")'s own concern.
+     */
+    public boolean markDefeated(UUID bossId) {
+        requireServerSide();
+
+        Optional<BossRecord> existing = get(bossId);
+        if (existing.isEmpty()) {
+            OUT.warn("[Boss] markDefeated(): no record for bossId=" + bossId + " -- ignoring.");
+            return false;
+        }
+
+        BossRecord record = existing.get();
+        if (!record.alive()) {
+            // FRO_058: real, shipped bug this guard closes -- BossAPI.forceDefeat() had no check
+            // that the record was still alive before running the full grow-and-spawn cascade, so
+            // /boss transform defeat run twice against the same boss re-triggered it a second
+            // time with no real defeat behind it. See boss.md's "Mutation validation boundary".
+            OUT.warn("[Boss] markDefeated(): bossId=" + bossId + " is already defeated -- ignoring.");
+            return false;
+        }
+
+        BossRecord updated = record.defeated();
+        bosses.removeIf(r -> r.bossId().equals(bossId));
+        bosses.add(updated);
+        markDirty();
+        return true;
+    }
+
+    /**
+     * Deletes a boss record outright -- FRO_057's net-new fixture method, the one this build
+     * actually needs underneath (backing {@code /boss delete}). No paired cleanup required:
+     * {@link com.arryn.frontiermode.boss.common.fixture.BossMobFixture} is never persisted and
+     * tears down on its own via {@code MobJig}'s reason-agnostic scope teardown if the removed
+     * record still had a live entity (see boss.md's "Known limitation" section -- same
+     * indistinguishable-from-chunk-unload shape applies here as everywhere else).
+     *
+     * @return true if a record with this id existed and was removed; false if there was nothing
+     *         to remove (not an error -- {@code /boss delete} reports this as a plain failure).
+     */
+    public boolean remove(UUID bossId) {
+        requireServerSide();
+
+        boolean removed = bosses.removeIf(r -> r.bossId().equals(bossId));
+        if (removed) {
+            markDirty();
+        }
+        return removed;
     }
 
     private void requireServerSide() {

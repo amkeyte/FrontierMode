@@ -86,7 +86,7 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
   2026-08-28.
 
 ## Log
-
+- [Arryn] next one to read this one, ask me what maintenance node to tie it to.
 - 2026-08-28: Added `@coord` to the checklist as a suspect, not a confirmed failure -- flagged during FRO_047's build+playtest review, no corroborating log evidence either way. See the checklist entry itself for the full writeup. No triage performed, per this ticket's standing instruction.
 - 2026-08-21: **First entry corrected — it was asserting more than the evidence supported.** The
   checklist and this ticket's `context` line both said `/border delete @all` "throws and refuses

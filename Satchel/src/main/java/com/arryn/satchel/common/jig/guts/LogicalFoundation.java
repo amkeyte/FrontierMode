@@ -162,14 +162,20 @@ public final class LogicalFoundation {
 
             SatchelScope scope = opt.get();
 
-            OUT.debug(
-                    "[JigLifecycle][introduceSource] "
-                            + scope.debugName()
-                            + " → "
-                            + ji.key
-            );
-
+            // SAT_042: this log used to fire unconditionally, once per resolving jig per call --
+            // MobJig.reconcile() calls introduceSource(mob) every throttled poll cycle for every
+            // currently-interested mob, so at DEBUG level this was spamming one line per already-
+            // tracked mob per jig per poll, forever, even though the mutation below is a genuine
+            // no-op almost every time. Gating the log on the same hasScope() check the mutation
+            // already uses -- first-time introduction only, no behavior change to the guard
+            // itself.
             if (!ji.hasScope(scope)) {
+                OUT.debug(
+                        "[JigLifecycle][introduceSource] "
+                                + scope.debugName()
+                                + " → "
+                                + ji.key
+                );
                 ji.addScope(scope, source);
             }
         }

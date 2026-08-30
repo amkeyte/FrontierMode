@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.server.rules.BorderRules;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 
 import java.util.Collection;
@@ -97,6 +98,9 @@ public final class BordersPathFacet {
      * every caller uniformly (organic growth, an admin command, a future debug trigger). Never
      * cleared once set, even by later removing every border -- see {@code BordersFixture}'s
      * {@code KEY_SEEDED} field doc.
+     *
+     * <p>See {@link #grow(BlockPos)} for the overload taking an explicit center in place of
+     * whichever center this form would otherwise choose.
      */
     public Result grow() {
         fixture.requireServerSide();
@@ -122,6 +126,49 @@ public final class BordersPathFacet {
         }
 
         // append to canonical path
+        fixture.borderPath.add(result.border().id());
+        fixture.markSeeded();
+        fixture.markPathDirty();
+
+        return result;
+    }
+
+    /**
+     * Overload of {@link #grow()} that takes an explicit center instead of deferring to
+     * {@link BorderRules#chooseNextCenter}/{@link BorderRules#chooseInitialCenter}. Same
+     * two-branch shape as the no-arg form either way -- tip present grows from it (rules-driven
+     * radius, {@code previous.layer() + 1}), tip absent bootstraps via the same empty-path
+     * branch (rules-driven radius, layer 0) -- only the center source differs. An absent tip is
+     * not a special or failure case for this overload: it bootstraps exactly like the no-arg
+     * form's own empty-path branch, the same mechanism a level's very first border already needs,
+     * not a corruption case unique to a caller-supplied center. See Border's wiki "Mutation
+     * surface" section for the full contract (RM_FRO_019 "Karen" is the first consumer, via
+     * {@code BorderAPI.grow(Level, BlockPos)}).
+     */
+    public Result grow(BlockPos center) {
+        fixture.requireServerSide();
+
+        ServerLevel level = fixture.resolveLevel();
+        BorderProposal prop = fixture.CRUD.getProposal();
+
+        Optional<Border> tipOpt = tip();
+        if (tipOpt.isPresent()) {
+            Border previous = tipOpt.get();
+            prop.center(center)
+                    .radius(BorderRules.ACTIVE.chooseNextRadius(level, previous))
+                    .layerIndex(previous.layer() + 1);
+        } else {
+            prop.center(center)
+                    .radius(BorderRules.ACTIVE.chooseInitialRadius(level))
+                    .layerIndex(0);
+        }
+
+        Result result = fixture.CRUD.applyProposal(prop);
+        if (!result.isSuccess()) {
+            return result;
+        }
+
+        // append to canonical path -- same uniform seeding/dirty behavior as the no-arg form
         fixture.borderPath.add(result.border().id());
         fixture.markSeeded();
         fixture.markPathDirty();

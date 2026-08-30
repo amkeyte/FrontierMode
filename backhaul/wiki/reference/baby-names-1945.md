@@ -7,7 +7,7 @@ summary: 1945 US top-100 baby names (SSA) -- source list for persona names, code
   and other naming needs across this project.
 keywords: null
 status: verified
-updated: '2026-08-11'
+updated: '2026-08-30'
 ---
 
 <!-- bh-header:start -->
@@ -45,6 +45,8 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Donna | Roadmap node slug, [RM_FRO_017](../../roadmap/RM_FRO_017_donna.md) |
 | Shirley | Roadmap node slug (reused, new number — see note below), [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md) |
 | Karen | Roadmap node slug (reused, new number — see note below), [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) |
+| Joyce | Roadmap node slug, [RM_FRO_022](../../roadmap/RM_FRO_022_joyce.md) |
+| Kathleen | Roadmap node slug, [RM_FRO_023](../../roadmap/RM_FRO_023_kathleen.md) |
 | James | Roadmap node slug, [RM_SAT_001](../../roadmap/RM_SAT_001_james.md) |
 | Robert | Roadmap node slug, [RM_SAT_002](../../roadmap/RM_SAT_002_robert.md) |
 | John | Roadmap node slug, [RM_SAT_003](../../roadmap/RM_SAT_003_john.md) |
@@ -78,8 +80,11 @@ deleted 2026-08-16 (folded into [RM_FRO_010](../../roadmap/RM_FRO_010_susan.md) 
 own log). Both names were reused the same day for real new nodes — Shirley for
 [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md), Karen for
 [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) — under new numbers, since the old node numbers
-themselves stay retired (IDs aren't reused once minted). Both names are now used again; the next
-unused RM_FRO name is Joyce (rank 18); the next unused RM_SAT name is Daniel (rank 24). Edward (rank 18) is **not** back in the pool despite RM_SAT_018's retirement — see the no-reuse rule in [BHRM — Roadmap Conventions](../meta/bhrm.md).
+themselves stay retired (IDs aren't reused once minted). Both names are now used again. Joyce (rank 18, [RM_FRO_022](../../roadmap/RM_FRO_022_joyce.md)) and
+Kathleen (rank 19, [RM_FRO_023](../../roadmap/RM_FRO_023_kathleen.md)) are also now used; the next
+unused RM_FRO name is Dorothy (rank 20); the next unused RM_SAT name is Daniel (rank 24). Edward
+(rank 18) is **not** back in the pool despite RM_SAT_018's retirement — see the no-reuse rule in
+[BHRM — Roadmap Conventions](../meta/bhrm.md).
 
 ## Full list
 

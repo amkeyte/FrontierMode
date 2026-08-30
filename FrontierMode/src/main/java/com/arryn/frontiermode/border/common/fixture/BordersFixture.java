@@ -14,7 +14,9 @@ import net.minecraftforge.fml.LogicalSide;
 import java.util.*;
 
 /**
- * BorderSetting class to become package private. Use facet accessors instead.
+ * Facet-accessor surface onto Border's persisted state -- reach this fixture's data only through
+ * {@code BorderAPI.PATH/CRUD/RULES/INFO(Level)}, never by holding a {@code BordersFixture}
+ * reference directly (see the four facet fields' own doc comments below).
  *
  * <p><b>FRO_047:</b> the Java modifier stays {@code public} -- Satchel's
  * {@code FixtureKey<T extends SatchelFixture>} requires {@code T} to be accessible everywhere its
@@ -28,6 +30,13 @@ import java.util.*;
  * is enforced instead by removing {@code BorderAPI.borders(Level)} and exposing only the four
  * facets below through {@code BorderAPI.PATH/CRUD/RULES/INFO(Level)}. Flagged per this ticket's
  * own item 5, not silently worked around.
+ *
+ * <p><b>FRO_050:</b> the above is the final word, not an open question --
+ * {@code SatchelBundle.get(FixtureKey<T>)} stays public and unguarded (the generic mechanism
+ * every module's own API class needs), so no compiler fix is possible; doc-comment discipline is
+ * the accepted, permanent mitigation. See Border's wiki "Data model" section and Satchel's
+ * Fixture "External Access Is Not Compiler-Enforced" section for the full ruling, not re-derived
+ * here.
  */
 public final class BordersFixture
         extends SatchelFixture {
@@ -41,10 +50,28 @@ public final class BordersFixture
     // admin removed every border," so this is what BorderModule's own ScopeEvent.Loaded bootstrap
     // hook checks instead -- see Border's "Known gaps" section.
     private static final String KEY_SEEDED = "seeded";
+    /**
+     * Not readiness-gated on its own -- reach only through {@code BorderAPI.PATH(Level)}, never
+     * by holding a {@code BordersFixture} reference directly. Final ruling, FRO_050.
+     */
     public final BordersPathFacet PATH = new BordersPathFacet(this);
+
+    /**
+     * Not readiness-gated on its own -- reach only through {@code BorderAPI.CRUD(Level)}, never
+     * by holding a {@code BordersFixture} reference directly. Final ruling, FRO_050.
+     */
     public final BordersCrudFacet CRUD = new BordersCrudFacet(this);
-    //RULES
+
+    /**
+     * Not readiness-gated on its own -- reach only through {@code BorderAPI.RULES(Level)}, never
+     * by holding a {@code BordersFixture} reference directly. Final ruling, FRO_050.
+     */
     public final BordersRulesFacet RULES = new BordersRulesFacet(this);
+
+    /**
+     * Not readiness-gated on its own -- reach only through {@code BorderAPI.INFO(Level)}, never
+     * by holding a {@code BordersFixture} reference directly. Final ruling, FRO_050.
+     */
     public final BordersInfoFacet INFO = new BordersInfoFacet(this);
 
     // ---------------------------------------------------------------------

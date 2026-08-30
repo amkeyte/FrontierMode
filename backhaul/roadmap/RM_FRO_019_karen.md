@@ -3,11 +3,12 @@ id: RM_FRO_019
 uid: RM_FRO
 number: 19
 kind: work
-status: open
+status: resolved
 title: Boss defeat border-growth caller
 owner: Arryn
 depends_on:
 - RM_FRO_018
+- RM_FRO_020
 created: '2026-08-16'
 superseded_by: null
 ticket: FRO_045
@@ -18,6 +19,83 @@ ticket: FRO_045
 <!-- bh-header:end -->
 
 ## Boss defeat border-growth caller
+
+- 2026-08-29: **Resolved.** [FRO_045](../tickets/FRO_045_karen-build.md) closed against real
+  playtest evidence, not self-report: two separate live server sessions, real `debug.log` evidence
+  for both. Ordinary-combat kill confirmed three times in a row (Rabbit "Boss (Layer 0)" -> Zombie
+  "Boss (Layer 1)" -> Spider "Boss (Layer 2)" -> Skeleton "Boss (Layer 3)", each new boss
+  materializing within ~40ms of the previous one's death). `/kill` confirmed separately, once
+  correctly targeted at the boss mob itself (a first attempt using `/kill @a` only killed the
+  player -- `@a` selects players, not the boss) -- `[Dev: Killed Boss (Layer 0)]` followed 46ms
+  later by the next boss's mob scope appearing, the same chain as combat. This also confirms
+  [RM_FRO_018](RM_FRO_018_shirley.md)'s ("Shirley") stale `/kill`-self-heal done-bar wording is
+  satisfied by this node's mechanism, per the 2026-08-24 entry below's own recommendation to check
+  this live rather than assume it -- Shirley stays `resolved` as-is, this is confirmation, not a
+  reopen.
+
+  The remaining two done-bar items (race-fallback window, no-tip corruption guard) were downgraded
+  to code-review confidence rather than forced live repro, by the project owner's own call --
+  see [FRO_045](../tickets/FRO_045_karen-build.md)'s log for the reasoning. All four items
+  satisfied; this was Tier 1's last node.
+
+- 2026-08-28: **`Border` and `Boss` updated to describe this node's design directly (process
+  change, owner ruling) — [FRO_053](../tickets/FRO_053_karen-wiki-docs.md) closed, superseded.**
+  [Border § Mutation surface](../wiki/frontiermode/architecture/border.md#mutation-surface) and
+  [Boss § Defeat detection and the border-growth gap](../wiki/frontiermode/architecture/boss.md#defeat-detection-and-the-border-growth-gap)
+  now state the `grow(BlockPos center)` overload and the defeat handler as the spec
+  [FRO_045](../tickets/FRO_045_karen-build.md) builds against, written ahead of that build rather
+  than deferred to a doc pass after it ships — see [architect.md](../roles/architect.md)'s
+  "Wiki discipline" section for the standing rule this establishes project-wide, not just for this
+  node.
+
+- 2026-08-28: **Correction (Architect): the 2026-08-24 ruling's no-tip behavior and method shape
+  are both superseded — settled during Lead Dev's build-planning session for
+  [FRO_045](../tickets/FRO_045_karen-build.md), formalized here per
+  [FRO_052](../tickets/FRO_052_growcenteredon-no-tip.md).**
+
+  **No-tip bootstraps, it doesn't fail.** The 2026-08-24 entry's "genuine data-corruption case ...
+  loud log-and-no-op, not a silent `getInitial()` substitution" is wrong, per the project owner's
+  direct call: a caller supplying an explicit center is still just `grow()`, with the center
+  source swapped — there's no reason it should behave differently on an empty path than `grow()`
+  itself does. An absent tip now bootstraps exactly like `grow()`'s own empty-path branch
+  (`getInitial()`'s rules-driven radius, `layer 0`), with the caller's center substituted for
+  whatever `getInitial()` would otherwise pick. No new `Result.FailureKind` is warranted — this
+  was never built, so there's nothing to migrate away from.
+
+  **Collapses into an overload of `grow()`, not a separately named method.** Once the no-tip
+  branch matches `grow()` exactly, the only remaining difference between the two is where the
+  center comes from — not enough to justify a second name. `BordersPathFacet.growCenteredOn(BlockPos)`
+  and `BorderAPI.growCenteredOn(Level, BlockPos)` are replaced by overloads —
+  `BordersPathFacet.grow(BlockPos center)` and `BorderAPI.grow(Level level, BlockPos center)` —
+  each doing exactly what the no-arg `grow()` does except the caller's center replaces whichever
+  rules-driven center `grow()` would otherwise choose, tip present or absent; radius and `layer`
+  are untouched either way. (`BorderLogic` no longer exists to mirror a third layer against —
+  eliminated by [FRO_047](../tickets/FRO_047_border-interface-refactor.md) — so this is a
+  two-layer overload now, facet + `BorderAPI` wrapper, not three.) This is a standardized API, not
+  shaped around Boss's own call site: if Boss's defeat handler needs something this overload
+  doesn't give it, that's a Boss-side fix, not a reason to special-case this method.
+
+  [FRO_045](../tickets/FRO_045_karen-build.md)'s "What to build" is rewritten to match; nothing was
+  built against the old shape (`growCenteredOn` never landed in source — confirmed by grep), so
+  this is a spec correction, not a rename of shipped code.
+  [FRO_052](../tickets/FRO_052_growcenteredon-no-tip.md) closed.
+
+- 2026-08-28: **[RM_FRO_020](RM_FRO_020_susan-01.md) resolved same day it was opened** —
+  [FRO_047](../tickets/FRO_047_border-interface-refactor.md) closed, built and playtest-verified
+  twice; [FRO_045](../tickets/FRO_045_karen-build.md)'s own log confirms nothing in its "What to
+  build" needs a rewrite against what actually shipped. This node is unblocked on both dependency
+  edges now.
+
+- 2026-08-28: **`depends_on` widened to add [RM_FRO_020](RM_FRO_020_susan-01.md) ("Susan epoch
+  maintenance 1").** [FRO_046](../tickets/FRO_046_growcenteredon-proposal-contract.md)'s ruling
+  turned out to reach well beyond this node — split into [FRO_047](../tickets/FRO_047_border-interface-refactor.md),
+  a general Border-interface refactor with no roadmap tie of its own, gathered on RM_FRO_020 per
+  this project's new epoch-maintenance-container convention (see
+  [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md#epoch-maintenance-nodes-containers)). This is a
+  real dependency, not a cross-reference: [FRO_045](../tickets/FRO_045_karen-build.md)'s own build
+  assumes the facet/`Result` shapes FRO_047 has to land first, and its status is `blocked`
+  accordingly. Not a convergence-bypass concern — RM_FRO_020 is `kind: work`, not `kind:
+  convergence` — so this sits alongside the existing RM_FRO_018 dependency without issue.
 
 - 2026-08-24: **Lead Dev build ticket opened: [FRO_045](../tickets/FRO_045_karen-build.md).**
   Architect prep ([FRO_044](../tickets/FRO_044_karen-prep.md)) closed — both design calls ruled,
@@ -170,6 +248,12 @@ alternative considered and rejected — a two-call sequence from this node's own
 (`BorderAPI.addBorder(...)` then `borders.PATH.insert(...)`) — would have pushed the atomicity
 requirement onto every future "grow to a specific point" caller instead of Border itself
 guaranteeing it.
+
+**[Correction note, 2026-08-28: `growCenteredOn` as a separately-named method, and its no-tip
+"data-corruption, fail loudly" behavior, are both superseded — see this node's 2026-08-28 log
+entry above. Every `growCenteredOn` mention on this node (here, "The handler itself" above, and
+"Closes the loop"/"Done bar" below) now means the `grow(BlockPos center)` overload described
+there; left as originally written rather than rewritten throughout.]**
 
 **Radius/layerIndex for the new border** should reuse `DefaultBorderRules.chooseNextRadius()`
 (growth-factor curve) and `previous.layerIndex() + 1` exactly as `grow()` does today — only the

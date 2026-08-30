@@ -80,12 +80,28 @@ public final class BorderProposal {
     // Fluent mutation API
     // ============================================================
 
+    /**
+     * <b>FRO_059:</b> {@link #insert(Border)} is the one sanctioned way to build a proposal that
+     * intentionally collides with an existing border's id (a replace) -- see border.md's
+     * "Proposal identity and validation" section. A raw {@code id(existingId)} call outside that
+     * path collides on identity alone while every other field keeps this proposal's own fresh
+     * defaults (a new random {@code displayName}, a fresh default {@code center}), which is the
+     * actually risky shape, not the collision itself. This method stays public and unvalidated by
+     * design -- the type is deliberately general-purpose (see "Mutation surface") -- this is a
+     * documented contract, not an enforced one.
+     */
     public BorderProposal id(UUID id) {
         requireNotConsumed();
         this.id = id;
         return this;
     }
 
+    /**
+     * <b>FRO_059:</b> validated at {@link BordersCrudFacet#applyProposal(BorderProposal)} time
+     * (blank/whitespace-only rejected, capped at {@link
+     * com.arryn.frontiermode.border.common.BorderConstants#MAX_DISPLAY_NAME_LENGTH}) -- not here,
+     * since a proposal's fields are meant to be freely mutable up to that point.
+     */
     public BorderProposal displayName(String name) {
         requireNotConsumed();
         this.displayName = name;

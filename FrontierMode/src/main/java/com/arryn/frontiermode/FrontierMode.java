@@ -4,6 +4,8 @@ import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.boss.BossModule;
+import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
+import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
@@ -33,6 +35,11 @@ public final class FrontierMode {
 
     public static final RegistryObject<ArgumentTypeInfo<?, ?>> BORDER_SELECTOR =
             ARGUMENT_TYPES.register("border_selector", BorderSelectorArgumentTypeInfo::new);
+
+    // FRO_057 (RM_FRO_022, "Joyce"): /boss's own selector argument type, same registration shape
+    // as BORDER_SELECTOR above.
+    public static final RegistryObject<ArgumentTypeInfo<?, ?>> BOSS_SELECTOR =
+            ARGUMENT_TYPES.register("boss_selector", BossSelectorArgumentTypeInfo::new);
 
     // ------------------------------------------------------------
     // Constructor – module bootstrap
@@ -74,6 +81,11 @@ public final class FrontierMode {
                     (ArgumentTypeInfo<BorderSelectorArgumentType, BorderSelectorArgumentTypeInfo.Template>)
                             FrontierMode.BORDER_SELECTOR.get()
             );
+            ArgumentTypeInfos.registerByClass(
+                    BossSelectorArgumentType.class,
+                    (ArgumentTypeInfo<BossSelectorArgumentType, BossSelectorArgumentTypeInfo.Template>)
+                            FrontierMode.BOSS_SELECTOR.get()
+            );
         });
     }
 
@@ -85,6 +97,8 @@ public final class FrontierMode {
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
         BorderModule.onRegisterCommands(event);
+        // FRO_057 (RM_FRO_022, "Joyce"): registers /boss alongside /border.
+        BossModule.onRegisterCommands(event);
     }
 
 

@@ -63,6 +63,10 @@ Both checks run against a real build, results logged on
 [BHRM — Roadmap Conventions](../wiki/meta/bhrm.md)), which is exactly the case this is for.
 
 ## Log
+
+- [Arryn] next one to read this one, ask me what maintenance node to tie it to. 
+
+
 - 20260821 - per Arryn, node stays closed; leave this ticket. Commands are low priority.
 
 - 2026-08-21: Ticket opened by PM off a doc audit of Susan's subtree. Filed as verification work,

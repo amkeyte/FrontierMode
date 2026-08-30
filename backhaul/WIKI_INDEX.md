@@ -14,10 +14,13 @@
 
 | Title | Status | Summary | Edit |
 |---|---|---|---|
+| [Border Curve](wiki/frontiermode/architecture/border-curve.md) | draft | Technical shape for BorderCurveFixture -- a sibling fixture in BordersBundle giving borders zero-to-many named intensity curves (placement, difficulty, ...), evaluated through BorderMath. First concrete consumer is Guardian Mobs -- proposal stage. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/border-curve.md) |
 | [Border Vocabulary](wiki/frontiermode/architecture/border-vocabulary.md) | verified | Canon terminology for FrontierMode's Border system: Relevance, Layer, Path, and Difficulty, replacing overloaded use of 'level' across the wiki and code. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/border-vocabulary.md) |
 | [Border](wiki/frontiermode/architecture/border.md) | verified | FrontierMode's world-border system -- the mod's one substantial feature, built on Satchel's fixture/facet and jig/scope model. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/border.md) |
-| [Boss](wiki/frontiermode/architecture/boss.md) | verified | Boss entity/spawn system for Tier 1 -- data model, spawn algorithm, and the defeat-detection caller into BorderAPI. RM_FRO_019 builds against this. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/boss.md) |
+| [Boss Command Surface](wiki/frontiermode/architecture/boss-commands.md) | draft | Command-tree design space for an in-game Boss admin/dev surface (RM_FRO_022 "Joyce"). Six items shipped and playtest-verified on FRO_057 (info/add/delete/mob spawn/transform defeat/debug goto, plus debug distance added mid-playtest); the rest of the info/add/delete/transform/mob/debug tree, the borderId-based selector chain, and the border-move reconciliation direction remain documented proposal, not yet built. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/boss-commands.md) |
+| [Boss](wiki/frontiermode/architecture/boss.md) | verified | Boss entity/spawn system for Tier 1 -- data model, mutation validation boundary, spawn algorithm, and the defeat-detection caller into BorderAPI. RM_FRO_019 builds against this. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/boss.md) |
 | [Difficulty](wiki/frontiermode/architecture/difficulty.md) | draft | Design pass for the Difficulty seam on BorderRules (FRO_029 Phase 4): the Layer-to-Difficulty formula, the ambient-vs-boss selector split, and the BorderPlayerStatus reshape it depends on. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/difficulty.md) |
+| [Boss Discovery Systems](wiki/frontiermode/architecture/discovery-systems.md) | draft | Technical shape for Tier 2's discovery-gradient tools (guardian mobs, tells, beacons, tracker, compass, warps) and the navigation/attunement mechanism, hosted in Border, that most of them build on -- proposal stage, drafted ahead of minting RM_FRO_023's real intermediate nodes. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/discovery-systems.md) |
 | [Border Path & Layer Reconciliation](wiki/frontiermode/architecture/path-layer-reconciliation.md) | draft | How fixLayers() reconciles Border.layer() to borderPath order after a manual reorder, and why the two are allowed to diverge in the first place. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/path-layer-reconciliation.md) |
 
 ## frontiermode/design
@@ -40,12 +43,14 @@
 | [BHRole — Agent Role Conventions](wiki/meta/bhrole.md) | verified | Role page structure, why bootstrap prompts must stay evergreen, and CLI cheatsheet. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/meta/bhrole.md) |
 | [BHT — Ticket Conventions](wiki/meta/bht.md) | draft | Ticket ID scheme, slug convention, and CLI cheatsheet. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/meta/bht.md) |
 | [BHW — Wiki Conventions](wiki/meta/bhw.md) | draft | Wiki page ID scheme, slug convention, and CLI cheatsheet. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/meta/bhw.md) |
+| [Git Branching by Epoch](wiki/meta/git-branching.md) | draft | Proposed branch-per-epoch policy for parking side-quest work while the mainline moves into the next epoch. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/meta/git-branching.md) |
 
 ## plans
 
 | Title | Status | Summary | Edit |
 |---|---|---|---|
 | [Full Documentation Coverage Plan](wiki/plans/doc-coverage.md) | published | Plan to bring FrontierMode and Satchel's wiki up to full design/spec coverage of existing code before content work starts. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/doc-coverage.md) |
+| [Donna Epoch Nodes](wiki/plans/donna-epoch-nodes.md) | draft | Candidate RM_FRO nodes proposed for the Donna epoch, staged here before minting -- starting with the Tier 2 discovery-gradient cluster (Navigator, Border Curve, and the six discovery tools) feeding Kathleen's convergence. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/donna-epoch-nodes.md) |
 | [FrontierMode Operational Tiers](wiki/plans/operational-tiers.md) | published | The experience-tier framework FrontierMode's roadmap convergence nodes are organized around, instead of one convergence per module. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/operational-tiers.md) |
 | [Bare-Necessity Strip-Down Plan](wiki/plans/strip-down.md) | published | Plan to strip both mod repos to the minimum needed to remain valid Forge mods, and replace git history clean. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/strip-down.md) |
 

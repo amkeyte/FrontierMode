@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-28'
+updated: '2026-08-29'
 ---
 
 <!-- bh-header:start -->
@@ -76,15 +76,21 @@ owning fixture, each covering one slice of the fixture's API:
 - `RULES` (`BordersRulesFacet`) — rule evaluation surface
 - `INFO` (`BordersInfoFacet`) — read-only queries (scope, level, UUID, revision, `seeded()`)
 
-`BordersFixture` stays a public Java type — Satchel's `FixtureKey<T extends SatchelFixture>`
-requires `T` accessible everywhere its key is built and consumed, and `FrontierKeys`,
-`BordersBundle`, and `BorderModule.init()`'s own `FixtureDecl` registration all reference the
-class by name from outside `border.common.fixture`, so literal package-privacy isn't available
-here. Encapsulation is enforced the way it actually matters instead: `BorderAPI.borders(Level)` is
-gone, and `BorderAPI.PATH(Level)`, `.CRUD(Level)`, `.RULES(Level)`, `.INFO(Level)` — each resolving
-the level's fixture internally and handing back the requested facet, never the fixture itself —
-are the only path in from outside the package. Nothing outside `border.common.fixture` holds a
-`BordersFixture` reference in practice, even though the class itself is public.
+**Final ruling: `BordersFixture` cannot go fully protected, because of how Satchel's
+fixture/bundle model works, not from any choice specific to Border.** The class stays a public
+Java type — `FixtureKey<T extends SatchelFixture>` requires `T` accessible everywhere its key is
+built and consumed, and `FrontierKeys`, `BordersBundle`, and `BorderModule.init()`'s own
+`FixtureDecl` registration all reference the class by name from outside `border.common.fixture`,
+so literal package-privacy was never available here. `BorderAPI.borders(Level)` is gone, and
+`BorderAPI.PATH(Level)`, `.CRUD(Level)`, `.RULES(Level)`, `.INFO(Level)` — each resolving the
+level's fixture internally and handing back the requested facet, never the fixture itself — are
+the only *sanctioned* path in. But that's a convention, not a compiler guarantee:
+`SatchelBundle.get(FixtureKey<T>)`, the generic retrieval mechanism every module's own API class is
+built on, is itself public and unguarded, and Satchel has no way to close it off without breaking
+the mechanism — see [Fixture § External Access Is Not
+Compiler-Enforced](../../satchel/architecture/fixture.md#external-access-is-not-compiler-enforced)
+for the general reasoning. The accepted mitigation is doc-comment discipline on `BordersFixture`
+and its four facets, not a runtime guard — settled, not an open question.
 
 This is the canonical example of Satchel's fixture/facet split (see
 [Fixture](../../satchel/architecture/fixture.md)): the fixture is the one persisted unit; facets
@@ -176,17 +182,85 @@ that `BordersPathFacet`/`BordersCrudFacet` turn into a proposal and apply direct
 
 Every mutation goes through a proposal: `BordersCrudFacet.getProposal()` returns a fresh,
 unconfigured `BorderProposal`; the caller configures it (`center()`, `radius()`, `layerIndex()`,
-or `insert(Border)` to seed all three from an existing border) and hands it back to
-`CRUD.applyProposal(proposal)`, which validates it against `BorderConstants`' radius bounds and
-applies it atomically if it passes. `BorderProposal`'s own constructor is package-private — only
-`CRUD.getProposal()` can mint one — but the type and its configuration methods are otherwise
+`id()`, `displayName()`, or `insert(Border)` to seed all five from an existing border) and hands
+it back to `CRUD.applyProposal(proposal)`, which validates it and applies it atomically if it
+passes. Validated today: radius against `BorderConstants.MIN_RADIUS`/`MAX_RADIUS`, and
+`layerIndex` non-negative. **Not yet validated, per
+[FRO_059](../../../tickets/FRO_059_border-proposal-center-bounds-id-display.md)'s spec review:
+`center` bounds and `displayName` shape** -- see "Proposal identity and validation" below for the
+ruling Lead Dev builds against next. `BorderProposal`'s own constructor is package-private -- only
+`CRUD.getProposal()` can mint one -- but the type and its configuration methods are otherwise
 public and general-purpose, on the same footing as `getProposal()`/`applyProposal()` themselves.
-`BorderAPI`'s named operations (`grow`, `addBorder`, `transformBorder`, `growCenteredOn`) are the
-safe, easy path for the common cases, not a closed set — any caller can build and apply its own
-proposal directly for a case the named operations don't cover.
+`BorderAPI`'s named operations (`grow`, `addBorder`, `transformBorder`) are the safe, easy path
+for the common cases, not a closed set -- any caller can build and apply its own proposal directly
+for a case the named operations don't cover.
 
-`applyProposal()` — and every other mutating `BorderAPI` operation (`grow`, `addBorder`,
-`transformBorder`, `removeBorder`, `growCenteredOn`) — returns a `Result` rather than throwing or
+### Proposal identity and validation
+
+[FRO_054](../../../tickets/FRO_054_mutation-data-security.md)'s QA pass found two gaps here:
+`center` has no bounds check at all (unlike `radius`/`layerIndex`), and `id()`/`displayName()`
+are public, unvalidated setters -- a caller building a raw proposal (the "any caller can build and
+apply its own proposal directly" escape hatch above) could set `id()` to an existing border's UUID
+and silently replace it via `accept()`'s remove-then-add, or set an unbounded `displayName`. No
+current call site does this -- latent, not live.
+[FRO_059](../../../tickets/FRO_059_border-proposal-center-bounds-id-display.md) asked the
+Architect to rule on the intended contract. Ruling below.
+
+**`id()` collision stays unrejected -- rejecting it would break `transformBorder` itself.**
+`transformBorder()`'s whole mechanism *is* an id-colliding proposal: `proposal.insert(existing)`
+seeds `id`/`displayName`/`center`/`radius`/`layerIndex` all from the border being updated, then
+`applyProposal()` -> `accept()`'s remove-then-add replaces that exact record. A blanket "reject a
+proposal whose id matches an existing border" guard would reject every transform, not just a
+careless raw one -- there's no way to distinguish "this is `transformBorder`'s own legitimate
+replace" from "a raw caller collided with someone else's id" once both have reached
+`applyProposal()`, because they're structurally identical at that point. So the guard belongs at
+the calling convention, not the validation boundary: **`insert(Border)` is the one sanctioned way
+to build a colliding-id proposal**, because it's the only path that seeds every identity/geometry
+field coherently from the record being replaced -- a raw `getProposal().id(existingId)` call
+collides on identity alone while every other field silently keeps the fresh proposal's own
+defaults (a new random `displayName`, a fresh default `center`), which is the actually dangerous
+shape, not the collision itself. This is a documentation fix, not a code change: the contract was
+already true, just not stated. `BorderProposal.id()`/`displayName()` stay public (per "Mutation
+surface" above, the type is deliberately general-purpose, not locked to `insert()`-only use) --
+callers with a real reason to set identity fields directly still can; they just don't get a safety
+net past this document telling them what `insert()` is for.
+
+**`displayName()` gets a real bound, unlike `id()` -- there's no legitimate use case an unbounded
+one serves.** Unlike identity collision, nothing here is a sanctioned escape-hatch pattern the
+way `insert()`-driven replacement is -- every named operation already sources `displayName` from
+either `getDefaultDisplayName()`'s curated pool or `insert()`'s carry-forward, never free text.
+Reject blank/whitespace-only, and cap length (a generous UI-sane bound -- 32 characters, matching
+the longest name already in `DefaultBorderRules.DEFAULT_BORDER_NAMES`, "Shadowmere", with headroom)
+in `failureReason()`, same shape as the radius/layerIndex checks already there.
+
+**`center` gets a real bounds check too, mirrored off vanilla's own world limits, not a bespoke
+gameplay number.** Radius/layerIndex bounds (`BorderConstants.MIN_RADIUS`/`MAX_RADIUS`, `>= 0`) are
+gameplay-balance numbers, tunable by design; a center bounds check is a different kind of thing --
+it exists to reject corrupt/absurd input (an overflowed coordinate from a bad command argument or a
+future scripted caller), not to constrain where a border can legitimately sit. So it should reject
+against Minecraft's own real limits, not invent a FrontierMode-specific number: horizontal (X/Z)
+outside vanilla's world-border hard limit (`WorldBorder.MAX_SIZE`, roughly +/-29,999,984) is never
+legitimate in any Minecraft world regardless of this mod's own design; vertical (Y) should check
+against the *level's own* `getMinBuildHeight()`/`getMaxBuildHeight()` rather than a hardcoded
+range -- build height genuinely varies by dimension, and `BordersCrudFacet` already has
+`fixture.resolveLevel()` available to ask the real level rather than guessing. Lead Dev should
+confirm the exact vanilla API surface for both at implementation time (obfuscation mapping names
+shift across MC versions); the bound itself is the ruling, not any specific method name here.
+
+`grow` is overloaded, not two methods under two names. `BordersPathFacet.grow()` computes its own
+center via `DefaultBorderRules.chooseNextCenter()`, or, on an empty path, bootstraps the level's
+first border via `getInitial()` (rules-driven radius, `layer 0`). `BordersPathFacet.grow(BlockPos
+center)` does exactly the same thing — same rules-driven radius and `layer`, same empty-path
+bootstrap — except the caller's center replaces whichever center `grow()` would otherwise have
+picked, tip present or absent. `BorderAPI.grow(Level)` / `BorderAPI.grow(Level, BlockPos)` mirror
+the overload one layer up. This is a standardized API: a caller with a specific center in hand
+([Boss § Defeat detection and the border-growth gap](boss.md#defeat-detection-and-the-border-growth-gap)'s
+post-defeat growth is the first consumer) gets identical guarantees to one without — no separate
+failure mode for an absent path tip, no separate bootstrap behavior, nothing about this method to
+special-case.
+
+`applyProposal()` — and every other mutating `BorderAPI` operation (`grow` in both its forms,
+`addBorder`, `transformBorder`, `removeBorder`) — returns a `Result` rather than throwing or
 returning `Optional.empty()`: an outcome enum, a failure-kind enum (populated only on failure,
 distinguishing a transient not-ready state from a permanent validation rejection from a not-found
 lookup), a message string, and the `Border` itself on success. `BorderSelectorResult`
@@ -272,3 +346,4 @@ described above — tracked as roadmap work rather than restated here:
   `fixLayers()` gap noted above
 - [Boss](boss.md) — Tier 1's boss entity/spawn system, the first consumer of `BorderAPI.addBorder()`
   outside Border's own command layer
+- [FRO_059](../../../tickets/FRO_059_border-proposal-center-bounds-id-display.md) — the proposal identity/validation spec review "Proposal identity and validation" above answers

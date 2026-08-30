@@ -3,13 +3,13 @@ id: FRO_045
 uid: FRO
 number: 45
 client: FrontierMode
-status: open
+status: done
 title: Build Boss defeat border-growth caller (RM_FRO_019)
-context: Lead Dev build for Karen. growCenteredOn() two-layer addition, LivingDeathEvent
+context: Lead Dev build for Karen. grow(BlockPos) overload addition, LivingDeathEvent
   defeat handler with MobScope.getFor() race fallback, BossAPI.createBoss() pairing.
 priority: high
 opened: '2026-08-24'
-closed: null
+closed: '2026-08-29'
 ---
 
 <!-- board:start -->
@@ -47,25 +47,26 @@ never referenced the fixture's own visibility directly.
 
 ## What to build
 
-`growCenteredOn`'s mechanics live directly on the facet — there's no intermediate logic class to
-delegate to.
+`grow(BlockPos center)` mechanics live directly on the facet — there's no intermediate logic class
+to delegate to. It's an overload of the existing `grow()`, not a separately-named method — see
+[RM_FRO_019](../roadmap/RM_FRO_019_karen.md)'s 2026-08-28 correction entry for why (no-tip
+behavior and method shape both corrected the same day, superseding this ticket's original
+2026-08-24 spec).
 
-1. **`BordersPathFacet.growCenteredOn(BlockPos center)`** — same shape as `grow()`: pull a
-   proposal via `fixture.CRUD.getProposal()`, set radius and layer from
-   `BorderRules.ACTIVE.chooseNextRadius(...)` / `previous.layer() + 1` exactly as `grow()` does,
-   but `proposal.center(center)` in place of `BorderRules.ACTIVE.chooseNextCenter(...)`. Apply via
-   `fixture.CRUD.applyProposal(proposal)`; on success, append the returned `Border` to `borderPath`
-   and `markSeeded()`/`markPathDirty()`, same as `grow()`. **One case `grow()` doesn't have to
-   handle that this does:** `grow()` falls back to its own no-tip bootstrap branch when the path is
-   empty; `growCenteredOn` has no such fallback — a post-defeat call always requires an existing
-   tip (a boss can't be defeated on a level with no border), so an absent tip here is a genuine
-   data-corruption case, not a bootstrap case. **Surface it as a failed `Result`** (its own
-   failure-kind, distinct from "not-ready" or "validation rejected"), logged loudly server-side —
-   not a thrown exception, and not a silent substitution that would discard the caller's requested
-   center.
-2. **`BorderAPI.growCenteredOn(Level level, BlockPos center)`** — thin wrapper over
-   `PATH(level).growCenteredOn(center)`, mirroring how `BorderAPI.grow(Level)` delegates to
-   `PATH(level).grow()`. Returns `Result`, same as every other `BorderAPI` operation that can fail (see [Border § Mutation surface](../wiki/frontiermode/architecture/border.md)) —
+1. **`BordersPathFacet.grow(BlockPos center)`** — same shape as the no-arg `grow()`, tip present
+   or absent: pull a proposal via `fixture.CRUD.getProposal()`, set radius and layer from
+   `BorderRules.ACTIVE.chooseNextRadius(...)` / `previous.layer() + 1` (tip present) or from
+   `getInitial()`'s own rules-driven radius / `layer 0` (tip absent) exactly as `grow()` does
+   either way — but `proposal.center(center)` in place of whichever rules-chosen center `grow()`
+   would otherwise pick. Apply via `fixture.CRUD.applyProposal(proposal)`; on success, append the
+   returned `Border` to `borderPath` and `markSeeded()`/`markPathDirty()`, same as `grow()`.
+   **No-tip is a normal bootstrap here, not a failure case** — unlike the original 2026-08-24 spec,
+   an absent tip does not surface a failed `Result`; it bootstraps exactly like `grow()`'s own
+   empty-path branch, just with the caller's center. No new `Result.FailureKind` needed for this
+   method.
+2. **`BorderAPI.grow(Level level, BlockPos center)`** — thin wrapper over
+   `PATH(level).grow(center)`, mirroring how `BorderAPI.grow(Level)` delegates to `PATH(level).grow()`.
+   Returns `Result`, same as every other `BorderAPI` operation that can fail (see [Border § Mutation surface](../wiki/frontiermode/architecture/border.md)) —
    the caller checks outcome, not a try/catch or an `Optional`.
 3. **The `LivingDeathEvent` listener** — a plain static method registered via
    `MinecraftForge.EVENT_BUS.addListener(...)`, the same wiring shape `BorderModule.onBlockPlaced`
@@ -79,24 +80,36 @@ delegate to.
    - If neither finds a match: no-op. Most deaths in the world aren't a tracked boss.
 4. **On a match:** mark that boss's own `BossFixture` record defeated (`alive: false`), addressed
    by its own `bossId` — not via any `Border` reference, `BossFixture` isn't keyed by one. Then
-   call `BorderAPI.growCenteredOn(level, deathLocation)` and check its `Result`; once it reports
-   success, pull the `Border` off the payload and call `BossAPI.createBoss(level, border)` right
-   after — the same paired call every border-creation site needs. A failed `Result` here (the
-   corruption case above) should log loudly and stop — don't call `createBoss` without a border.
-   `createBoss` creates the record; it doesn't place the entity — materialization happens on
-   `BOSS_JIG`'s own tick, same as any other unmaterialized record.
-5. **Document `growCenteredOn` on [Border](../wiki/frontiermode/architecture/border.md)** as part
-   of this build, mirroring how [FRO_043](FRO_043_boss-build.md) updated `boss.md` with the built
-   shape rather than leaving the wiki describing pre-build design only.
+   call `BorderAPI.grow(level, deathLocation)` and check its `Result`; once it reports success,
+   pull the `Border` off the payload and call `BossAPI.createBoss(level, border)` right after — the
+   same paired call every border-creation site needs. Given no-tip now bootstraps rather than
+   failing, a failed `Result` here means an actual mutation-validation rejection (e.g. radius
+   bounds), not a corruption case — log it and stop either way; don't call `createBoss` without a
+   border. `createBoss` creates the record; it doesn't place the entity — materialization happens
+   on `BOSS_JIG`'s own tick, same as any other unmaterialized record.
+5. **Already documented — build against the wiki, don't re-derive it.**
+   [Border § Mutation surface](../wiki/frontiermode/architecture/border.md#mutation-surface) and
+   [Boss § Defeat detection and the border-growth gap](../wiki/frontiermode/architecture/boss.md#defeat-detection-and-the-border-growth-gap)
+   both already describe the `grow(BlockPos center)` overload and the defeat handler as the spec
+   to build to — written ahead of this build rather than deferred to a doc pass after ([FRO_053](FRO_053_karen-wiki-docs.md),
+   closed, superseded by this process change). If the real implementation needs something these
+   pages don't cover, that's a ticket back to the Architect, not a silent deviation or a
+   wiki-catches-up note appended later.
 
 ## Four things worth knowing before you start
 
 Checked against `RM_FRO_019`'s own 2026-08-24 ruling and `boss.md` — places the obvious guess is
 wrong:
 
-1. **Both design calls are ruled, not open.** Don't re-litigate `growCenteredOn` vs. a two-call
-   sequence, or which race-fallback mechanism to use — [FRO_044](FRO_044_karen-prep.md) already
-   settled both with source-verified reasoning. Build to the ruling above.
+1. **Both original design calls are ruled, not open — but the `growCenteredOn` shape itself was
+   corrected 2026-08-28.** Don't re-litigate the two-call-sequence question or which race-fallback
+   mechanism to use — [FRO_044](FRO_044_karen-prep.md) already settled both with source-verified
+   reasoning, and that stands. What changed: the method is now `grow(BlockPos center)`, an overload
+   of the existing `grow()`, not a separately-named `growCenteredOn`; and an absent path tip
+   bootstraps like `grow()`'s own empty-path branch instead of failing with a new
+   `Result.FailureKind`. See [RM_FRO_019](../roadmap/RM_FRO_019_karen.md)'s 2026-08-28 correction
+   entry and [FRO_052](FRO_052_growcenteredon-no-tip.md). Build to "What to build" above, which is
+   already rewritten to match.
 2. **`BossFixture` is not keyed by `Border`.** Resolve the specific boss record by its own
    `bossId` (from the `BossMobFixture`/`getFor` lookup), never by trying to correlate through a
    `Border` reference — that coupling was explicitly removed
@@ -169,6 +182,107 @@ on read-through/self-review alone.
   logged deviations (`BordersFixture` public rather than package-private; `bordersContaining()`
   throwing instead of `Result`/`Optional` — neither claim was ever made on this ticket). Genuinely
   startable now.
+
+- 2026-08-28: **"What to build" rewritten again (Architect) — `growCenteredOn` collapsed into a
+  `grow(BlockPos center)` overload, no-tip corrected from a failed `Result` to a normal bootstrap.**
+  Settled during this session's build-planning discussion, formalized on
+  [RM_FRO_019](../roadmap/RM_FRO_019_karen.md)'s 2026-08-28 log entry and
+  [FRO_052](FRO_052_growcenteredon-no-tip.md) (now closed). Nothing was built against the prior
+  shape — grep confirms `growCenteredOn` never landed in source — so this is a spec correction, not
+  a rename of shipped code. Item 5 (wiki docs) stays out of scope for this build session per owner
+  instruction; carried on [FRO_053](FRO_053_karen-wiki-docs.md).
+
+- 2026-08-28: **Item 5 corrected — wiki docs are no longer deferred (Architect/owner).** Project
+  owner's ruling: architecture pages are the spec Lead Dev builds against, written ahead of or
+  alongside the build, never a follow-up doc pass after code ships — that ordering left this
+  ticket's own build with no reliable spec to build against in the meantime, which is exactly the
+  problem [FRO_053](FRO_053_karen-wiki-docs.md) existed to paper over. `Border` and `Boss` are
+  updated now to describe the `grow(BlockPos center)` overload and the defeat handler directly;
+  FRO_053 is closed. Build against the wiki, not this ticket's own prose, where the two might ever
+  drift.
+
+- 2026-08-28: **Built (Lead Dev), against the wiki spec directly.** All four pieces from "What to
+  build" landed:
+  1. `BordersPathFacet.grow(BlockPos center)` — overload of `grow()`, same tip-present/tip-absent
+     branching, no-tip bootstraps (no new `FailureKind`), center supplied by the caller in place
+     of the rules-chosen one.
+  2. `BorderAPI.grow(Level, BlockPos)` — thin wrapper over `PATH(level).grow(center)`, same shape
+     as the existing `BorderAPI.grow(Level)`.
+  3. `BossRecord.defeated()` + `BossFixture.markDefeated(UUID)` — flips `alive` false on the
+     record matching `bossId`, no `Border` coupling.
+  4. `BossModule.onLivingDeath` (registered on `MinecraftForge.EVENT_BUS` in `init()`, plain
+     static listener — not `@SubscribeEvent`, matching `BorderModule.onBlockPlaced`'s own wiring)
+     plus its `resolveBossId`/`existingBossId` helpers: `BossMobFixture` check first, falling back
+     to a synchronous `MobScope.getFor(mob)` call before concluding no match. On a hit:
+     `markDefeated(bossId)`, then `BorderAPI.grow(level, deathLocation)`, then `BossAPI.createBoss`
+     only on a successful `Result` — a failed grow logs and stops rather than calling `createBoss`
+     without a border.
+
+  Placed the handler as private static methods directly inside `BossModule.java` rather than a new
+  file — matches the precedent `BorderModule.onBlockPlaced` already sets for raw Forge listeners
+  living in their module class. Implementation decision, within this role's own authority; not a
+  design call.
+
+  **Known limitation, built to the ticket's literal wording per owner instruction (not
+  re-litigated):** `MobScope.getFor(mob)` registers scope introduction for a later foundation
+  pulse — promotion `NEW`→`LOADED` (the transition that populates `BossMobFixture`) happens inside
+  `ASatchelJig.handleExecutionPulse()`'s readiness convergence, not synchronously inside
+  `getFor()`/`introduceSource()`. So the race-fallback call in `resolveBossId` does not
+  synchronously hand this same `LivingDeathEvent` call a populated `BossMobFixture` on the tick a
+  chunk just loaded — it registers the scope but may still miss the fixture on that exact call.
+  Traced against real source this session; owner chose to build to the ticket's literal wording
+  (`getFor(mob)` only) rather than have Lead Dev redesign around it. Also documented directly on
+  `resolveBossId`'s own javadoc so it isn't lost to this log alone.
+
+  Self-reviewed via brace-balance checks on all four edited/added methods and a grep confirming no
+  stray `growCenteredOn` references remain anywhere in source — no javac/Gradle available in this
+  sandbox to compile-check directly (standing constraint, see below).
+
+  **Not marking this resolved.** Per this ticket's own done bar and standing constraint: real
+  build + real playtest are still owed on the project owner's own machine, covering all four —
+  ordinary-combat kill, `/kill` kill, the race-fallback-window kill, and code-review-level
+  confidence on the (now-bootstrap-not-failure) no-tip case. Ticket stays `open`.
+
+- 2026-08-29: **First live playtest session (owner), against a real `debug.log`.** Results against
+  the done bar's four items:
+  1. **Ordinary-combat kill: confirmed, not just self-reported.** The log shows the full chain
+     firing three times back-to-back, each within ~40ms of the kill (same/next tick): Rabbit
+     "Boss (Layer 0)" slain -> Zombie "Boss (Layer 1)" materializes; Zombie slain -> Spider
+     "Boss (Layer 2)" materializes; Spider slain -> Skeleton "Boss (Layer 3)" materializes.
+     `markDefeated` -> `BorderAPI.grow` -> `createBoss` -> `BOSS_JIG` materialization all
+     confirmed working, three times in a row.
+  2. **`/kill`: still not actually tested.** First attempt used `/kill @a`, which only selects
+     players -- it killed the owner (`Dev was killed`, log timestamp 16:53:53), never touched the
+     live boss (Skeleton, "Boss (Layer 3)", confirmed still alive at session end). No boss-targeted
+     `/kill` has been issued yet. Correct target needs a non-player selector (e.g.
+     `/kill @e[name="Boss (Layer 3)"]`), owner re-running it next.
+  3. **Race-fallback window: downgraded to code-review confidence, by owner's own call** --
+     confirmed impractical to reliably force a kill inside `MobJig`'s ~20-tick poll window in
+     live play. Same standard item 4 already used.
+  4. **No-tip corruption guard: unchanged, code-review confidence** (as originally scoped -- no
+     forced repro expected here).
+
+  Also noted: `onLivingDeath`'s success path currently logs nothing of its own -- item 1 above was
+  confirmed only by correlating vanilla's own death message against mob-scope-creation timing, not
+  from anything this handler prints. Flagged to the owner as worth adding (a plain
+  `[Boss] onLivingDeath: ...` INFO line) so `/kill` and any future race-window attempt are directly
+  verifiable from logs rather than inferred. Not yet added -- pending owner confirmation.
+
+  Ticket stays `open`: item 2 still needs a real boss-targeted `/kill` test before this closes.
+
+- 2026-08-29: **Second live playtest session (owner), fresh server run, item 2 re-run correctly.**
+  Owner targeted the boss mob directly rather than `@a`. Log confirms:
+  `[28Aug2026 17:08:01.372] ... died: Boss (Layer 0) was killed` /
+  `[28Aug2026 17:08:01.373] ... [Dev: Killed Boss (Layer 0)]` -- the vanilla `/kill`-command
+  broadcast, distinct from combat's "was slain by" message -- followed 46ms later by a Zombie mob
+  scope appearing (`17:08:01.419`), the same defeat -> grow -> next-boss chain confirmed for
+  ordinary combat. `/kill`-sourced deaths go through `LivingDeathEvent` identically to
+  combat-sourced ones, as designed; item 2 confirmed.
+
+  **Done-bar status now:** item 1 confirmed (prior session, log-verified x3), item 2 confirmed
+  (this session, log-verified), item 3 downgraded to code-review confidence (owner's call, prior
+  session), item 4 code-review confidence (as originally scoped). All four satisfied. Closing this
+  ticket.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

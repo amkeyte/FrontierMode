@@ -263,7 +263,7 @@ public final class BorderModule {
      * <p>Same shared-bus discipline as every other {@code ScopeEvent} handler here: the
      * {@code BORDERS_JIG} key check below is what keeps this from running against a foreign
      * jig's scope. By the time {@code ScopeEvent.Loaded} fires, this scope has already converged
-     * to ready, so {@code BorderAPI.borders(level)} is expected to resolve here, not defer.
+     * to ready, so {@code BorderAPI.INFO(level)} is expected to resolve here, not defer.
      */
     private static void onBordersScopeLoaded(ScopeEvent.Loaded event) {
         ScopeInfo info = event.info();

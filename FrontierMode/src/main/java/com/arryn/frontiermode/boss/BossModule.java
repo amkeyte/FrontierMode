@@ -5,11 +5,13 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
+import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.boss.server.commands.BossCommands;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.satchel.Satchel;
@@ -30,6 +32,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 
 import java.util.HashSet;
 import java.util.List;
@@ -71,6 +76,17 @@ public final class BossModule {
     // never-unwatched INTERESTS map sets.
     private static final Map<Level, Set<UUID>> INTERESTS = new ConcurrentHashMap<>();
 
+    // FRO_062 hotfix, found via real playtest (server console spamming dozens of identical
+    // warnings per second): reconcilePathAgainstBossRecords() runs on BOSS_JIG's own Tick (every
+    // server tick) and used to OUT.warn() unconditionally whenever a mismatch existed, with
+    // nothing to stop it firing again next tick for the exact same, still-unresolved mismatch. A
+    // world with real missing boss records (e.g. after manual /boss delete cleanup during
+    // testing) would warn 20x/second indefinitely. This tracks each level's last-reported
+    // mismatch set so the check logs on a real *transition* (new mismatch, changed mismatch, or
+    // resolution) rather than every tick the same state persists -- still "logged loudly" per
+    // boss.md's own ruling (nothing here is silently self-healed), just not logged on a loop.
+    private static final Map<Level, Set<Integer>> LAST_RECONCILIATION_MISMATCH = new ConcurrentHashMap<>();
+
     private BossModule() {
     }
 
@@ -79,6 +95,20 @@ public final class BossModule {
 
         registerBossJig();
         registerBossMobJig();
+
+        // RM_FRO_019 (Karen): defeat detection -> border growth -> next boss record. Plain
+        // static listener, not an @SubscribeEvent instance method -- same wiring shape
+        // BorderModule.onBlockPlaced uses.
+        MinecraftForge.EVENT_BUS.addListener(BossModule::onLivingDeath);
+    }
+
+    /**
+     * FRO_057 (RM_FRO_022, "Joyce"): registers {@code /boss}, same delegation shape
+     * {@code BorderModule.onRegisterCommands} already uses for {@code /border} -- called from
+     * {@code FrontierMode.onRegisterCommands} alongside it.
+     */
+    public static void onRegisterCommands(RegisterCommandsEvent event) {
+        BossCommands.register(event.getDispatcher());
     }
 
     // ─────────────────────────────────────────────
@@ -227,16 +257,118 @@ public final class BossModule {
         Set<Integer> missing = new HashSet<>(pathLayers);
         missing.removeAll(fixture.layers());
 
-        if (!missing.isEmpty()) {
-            OUT.warn("[Boss] Reconciliation: path has border(s) at layer(s) " + missing
-                    + " with no matching BossFixture record in level " + level.dimension().location()
-                    + " -- real data bug (missed call site, crash between paired calls, or manual"
-                    + " world editing), not a normal transient state.");
+        // FRO_062: edge-triggered logging -- only speak up when this tick's mismatch set differs
+        // from the last one actually reported for this level (see LAST_RECONCILIATION_MISMATCH's
+        // own doc above). An unchanged mismatch across ticks is not a new event.
+        Set<Integer> previouslyReported = LAST_RECONCILIATION_MISMATCH.getOrDefault(level, Set.of());
+        if (missing.equals(previouslyReported)) {
+            return;
         }
+
+        if (missing.isEmpty()) {
+            OUT.info("[Boss] Reconciliation: previously-mismatched layer(s) " + previouslyReported
+                    + " no longer mismatched in level " + level.dimension().location() + ".");
+            LAST_RECONCILIATION_MISMATCH.remove(level);
+            return;
+        }
+
+        OUT.warn("[Boss] Reconciliation: path has border(s) at layer(s) " + missing
+                + " with no matching BossFixture record in level " + level.dimension().location()
+                + " -- real data bug (missed call site, crash between paired calls, or manual"
+                + " world editing), not a normal transient state.");
+        LAST_RECONCILIATION_MISMATCH.put(level, Set.copyOf(missing));
     }
 
     private static void addInterest(Level level, UUID entityId) {
         INTERESTS.computeIfAbsent(level, l -> ConcurrentHashMap.newKeySet()).add(entityId);
+    }
+
+    /**
+     * Forces materialization of {@code bossId}'s record right now, regardless of chunk-loaded
+     * state -- FRO_057's {@code /boss mob spawn}, "a real new mechanism: exposes what's
+     * currently a private tick-handler concern" per that ticket's own scoping. The tick-driven
+     * path in {@link #materializeUnresolvedBosses} only ever proceeds once
+     * {@code Level.isLoaded} already reports true; this forces the chunk loaded synchronously
+     * first (standard admin-command technique -- safe here since it only ever runs from a
+     * player-issued command, never every tick), then runs through the exact same
+     * {@link BossRules#materialize} call and the same fixture-write/interest-registration steps
+     * {@link #materializeUnresolvedBosses} uses -- one materialization codepath, not two.
+     *
+     * @return true if a new entity was materialized; false if there's no record for
+     *         {@code bossId}, it's already materialized, or {@link BossRules#materialize} itself
+     *         declined (e.g. an all-liquid column -- same normal no-op the tick path tolerates).
+     */
+    /**
+     * Distinguishable outcome for {@link #forceMaterialize} -- FRO_057 playtest turned up that a
+     * single collapsed boolean made {@code /boss mob spawn}'s chat feedback impossible to read
+     * ("Could not force-spawn" covered three unrelated causes at once). Each case gets its own
+     * chat line in {@code BossCommandHandler.mobSpawn} now.
+     */
+    public enum MaterializeOutcome {
+        SPAWNED,
+        ALREADY_MATERIALIZED,
+        NO_RECORD,
+        DECLINED
+    }
+
+    public static MaterializeOutcome forceMaterialize(ServerLevel level, UUID bossId) {
+        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        if (fixtureOpt.isEmpty()) {
+            OUT.warn("[Boss] forceMaterialize(): BossFixture not available for level "
+                    + level.dimension().location() + " -- bossId=" + bossId);
+            return MaterializeOutcome.NO_RECORD;
+        }
+        BossFixture fixture = fixtureOpt.get();
+
+        Optional<BossRecord> recordOpt = fixture.get(bossId);
+        if (recordOpt.isEmpty()) {
+            OUT.warn("[Boss] forceMaterialize(): no record for bossId=" + bossId);
+            return MaterializeOutcome.NO_RECORD;
+        }
+        BossRecord record = recordOpt.get();
+
+        if (record.materialized()) {
+            // Already has an entity -- a clean no-op, not an error (FRO_057's own call, this
+            // build's log).
+            return MaterializeOutcome.ALREADY_MATERIALIZED;
+        }
+
+        BlockPos xz = record.position();
+        // Forces the chunk loaded synchronously, unlike Level.isLoaded()'s non-forcing check the
+        // tick path relies on -- exactly the "regardless of chunk-loaded state" this command
+        // exists to provide. OUT.info (not just .warn) on this path deliberately, temporarily,
+        // for the FRO_057 playtest pass -- gives a server-log trail even when chat feedback is
+        // the thing being double-checked; fine to drop back to .debug once six-for-six is
+        // confirmed.
+        OUT.info("[Boss] forceMaterialize(): forcing chunk load at " + xz + " for bossId=" + bossId);
+        level.getChunk(xz);
+
+        Optional<Mob> mobOpt = RULES.materialize(level, xz, record.layer());
+        if (mobOpt.isEmpty()) {
+            // Same normal no-op BossRules.materialize()'s own contract documents (e.g. an
+            // all-liquid column) -- not an error, but distinguishable from the other three cases.
+            OUT.warn("[Boss] forceMaterialize(): BossRules.materialize declined for bossId="
+                    + bossId + " at " + xz + " (e.g. an all-liquid column).");
+            return MaterializeOutcome.DECLINED;
+        }
+
+        Mob mob = mobOpt.get();
+        BlockPos resolved = mob.blockPosition();
+        fixture.materialize(record.bossId(), resolved, mob.getUUID());
+        addInterest(level, mob.getUUID());
+        OUT.info("[Boss] forceMaterialize(): spawned bossId=" + bossId
+                + " entity=" + mob.getUUID() + " at " + resolved);
+
+        // Immediate-attachment fast path, same as materializeUnresolvedBosses -- the entity is
+        // guaranteed loaded at this exact instant.
+        if (MobScope.getFor(mob).isEmpty()) {
+            OUT.warn("[Boss] forceMaterialize(): MobScope.getFor rejected a mob this method just"
+                    + " spawned (bossId=" + bossId + ") -- Satchel not ready, or the entity was"
+                    + " already removed. The presence poll (MobInterestRegistry) will still pick"
+                    + " it up once ready, since its UUID is already registered as an interest.");
+        }
+
+        return MaterializeOutcome.SPAWNED;
     }
 
     // ─────────────────────────────────────────────
@@ -342,5 +474,99 @@ public final class BossModule {
         MobScope scope = (MobScope) info.scope();
         OUT.debug("[Boss] Boss mob scope unloaded (chunk unload or removal, indistinguishable here): "
                 + scope.uuid());
+    }
+
+    // ─────────────────────────────────────────────
+    // RM_FRO_019 (Karen) -- LivingDeathEvent listener
+    // ─────────────────────────────────────────────
+
+    /**
+     * Detects a tracked boss's defeat and closes the loop into Border: marks the record
+     * defeated, grows a new border centered on the death location, and pairs the next boss
+     * record -- see boss.md's "Defeat detection and the border-growth gap". Registered via
+     * {@code MinecraftForge.EVENT_BUS.addListener(...)} in {@link #init()}, the same plain
+     * static wiring {@code BorderModule.onBlockPlaced} uses -- not an {@code @SubscribeEvent}
+     * instance method.
+     */
+    private static void onLivingDeath(LivingDeathEvent event) {
+        if (!(event.getEntity() instanceof Mob mob)) {
+            return;
+        }
+
+        if (!(mob.level() instanceof ServerLevel level)) {
+            // Mutates persisted state -- server-side only, same discipline every other
+            // BORDERS_JIG/BOSS_JIG handler in this codebase follows.
+            return;
+        }
+
+        Optional<UUID> bossId = resolveBossId(mob);
+        if (bossId.isEmpty()) {
+            // Most deaths in the world aren't a tracked boss -- normal no-op.
+            return;
+        }
+
+        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        if (fixtureOpt.isEmpty()) {
+            OUT.warn("[Boss] onLivingDeath(): BossFixture not available for level "
+                    + level.dimension().location() + " -- can't mark bossId=" + bossId.get()
+                    + " defeated.");
+            return;
+        }
+        fixtureOpt.get().markDefeated(bossId.get());
+
+        BlockPos deathLocation = mob.blockPosition();
+        Result result = BorderAPI.grow(level, deathLocation);
+        if (!result.isSuccess()) {
+            OUT.warn("[Boss] onLivingDeath(): BorderAPI.grow(level, " + deathLocation
+                    + ") failed for defeated bossId=" + bossId.get() + ": " + result.message()
+                    + " -- not calling createBoss without a border.");
+            return;
+        }
+
+        BossAPI.createBoss(level, result.border());
+    }
+
+    /**
+     * Resolves the dying entity's boss id, if it's one. Checks the entity's existing
+     * {@link BossMobFixture} first (the no-race common case, via {@code BOSS_MOB_JIG}'s scope);
+     * if {@code MobJig} hasn't attached one yet, falls back to a synchronous
+     * {@link MobScope#getFor(Mob)} call before concluding it's genuinely not a tracked boss --
+     * safe here since the entity is loaded by definition (it just died). Per RM_FRO_019's own
+     * ruling and the MobScope.getFor() Contract wiki page.
+     *
+     * <p><b>Known limitation, logged on FRO_045, built to the ticket's literal wording
+     * regardless (project-owner instruction):</b> {@code getFor}'s "immediate attachment"
+     * guarantee is about registering the scope, not about populating {@code BossMobFixture} --
+     * the actual attach ({@link #onBossMobScopeLoaded}) only runs on a later foundation pulse
+     * ({@code ScopeEvent.Loaded}), not synchronously within this same handler call. This
+     * fallback therefore does not always close the race within a single death event.
+     */
+    private static Optional<UUID> resolveBossId(Mob mob) {
+        Optional<UUID> existing = existingBossId(mob);
+        if (existing.isPresent()) {
+            return existing;
+        }
+
+        MobScope.getFor(mob);
+        return existingBossId(mob);
+    }
+
+    private static Optional<UUID> existingBossId(Mob mob) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+
+        MobScope scope = new MobScope(mob);
+        Optional<ScopeInfo> infoOpt =
+                Satchel.require().tryScopeInfo(FrontierKeys.BOSS_MOB_JIG, scope);
+        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+            return Optional.empty();
+        }
+
+        var jig = (MobJig) infoOpt.get().jigInfo().jig;
+        BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
+        BossMobFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new);
+
+        return Optional.ofNullable(fixture.bossId());
     }
 }

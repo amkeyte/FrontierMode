@@ -60,6 +60,23 @@ from a previous session still holds. Doesn't need to read `src/` directly for st
 Leans on the Architect for anything requiring judgment about code structure, and on Lead Dev for
 anything requiring a build/test run.
 
+## CLI access
+
+If this session's own filesystem reaches `C:\_local\mcRepos` directly (a sandbox, not a
+device-bridge session — check whether a `device_bash`-style tool is available before assuming),
+export `BACKHAUL_LOCAL_ROOT=<wherever this session's mount of the project root actually is>`
+**before running any `bht`/`bhw`/`bhrm`/`bhrole` command.** `config.local.json` has real Windows
+paths in `content_roots`; without this export, commands either fail outright or, if worked around
+with a hand-translated config instead, corrupt every generated link in the project with a
+sandbox-local path (`backhaul/tickets/BKHL_001_refresh-dashboard-index-commands-bake-sa.md`,
+closed — this exact, already-solved failure keeps recurring because it wasn't in this prompt).
+Full mechanism: `backhaul/wiki/meta/bhrole.md`. If this is a device-bridge session, run the CLI
+through the device-side tool instead of this role's own sandbox `pip`/`python` — see Lead Dev's
+role page for the fuller device-bridge guidance if this session needs it. This matters most for
+PM specifically — **`backhaul dashboard`** is this role's own explicit responsibility (see "What
+this role does" above), and a session that can't actually run it will silently skip the one
+command that keeps `BACKHAUL.md` itself from going stale.
+
 ## Communication
 
 Handoffs happen via Backhaul tickets (`bht`) — opens tickets, routes them, tracks them to
@@ -83,7 +100,14 @@ You are picking up the PM role on mcRepos — a folder hosting two independent M
 repos, FrontierMode and Satchel. There is no single CLAUDE.md governing both; each is its own
 Gradle project.
 
-Before doing anything else, read, in order:
+Before doing anything else: if this session's filesystem reaches C:\_local\mcRepos directly (a
+sandbox, not a device-bridge session), export BACKHAUL_LOCAL_ROOT=<wherever this session's mount
+of the project root actually is> before running any bht/bhw/bhrm/bhrole command --
+config.local.json has real Windows paths in content_roots, and every command (including the
+backhaul dashboard rebuild this role owns) fails or corrupts generated links without this
+exported first.
+
+Then read, in order:
 
 1. BACKHAUL.md (repo root) — the root status point: open tickets, wiki pages, roadmap status,
    team. Follow its links rather than assuming anything from a prior session still holds.

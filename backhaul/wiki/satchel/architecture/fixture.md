@@ -7,7 +7,7 @@ summary: 'The fixture/facet package -- Satchel''s modder-facing unit of persiste
   state: lifecycle, field registration, save/load contract, isolation rules.'
 keywords: null
 status: verified
-updated: '2026-08-11'
+updated: '2026-08-28'
 ---
 
 <!-- bh-header:start -->
@@ -167,6 +167,31 @@ Fixtures are intentionally isolated:
 * No implicit ticking unless driven externally
 
 This isolation keeps fixtures portable, predictable, and easy to reason about.
+
+### External Access Is Not Compiler-Enforced
+
+A fixture's own package-private members are protected the ordinary Java way -- only same-package
+code compiles against them. But the fixture *class itself*, and the path to reach one from
+outside its owning module, generally aren't: `FixtureKey<T extends SatchelFixture>` requires `T`
+accessible everywhere its key is built and consumed, which routinely reaches beyond the fixture's
+own package (a module's top-level key registry, its bundle-wiring class, and its `JigConfig`
+registration all typically need the concrete type by name) -- so a fixture class is very often
+not, and often cannot be, a literal package-private type, whatever a mod author's original intent
+was. And `SatchelBundle.get(FixtureKey<T>)` -- the generic retrieval mechanism every module's own
+API class is built on -- is `public` and unguarded, and has to stay that way; there's no way to
+restrict it to "only this module's own API class" without breaking the mechanism every module
+depends on.
+
+The practical consequence: any code holding both a bundle reference and a fixture's `FixtureKey`
+can pull the raw fixture out directly, reaching whatever that fixture exposes as public (facet
+fields, in the pattern this page describes above) without going through whatever
+readiness/access gating the owning module's own API class wraps around it. Satchel provides no
+compiler mechanism to close this off -- it's a known, accepted property of the fixture/bundle
+model, not a bug to fix module-by-module. The mitigation is doc-comment discipline on the fixture
+itself (state plainly what the real, sanctioned access path is, and that facet methods assume the
+caller already went through it), not a runtime guard -- see FrontierMode's
+[Border § Data model](../../frontiermode/architecture/border.md#data-model) for the worked example
+and the ruling this reasoning backs.
 
 ### Error Handling
 

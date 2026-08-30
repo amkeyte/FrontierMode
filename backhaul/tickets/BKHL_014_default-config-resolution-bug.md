@@ -3,13 +3,13 @@ id: BKHL_014
 uid: BKHL
 number: 14
 client: Backhaul
-status: open
+status: done
 title: Default config resolution ignores checkout, contradicts bht.md
 context: bht.md says omit --config for the checkout's own default; bare bht commands
   fail with ConfigError instead.
 priority: normal
 opened: '2026-08-28'
-closed: null
+closed: '2026-08-28'
 ---
 
 <!-- board:start -->
@@ -62,6 +62,13 @@ instead, since the doc is what's actually wrong in that case. Not asserting whic
 flagging the mismatch either way.
 
 ## Log
+
+- 2026-08-28: **Closed.** Traced the root cause precisely: the no-flag default only ever resolves
+  correctly when running Backhaul directly against its own source checkout (this session's own
+  dogfooding pattern) — for any pip-installed consumer project it resolves under Python's install
+  prefix and can never succeed, not an edge case. Tracked upstream as BH_019, both suggested
+  directions (upward cwd search vs. fixing the doc) carried forward undecided, matching this
+  ticket's own framing.
 
 - 2026-08-28: Ticket opened, off FRO_047's build cycle -- same session and same reporting
   perspective as [BKHL_011](BKHL_011_log-append-command.md).

@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.bundle;
 
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.persistence.FixtureHydrationSource;
 import com.arryn.satchel.common.persistence.FixtureHydrator;
@@ -230,7 +231,10 @@ public class SatchelBundle {
             fixture.onCreated();
         }
 
-        markDirty();
+        if (Satchel.isServer()) {
+
+            markDirty();
+        }
     }
 
     public void onLoaded() {

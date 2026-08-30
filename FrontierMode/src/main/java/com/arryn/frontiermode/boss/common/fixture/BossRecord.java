@@ -83,6 +83,22 @@ public final class BossRecord {
         );
     }
 
+    /**
+     * Returns a copy of this record with {@code alive} set to {@code false} -- the defeat
+     * transition RM_FRO_019 ("Karen")'s own handler drives, addressed by this record's own
+     * {@code bossId} rather than any {@code Border} reference. Position/layer/entity id are
+     * unchanged; only the alive flag flips.
+     */
+    public BossRecord defeated() {
+        return new BossRecord(
+                bossId,
+                position,
+                layer,
+                bossEntityId,
+                false
+        );
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

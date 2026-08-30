@@ -3,13 +3,13 @@ id: BKHL_011
 uid: BKHL
 number: 11
 client: Backhaul
-status: open
+status: done
 title: bht has no command to append a ticket log entry
 context: Every dated Log entry this session went through hand-edited markdown with
   fragile exact-string anchors, twice failing.
 priority: normal
 opened: '2026-08-28'
-closed: null
+closed: '2026-08-28'
 ---
 
 <!-- board:start -->
@@ -53,6 +53,8 @@ forcing everything into one `--entry` string argument.
 
 ## Log
 
+- 2026-08-28: **Closed.** Tracked upstream in the Backhaul repo as BH_016 (`bht log <id> --entry
+  "..."`) — not yet implemented; this ticket's diagnosis is complete, the fix lives there now.
 - 2026-08-28: Ticket opened, off FRO_047's build cycle -- Lead Dev role, reporting from the
   perspective of the CLI's actual end user this session.
 <!-- bh-header:start -->
