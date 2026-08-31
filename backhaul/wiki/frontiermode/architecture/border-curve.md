@@ -9,7 +9,7 @@ summary: Technical shape for BorderCurveFixture -- a sibling fixture in BordersB
   stage.
 keywords: null
 status: draft
-updated: '2026-08-30'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -171,13 +171,12 @@ a schema addition, not a rework.
   Designer/playtest territory once something is buildable.
 - **How the delete-cascade is actually implemented** -- bespoke `BordersCrudFacet` logic, or an
   existing Satchel referential-integrity mechanism this page doesn't know about. Lead Dev's call.
-- **Whether Environmental Tells** (still open on `discovery-systems.md`) **reuses `BorderCurve`
-  records at all**, or wants its own purpose key or its own mechanism entirely.
 
 ## Related pages
 
 - [Boss Discovery Systems](discovery-systems.md) -- Guardian Mobs, the first consumer of this
-  page's concept, and Navigator, the other sibling fixture riding in `BordersBundle`
+  page's concept, Environmental Tells, the second (its own `"tell"`-purpose record, not shared with
+  Guardian Mobs'), and Navigator, the other sibling fixture riding in `BordersBundle`
 - [Difficulty](difficulty.md) -- the Layer-keyed gradient this page's "difficulty" purpose is
   deliberately distinct from
 - [Boss](boss.md) -- the reference-by-ID/resolve-on-demand precedent this page reuses

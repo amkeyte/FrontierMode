@@ -8,7 +8,7 @@ summary: Boss entity/spawn system for Tier 1 -- data model, mutation validation 
   against this.
 keywords: null
 status: verified
-updated: '2026-08-29'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -63,14 +63,19 @@ already established in this codebase.
 `BossFixture` is the **sole durable source of truth** for boss identity — **not keyed by `Border`
 UUID, and not a reference to any `Border` at all.** It's a self-contained collection of records,
 one per boss: `{bossId, position, layer, bossEntityId, alive}`. `position` is an XZ column (the
-chosen home for this boss, picked once, immediately, at creation — see "Position" below for why
-this doesn't wait on anything). `layer` is a plain copied number (whatever the originating
-`Border`'s `layer()` was at the moment of creation), not a live reference — once copied, this
-record never looks at a `Border` again. Named `layer`, not `level` — per [Border
-Vocabulary](border-vocabulary.md), "level" is reserved for player-facing text only; an internal
-data-model field is exactly the kind of place it's supposed to have retired from. `bossEntityId` is
-**nullable** (null until the entity has actually been placed in the world; a record can
-legitimately exist with no entity yet). `alive` is false once defeated.
+chosen home for this boss) — **nullable, and no longer committed the instant a record is
+created.** [Border Pregeneration](border-pregeneration.md#what-this-changes-in-boss) supersedes
+this page's earlier claim that position is "picked once, immediately, at creation" and "doesn't
+wait on anything"; it now starts unset and is finalized once that page's readiness gate passes —
+see "Three questions, three different mechanisms" below for the current sequencing. `layer` is a
+plain copied number (whatever the originating `Border`'s `layer()` was at the moment of creation),
+not a live reference — once copied, this record never looks at a `Border` again; unaffected by the
+pregeneration change, since `layer` never depended on `position`. Named `layer`, not `level` — per
+[Border Vocabulary](border-vocabulary.md), "level" is reserved for player-facing text only; an
+internal data-model field is exactly the kind of place it's supposed to have retired from.
+`bossEntityId` is **nullable** (null until the entity has actually been placed in the world; a
+record can legitimately exist with no entity yet — and, since `position` above is nullable too,
+with no finalized position yet either). `alive` is false once defeated.
 
 **A boss is created at the same time as a border, but not tied to it.** See "Defeat detection and
 the border-growth gap" below for exactly where that creation gets triggered — the short version is
@@ -176,6 +181,9 @@ registers two independent jigs:
 
 1. `FixtureDecl`/`BundleDecl`/`Schema` for `BossFixture`, wrapped in `BossBundle` (`LevelScope`) —
    its own bundle, not folded into `BordersBundle` (see "Data model" above, and checklist item 7).
+   `BossBundle` has since picked up two Tier 2 sibling fixtures riding this same tick/pulse wiring
+   -- `BossTellFixture` and `BossGuardiansFixture` — see [Boss Discovery Systems](discovery-systems.md#guardian-mobs)
+   for both; neither is Tier 1 scope, named here only so this section's fixture list stays current.
 2. `BOSS_JIG`, a `LevelJigConfig` distinct from Border's `BORDERS_JIG`, left at `sideApplicability`'s
    own `SERVER` default — unlike Border, Boss has no client-rendering need in Tier 1 (no discovery
    aids). `withTick(true)` and `withExecutionPulse(true)` are both set — `BossBundle` is fully
@@ -220,23 +228,34 @@ Easy to conflate; worth keeping visibly separate, since each is answered a diffe
 **"Should a boss record exist at all?"** — **not tick-driven, not a scan.** A direct call, paired
 with whatever code just created a new `Border` in the level's progression — see "Defeat detection
 and the border-growth gap" below for exactly where those calls live. Creating the record is
-instant and unconditional: pick a random XZ column within the new `Border`'s disk (see "Position"
-below — pure geometry, no chunk state involved), copy its `layer()` value as `layer`, and write
-`{position, layer, bossEntityId: null, alive: true}`. No periodic check ever asks "does the
+instant and unconditional: copy the new `Border`'s `layer()` value as `layer` and write
+`{position: null, layer, bossEntityId: null, alive: true}`. No periodic check ever asks "does the
 path-tip have a boss" — `BossFixture` doesn't know what the path even is.
 
+**Finalizing `position` is layered onto this same question, and is genuinely tick-driven** — a
+real change from this page's earlier "picked once, immediately, at creation" claim, per [Border
+Pregeneration § Worked example](border-pregeneration.md#worked-example-boss-placement-revised).
+`BOSS_JIG`'s tick no-ops on any record with `position: null` until `BorderAPI.isPregenReady()`
+returns true for its home border — the identical no-op-and-recheck-next-tick shape the
+materialization check below already uses. Once ready, it scores several
+`BorderMath.randomPointInDisk`-sampled chunk-center candidates against
+`BossRules`/`DefaultBossRules`'s flatness/hazard functions (see "[Spawn
+algorithm](#spawn-algorithm-a-pluggable-strategy-mirroring-borderrules)" below) and commits the
+winner as `position`. Materialization below has nothing to act on until this step commits a
+non-null `position`.
+
 **"Does an existing record have an actual entity yet?"** — tick-driven, on `BOSS_JIG`'s own
-`ScopeEvent.Tick` (not borrowed from `BORDERS_JIG` — see "Module wiring" above). Any record with
-`alive: true` and `bossEntityId == null` hasn't been materialized yet. Per "[the central
-fact](#the-central-fact-that-shapes-this-whole-design)" above, its `position` usually isn't loaded
-the moment the record is created — so this check asks `Level.isLoaded(position)` (a direct boolean
-query, not a forced load) and, if true, resolves a ground Y at that exact XZ (can't be done any
-earlier — Y needs real block data, which needs the chunk loaded) and spawns the mob there. If not
-loaded, no-op and check again next tick — same fixed position, never a new random guess. This is a
-normal, expected wait, not an error: it converges the moment a player (or anything else) gets that
-column loaded. The same tick also runs the defensive reconciliation check described in "What can
-actually go wrong" below — cheap enough to share the cadence, logically separate from
-materialization.
+`ScopeEvent.Tick` (not borrowed from `BORDERS_JIG` — see "Module wiring" above). Any record with a
+finalized (non-null) `position`, `alive: true`, and `bossEntityId == null` hasn't been
+materialized yet. Per [Border Pregeneration](border-pregeneration.md#worked-example-boss-placement-revised),
+`position` by this point already names validated, real terrain, so no in-place Y-resolution or
+liquid-column check happens here anymore — this check is purely `Level.isLoaded(position)` (a
+direct boolean query, not a forced load); if true, spawn the mob at that already-known-good
+position. If not loaded, no-op and check again next tick — same fixed position, never a new random
+guess. This is a normal, expected wait, not an error: it converges the moment a player (or
+anything else) gets that column loaded. The same tick also runs the defensive reconciliation check
+described in "What can actually go wrong" below — cheap enough to share the cadence, logically
+separate from materialization.
 
 **"Is the boss I have on record currently present?"** — a question about live entity state, which
 `BossFixture` can't answer on its own (it doesn't know or care whether anything is loaded).
@@ -269,22 +288,16 @@ already guaranteed without waiting on a poll cycle: the instant a boss is freshl
 `BorderRules`/`DefaultBorderRules` split (a "safe baseline, replace later" strategy object, not a
 hardcoded algorithm):
 
-- **Position — picked once, immediately, has nothing to do with chunk loading.** A uniform random
-  XZ column within the target `Border`'s current `center()`/`radius()` disk, via
-  `BorderMath.randomPointInDisk` (the same shape `chooseNextCenter()`'s own angle/distance math
-  already uses — `sqrt(rng.nextDouble())` for the radial component so the sample is uniform over
-  the disk's *area*, not biased toward the center). That's the whole step: ordinary geometry,
-  computed the instant a `BossFixture` record is created, no retries, no loaded-check, no
-  dependency on where any player happens to be. Y is deliberately *not* resolved here — a chunk's
-  block data isn't readable until the chunk is loaded, so there's nothing to resolve yet.
-- **Materialization — the one part that has to wait on chunk state, and only this part.** Once
-  `Level.isLoaded(position)` (see "Three questions, three different mechanisms" above) comes back
-  true for a record's stored `position`, resolve a valid ground Y there (surface height, not
-  inside a solid block or a liquid — same category of check vanilla natural mob spawning already
-  does), spawn the vanilla entity at that point, and write `bossEntityId` onto the existing record.
-  A wholly-liquid column (open ocean) is a normal no-op here, retried next tick same as an unloaded
-  chunk would be — never re-rolled to a different XZ. Nothing about *where* was ever in question by
-  this point — the XZ was fixed back at "Position" — this step only answers *when*.
+- **Position and Materialization — now specified in [Border
+  Pregeneration](border-pregeneration.md), not here.** That page partially supersedes this
+  section: Position no longer commits the instant a `BossFixture` record is created -- it waits on
+  `BorderAPI.isPregenReady()` for the home border, then picks among already-generated terrain
+  scored against `BossRules`/`DefaultBossRules`'s flatness/hazard functions, rather than a single
+  blind, unvalidated XZ column. Materialization simplifies in turn -- once a position is only ever
+  committed after passing that validation, materialization goes back to purely "wait for
+  `Level.isLoaded()`, then spawn," with no in-place Y-resolution or liquid-column edge case left
+  to handle here. See that page for the full mechanism, the exploit it closes, and the new bounded
+  wander/leash movement model this design also introduces.
 - **Mob type / stat scaling by the boss's own recorded `layer`** — `BossFixture.layer`, the
   copy-once value set at creation (see "Data model" above), **never** a live `Border.layer()`
   lookup at spawn or materialization time. This is the same guarantee [Border
@@ -427,6 +440,7 @@ as a sibling step, extracting `position`/`layer` from the `Border` that call jus
 
 ## Related pages
 
+- [Border Pregeneration](border-pregeneration.md) — the placement/materialization revision that partially supersedes this page's Spawn Algorithm section
 - [Border](border.md) — the data model and module pattern this extends
 - [Progression & Frontier Mechanics](../design/progression.md) — the core loop this implements
 - [FrontierMode Operational Tiers](../../plans/operational-tiers.md) — Tier 1's definition

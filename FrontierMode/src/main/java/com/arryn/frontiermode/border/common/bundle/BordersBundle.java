@@ -1,14 +1,20 @@
 package com.arryn.frontiermode.border.common.bundle;
 
+import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 
+import java.util.Optional;
+
 /**
- * World-scoped bundle hosting {@link BordersFixture}.
+ * World-scoped bundle hosting {@link BordersFixture} and, per RM_FRO_026 ("Dorothy"), its sibling
+ * {@link NavigatorFixture} -- see {@code BorderModule.init()} for the schema wiring and
+ * wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border for the design.
  *
- * This bundle is intentionally boring: no logic, no state beyond fixtures.
+ * <p>This bundle is intentionally boring: no logic, no state beyond fixtures.
  */
 public final class BordersBundle extends SatchelBundle {
 
@@ -17,5 +23,9 @@ public final class BordersBundle extends SatchelBundle {
             BundleKey<BordersBundle> key
     ) {
         super(scope, key);
+    }
+
+    public Optional<NavigatorFixture> navigator() {
+        return get(FrontierKeys.NAVIGATOR);
     }
 }

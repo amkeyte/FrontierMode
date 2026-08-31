@@ -2,6 +2,7 @@ package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
@@ -36,6 +37,17 @@ public final class FrontierKeys {
             new JigKey<>(
                     "frontiermode:borders_jig",
                     LevelJig.class
+            );
+
+    // RM_FRO_026 ("Dorothy"): Navigator target-resolution fixture -- a sibling fixture inside
+    // BORDERS_BUNDLE itself, not a new bundle/jig. See BorderModule.init() for the schema wiring
+    // and wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border for the
+    // design this backs.
+
+    public static final FixtureKey<NavigatorFixture> NAVIGATOR =
+            new FixtureKey<>(
+                    "frontiermode:navigator_fixture",
+                    NavigatorFixture.class
             );
 
     // RM_FRO_006 (Sandra): per-player border evaluation, PlayerJig-scoped (see BorderModule.init()

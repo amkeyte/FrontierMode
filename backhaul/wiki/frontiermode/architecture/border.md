@@ -98,7 +98,11 @@ are non-persisted grouped views onto it, not sub-fixtures in their own right.
 
 `BordersFixture` lives inside `BordersBundle` (`border/common/bundle/BordersBundle.java`), a
 world-scoped (`LevelScope`) bundle described in its own source comment as "intentionally boring:
-no logic, no state beyond fixtures."
+no logic, no state beyond fixtures." That description predates `BordersBundle` picking up sibling
+fixtures of its own -- a Navigator, a `BorderCurve` set, and now a pregeneration job each ride the
+same bundle rather than getting bolted onto `BordersFixture`'s own schema; see [Border
+Pregeneration](border-pregeneration.md) for the newest of the three and the reasoning behind
+keeping each separate."
 
 ### Layer and Path can legitimately diverge
 
@@ -346,4 +350,5 @@ described above — tracked as roadmap work rather than restated here:
   `fixLayers()` gap noted above
 - [Boss](boss.md) — Tier 1's boss entity/spawn system, the first consumer of `BorderAPI.addBorder()`
   outside Border's own command layer
+- [Border Pregeneration](border-pregeneration.md) — the sibling fixture that proactively generates a new border's disk, and the exploit it closes
 - [FRO_059](../../../tickets/FRO_059_border-proposal-center-bounds-id-display.md) — the proposal identity/validation spec review "Proposal identity and validation" above answers

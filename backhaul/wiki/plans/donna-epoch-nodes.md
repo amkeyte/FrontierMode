@@ -3,12 +3,13 @@ id: plans/donna-epoch-nodes
 category: plans
 slug: donna-epoch-nodes
 title: Donna Epoch Nodes
-summary: Candidate RM_FRO nodes proposed for the Donna epoch, staged here before minting
-  -- starting with the Tier 2 discovery-gradient cluster (Navigator, Border Curve,
-  and the six discovery tools) feeding Kathleen's convergence.
+summary: Candidate RM_FRO nodes for the Donna epoch's Tier 2 discovery-gradient cluster.
+  Its shared-infrastructure trio (Navigator, Border Curve, Border Pregeneration) is
+  minted -- RM_FRO_026/027/028; the six discovery tools remain staged here, pending
+  their own scoping pass against that trio's real code.
 keywords: null
 status: draft
-updated: '2026-08-30'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -46,12 +47,13 @@ Systems](../frontiermode/architecture/discovery-systems.md) and [Border
 Curve](../frontiermode/architecture/border-curve.md) -- this section only tracks which pieces are
 close enough to mint, and in what order, not the technical shape itself.
 
-**Shared infrastructure -- proposed to mint first, since every feature below depends on one or both:**
+**Shared infrastructure -- proposed to mint first, since every feature below depends on one or more:**
 
-| Candidate | Proposed name | Scoping status |
+| Candidate | Proposed name | Status |
 |---|---|---|
-| Navigator (target-ref + resolver registry, sibling fixture in `BordersBundle`) | Dorothy (rank 20) | Settled enough to mint -- see [discovery-systems.md § Navigation lives in Border](../frontiermode/architecture/discovery-systems.md#navigation-lives-in-border) |
-| Border Curve (`BorderCurveFixture`, distance-keyed intensity curves) | Janet (rank 21) | Settled enough to mint -- see [border-curve.md](../frontiermode/architecture/border-curve.md) |
+| Navigator (target-ref + resolver registry, sibling fixture in `BordersBundle`) | Dorothy (rank 20) | **Minted: [RM_FRO_026](../../roadmap/RM_FRO_026_dorothy.md).** Ticketed to Lead Dev as [FRO_065](../../tickets/FRO_065_dorothy-build.md), time-critical -- pushed ahead of its two table-mates below |
+| Border Curve (`BorderCurveFixture`, distance-keyed intensity curves) | Janet (rank 21) | **Minted: [RM_FRO_027](../../roadmap/RM_FRO_027_janet.md).** |
+| Border Pregeneration (`BorderPregenFixture`, proactive throttled terrain generation; partially supersedes `boss.md`'s Spawn Algorithm) | Diane (rank 22) | **Minted: [RM_FRO_028](../../roadmap/RM_FRO_028_diane.md),** with its own Open Questions carried onto the node rather than closed first -- see that node for the list |
 
 **The six discovery-gradient tools** (per [Boss Discovery § The discovery
 gradient](../frontiermode/design/boss-discovery.md#the-discovery-gradient)), each still needing its
@@ -60,17 +62,27 @@ own scoping/naming pass:
 | Tool | Scoping status |
 |---|---|
 | Guardian Mobs | Closest to mintable -- `border-curve.md`'s worked example already gives it a concrete shape (`"placement"` + `"difficulty"` curves); still waiting on Game Designer calls (which Border introduces them, old-territory signaling) that don't block minting the node itself |
-| Environmental Tells | Open whether it shares a tick handler and `BorderCurve` records with Guardian Mobs, or is a fully separate node -- see [discovery-systems.md § Open questions](../frontiermode/architecture/discovery-systems.md#open-questions) |
+| Environmental Tells | Resolved -- own tick handler, own `"tell"`-purpose `BorderCurve` record, matching Guardian Mobs' shape without sharing it; see [discovery-systems.md § Environmental Tells](../frontiermode/architecture/discovery-systems.md#environmental-tells). No longer gated on that question -- scoping lane relative to Guardian Mobs/Tracker not reassessed since |
 | Beacons and Particle Trails | Blocked on the attunement game-rules pass -- plausibly needs its own `LevelScope`-hosted record |
-| Ender-eye-style Tracker | Stateless, no attunement -- likely mintable alongside Guardian Mobs |
+| Ender-eye-style Tracker | Deferred out of this design pass entirely, alongside Player-built Warps -- see [discovery-systems.md § Ender-eye-style Tracker](../frontiermode/architecture/discovery-systems.md#ender-eye-style-tracker). Not blocked on anything technical (still stateless, no attunement); just not next in line |
 | Special Compass | Confirmed distinct from Tracker (holds real attunement); blocked on the same attunement game-rules pass as Beacons |
 | Player-built Warps | Open whether it's boss-specific infrastructure at all, or reuses `TargetRef::RawPos` + attunement storage -- also unchecked against Satchel for an existing waypoint fixture |
 
-**Proposed sequencing:** Navigator and Border Curve first (nothing else can be scoped precisely
-until the shared math/storage exists as real code, not just a wiki proposal); Guardian Mobs and
-Tracker next, since neither depends on the still-open attunement rules; Tells once the
-tick-handler/shared-curve question resolves; Beacons, Compass, and Warps last, gated on the
-project-owner/Game-Designer attunement pass named on both architecture pages.
+**Decision: minting the shared-infrastructure row now, in order -- Navigator, then Border
+Curve, then Border Pregeneration.** Nothing else in this cluster can be scoped precisely until
+this trio exists as real code, not just a wiki proposal, so waiting on their own remaining open
+questions to fully close first would only stall the whole cluster behind them. Border
+Pregeneration mints with its Open Questions section still carrying real unresolved items (the
+missed-trigger watchdog, retry/reroll behavior, throttle budget) -- those ride on the node as
+known open items for Lead Dev to build around or flag back on, not gates on starting. Guardian
+Mobs is next after this trio, since it doesn't depend on the still-open attunement rules; Tells'
+own tick-handler/shared-curve question has since resolved too (see its row above), though its lane
+relative to Guardian Mobs hasn't been reassessed since that changed; Beacons and Compass last,
+gated on the project-owner/Game-Designer attunement pass named on both architecture pages. Tracker
+and Warps are deferred out of this design pass entirely (see their rows above) and sit outside this
+sequencing until picked back up. **The six discovery-gradient tools are not minted this round** --
+they still need their own scoping/naming pass once Navigator/Border Curve/Border Pregeneration
+exist as real code to scope precisely against, per the reasoning above.
 
 **Proposed names are proposals, not reservations.** Nothing above is spent until a node is actually
 minted with `bhrm` -- writing "Dorothy" here doesn't burn it, only `bhrm new` does.
@@ -81,6 +93,8 @@ minted with `bhrm` -- writing "Dorothy" here doesn't burn it, only `bhrm new` do
   for Navigator and the six discovery tools
 - [Border Curve](../frontiermode/architecture/border-curve.md) -- technical shape for the
   intensity-curve infrastructure
+- [Border Pregeneration](../frontiermode/architecture/border-pregeneration.md) -- technical
+  shape for the proactive terrain-generation infrastructure
 - [Boss Discovery](../frontiermode/design/boss-discovery.md) -- the design intent this cluster
   implements
 - [RM_FRO_017](../../roadmap/RM_FRO_017_donna.md) ("Donna") -- the Tier 1 convergence that opened

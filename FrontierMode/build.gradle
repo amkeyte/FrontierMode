@@ -177,6 +177,17 @@ dependencies {
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
+
+    // RM_FRO_026 ("Dorothy"): first FrontierMode-side unit test (BorderMathLogicTest) -- mirrors
+    // Satchel's own testImplementation/useJUnitPlatform setup exactly. Deliberately not wired to
+    // any Minecraft/ForgeGradle classpath (no minecraft/compileOnly extension onto the test
+    // sourceSet) -- same "test the pure logic, not the Minecraft-touching wrapper" discipline
+    // Satchel's MobReconcileLogicTest/TickThrottleTest already established.
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+test {
+    useJUnitPlatform()
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

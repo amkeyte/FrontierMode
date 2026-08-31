@@ -52,7 +52,9 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
 
 ### Actionable now
 
-Nothing is currently actionable.
+Everything below has no unsatisfied dependency. This is the menu — pick from here, not from a line.
+
+- [**RM_SAT_024**](roadmap/RM_SAT_024_raymond-01.md) — Raymond epoch maintenance 1
 
 ### Dependency structure
 
@@ -80,4 +82,5 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                       - [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) [work · resolved] Build MobJig/MobScope — depends on: RM_SAT_017
                         - [**RM_SAT_022**](roadmap/RM_SAT_022_roger.md) [work · resolved] Make MobJig side-agnostic — depends on: RM_SAT_021
                           - [**RM_SAT_023**](roadmap/RM_SAT_023_raymond.md) [convergence · reached] Scope generalizes beyond Level — depends on: RM_SAT_020, RM_SAT_021, RM_SAT_022
+                            - [**RM_SAT_024**](roadmap/RM_SAT_024_raymond-01.md) [work · open · ACTIONABLE] Raymond epoch maintenance 1 — depends on: RM_SAT_023
 
