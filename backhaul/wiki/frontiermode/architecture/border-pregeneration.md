@@ -9,7 +9,7 @@ summary: Proactive, throttled terrain generation for a border's entire disk, own
   terrain to build on instead of a blind, unchecked coordinate. Partially supersedes
   boss.md's Spawn Algorithm.
 keywords: null
-status: draft
+status: verified
 updated: '2026-08-31'
 ---
 

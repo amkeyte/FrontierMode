@@ -8,7 +8,7 @@ summary: Technical shape for Tier 2's discovery-gradient tools (guardian mobs, t
   in Border, that most of them build on -- proposal stage, drafted ahead of minting
   RM_FRO_023's real intermediate nodes.
 keywords: null
-status: draft
+status: verified
 updated: '2026-08-31'
 ---
 
