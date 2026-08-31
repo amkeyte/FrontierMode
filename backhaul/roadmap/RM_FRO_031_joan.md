@@ -3,9 +3,9 @@ id: RM_FRO_031
 uid: RM_FRO
 number: 31
 kind: work
-status: blocked
+status: open
 title: Beacons epoch 1
-owner: null
+owner: Arryn
 depends_on:
 - RM_FRO_026
 - RM_FRO_027

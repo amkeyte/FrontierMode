@@ -5,14 +5,14 @@ number: 58
 client: FrontierMode
 status: done
 title: 'Boss mutation validation + reconciliation: spec review'
-context: FRO_054's data-security QA pass found BossFixture has no validation boundary
-  at all -- create()/materialize()/markDefeated()/remove() accept whatever they're
-  given, unlike BordersCrudFacet's radius/layer checks. Also found BossModule.reconcilePathAgainstBossRecords()
+context: '[Susan_02] FRO_054''s data-security QA pass found BossFixture has no validation
+  boundary at all -- create()/materialize()/markDefeated()/remove() accept whatever
+  they''re given, unlike BordersCrudFacet''s radius/layer checks. Also found BossModule.reconcilePathAgainstBossRecords()
   only checks one direction (a path layer missing a boss record), never the reverse
-  (a boss record whose layer matches no real border). Architect to verify boss.md's
+  (a boss record whose layer matches no real border). Architect to verify boss.md''s
   documented behavior against the actual source and correct/extend the spec (validation
   boundary shape, bidirectional reconciliation) before Lead Dev implements against
-  it.
+  it.'
 priority: low
 opened: '2026-08-29'
 closed: '2026-08-29'

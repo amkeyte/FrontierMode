@@ -43,7 +43,7 @@ public final class BossCommandHandler {
     public static int info(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
@@ -75,22 +75,29 @@ public final class BossCommandHandler {
     ) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
+        BossFixture fixture = fixtureOpt.get();
 
         // FRO_058: create() now returns Optional<BossRecord> (empty on a rejected negative
         // layer) -- Brigadier's own IntegerArgumentType.integer(0) on "layer" already keeps this
         // unreachable from this command, but the fixture-level guard applies to every caller.
-        Optional<BossRecord> recordOpt = fixtureOpt.get().create(pos, layer);
+        // Border Pregeneration: create(layer) always starts the record unpositioned now -- this
+        // command's whole point is an admin choosing the position directly, so it commits `pos`
+        // immediately via finalizePosition() rather than waiting on BorderAPI.isPregenReady() --
+        // same "admin-forced position, unvalidated terrain is expected" precedent debugGoto's own
+        // comment already uses.
+        Optional<BossRecord> recordOpt = fixture.create(layer);
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: negative layer " + layer + "."));
             return 0;
         }
 
         BossRecord record = recordOpt.get();
+        fixture.finalizePosition(record.bossId(), pos);
         ctx.getSource().sendSuccess(() -> msg("Created boss record " + record.bossId()), false);
         return 1;
     }
@@ -102,20 +109,25 @@ public final class BossCommandHandler {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(sp.serverLevel());
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(sp.serverLevel());
         if (fixtureOpt.isEmpty()) {
             sp.sendSystemMessage(msg("Boss data not available for this level yet."));
             return 0;
         }
+        BossFixture fixture = fixtureOpt.get();
 
         // FRO_058: same Optional<BossRecord> contract as addExplicit() above.
-        Optional<BossRecord> recordOpt = fixtureOpt.get().create(sp.blockPosition(), layer);
+        // Border Pregeneration: same immediate finalizePosition() commit addExplicit() uses --
+        // see that method's own comment.
+        BlockPos pos = sp.blockPosition();
+        Optional<BossRecord> recordOpt = fixture.create(layer);
         if (recordOpt.isEmpty()) {
             sp.sendSystemMessage(msg("Rejected: negative layer " + layer + "."));
             return 0;
         }
 
         BossRecord record = recordOpt.get();
+        fixture.finalizePosition(record.bossId(), pos);
         sp.sendSystemMessage(msg("Created boss record " + record.bossId() + " at your location"));
         return 1;
     }
@@ -127,7 +139,7 @@ public final class BossCommandHandler {
     public static int delete(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
@@ -226,7 +238,7 @@ public final class BossCommandHandler {
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
         ServerLevel level = ctx.getSource().getLevel();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
@@ -237,12 +249,22 @@ public final class BossCommandHandler {
             ctx.getSource().sendFailure(msg("Boss not found: " + id));
             return 0;
         }
+        BossRecord record = recordOpt.get();
 
-        // Spawned or not -- the stored position, deliberately (FRO_057's own wording). An
-        // unmaterialized record's Y is still the copy-once placeholder (see BossRecord's own
-        // docs), so this can land the player inside terrain for a not-yet-materialized boss --
-        // expected debug-tool behavior per the wiki page's "escape hatch" framing, not a bug.
-        BlockPos pos = recordOpt.get().position();
+        // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see
+        // BossRecord's own doc) -- supersedes this method's old "copy-once placeholder Y" wording,
+        // since there's no placeholder position to land in anymore, just none yet.
+        if (!record.positioned()) {
+            ctx.getSource().sendFailure(msg("Boss " + id
+                    + " has no position yet -- its home border is still pregenerating."));
+            return 0;
+        }
+
+        // Spawned or not -- the stored position, deliberately (FRO_057's own wording). Landing
+        // the player inside terrain for a not-yet-materialized-but-positioned boss is expected
+        // debug-tool behavior per the wiki page's "escape hatch" framing, not a bug -- position is
+        // already flatness/hazard-scored by this point regardless, so that's now rare in practice.
+        BlockPos pos = record.position();
         sp.teleportTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
 
         ctx.getSource().sendSuccess(
@@ -265,7 +287,7 @@ public final class BossCommandHandler {
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
         ServerLevel level = ctx.getSource().getLevel();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
@@ -276,9 +298,19 @@ public final class BossCommandHandler {
             ctx.getSource().sendFailure(msg("Boss not found: " + id));
             return 0;
         }
+        BossRecord record = recordOpt.get();
 
-        // Same stored position debugGoto teleports to -- spawned or not, placeholder Y and all.
-        BlockPos pos = recordOpt.get().position();
+        // Border Pregeneration: same nullable-position guard debugGoto uses -- see that method's
+        // own comment.
+        if (!record.positioned()) {
+            ctx.getSource().sendFailure(msg("Boss " + id
+                    + " has no position yet -- its home border is still pregenerating."));
+            return 0;
+        }
+
+        // Same stored position debugGoto teleports to -- spawned or not, already validated
+        // terrain by this point (see debugGoto's own comment).
+        BlockPos pos = record.position();
         double dx = (pos.getX() + 0.5) - sp.getX();
         double dy = pos.getY() - sp.getY();
         double dz = (pos.getZ() + 0.5) - sp.getZ();

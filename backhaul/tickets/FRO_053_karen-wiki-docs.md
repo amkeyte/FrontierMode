@@ -3,7 +3,7 @@ id: FRO_053
 uid: FRO
 number: 53
 client: FrontierMode
-status: closed
+status: done
 title: 'Doc pass: Karen''s grow(BlockPos) overload + defeat handler'
 context: boss.md 'Defeat detection' + border.md mutation surface need updating once
   FRO_045 ships; deferred this session.

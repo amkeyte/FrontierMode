@@ -7,6 +7,8 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
@@ -74,11 +76,31 @@ public final class BorderModule {
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
+        // RM_FRO_027 ("Janet"): BorderCurveFixture, a third sibling fixture -- no tick wiring of
+        // its own needed (static descriptors, read on demand), per
+        // wiki/frontiermode/architecture/border-curve.md's "Data model" section.
+        var curveFixture =
+                new JigBundles.FixtureDecl<BorderCurveFixture>(
+                        FrontierKeys.CURVE,
+                        BorderCurveFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+
+        // RM_FRO_028 ("Diane"): BorderPregenFixture, a fourth sibling fixture -- its own
+        // onJigTick() drives its throttled work automatically once this bundle's own JigConfig
+        // ticks (already true below), no separate EventHandlers entry needed here.
+        var pregenFixture =
+                new JigBundles.FixtureDecl<BorderPregenFixture>(
+                        FrontierKeys.PREGEN,
+                        BorderPregenFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+
         var bordersBundle =
                 new JigBundles.BundleDecl<LevelScope, BordersBundle>(
                         FrontierKeys.BORDERS_BUNDLE,
                         (LevelScope scope) -> new BordersBundle(scope, FrontierKeys.BORDERS_BUNDLE),
-                        List.of(bordersFixture, navigatorFixture)
+                        List.of(bordersFixture, navigatorFixture, curveFixture, pregenFixture)
                 );
 
         JigBundles.Schema<LevelScope> bundles =
@@ -321,5 +343,6 @@ public final class BorderModule {
         }
 
         BossAPI.createBoss(level, result.border());
+        BorderAPI.startPregeneration(level, result.border().id());
     }
 }

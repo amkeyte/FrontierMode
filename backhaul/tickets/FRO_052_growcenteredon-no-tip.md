@@ -3,7 +3,7 @@ id: FRO_052
 uid: FRO
 number: 52
 client: FrontierMode
-status: closed
+status: done
 title: growCenteredOn no-tip semantics
 context: 'Owner call: no-tip should bootstrap like grow(), not fail -- contradicts
   RM_FRO_019''s 2026-08-24 ruling text.'

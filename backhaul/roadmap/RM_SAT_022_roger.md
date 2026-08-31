@@ -13,22 +13,6 @@ superseded_by: null
 ticket: SAT_041
 ---
 
-- 2026-08-24: **Lead Dev build ticket opened: [SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md).**
-  Unblocked now that SAT_039's `MobJig` self-test slice and SAT_040's `LevelJig`/`PlayerJig` slices
-  are both done and confirmed live, not just compiled -- this node's own build gets to point at
-  real coverage rather than a promise, exactly as the 2026-08-23 sequencing entry above intended.
-  `ticket:` field updated from SAT_037 (design, closed) to SAT_041 (build, open).
-
-- 2026-08-24: **Resolved -- [SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md) closed,
-  done bar met and confirmed live.** `MobJig` resolves mobs through `ForgeEgress`
-  (`common/jig/guts/`), side-chosen at foundation boot via `LogicalFoundation.egress()`, exactly
-  the shape this node's own 2026-08-23 log entry described (not SAT_037's own closing text, which
-  turned out to be stale -- see SAT_041's log for the full discrepancy and resolution). The
-  latent bug this node opened on is confirmed actually fixed, not just untriggered: a
-  `CLIENT`-scoped `MobScope` survived thirteen consecutive reconcile cycles live, then unloaded
-  cleanly and silently on a real teardown. `runtime.md`'s `MobJig` section corrected to describe
-  `ForgeEgress` as built.
-
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Roadmap Index](../ROADMAP_INDEX.md) · RM_SAT
 <!-- bh-header:end -->
@@ -147,6 +131,22 @@ one reconcile cycle.
   rather than a one-off for Mob; this node's build should lean on whatever it produces rather than
   reaching for a FrontierMode consumer to test against, which would defeat the point of building
   this module-neutral.
+
+- 2026-08-24: **Lead Dev build ticket opened: [SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md).**
+  Unblocked now that SAT_039's `MobJig` self-test slice and SAT_040's `LevelJig`/`PlayerJig` slices
+  are both done and confirmed live, not just compiled -- this node's own build gets to point at
+  real coverage rather than a promise, exactly as the 2026-08-23 sequencing entry above intended.
+  `ticket:` field updated from SAT_037 (design, closed) to SAT_041 (build, open).
+
+- 2026-08-24: **Resolved -- [SAT_041](../tickets/SAT_041_mobjig-side-agnostic-build.md) closed,
+  done bar met and confirmed live.** `MobJig` resolves mobs through `ForgeEgress`
+  (`common/jig/guts/`), side-chosen at foundation boot via `LogicalFoundation.egress()`, exactly
+  the shape this node's own 2026-08-23 log entry described (not SAT_037's own closing text, which
+  turned out to be stale -- see SAT_041's log for the full discrepancy and resolution). The
+  latent bug this node opened on is confirmed actually fixed, not just untriggered: a
+  `CLIENT`-scoped `MobScope` survived thirteen consecutive reconcile cycles live, then unloaded
+  cleanly and silently on a real teardown. `runtime.md`'s `MobJig` section corrected to describe
+  `ForgeEgress` as built.
 
 ## Required By
 

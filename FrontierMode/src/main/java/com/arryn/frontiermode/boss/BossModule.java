@@ -117,7 +117,7 @@ public final class BossModule {
 
     private static void registerNavigatorResolver() {
         TargetResolverRegistry.register(TargetType.BOSS, (level, bossId) ->
-                BossAPI.boss(level)
+                BossAPI.bosses(level)
                         .flatMap(fixture -> fixture.get(bossId))
                         .map(BossRecord::position));
     }
@@ -210,8 +210,64 @@ public final class BossModule {
         BossBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
+        finalizeUnpositionedBosses(serverLevel, fixture);
         materializeUnresolvedBosses(serverLevel, fixture);
         reconcilePathAgainstBossRecords(serverLevel, fixture);
+    }
+
+    /**
+     * RM_FRO_028 ("Diane"): resolves {@code layer}'s current home {@code Border} by walking the
+     * path -- mirrors {@link #reconcilePathAgainstBossRecords}'s own identical loop shape rather
+     * than introducing a second way to answer "which border does this layer belong to right
+     * now." Empty when Border isn't ready yet, or (a real data bug, same territory
+     * {@code reconcilePathAgainstBossRecords} already watches for) no path entry currently
+     * carries this layer.
+     */
+    private static Optional<Border> resolveHomeBorder(ServerLevel level, int layer) {
+        Optional<BordersPathFacet> pathOpt = BorderAPI.PATH(level);
+        Optional<BordersCrudFacet> crudOpt = BorderAPI.CRUD(level);
+        if (pathOpt.isEmpty() || crudOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        BordersPathFacet path = pathOpt.get();
+        BordersCrudFacet crud = crudOpt.get();
+
+        for (UUID id : path.all()) {
+            Optional<Border> borderOpt = crud.get(id);
+            if (borderOpt.isPresent() && borderOpt.get().layer() == layer) {
+                return borderOpt;
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * RM_FRO_028 ("Diane"): finalizes any record whose position is still null, per
+     * border-pregeneration.md's "What this changes in Boss" section -- {@code
+     * BorderAPI.isPregenReady} is the single gate; once it passes for a record's home border,
+     * {@link BossRules#choosePosition} scores candidates against the now-guaranteed-generated
+     * disk and the result is committed via {@link BossFixture#finalizePosition}. Runs before
+     * {@link #materializeUnresolvedBosses} in the same tick, so a border whose pregeneration
+     * finishes this tick doesn't lose a full extra cycle before its boss can materialize.
+     */
+    private static void finalizeUnpositionedBosses(ServerLevel level, BossFixture fixture) {
+        for (BossRecord record : fixture.unpositioned()) {
+            Optional<Border> borderOpt = resolveHomeBorder(level, record.layer());
+            if (borderOpt.isEmpty()) {
+                // Same "real data bug, not a normal transient state" territory
+                // reconcilePathAgainstBossRecords already watches for -- nothing new to log here.
+                continue;
+            }
+            Border border = borderOpt.get();
+
+            if (!BorderAPI.isPregenReady(level, border.id())) {
+                // Normal wait -- retried next tick once the pregeneration disk finishes.
+                continue;
+            }
+
+            BlockPos chosen = RULES.choosePosition(level, border);
+            fixture.finalizePosition(record.bossId(), chosen);
+        }
     }
 
     /**
@@ -229,8 +285,7 @@ public final class BossModule {
             }
 
             RULES.materialize(level, xz, record.layer()).ifPresent(mob -> {
-                BlockPos resolved = mob.blockPosition();
-                fixture.materialize(record.bossId(), resolved, mob.getUUID());
+                fixture.materialize(record.bossId(), mob.getUUID());
                 addInterest(level, mob.getUUID());
 
                 // Immediate-attachment fast path onto MobJig's scope machinery -- the entity is
@@ -332,7 +387,7 @@ public final class BossModule {
     }
 
     public static MaterializeOutcome forceMaterialize(ServerLevel level, UUID bossId) {
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             OUT.warn("[Boss] forceMaterialize(): BossFixture not available for level "
                     + level.dimension().location() + " -- bossId=" + bossId);
@@ -351,6 +406,17 @@ public final class BossModule {
             // Already has an entity -- a clean no-op, not an error (FRO_057's own call, this
             // build's log).
             return MaterializeOutcome.ALREADY_MATERIALIZED;
+        }
+
+        if (!record.positioned()) {
+            // Border Pregeneration: nothing to force yet -- this record's home border hasn't
+            // finished pregenerating, so BOSS_JIG's own tick hasn't finalized a position for it.
+            // Same normal-wait framing finalizeUnpositionedBosses already applies on the tick
+            // path; here it's surfaced as DECLINED instead of a silent retry, since this only
+            // ever runs from a player-issued command.
+            OUT.warn("[Boss] forceMaterialize(): bossId=" + bossId + " has no finalized position"
+                    + " yet (home border still pregenerating) -- cannot force-materialize.");
+            return MaterializeOutcome.DECLINED;
         }
 
         BlockPos xz = record.position();
@@ -374,7 +440,7 @@ public final class BossModule {
 
         Mob mob = mobOpt.get();
         BlockPos resolved = mob.blockPosition();
-        fixture.materialize(record.bossId(), resolved, mob.getUUID());
+        fixture.materialize(record.bossId(), mob.getUUID());
         addInterest(level, mob.getUUID());
         OUT.info("[Boss] forceMaterialize(): spawned bossId=" + bossId
                 + " entity=" + mob.getUUID() + " at " + resolved);
@@ -461,7 +527,7 @@ public final class BossModule {
         Mob mob = scope.mob();
         UUID entityId = mob.getUUID();
 
-        Optional<BossRecord> recordOpt = BossAPI.boss(mob.level())
+        Optional<BossRecord> recordOpt = BossAPI.bosses(mob.level())
                 .flatMap(fixture -> fixture.all().stream()
                         .filter(r -> entityId.equals(r.bossEntityId()))
                         .findFirst());
@@ -525,7 +591,7 @@ public final class BossModule {
             return;
         }
 
-        Optional<BossFixture> fixtureOpt = BossAPI.boss(level);
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             OUT.warn("[Boss] onLivingDeath(): BossFixture not available for level "
                     + level.dimension().location() + " -- can't mark bossId=" + bossId.get()
@@ -544,6 +610,7 @@ public final class BossModule {
         }
 
         BossAPI.createBoss(level, result.border());
+        BorderAPI.startPregeneration(level, result.border().id());
     }
 
     /**

@@ -1,7 +1,11 @@
 package com.arryn.frontiermode.border;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BorderCurve;
+import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
@@ -24,8 +28,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Side-agnostic ingress API for interacting with Borders.
@@ -91,6 +97,24 @@ public final class BorderAPI {
         return new LevelScope(level);
     }
 
+    // Edge-triggered logging for resolveFixture()'s three "not ready yet" outcomes below -- same
+    // shape BossModule.LAST_RECONCILIATION_MISMATCH already uses. RenderContext's own lazy-
+    // resolve-and-cache accessors (crud()/path()/info()) call straight back into this method
+    // every single render frame for as long as it keeps returning empty, so logging every
+    // attempt at DEBUG level was spamming dozens of identical lines per second during the (now
+    // survivable, see the Satchel fix on tryScopeInfo) pre-ready window on world join. Tracks
+    // each level's last-reported reason so this only logs on a real transition -- a changed
+    // reason, or first hitting "not ready" at all.
+    private static final Map<Level, String> LAST_NOT_READY_REASON = new ConcurrentHashMap<>();
+
+    private static void logNotReadyOnce(Level level, String reason) {
+        String previous = LAST_NOT_READY_REASON.put(level, reason);
+        if (!reason.equals(previous)) {
+            OUT.debug("[BorderAPI] resolveFixture(): " + reason + " → Optional.empty level="
+                    + level.dimension().location());
+        }
+    }
+
     /**
      * FRO_047: resolves this level's {@link BordersFixture} -- kept private, replacing the old
      * public {@code borders(Level)}/{@code borders(LevelScope)} surface. {@link #PATH}/
@@ -109,10 +133,7 @@ public final class BorderAPI {
         // proactive check that keeps this method's whole body safe to run early, same "standby,
         // don't crash" philosophy as the two checks below it.
         if (!Satchel.isReady()) {
-            OUT.debug(
-                    "[BorderAPI] resolveFixture(): Satchel not ready yet → Optional.empty "
-                            + "level=" + level.dimension().location()
-            );
+            logNotReadyOnce(level, "Satchel not ready yet");
             return Optional.empty();
         }
 
@@ -128,23 +149,21 @@ public final class BorderAPI {
                 .tryScopeInfo(FrontierKeys.BORDERS_JIG, scope);
 
         if (infoOpt.isEmpty()) {
-            OUT.debug(
-                    "[BorderAPI] resolveFixture(): scope not yet known → Optional.empty "
-                            + "level=" + level.dimension().location()
-            );
+            logNotReadyOnce(level, "scope not yet known");
             return Optional.empty();
         }
 
         var info = infoOpt.get();
 
         if (!info.isReady()) {
-            OUT.debug(
-                    "[BorderAPI] resolveFixture(): scope NOT ready → Optional.empty "
-                            + "level=" + level.dimension().location()
-                            + " phase=" + info.phase()
-            );
+            logNotReadyOnce(level, "scope NOT ready (phase=" + info.phase() + ")");
             return Optional.empty();
         }
+
+        // Past every "not ready" gate -- clear this level's tracked reason so a future stretch of
+        // not-ready (a relog, a reconnect) logs fresh instead of being silently deduped against a
+        // stale reason from before this success.
+        LAST_NOT_READY_REASON.remove(level);
 
         try {
             Optional<BordersFixture> result =
@@ -170,7 +189,47 @@ public final class BorderAPI {
         }
     }
 
-    // ---------------------------------------------------------------------
+    /**
+     * RM_FRO_027 ("Janet") / RM_FRO_028 ("Diane"): resolves this level's {@code BordersBundle}
+     * itself, for the sibling fixtures ({@link BorderCurveFixture}, {@code BorderPregenFixture})
+     * that aren't part of {@link BordersFixture}'s own four-facet split -- same "standby, don't
+     * crash" body as {@link #resolveFixture(Level)}, just stopping one level higher (the bundle,
+     * not a specific fixture inside it).
+     */
+    private static Optional<BordersBundle> resolveBordersBundle(Level level) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+
+        LevelScope scope = scope(level);
+
+        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BORDERS_JIG, scope);
+        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(levelJig().getOrCreate(scope, FrontierKeys.BORDERS_BUNDLE));
+        } catch (RuntimeException e) {
+            throw new SatchelException.AccessFailed(
+                    "Failed to resolve BordersBundle for level " + level.dimension().location(), e);
+        }
+    }
+
+        /**
+     * RM_FRO_028 ("Diane"): kept private, deliberately -- {@link #isPregenReady(Level, UUID)} and
+     * {@link #startPregeneration(Level, UUID)} below are the only sanctioned way any cross-module
+     * reader (Boss's own tick code) reaches this fixture, per
+     * wiki/frontiermode/architecture/border-pregeneration.md's "BorderAPI's new query surface"
+     * section -- "Boss's tick code ... calls this rather than reaching into BordersBundle's
+     * fixtures directly, the same discipline every other cross-module read in this design
+     * already follows."
+     */
+    private static Optional<BorderPregenFixture> resolvePregenFixture(Level level) {
+        return resolveBordersBundle(level).flatMap(BordersBundle::pregen);
+    }
+
+        // ---------------------------------------------------------------------
     // Facet resolvers -- the only way outside code reaches Border's state
     // ---------------------------------------------------------------------
 
@@ -190,12 +249,35 @@ public final class BorderAPI {
         return resolveFixture(level).map(f -> f.INFO);
     }
 
+    /**
+     * RM_FRO_027 ("Janet"): unlike {@link #PATH}/{@link #CRUD}/{@link #RULES}/{@link #INFO}
+     * above (each a facet carved out of {@link BordersFixture} itself), {@link BorderCurveFixture}
+     * is a whole separate sibling fixture in the same bundle -- resolved via
+     * {@link #resolveBordersBundle(Level)} rather than {@link #resolveFixture(Level)}.
+     */
+    public static Optional<BorderCurveFixture> CURVE(Level level) {
+        return resolveBordersBundle(level).flatMap(BordersBundle::curve);
+    }
+
     // ---------------------------------------------------------------------
     // Queries (safe on both sides)
     // ---------------------------------------------------------------------
 
     public static Optional<Border> border(Level level, UUID borderId) {
         return CRUD(level).flatMap(c -> c.get(borderId));
+    }
+
+    /**
+     * RM_FRO_027 ("Janet"): the reverse lookup per
+     * wiki/frontiermode/architecture/border-curve.md#query-surface -- resolves a held
+     * {@link BorderCurve} record back to the border geometry (center, radius) it applies to.
+     * Implemented here rather than on {@link BorderCurveFixture} itself, composing
+     * {@link #border(Level, UUID)} the same way {@link #getRelevant(ServerPlayer)} already
+     * composes {@link #playerStatus(ServerPlayer)} with a border lookup -- cross-facet
+     * composition lives at this API layer, not inside one fixture reaching into a sibling.
+     */
+    public static Optional<Border> borderOf(Level level, BorderCurve curve) {
+        return border(level, curve.borderId());
     }
 
     /**
@@ -280,6 +362,20 @@ public final class BorderAPI {
                 .flatMap(id -> id == null
                         ? Optional.empty()
                         : border(player.serverLevel(), id));
+    }
+
+    /**
+     * RM_FRO_028 ("Diane"): {@code false} whenever the fixture itself isn't resolvable yet
+     * <em>or</em> {@code borderId}'s own job hasn't completed (or was never started) -- both
+     * collapse to the same boolean here, matching {@code BorderPregenFixture.isReadyFor}'s own
+     * contract. Boss's position-finalization tick (see boss.md's "Three questions" section)
+     * no-ops on this exactly the way it already no-ops on {@code Level.isLoaded()} being false --
+     * a normal, expected wait, not an error.
+     */
+    public static boolean isPregenReady(Level level, UUID borderId) {
+        return resolvePregenFixture(level)
+                .map(fixture -> fixture.isReadyFor(borderId))
+                .orElse(false);
     }
 
     // ---------------------------------------------------------------------
@@ -403,6 +499,49 @@ public final class BorderAPI {
             return Result.notFound("No such border: " + id);
         }
 
+        // RM_FRO_027 ("Janet"): "explicit, not orphaned" -- deleting a Border explicitly deletes
+        // its BorderCurve records too, per border-curve.md's "Deletion" section. A missing
+        // CURVE fixture (not ready yet) is not itself a reason to fail a border deletion that
+        // already succeeded above -- best-effort cleanup, logged rather than escalated.
+        CURVE(level).ifPresentOrElse(
+                curveFixture -> curveFixture.removeForBorder(id),
+                () -> OUT.warn("[Border] removeBorder(): BorderCurveFixture not available "
+                        + "level=" + level.dimension().location() + " -- border " + id
+                        + " removed, but its curves (if any) were not cleaned up.")
+        );
+
+        return Result.success(existing.get());
+    }
+
+    /**
+     * RM_FRO_028 ("Diane"): starts {@code borderId}'s pregeneration job -- an explicit call,
+     * never automatic on border creation, per border-pregeneration.md's own "Starting a border's
+     * pregeneration is an explicit call" section. The direct call, paired with whatever code just
+     * created the border and its matching boss record -- see that page's own framing, and
+     * {@code BorderModule.onBordersScopeLoaded}/{@code BossModule.onLivingDeath}/
+     * {@code BossAPI.forceDefeat} for the three call sites that make it a third call alongside
+     * those two.
+     *
+     * <p>Idempotent: a border that already has a job (in progress or complete) still returns
+     * {@link Result#success(Border)} -- "ensure this border's pregeneration has been triggered"
+     * is what a caller actually wants, and it's already true either way, per
+     * {@code BorderPregenFixture.start}'s own "calling this twice is safe" contract.
+     */
+    public static Result startPregeneration(Level level, UUID borderId) {
+        Optional<Border> existing = border(level, borderId);
+        if (existing.isEmpty()) {
+            return Result.notFound("No such border: " + borderId);
+        }
+
+        Optional<BorderPregenFixture> fixtureOpt = resolvePregenFixture(level);
+        if (fixtureOpt.isEmpty()) {
+            return Result.notReady(
+                    "startPregeneration called but BorderPregenFixture not available "
+                            + "level=" + level.dimension().location()
+            );
+        }
+
+        fixtureOpt.get().start(borderId);
         return Result.success(existing.get());
     }
 }

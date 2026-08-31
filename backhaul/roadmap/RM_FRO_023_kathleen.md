@@ -8,6 +8,7 @@ title: 'Tier 2: Guided loop operational'
 owner: Arryn
 depends_on:
 - RM_FRO_017
+- RM_FRO_025
 created: '2026-08-30'
 superseded_by: null
 ticket: null
@@ -41,12 +42,25 @@ same way Donna and Susan absorbed theirs, per
 [BHRM — Roadmap Conventions § Epoch maintenance nodes](../wiki/meta/bhrm.md#epoch-maintenance-nodes-containers)
 — don't let them feed some future Tier 3 node directly and skip this one.
 
+**Also depends on [RM_FRO_025](RM_FRO_025_donna-02.md) ("Donna epoch review/fix") clearing,
+project owner's call** — the standard BHRM shape for an epoch's end container: the next planned
+node depends on it so nothing from the Donna epoch carries forward unaddressed into Tier 2. Wired
+even though RM_FRO_025 is still empty; it will need to actually clear before this node can reach,
+same as any other real dependency.
+
 - 2026-08-30: **Node opened as a placeholder skeleton, project owner's explicit call** — mirrors
   [RM_FRO_017](RM_FRO_017_donna.md) ("Donna")'s own precedent-setting entry for Tier 1: opened ahead
   of any real sibling work existing, on the tip of the roadmap, in prep for the next epoch once
   Tier 1 reaches. `depends_on` set to Donna directly (the only real prerequisite that currently
   exists); expect this to gain real intermediate nodes over time the same way Donna did, not stay a
   direct edge forever.
+
+- 2026-08-31: **`depends_on` gains [RM_FRO_025](RM_FRO_025_donna-02.md) ("Donna epoch
+  review/fix"), project owner's call.** Standard BHRM shape for an epoch's end container gating
+  the next planned node — this node is Donna epoch's next planned node, so it depends on the end
+  container clearing rather than carrying anything forward unaddressed. (An earlier attempt wired
+  this edge in the opposite direction, on RM_FRO_025 instead — reverted same day, see that node's
+  own log.)
 
 ## Required By
 

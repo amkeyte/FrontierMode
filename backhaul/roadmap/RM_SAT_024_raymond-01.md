@@ -10,7 +10,7 @@ depends_on:
 - RM_SAT_023
 created: '2026-08-31'
 superseded_by: null
-ticket: SAT_043
+ticket: null
 ---
 
 <!-- bh-header:start -->
@@ -43,7 +43,12 @@ nothing had surfaced needing one until this design pass, so it opens now, alongs
   exposes for overriding -- `onCreated()`, `onLoaded()`, `onRemoved()`, `onJigTick()`, `isReady()`
   -- written up the way an API reference documents an extension point (signature, when it fires,
   what state is guaranteed at that point, what overriding it is and is not for), not narrated in
-  `runtime.md`'s prose the way it is today. Not actioned yet, just parked here.
+  `runtime.md`'s prose the way it is today.
+
+- 2026-08-31: **Resolved same day** — [SAT_043](../tickets/SAT_043_fixture-lifecycle-api.md) added
+  a "Per-Fixture Lifecycle API Reference" section to `fixture.md` covering all five hooks
+  (`onCreated()`, `onLoaded()`, `onRemoved()`, `onJigTick()`, `isReady()`) with signatures, firing
+  guarantees, state contracts, and the `Satchel.isReady()` disambiguation this item called for.
 
 ## Required By
 

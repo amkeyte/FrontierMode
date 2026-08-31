@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.border.common;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BorderCurve;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
@@ -146,6 +147,37 @@ public final class BorderMath {
 
         double[] d = BorderMathLogic.direction(from.getX(), from.getZ(), to.getX(), to.getZ());
         return new Vec3(d[0], 0.0, d[1]);
+    }
+
+    // ------------------------------------------------------------------
+    // RM_FRO_027 ("Janet"): BorderCurve evaluation -- see
+    // wiki/frontiermode/architecture/border-curve.md#evaluation-bordermath-not-a-service-class.
+    // BorderCurve is data; the evaluation is pure math living here, same as isInside/
+    // randomPointInDisk above. Zero domain knowledge either way -- this doesn't know what a
+    // "tier" or "guardian" is, only how to turn a shape and a distance into a number.
+    // ------------------------------------------------------------------
+
+    /**
+     * The shape function core: {@code normalizedDistance} (0 at the border's center, 1 at its
+     * edge) mapped through {@code descriptor}'s shape into an intensity in {@code [0, 1]}.
+     */
+    public static double intensityAt(BorderCurve descriptor, double normalizedDistance) {
+        Objects.requireNonNull(descriptor, "descriptor");
+
+        return BorderCurveMath.intensityAt(descriptor.shape(), descriptor.steepness(), normalizedDistance);
+    }
+
+    /**
+     * Convenience wrapper doing the resolve-distance-then-normalize-then-evaluate steps in one
+     * call, per that page's own "Evaluation" section -- {@code normalizedDistance =
+     * distanceTo(center, point) / radius}.
+     */
+    public static double intensityAt(Border border, BorderCurve descriptor, BlockPos point) {
+        Objects.requireNonNull(border, "border");
+        Objects.requireNonNull(point, "point");
+
+        double normalizedDistance = distanceTo(border.center(), point) / border.radius();
+        return intensityAt(descriptor, normalizedDistance);
     }
 
 }

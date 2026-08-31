@@ -434,9 +434,10 @@ as a sibling step, extracting `position`/`layer` from the `Border` that call jus
   version.
 - **`remove()` on a materialized record leaves its live entity orphaned -- untracked, but still
   standing in the world.** Real today, not latent: `/boss delete` (FRO_057) reaches this path in
-  production. See "Mutation validation boundary" above. Whether `/boss delete` should also despawn
-  the entity, or whether orphaning-then-relying-on-`MobJig`'s-own-teardown is fine, is undecided --
-  flagged for a follow-up pass, not resolved here.
+  production. See "Mutation validation boundary" above. Ruling: `/boss delete` despawns the
+  entity directly (via `BossMobFixture`/`MobScope`), not through `markDefeated()`/`forceDefeat()`'s
+  cascade -- deletion is an administrative removal ("get rid of this record"), not a "boss died"
+  event, so it must not grow a border or queue a next boss. See FRO_061.
 
 ## Related pages
 

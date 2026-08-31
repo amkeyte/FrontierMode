@@ -224,7 +224,21 @@ public final class LogicalFoundation {
      * {@code JigKey.validateTypes} -- that's a real programming error, not a timing window.
      */
     public Optional<ScopeInfo> tryScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
-        JigInfo ji = requireJigInfo(jigKey);
+        // Uses askJigInfo (non-throwing) rather than requireJigInfo -- this method's own doc
+        // promises to be the "non-throwing sibling" of requireScopeInfo, but delegating the
+        // jig-lookup itself to requireJigInfo broke that promise for one real case: a jig whose
+        // config genuinely isn't installed on this LogicalFoundation yet (as opposed to a jig
+        // that's installed but doesn't know this particular scope yet, which the code below this
+        // already handled correctly). Client-side, that window is real -- Satchel.isReady() can
+        // flip true (world-identity token bound) a moment before a BOTH-applicability jig's
+        // config finishes landing on the freshly-created client foundation, and a caller reached
+        // in that exact window (e.g. render code) used to crash with JigNotFound instead of
+        // getting the "not ready yet, standby" empty Optional this method exists to provide.
+        Optional<JigInfo> jiOpt = askJigInfo(jigKey);
+        if (jiOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        JigInfo ji = jiOpt.get();
 
         JigKey.validateTypes(jigKey, ji.jig);
 

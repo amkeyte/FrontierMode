@@ -3,6 +3,8 @@ package com.arryn.frontiermode;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
@@ -48,6 +50,26 @@ public final class FrontierKeys {
             new FixtureKey<>(
                     "frontiermode:navigator_fixture",
                     NavigatorFixture.class
+            );
+
+    // RM_FRO_027 ("Janet"): BorderCurve intensity-curve fixture -- another sibling fixture inside
+    // BORDERS_BUNDLE. See BorderModule.init() for the schema wiring and
+    // wiki/frontiermode/architecture/border-curve.md for the design this backs.
+
+    public static final FixtureKey<BorderCurveFixture> CURVE =
+            new FixtureKey<>(
+                    "frontiermode:curve_fixture",
+                    BorderCurveFixture.class
+            );
+
+    // RM_FRO_028 ("Diane"): BorderPregen terrain pregeneration fixture -- a fourth sibling
+    // fixture inside BORDERS_BUNDLE. See BorderModule.init() for the schema wiring and
+    // wiki/frontiermode/architecture/border-pregeneration.md for the design this backs.
+
+    public static final FixtureKey<BorderPregenFixture> PREGEN =
+            new FixtureKey<>(
+                    "frontiermode:pregen_fixture",
+                    BorderPregenFixture.class
             );
 
     // RM_FRO_006 (Sandra): per-player border evaluation, PlayerJig-scoped (see BorderModule.init()

@@ -125,7 +125,7 @@ tasks.named('processResources', ProcessResources).configure {
 // Jar (DEV ONLY — NO REOBF HERE)
 // ------------------------------------------------------------
 tasks.named('jar', Jar).configure {
-    archiveClassifier.set("dev")
+    //archiveClassifier.set("dev")
 
     manifest {
         attributes(
@@ -147,15 +147,15 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 tasks.withType(RenameJarInPlace).configureEach {
-    enabled = false
+    enabled = true
 }
 
 tasks.matching { it.name.startsWith("reobf") }.configureEach {
-    enabled = false
+    enabled = true
 }
-jar {
-    archiveClassifier.set("dev")
-}
+//jar {
+//    archiveClassifier.set("dev")
+//}
 dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
@@ -184,7 +184,8 @@ tasks.register('copyToFrontierMode', Copy) {
         }
         frontierModsDirs.each { dir ->
             dir.mkdirs()
-            dir.listFiles({ f -> f.name.startsWith('Satchel-') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
+            //dir.listFiles({ f -> f.name.startsWith('Satchel-') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
+            dir.listFiles({ f -> f.name.startsWith('Satchel') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
         }
     }
 
