@@ -54,6 +54,29 @@ was — opened alongside the epoch's start rather than waited on until something
   review/fix") and Donna's own `reached` flip — see [RM_FRO_017](RM_FRO_017_donna.md)'s own
   2026-08-30 log entry. Nothing held yet.
 
+- 2026-08-31: **Correction to the 2026-08-30 entry above, from the project owner directly, not
+  just "believed":** there never was an actual one-fixture-per-bundle discipline to become
+  obsolete. `BossFixture` and `BordersFixture` each starting out alone in their own bundles was
+  coincidental, not a by-design constraint — nothing was ever removed or retired, because nothing
+  was ever ruled in the first place. Wherever this cluster's wiki pages cited it as a live
+  precedent under review has been corrected (see
+  [Boss Discovery Systems § Navigation lives in Border](../wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border)).
+  The separate, still-genuinely-open item from that same entry stands unchanged: whether
+  `BossFixture` and `BossMobFixture` are one concern or two, i.e. whether they should share a
+  bundle — not resolved, not blocked on anything above.
+
+- 2026-08-31: A fourth item flagged for review, surfaced during the Special Compass /
+  `BorderPregenFixture` design pass on
+  [Border Pregeneration](../wiki/frontiermode/architecture/border-pregeneration.md) -- **the wiki
+  does not adequately document Satchel's own per-fixture lifecycle surface.** `fixture.md` covers
+  `onCreated`/`onLoaded` but never mentions the per-fixture-instance `isReady()` or `onJigTick()`
+  hooks that design leans on directly, and `runtime.md`'s own documented `isReady()` is a
+  different, foundation-level check (`Satchel.isReady()`/`LogicalFoundation.isReady()`), not the
+  per-fixture one — a same-name collision a reader could easily miss. Out of scope for any
+  FrontierMode page to fix -- now tracked properly as
+  [RM_SAT_024](RM_SAT_024_raymond-01.md) ("Raymond epoch maintenance 1") on Satchel's own
+  roadmap, since it's Satchel's documentation debt, not FrontierMode's.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

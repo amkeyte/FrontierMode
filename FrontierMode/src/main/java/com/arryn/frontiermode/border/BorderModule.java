@@ -6,6 +6,7 @@ import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
+import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
@@ -61,11 +62,23 @@ public final class BorderModule {
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
+        // RM_FRO_026 ("Dorothy"): NavigatorFixture rides as a sibling fixture in this same
+        // bundle, per wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border
+        // -- this is the first time this codebase has actually put two fixtures in one bundle
+        // (BossBundle/BossMobBundle each still host exactly one), though JigConfigValidator's
+        // FixtureDecl -> BundleDecl -> Schema chain already supported it regardless of count.
+        var navigatorFixture =
+                new JigBundles.FixtureDecl<NavigatorFixture>(
+                        FrontierKeys.NAVIGATOR,
+                        NavigatorFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+
         var bordersBundle =
                 new JigBundles.BundleDecl<LevelScope, BordersBundle>(
                         FrontierKeys.BORDERS_BUNDLE,
                         (LevelScope scope) -> new BordersBundle(scope, FrontierKeys.BORDERS_BUNDLE),
-                        List.of(bordersFixture)
+                        List.of(bordersFixture, navigatorFixture)
                 );
 
         JigBundles.Schema<LevelScope> bundles =

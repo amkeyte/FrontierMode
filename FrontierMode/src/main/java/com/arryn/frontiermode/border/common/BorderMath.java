@@ -3,6 +3,9 @@ package com.arryn.frontiermode.border.common;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.phys.Vec3;
+
+import java.util.Objects;
 
 /**
  * Pure geometry helpers for border containment and distance.
@@ -106,6 +109,43 @@ public final class BorderMath {
                 center.getY(),
                 center.getZ() + dz
         );
+    }
+
+    // ------------------------------------------------------------------
+    // RM_FRO_026 ("Dorothy"): Navigator's two point-to-point primitives -- see
+    // wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border. Deliberately
+    // no player, target-type, or attunement awareness, and deliberately no nearest() companion:
+    // "nearest of N candidates" is a one-line min() over a caller-specific pre-filtered candidate
+    // list, per that page's own reasoning -- folding it in here would only paper over call sites
+    // that still need their own "what's relevant" logic regardless.
+    //
+    // Both methods are thin BlockPos-unwrapping wrappers over BorderMathLogic -- the actual math
+    // lives there so it can be unit-tested without a Minecraft userdev classpath (see that
+    // class's own doc).
+    // ------------------------------------------------------------------
+
+    /**
+     * Straight-line XZ distance between {@code a} and {@code b}. Y is ignored, per this class's
+     * own contract.
+     */
+    public static double distanceTo(BlockPos a, BlockPos b) {
+        Objects.requireNonNull(a, "a");
+        Objects.requireNonNull(b, "b");
+
+        return BorderMathLogic.distanceTo(a.getX(), a.getZ(), b.getX(), b.getZ());
+    }
+
+    /**
+     * Normalized XZ direction from {@code from} to {@code to}, as a {@link Vec3} with
+     * {@code y=0}. {@link Vec3#ZERO} when the two points coincide -- there is no direction
+     * between a point and itself.
+     */
+    public static Vec3 direction(BlockPos from, BlockPos to) {
+        Objects.requireNonNull(from, "from");
+        Objects.requireNonNull(to, "to");
+
+        double[] d = BorderMathLogic.direction(from.getX(), from.getZ(), to.getX(), to.getZ());
+        return new Vec3(d[0], 0.0, d[1]);
     }
 
 }

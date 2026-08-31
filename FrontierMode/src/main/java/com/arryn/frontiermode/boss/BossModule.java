@@ -6,6 +6,8 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
+import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
@@ -95,11 +97,29 @@ public final class BossModule {
 
         registerBossJig();
         registerBossMobJig();
+        registerNavigatorResolver();
 
         // RM_FRO_019 (Karen): defeat detection -> border growth -> next boss record. Plain
         // static listener, not an @SubscribeEvent instance method -- same wiring shape
         // BorderModule.onBlockPlaced uses.
         MinecraftForge.EVENT_BUS.addListener(BossModule::onLivingDeath);
+    }
+
+    // ─────────────────────────────────────────────
+    // RM_FRO_026 ("Dorothy"): TargetType.BOSS resolver registration -- the natural first
+    // registered resolver per wiki/frontiermode/architecture/discovery-systems.md
+    // #navigation-lives-in-border, "whatever module owns a target type registers its own
+    // resolver at init time (BossModule.init() registering a resolver for TargetType.BOSS, say)".
+    // Boss already depends on Border (BorderAPI); this is the reverse direction the design
+    // expects -- Border/Navigator never import Boss types, Boss registers into Navigator's
+    // registry instead.
+    // ─────────────────────────────────────────────
+
+    private static void registerNavigatorResolver() {
+        TargetResolverRegistry.register(TargetType.BOSS, (level, bossId) ->
+                BossAPI.boss(level)
+                        .flatMap(fixture -> fixture.get(bossId))
+                        .map(BossRecord::position));
     }
 
     /**
