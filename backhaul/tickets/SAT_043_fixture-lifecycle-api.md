@@ -3,13 +3,13 @@ id: SAT_043
 uid: SAT
 number: 43
 client: Satchel
-status: open
+status: resolved
 title: Document SatchelFixture per-fixture lifecycle API
 context: RM_SAT_024 (Raymond epoch maintenance 1) -- FrontierMode design pass surfaced documentation
   gap in extensible overload system.
 priority: high
 opened: '2026-08-31'
-closed: null
+closed: '2026-08-31'
 ---
 
 <!-- board:start -->
@@ -52,6 +52,7 @@ examples if helpful. Treat it as documenting an extension point for developers b
 
 - 2026-08-31: Ticket opened, per RM_SAT_024's first item. Blocks nothing currently, but will
   unblock future cross-module fixtures that need `isReady()` or `onJigTick()` overrides.
+- 2026-08-31: **Documentation complete.** Added "Per-Fixture Lifecycle API Reference" section to fixture.md with comprehensive API documentation for onCreated(), onLoaded(), onRemoved(), onJigTick(), and isReady(). Each hook includes signature, firing guarantees, state contracts, use cases, antipatterns, examples. Disambiguates fixture-level isReady() from foundation-level checks. Resolves documentation gap that surfaced during Border Pregeneration design.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/Satchel)
 <!-- bh-header:end -->
