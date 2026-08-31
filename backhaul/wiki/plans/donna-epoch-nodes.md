@@ -55,37 +55,33 @@ close enough to mint, and in what order, not the technical shape itself.
 | Border Curve (`BorderCurveFixture`, distance-keyed intensity curves) | Janet (rank 21) | **Minted: [RM_FRO_027](../../roadmap/RM_FRO_027_janet.md).** |
 | Border Pregeneration (`BorderPregenFixture`, proactive throttled terrain generation; partially supersedes `boss.md`'s Spawn Algorithm) | Diane (rank 22) | **Minted: [RM_FRO_028](../../roadmap/RM_FRO_028_diane.md),** with its own Open Questions carried onto the node rather than closed first -- see that node for the list |
 
-**The six discovery-gradient tools** (per [Boss Discovery § The discovery
-gradient](../frontiermode/design/boss-discovery.md#the-discovery-gradient)), each still needing its
-own scoping/naming pass:
+**The six discovery-gradient tools -- all now minted** (2026-08-31), scoped against completed infrastructure:
 
-| Tool | Scoping status |
-|---|---|
-| Guardian Mobs | Closest to mintable -- `border-curve.md`'s worked example already gives it a concrete shape (`"placement"` + `"difficulty"` curves); still waiting on Game Designer calls (which Border introduces them, old-territory signaling) that don't block minting the node itself |
-| Environmental Tells | Resolved -- own tick handler, own `"tell"`-purpose `BorderCurve` record, matching Guardian Mobs' shape without sharing it; see [discovery-systems.md § Environmental Tells](../frontiermode/architecture/discovery-systems.md#environmental-tells). No longer gated on that question -- scoping lane relative to Guardian Mobs/Tracker not reassessed since |
-| Beacons and Particle Trails | Blocked on the attunement game-rules pass -- plausibly needs its own `LevelScope`-hosted record |
-| Ender-eye-style Tracker | Deferred out of this design pass entirely, alongside Player-built Warps -- see [discovery-systems.md § Ender-eye-style Tracker](../frontiermode/architecture/discovery-systems.md#ender-eye-style-tracker). Not blocked on anything technical (still stateless, no attunement); just not next in line |
-| Special Compass | Confirmed distinct from Tracker (holds real attunement); blocked on the same attunement game-rules pass as Beacons |
-| Player-built Warps | Open whether it's boss-specific infrastructure at all, or reuses `TargetRef::RawPos` + attunement storage -- also unchecked against Satchel for an existing waypoint fixture |
+| Tool | Status | Node |
+|---|---|---|
+| Guardian Mobs | Open, ready for implementation | [RM_FRO_029](../../roadmap/RM_FRO_029_gloria.md) (Gloria, rank 23) |
+| Environmental Tells | Open, ready for implementation | [RM_FRO_030](../../roadmap/RM_FRO_030_janice.md) (Janice, rank 24) |
+| Beacons | Blocked on attunement game-rules pass | [RM_FRO_031](../../roadmap/RM_FRO_031_joan.md) (Joan, rank 25) |
+| Ender-eye-style Tracker | Deferred, no blockers | [RM_FRO_032](../../roadmap/RM_FRO_032_elizabeth.md) (Elizabeth, rank 26) |
+| Special Compass | Blocked on attunement game-rules pass | [RM_FRO_033](../../roadmap/RM_FRO_033_marilyn.md) (Marilyn, rank 27) |
+| Player-built Warps | Open, needs Satchel audit | [RM_FRO_034](../../roadmap/RM_FRO_034_virginia.md) (Virginia, rank 28) |
 
-**Decision: minting the shared-infrastructure row now, in order -- Navigator, then Border
-Curve, then Border Pregeneration.** Nothing else in this cluster can be scoped precisely until
-this trio exists as real code, not just a wiki proposal, so waiting on their own remaining open
-questions to fully close first would only stall the whole cluster behind them. Border
-Pregeneration mints with its Open Questions section still carrying real unresolved items (the
-missed-trigger watchdog, retry/reroll behavior, throttle budget) -- those ride on the node as
-known open items for Lead Dev to build around or flag back on, not gates on starting. Guardian
-Mobs is next after this trio, since it doesn't depend on the still-open attunement rules; Tells'
-own tick-handler/shared-curve question has since resolved too (see its row above), though its lane
-relative to Guardian Mobs hasn't been reassessed since that changed; Beacons and Compass last,
-gated on the project-owner/Game-Designer attunement pass named on both architecture pages. Tracker
-and Warps are deferred out of this design pass entirely (see their rows above) and sit outside this
-sequencing until picked back up. **The six discovery-gradient tools are not minted this round** --
-they still need their own scoping/naming pass once Navigator/Border Curve/Border Pregeneration
-exist as real code to scope precisely against, per the reasoning above.
+**Sequencing:** Guardian Mobs and Environmental Tells can proceed to implementation immediately (no
+blockers). Beacons and Compass are held pending the attunement game-rules pass. Tracker and Warps
+are deferred to a future round.
 
-**Proposed names are proposals, not reservations.** Nothing above is spent until a node is actually
-minted with `bhrm` -- writing "Dorothy" here doesn't burn it, only `bhrm new` does.
+**This staging plan is complete.** All six nodes are minted; the next phase is implementation as
+blockers clear.
+
+**Decision: all three infrastructure nodes completed; all six discovery-gradient nodes now minted.**
+Navigator, Border Curve, and Border Pregeneration are built and provide the code baseline for the
+six discovery tools. All six nodes are minted (2026-08-31) with appropriate status markers: Guardian
+Mobs and Environmental Tells are open and ready for implementation; Beacons and Compass are marked
+blocked pending the attunement game-rules pass; Tracker is deferred (no blockers, but lower priority);
+Warps is open but flagged for a quick Satchel audit before proceeding.
+
+This plan is complete. Further work is implementation of Guardian Mobs and Environmental Tells, and
+coordination with the Game Designer on the attunement pass that unblocks Beacons and Compass.
 
 ## Related pages
 
