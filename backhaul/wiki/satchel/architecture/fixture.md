@@ -7,7 +7,7 @@ summary: 'The fixture/facet package -- Satchel''s modder-facing unit of persiste
   state: lifecycle, field registration, save/load contract, isolation rules.'
 keywords: null
 status: verified
-updated: '2026-08-28'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -94,6 +94,168 @@ Lifecycle guarantees:
 * Fixtures must not create or remove other fixtures during lifecycle callbacks
 
 Fixtures should treat lifecycle methods as **state transitions**, not gameplay triggers.
+
+### Per-Fixture Lifecycle API Reference
+
+**Note:** These per-fixture-instance lifecycle overrides are distinct from foundation-level readiness
+checks documented in [Jig & Scope Runtime § Readiness](runtime.md#readiness-bound-to-a-side-vs-ready-to-use).
+A fixture's `isReady()` method is a separate contract from `LogicalFoundation.isReady()` and
+`Satchel.isReady()` — this section documents the fixture-level hooks only.
+
+#### `onCreated(SatchelBundle owner)`
+
+**Signature:** `protected void onCreated(SatchelBundle owner)`
+
+**When it fires:** After bundle construction, before `loadFromNBT()` and before any persisted data is
+hydrated. Fires once per fixture instance per bundle lifecycle.
+
+**State guarantees:**
+- The fixture is already attached to its bundle via `setBundle()`
+- All field registrations from the constructor are complete
+- No persisted data has been loaded yet — all fields hold their constructor-initialized values
+- The bundle's parent scope exists but is not yet in a fully-ready state
+
+**What it's for:**
+- Initialize transient runtime state that depends on bundle setup
+- Prepare caches or indices that will be populated during `onLoaded()`
+- Set up initial state for fixtures that need to coordinate with other fixtures in the same bundle
+- **Not** for gameplay effects, world mutations, or anything that depends on persisted data being
+  present
+
+**Example:** A fixture managing cooldowns might initialize its cooldown timer values to safe defaults
+in `onCreated()`, then restore persisted values in `onLoaded()`.
+
+**Important:** Do not read or rely on persisted field values in this method — they have not been
+loaded yet. Use `onLoaded()` for logic that depends on hydrated state.
+
+---
+
+#### `onLoaded(SatchelBundle owner)`
+
+**Signature:** `protected void onLoaded(SatchelBundle owner)`
+
+**When it fires:** After `loadFromNBT()` completes and all registered persistent fields are hydrated.
+Fires once per fixture instance per bundle lifecycle.
+
+**State guarantees:**
+- The fixture is already attached to its bundle
+- All registered persistent fields have been deserialized from NBT and hold their stored values
+- All other fixtures in the same bundle have also completed their `onLoaded()` callbacks
+- The bundle is entering its runtime phase and may begin handling events/ticks
+
+**What it's for:**
+- Post-load validation and consistency checks (e.g., verifying cross-fixture invariants)
+- Rebuilding transient indices or caches from the now-hydrated persisted data
+- Coordinating post-load state with other fixtures in the bundle
+- Emitting events or signals that downstream consumers might listen for
+- **Not** for immediate gameplay mutations — save those for tick or event handlers
+
+**Example:** A fixture managing a collection of tracked entities might rebuild its lookup indices
+in `onLoaded()` after the stored entity set is deserialized.
+
+**Important:** This is your primary opportunity to act on persisted state. Use it for any logic that
+requires hydrated fields to be present and consistent.
+
+---
+
+#### `onRemoved(SatchelBundle owner)`
+
+**Signature:** `protected void onRemoved(SatchelBundle owner)`
+
+**When it fires:** When a fixture is being discarded — typically when its parent bundle is being
+unloaded or the scope it belongs to is being removed. Fires exactly once per fixture instance per
+bundle lifecycle.
+
+**State guarantees:**
+- The fixture is still attached to its bundle
+- All other fixtures in the same bundle have not yet been removed (or have been, but in a
+  deterministic order driven by bundle teardown)
+- The bundle is transitioning out of its runtime phase
+- Persisted state is stable and available if needed
+
+**What it's for:**
+- Cleanup of external resources (file handles, network connections, subscriptions)
+- Clearing or resetting transient state before the fixture is discarded
+- Removing event listeners or unregistering callbacks
+- **Not** for saving data — persisted state is handled by the bundle's own save cycle, not by
+  individual fixture cleanup
+
+**Example:** A fixture that registered listeners on a global event bus should unregister them in
+`onRemoved()` to prevent stale listeners from persisting.
+
+**Important:** Do not attempt to mutate bundle state or create new fixtures during this callback.
+Use it to clean up only the fixture's own resources.
+
+---
+
+#### `onJigTick(SatchelBundle owner)`
+
+**Signature:** `protected void onJigTick(SatchelBundle owner)`
+
+**When it fires:** Once per tick, every server/client tick (depending on the jig configuration),
+after the jig's scope has been loaded and is in the `LOADED` phase. Does not fire during the
+`NEW` phase (before the scope converges to ready).
+
+**State guarantees:**
+- The fixture is already loaded (all persisted fields are hydrated)
+- The bundle's scope is in `LOADED` phase and actively participating in ticks
+- Other fixtures in the same bundle are also ticking (in a deterministic order)
+- Persisted state is consistent and can be safely read
+
+**What it's for:**
+- Periodic updates: decrementing counters, incrementing timers, aging stale entries
+- Checking conditions that drive gameplay effects (e.g., "is this timer expired?")
+- Broadcasting state changes via dirty-marking (`bundle.markDirty()`) for persistence/sync
+- Iterating over collections and applying time-dependent logic
+- **Not** for initial state setup — use `onLoaded()` for that
+
+**Example:** A cooldown fixture might decrement active cooldown timers in `onJigTick()` and fire a
+game event when a cooldown reaches zero.
+
+**Important:** This method fires every tick. Keep it fast. If you need to check a condition less
+frequently, implement your own throttling (e.g., check a counter and only act every N ticks).
+
+---
+
+#### `boolean isReady()`
+
+**Signature:** `protected boolean isReady()`
+
+**When it's called:** Repeatedly, at the discretion of the bundle or consuming code. This is not a
+lifecycle callback fired at a deterministic time — it's a *query method* that external code calls
+to ask if the fixture considers itself ready to use.
+
+**What it returns:**
+- `true` if the fixture is in a state where downstream consumers can safely read its data and
+  expect consistent, validated results
+- `false` if the fixture is in a transitional state (e.g., waiting for external data, performing
+  asynchronous validation) where consumers should defer their queries
+
+**State guarantees when returning `true`:**
+- The fixture has been loaded (`onLoaded()` has fired)
+- Persisted data is hydrated and validated
+- Any dependent state has been initialized
+- Downstream code can safely depend on the fixture's current state
+
+**What it's for:**
+- Allowing fixtures to signal "not ready yet" to consumers without raising an exception
+- Deferring dependent logic (e.g., "I can't tell you the result yet, check back later")
+- Coordinating readiness across multiple fixtures (fixture A might return `false` until fixture B
+  returns `true`)
+- Throttling or rate-limiting dependent logic
+
+**Important distinction:** This is *not* the same as `LogicalFoundation.isReady()` or
+`Satchel.isReady()`, which track whether the foundation and its scopes are initialized at the
+JVM/game level. A fixture-level `isReady()` is a per-fixture-instance readiness check, independent
+of foundation-level readiness.
+
+**Example:** A fixture managing a border's pregeneration might return `false` from `isReady()` until
+the disk generation is complete, allowing Boss code to poll this query and defer placement until
+generation finishes (see [Border Pregeneration](../../frontiermode/architecture/border-pregeneration.md)
+for a real use case).
+
+**Default implementation:** The base `SatchelFixture` provides a default `isReady()` that returns
+`true`. Override only if your fixture has a meaningful "not ready yet" state.
 
 ### Persistent Field Registration
 
