@@ -111,13 +111,29 @@ public final class BossFixture extends SatchelFixture {
     }
 
     /**
-     * Records with {@code alive: true} and {@code bossEntityId == null} -- not yet materialized.
-     * {@code BOSS_JIG}'s own tick walks this every cycle (see {@code boss.md}'s "Three questions,
-     * three different mechanisms").
+     * Records with {@code alive: true}, a finalized (non-null) {@code position}, and
+     * {@code bossEntityId == null} -- positioned but not yet materialized. {@code BOSS_JIG}'s own
+     * tick walks this every cycle (see {@code boss.md}'s "Three questions, three different
+     * mechanisms"). Border Pregeneration added the {@link BossRecord#positioned()} requirement --
+     * a record with no finalized position yet has nothing this method's caller could act on
+     * (see {@link #unpositioned()}, the earlier stage a record passes through first).
      */
     public List<BossRecord> unmaterialized() {
         return bosses.stream()
-                .filter(r -> r.alive() && !r.materialized())
+                .filter(r -> r.alive() && r.positioned() && !r.materialized())
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    /**
+     * Records with {@code alive: true} and no finalized {@code position} yet -- Border
+     * Pregeneration's own new stage, ahead of materialization. {@code BOSS_JIG}'s own tick walks
+     * this every cycle, no-opping on any record whose home border isn't
+     * {@code BorderAPI.isPregenReady()} yet, per boss.md's "Three questions, three different
+     * mechanisms" section.
+     */
+    public List<BossRecord> unpositioned() {
+        return bosses.stream()
+                .filter(r -> r.alive() && !r.positioned())
                 .collect(Collectors.toUnmodifiableList());
     }
 
@@ -139,10 +155,10 @@ public final class BossFixture extends SatchelFixture {
     // ------------------------------------------------------------------
 
     /**
-     * Creates a new, unmaterialized boss record -- the direct call paired at a real
+     * Creates a new, unpositioned boss record -- the direct call paired at a real
      * border-creation call site (see {@code boss.md}'s "Defeat detection and the border-growth
-     * gap"). {@code position}'s Y is a placeholder until materialization resolves real ground
-     * height; see {@link BossRecord}'s own docs.
+     * gap"). {@code position} starts null; see {@link BossRecord}'s own docs and
+     * {@link #finalizePosition} for how it's set.
      *
      * <p><b>FRO_058:</b> rejects {@code layer < 0}, mirroring
      * {@code BordersCrudFacet.failureReason()}'s identical check on {@code layerIndex} -- see
@@ -151,18 +167,20 @@ public final class BossFixture extends SatchelFixture {
      * throwing, matching the {@code Optional}/{@code boolean} idiom already used elsewhere on
      * this fixture.
      */
-    public Optional<BossRecord> create(BlockPos position, int layer) {
+    public Optional<BossRecord> create(int layer) {
         requireServerSide();
-        Objects.requireNonNull(position, "position");
 
         if (layer < 0) {
-            OUT.warn("[Boss] create(): rejected -- negative layer " + layer + " at " + position + ".");
+            OUT.warn("[Boss] create(): rejected -- negative layer " + layer + ".");
             return Optional.empty();
         }
 
+        // Border Pregeneration: position starts unset -- BOSS_JIG's own tick finalizes it once
+        // BorderAPI.isPregenReady() passes for this record's home border. See boss.md's "Three
+        // questions, three different mechanisms" section.
         BossRecord record = new BossRecord(
                 UUID.randomUUID(),
-                position,
+                null,
                 layer,
                 null,
                 true
@@ -174,11 +192,42 @@ public final class BossFixture extends SatchelFixture {
     }
 
     /**
+     * Finalizes an unpositioned record's {@code position} -- Border Pregeneration's own new
+     * mutation, called only once {@code BorderAPI.isPregenReady()} has passed for the record's
+     * home border. Rejects a record that already has a finalized position (defensive, mirroring
+     * {@link #materialize}'s identical guard) -- returns {@code false} rather than silently
+     * overwriting a committed position.
+     */
+    public boolean finalizePosition(UUID bossId, BlockPos resolvedPosition) {
+        requireServerSide();
+        Objects.requireNonNull(resolvedPosition, "resolvedPosition");
+
+        Optional<BossRecord> existing = get(bossId);
+        if (existing.isEmpty()) {
+            OUT.warn("[Boss] finalizePosition(): no record for bossId=" + bossId + " -- ignoring.");
+            return false;
+        }
+
+        BossRecord record = existing.get();
+        if (record.positioned()) {
+            OUT.warn("[Boss] finalizePosition(): bossId=" + bossId + " already has a finalized"
+                    + " position (" + record.position() + ") -- ignoring.");
+            return false;
+        }
+
+        BossRecord updated = record.finalizedAt(resolvedPosition);
+        bosses.removeIf(r -> r.bossId().equals(bossId));
+        bosses.add(updated);
+        markDirty();
+        return true;
+    }
+
+    /**
      * Records materialization: the vanilla mob has been spawned at a resolved ground position and
      * tagged via {@code MobScope.getFor(mob)}. Replaces the record in place (records are
      * immutable) -- same remove-then-add-back shape {@code BordersFixture.reassignLayers} uses.
      */
-    public boolean materialize(UUID bossId, BlockPos resolvedPosition, UUID entityId) {
+    public boolean materialize(UUID bossId, UUID entityId) {
         requireServerSide();
 
         Optional<BossRecord> existing = get(bossId);
@@ -198,7 +247,10 @@ public final class BossFixture extends SatchelFixture {
             return false;
         }
 
-        BossRecord updated = record.materializedAt(resolvedPosition, entityId);
+        // Border Pregeneration: position was already finalized (and validated) by
+        // finalizePosition() before this is ever called -- nothing left to resolve about where
+        // the boss stands, only that its entity now exists.
+        BossRecord updated = record.materializedAt(entityId);
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         markDirty();

@@ -7,7 +7,7 @@ summary: The clue gradient players use to find bosses, from ambient guardian mob
   to expensive tracking tools, plus loot design.
 keywords: null
 status: draft
-updated: '2026-08-18'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -31,7 +31,12 @@ walls" pillar rather than a single fixed method that either works or doesn't.
 
 ## The discovery gradient
 
-Roughly ordered from cheapest/most-ambient to rarest/most-deliberate:
+Roughly ordered from cheapest/most-ambient to rarest/most-deliberate. Guardian mobs,
+environmental tells, and beacons/trails are the tools [Boss Discovery
+Systems](../architecture/discovery-systems.md) (this page's architecture counterpart) builds out
+for Tier 2; the ender-eye-style tracker and player-built warps are sequenced later rather than cut
+from scope, with warps in particular pushed out to a later epoch. All six stay listed below so
+this reads as the full intended gradient.
 
 - **Guardian mobs** — stronger, visually distinct hostile variants that cluster more densely near
   a boss. Always available, no cost, requires no special item — just paying attention to mob
@@ -42,14 +47,17 @@ Roughly ordered from cheapest/most-ambient to rarest/most-deliberate:
   presence. Still ambient, slightly more specific than guardian density alone.
 - **Beacons and particle trails** — a visible, findable signal placed near (not on top of) a
   boss, cheap enough to be a reasonable early-game aid.
-- **Ender-eye-style tracking** — an item the player throws or consumes that points toward the
-  boss, modeled on the ender eye's role in locating strongholds: costs resources to use, gives a
-  strong directional signal.
+- **Ender-eye-style tracking** *(sequenced later, see above)* — an item the player
+  throws or consumes that points toward the boss, modeled on the ender eye's role in locating
+  strongholds: costs resources to use, gives a strong directional signal.
 - **Special compasses** — a craftable/obtainable item giving persistent directional tracking,
-  presumably more expensive than a one-shot ender-eye-style item since it's reusable.
-- **Player-built warps** — once a boss's general location is known, the player can build a
-  waypoint there, so a hunt that gets interrupted (or a boss that's found but not yet ready to
-  fight) doesn't mean re-walking the whole distance from scratch.
+  presumably more expensive than a one-shot ender-eye-style item since it's reusable. Genuinely
+  different from the tracker above, not the same tool with a different shell — it holds a real,
+  persistent attunement rather than firing once and forgetting.
+- **Player-built warps** *(sequenced later, see above)* — once a boss's general
+  location is known, the player can build a waypoint there, so a hunt that gets interrupted (or a
+  boss that's found but not yet ready to fight) doesn't mean re-walking the whole distance from
+  scratch.
 
 Cost and rarity should climb as the tools get more precise — a deliberate design choice so that
 "finding harder bosses gets harder" (the pacing goal from [Progression & Frontier
@@ -65,9 +73,16 @@ One direction worth developing further: different boss types could have differen
 signatures — a player who learns to read the tells can identify what boss is nearby before
 engaging it, or a player can skip that entirely and just risk the guardian gauntlet blind. This
 would give the discovery gradient above a second axis (precision of *information*, not just
-distance) but the details are genuinely undecided. **Current placeholder:** in testing, a
-server-op-only compass simply points straight at the boss — this is a debug/testing stand-in, not
-a proposed player-facing mechanic, and should not be treated as part of the design.
+distance) but the details are genuinely undecided.
+
+The current placeholder — a server-op-only compass that simply points straight at the
+boss — is a debug/testing stand-in, not a proposed player-facing mechanic. [Boss Discovery
+Systems § Special Compass](../architecture/discovery-systems.md#special-compass) proposes folding
+that existing op tool (`BorderPathCompass`) into a real, self-refreshing player item that unifies
+path-tip-pointing and boss-pointing under one class — but that's still today's flat "points
+straight at the boss" behavior, not the tiered, tell-based boss-variety system described above.
+This section's actual open question (different boss types having different discoverable
+signatures) remains unresolved and is still mine to design.
 
 ## Reward loot
 
@@ -84,3 +99,8 @@ loot specifically.
 - [Guardian Mobs](guardian-mobs.md)
 - [Border Vocabulary](../architecture/border-vocabulary.md) — why "Border" replaces "level" here
   as the mechanic term.
+- [Boss Discovery Systems](../architecture/discovery-systems.md) — the architecture counterpart to
+  this entire page: data model and build sequencing for every tool in the gradient above.
+- [Border Pregeneration](../architecture/border-pregeneration.md) — closes an accidental discovery
+  signal this page's "Design intent" section didn't anticipate (differential chunk-load hitching)
+  before it could ever undermine the designed gradient above.

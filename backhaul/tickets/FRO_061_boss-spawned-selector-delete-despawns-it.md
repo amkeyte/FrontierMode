@@ -21,7 +21,7 @@ closed: null
 
 ## Summary
 
-Project owner's line item. **Not yet triaged or scoped.**
+Project owner's line item.
 
 `/boss delete` should despawn its mob, not leave it orphaned. Resolves a gap already on
 record, not a new finding: [boss.md](../wiki/frontiermode/architecture/boss.md)'s

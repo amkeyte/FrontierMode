@@ -87,7 +87,7 @@ public final class BossSelector {
     public static List<BossRecord> resolve(BossSelectorResult sel, ServerPlayer player)
             throws CommandSyntaxException {
 
-        List<BossRecord> all = BossAPI.boss(player.serverLevel())
+        List<BossRecord> all = BossAPI.bosses(player.serverLevel())
                 .map(BossFixture::all)
                 .orElseGet(List::of);
 

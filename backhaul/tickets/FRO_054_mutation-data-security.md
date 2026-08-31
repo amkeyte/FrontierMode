@@ -5,8 +5,8 @@ number: 54
 client: FrontierMode
 status: open
 title: 'Data security pass: mutation proposals'
-context: 'Polish/audit: BorderProposal, applyProposal, etc. for defensive hardening
-  -- not yet triaged or scoped.'
+context: '[Susan_02] Polish/audit: BorderProposal, applyProposal, etc. for defensive
+  hardening -- findings split into FRO_058/FRO_059, stays open as umbrella record.'
 priority: low
 opened: '2026-08-28'
 closed: null
@@ -25,12 +25,13 @@ existing radius/layer bounds check, what a caller could hand a proposal that sho
 possible, whether anything reachable from a client-issued command can shape a proposal in a way
 server-side validation doesn't catch).
 
-**Not yet triaged or scoped** -- this ticket exists to hold the concern on the board so it isn't
-lost, same as [FRO_048](FRO_048_pathgrow-no-boss.md)/[FRO_051](FRO_051_border-load-count-mismatch.md)
-sitting on the same container. Low priority: general polish, not a known live vulnerability or a
-blocker for [RM_FRO_019](../roadmap/RM_FRO_019_karen.md) ("Karen"). Scoping (what "data security"
-concretely means here, which classes/methods are actually in play) is Architect's call whenever
-this gets picked up.
+**Triaged** -- Lead Dev's read-only QA pass (see Log) found concrete issues, split out to
+[FRO_058](FRO_058_boss-mutation-validation-reconciliation.md) and
+[FRO_059](FRO_059_border-proposal-center-bounds-id-display.md) (both closed). This ticket stays
+open as the umbrella audit record rather than closing, since the QA pass's own scoping
+recommendation below (a lighter Boss-side validation function) hasn't been picked up as its own
+ticket yet. Low priority: general polish, not a known live vulnerability or a blocker for
+[RM_FRO_019](../roadmap/RM_FRO_019_karen.md) ("Karen").
 
 ## Log
 

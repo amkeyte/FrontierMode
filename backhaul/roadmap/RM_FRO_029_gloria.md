@@ -5,7 +5,7 @@ number: 29
 kind: work
 status: open
 title: Guardian Mobs epoch 1
-owner: null
+owner: Arryn
 depends_on:
 - RM_FRO_026
 - RM_FRO_027

@@ -5,17 +5,17 @@ number: 59
 client: FrontierMode
 status: done
 title: 'Border proposal: center bounds + id/displayName guard'
-context: FRO_054's data-security QA pass found BordersCrudFacet.failureReason() validates
-  radius (BorderConstants bounds) and layerIndex (non-negative) but never checks center
-  at all. Also found BorderProposal's public id()/displayName() setters are unvalidated
-  -- a caller building a raw proposal directly (bypassing BorderAPI.addBorder/transformBorder,
-  neither of which touch either field) could set id() to an existing border's UUID
-  and silently replace it via BordersFixture.accept()'s remove-then-add, or set an
+context: '[Susan_02] FRO_054''s data-security QA pass found BordersCrudFacet.failureReason()
+  validates radius (BorderConstants bounds) and layerIndex (non-negative) but never
+  checks center at all. Also found BorderProposal''s public id()/displayName() setters
+  are unvalidated -- a caller building a raw proposal directly (bypassing BorderAPI.addBorder/transformBorder,
+  neither of which touch either field) could set id() to an existing border''s UUID
+  and silently replace it via BordersFixture.accept()''s remove-then-add, or set an
   unbounded displayName. No current call site does this -- latent, not live -- but
-  BorderAPI's own doc states any caller can build and apply its own proposal directly
-  for cases the named operations don't cover, so the surface is real. Architect to
+  BorderAPI''s own doc states any caller can build and apply its own proposal directly
+  for cases the named operations don''t cover, so the surface is real. Architect to
   decide the intended id()/displayName() contract (reject a colliding id vs. document
-  it as an intentional replace path) before Lead Dev adds the guard.
+  it as an intentional replace path) before Lead Dev adds the guard.'
 priority: low
 opened: '2026-08-29'
 closed: '2026-08-29'

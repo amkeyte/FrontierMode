@@ -7,7 +7,7 @@ summary: 'How the frontier expands: cylinder growth, re-centering, irregular sha
   and the oldest-ring-wins overlap rule.'
 keywords: null
 status: draft
-updated: '2026-08-18'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -24,9 +24,8 @@ on, especially "gradients, not walls."*
 [Border Vocabulary](../architecture/border-vocabulary.md) retires "level" from internal
 architecture language — a Border has a Layer (a sort key), a position in the Path (progression
 order), and a Difficulty (a separate question from either) — because conflating those already
-caused real ambiguity once code needed to be precise about which one a value meant. **Ruling
-(design call, 2026-08-18; tightened 2026-08-18): "level" is strictly a player-facing term.** It
-names what a player is told or sees — "level 1," "level 2," and so on — and nothing else. Every
+caused real ambiguity once code needed to be precise about which one a value meant.
+**"Level" is strictly a player-facing term.** It names what a player is told or sees — "level 1," "level 2," and so on — and nothing else. Every
 Frontier Mode design page, this one included, says **Border** when describing the underlying
 mechanic (a Border is what a player experiences as one level), and **Path**, **Layer**, or
 **Difficulty** specifically when one of those narrower concepts is what's actually meant — the
@@ -53,8 +52,13 @@ find, fight, expand) gets established with no real risk.
 3. The playable area expands: a new, larger **Border** is created, **centered on the defeated
    boss's home block** — not on the original spawn point — with a larger radius (the next Border,
    level 2 to the player, is radius 30; later Borders continue to grow).
-4. A new boss for the new Border spawns at a random coordinate somewhere within its area. Normal
-   mobs and bosses both get harder with each new Border.
+4. A new boss for the new Border spawns somewhere within its area — architecture has since refined
+   "random coordinate" into terrain-validated placement (scored among several randomly sampled
+   candidates rather than one blind guess; see [Border
+   Pregeneration](../architecture/border-pregeneration.md)), but the design intent is unchanged:
+   the player doesn't know where. Bosses get harder with each new Border; **normal ambient mob
+   difficulty scaling with Border age is asserted here but has no architecture consumer wired to it
+   yet** — see this page's Related pages note on that gap.
 5. Repeat indefinitely.
 
 ## Why the frontier is irregular
@@ -106,14 +110,17 @@ intentional (target audience is PG; a player who wants zero chance of this can p
 it needs a fairness counterweight so it reads as risk/opportunity rather than an unfair,
 untelegraphed ambush:
 
-**Trigger condition, formalized (2026-08-18):** [Border Vocabulary](../architecture/border-vocabulary.md#difficulty)
-draws a real architecture distinction that gives this item a concrete, checkable condition instead
-of a vague "significantly exceeds" feeling — ambient difficulty at a point and a boss's own
-difficulty are two different lookups (`Point → Relevant Border → Difficulty` vs. `Boss's own home
-Border → Difficulty`) that are allowed to disagree by design; that disagreement *is* this rule. The
-fairness signal should fire whenever `difficultyOf(bossHomeBorder) > difficultyOf(getRelevant(bossSpawnPos))`
-— i.e., whenever the boss's own difficulty outranks whatever's ambient at the point it actually
-spawned. That resolves *when* the signal should fire.
+**Trigger condition:** [Border
+Vocabulary](../architecture/border-vocabulary.md#difficulty) draws a real architecture distinction
+that gives this item a concrete, checkable condition instead of a vague "significantly exceeds"
+feeling — ambient difficulty at a point and a boss's own difficulty are two different lookups
+(`Point → Relevant Border → Difficulty` vs. `Boss's own home Border → Difficulty`) that are
+allowed to disagree by design; that disagreement *is* this rule. [Difficulty](../architecture/difficulty.md#the-fairness-signal-formula-now-implementable)
+supplies the two concrete `BorderRules` methods this composes from
+(`layerToDifficulty`, `ambientDifficultyAt`) — the fairness signal fires whenever
+`layerToDifficulty(bossFixture.layer) > layerToDifficulty(relevantLayerAtBossSpawnPos)`, evaluated
+at the boss's own spawn position, not wherever the player happens to be standing. That resolves
+*when* the signal should fire.
 
 **Still open — the signal itself:** something should communicate that mismatch to a nearby player
 before they commit to engaging — the working idea is some kind of drop or marker at the boss's
@@ -123,7 +130,10 @@ to home) and good news (a nearby, findable challenge, no long trek to the fronti
 required) — which
 offsets the risk somewhat. Per the "gradients, not walls" pillar, this signal should be diegetic
 (in-world — particle, sound, a physical marker) rather than a HUD/UI element. Exact mechanic is
-still **TBD** — the trigger condition is settled, the presentation isn't.
+still **TBD** — the trigger condition is settled, the presentation isn't, and neither is what
+counts as "significantly" exceeds (a flat threshold, a ratio, something else) — both explicitly
+left to Game Designer/playtest by [Difficulty](../architecture/difficulty.md#the-fairness-signal-formula-now-implementable),
+not resolved here yet.
 
 ## Resource and reward density
 
@@ -149,3 +159,11 @@ locked — this is a play-testing question, not something to spec from first pri
   of.
 - [Boss](../architecture/boss.md) — Tier 1's implementation design, already building against this
   page's core loop and "level 1 is a rabbit" starting condition.
+- [Difficulty](../architecture/difficulty.md) — the concrete `BorderRules` methods
+  (`layerToDifficulty`, `ambientDifficultyAt`) the fairness-signal trigger condition above
+  composes from. This page defines the difficulty *value* a Border/boss carries; no architecture
+  page yet describes a consumer applying it to ordinary (non-boss) mob toughness — "normal mobs
+  get harder with each new Border" above is asserted by design intent alone, not wired to any
+  implementation or named in any operational tier.
+- [Border Pregeneration](../architecture/border-pregeneration.md) — why "random coordinate" in
+  step 4 above is now terrain-validated placement, not a blind guess.

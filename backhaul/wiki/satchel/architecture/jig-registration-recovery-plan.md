@@ -46,7 +46,7 @@ config classes alone, only surfaced once persistence was exercised for real. Fil
 finding: [SAT_012](../../../tickets/SAT_012_trackingmodule-missing-persistence-capab.md) tracks the
 same gotcha for `TrackingModule`, still open.
 
-## Update (2026-08-13): a real compile changes the priority order
+## A real compile changes the priority order
 
 A real `gradlew build` (Java 17) against Satchel alone — see
 [Jig & Strap Registration](jig-registration-break.md#confirmed-by-a-real-compile-2026-08-13) —

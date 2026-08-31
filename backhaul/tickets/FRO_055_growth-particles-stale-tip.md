@@ -5,7 +5,7 @@ number: 55
 client: FrontierMode
 status: open
 title: Growth-trigger particles don't follow new boss loc
-context: 'Playtest (owner): after a boss defeat grows the border, GrowthTriggerRenderer''s
+context: '[Susan_02] Playtest (owner): after a boss defeat grows the border, GrowthTriggerRenderer''s
   particles stay at the previous location instead of the new tip.'
 priority: normal
 opened: '2026-08-28'

@@ -3,10 +3,10 @@ id: SAT_043
 uid: SAT
 number: 43
 client: Satchel
-status: resolved
+status: done
 title: Document SatchelFixture per-fixture lifecycle API
-context: RM_SAT_024 (Raymond epoch maintenance 1) -- FrontierMode design pass surfaced documentation
-  gap in extensible overload system.
+context: '[Raymond_01] RM_SAT_024 (Raymond epoch maintenance 1) -- FrontierMode design
+  pass surfaced documentation gap in extensible overload system.'
 priority: high
 opened: '2026-08-31'
 closed: '2026-08-31'

@@ -3,6 +3,8 @@ package com.arryn.frontiermode.border.common.bundle;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
+import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
@@ -27,5 +29,13 @@ public final class BordersBundle extends SatchelBundle {
 
     public Optional<NavigatorFixture> navigator() {
         return get(FrontierKeys.NAVIGATOR);
+    }
+
+    public Optional<BorderCurveFixture> curve() {
+        return get(FrontierKeys.CURVE);
+    }
+
+    public Optional<BorderPregenFixture> pregen() {
+        return get(FrontierKeys.PREGEN);
     }
 }

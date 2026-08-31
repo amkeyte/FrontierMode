@@ -3,9 +3,9 @@ id: RM_FRO_033
 uid: RM_FRO
 number: 33
 kind: work
-status: blocked
+status: open
 title: Special Compass epoch 1
-owner: null
+owner: Arryn
 depends_on:
 - RM_FRO_026
 - RM_FRO_027

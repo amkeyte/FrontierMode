@@ -3,9 +3,9 @@ id: RM_FRO_032
 uid: RM_FRO
 number: 32
 kind: work
-status: deferred
+status: open
 title: Ender-eye-style Tracker epoch 1
-owner: null
+owner: Arryn
 depends_on:
 - RM_FRO_026
 - RM_FRO_027

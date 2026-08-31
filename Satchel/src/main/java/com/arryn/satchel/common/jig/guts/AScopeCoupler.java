@@ -98,10 +98,15 @@ public abstract class AScopeCoupler implements ScopeCoupler {
 
         requireReady(info, key);
 
+        // BundleNotFound here is the expected, routine signal for "no bundle yet, fall through
+        // and create one" -- true for every scope's first-ever getOrCreate() call (a freshly
+        // spawned mob, a freshly loaded level, ...), not an anomaly. Used to log at WARN as dev-
+        // tracking while this fallback path was being built; confirmed correct and removed now
+        // that it's just noise on every single new scope, forever, for the life of the world.
         try {
             return get(info, key);
         } catch (SatchelException.BundleNotFound ignored) {
-            OUT.warn("BundleNotFound ignored; falling through to create");
+            // fall through to create below
         }
 
 

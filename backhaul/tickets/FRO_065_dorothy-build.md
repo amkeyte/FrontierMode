@@ -3,13 +3,13 @@ id: FRO_065
 uid: FRO
 number: 65
 client: FrontierMode
-status: open
+status: done
 title: Build Navigator per RM_FRO_026
 context: 'Time-critical: start ASAP. Build against RM_FRO_026 (Dorothy) / discovery-systems.md
   spec.'
 priority: high
 opened: '2026-08-31'
-closed: null
+closed: '2026-08-31'
 ---
 
 <!-- board:start -->

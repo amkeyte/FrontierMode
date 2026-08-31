@@ -7,7 +7,7 @@ summary: Stronger, visually distinct hostile mob variants that cluster near boss
   as a passive discovery aid and tension ramp.
 keywords: null
 status: draft
-updated: '2026-08-18'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -51,6 +51,11 @@ same responsibility the starting Border would have had — that Border needs to 
 heuristic the first time it's relevant, rather than encountering subtlety before the underlying
 rule was ever taught.
 
+[Boss Discovery Systems](../architecture/discovery-systems.md#guardian-mobs), the
+architecture counterpart to this page, has `BossGuardiansFixture` and its placement/difficulty
+curves built out already, and names this as one of two open questions still owed to Game
+Designer. An actual Border number (or a rule for picking one) is needed here, not just "later."
+
 ## Open question: guardians in old territory
 
 [Progression & Frontier Mechanics](progression.md#bosses-can-appear-in-old-territory) flags an
@@ -59,7 +64,9 @@ overlap rule), something needs to signal that danger, ideally in-world rather th
 mobs appearing somewhere they normally wouldn't (an old, low-difficulty Border — a safe pocket to
 the player — suddenly showing tougher, visually distinct mobs) is a plausible candidate for part
 of that signal — noted here as a possible answer, not a locked one. Needs to be resolved alongside
-the rest of that open item.
+the rest of that open item. [Boss Discovery Systems § Guardian
+Mobs](../architecture/discovery-systems.md#guardian-mobs) names this as the second of the two
+questions still owed to Game Designer, alongside the introduction-Border question above.
 
 ## Related pages
 
@@ -68,3 +75,7 @@ the rest of that open item.
 - [Frontier Mode Overview](overview.md)
 - [Border Vocabulary](../architecture/border-vocabulary.md) — why "Border" replaces "level" here
   as the mechanic term.
+- [Boss Discovery Systems](../architecture/discovery-systems.md) — `BossGuardiansFixture`'s data
+  model and spawn-time mechanism; names both open questions on this page as owed to Game Designer.
+- [Border Curve](../architecture/border-curve.md) — the placement/difficulty intensity curves this
+  mob's spawn rate and stat scaling read from.

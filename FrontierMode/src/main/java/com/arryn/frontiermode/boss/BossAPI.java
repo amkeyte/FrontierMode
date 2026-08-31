@@ -6,8 +6,6 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.boss.server.rules.BossRules;
-import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -28,20 +26,18 @@ public final class BossAPI {
     private BossAPI() {
     }
 
-    private static final BossRules RULES = new DefaultBossRules();
-
     private static LogicalFoundation foundation() {
         return Satchel.require();
     }
 
-    public static LevelJig levelJig() {
+    private static LevelJig levelJig() {
         return (LevelJig)
                 foundation().requireJigInfo(FrontierKeys.BOSS_JIG).jig;
     }
 
-    public static Optional<BossFixture> boss(Level level) {
+    public static Optional<BossFixture> bosses(Level level) {
         if (!Satchel.isReady()) {
-            OUT.debug("[BossAPI] boss(): Satchel not ready yet -> Optional.empty level="
+            OUT.debug("[BossAPI] bosses(): Satchel not ready yet -> Optional.empty level="
                     + level.dimension().location());
             return Optional.empty();
         }
@@ -50,14 +46,14 @@ public final class BossAPI {
 
         var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BOSS_JIG, scope);
         if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] boss(): scope not yet known -> Optional.empty level="
+            OUT.debug("[BossAPI] bosses(): scope not yet known -> Optional.empty level="
                     + level.dimension().location());
             return Optional.empty();
         }
 
         var info = infoOpt.get();
         if (!info.isReady()) {
-            OUT.debug("[BossAPI] boss(): scope NOT ready -> Optional.empty level="
+            OUT.debug("[BossAPI] bosses(): scope NOT ready -> Optional.empty level="
                     + level.dimension().location() + " phase=" + info.phase());
             return Optional.empty();
         }
@@ -73,24 +69,26 @@ public final class BossAPI {
     }
 
     /**
-     * Creates a new, unmaterialized boss record for {@code border} -- the direct call paired at a
+     * Creates a new, unpositioned boss record for {@code border} -- the direct call paired at a
      * real border-creation call site (see boss.md's "Defeat detection and the border-growth gap").
-     * Position is picked here (via {@link BossRules#choosePosition}), immediately, with no
-     * chunk-loaded check -- {@code layer} is copied once from {@code border.layer()} and never
-     * re-read from {@code border} afterward.
+     * Border Pregeneration moved position selection off this call entirely: the record starts
+     * with a null position, and {@code BossModule}'s own tick finalizes a real one only once
+     * {@code BorderAPI.isPregenReady()} passes for {@code border} -- see
+     * wiki/frontiermode/architecture/border-pregeneration.md#what-this-changes-in-boss.
+     * {@code layer} is copied once from {@code border.layer()} and never re-read from
+     * {@code border} afterward.
      */
     public static Optional<BossRecord> createBoss(Level level, Border border) {
-        Optional<BossFixture> fixtureOpt = boss(level);
+        Optional<BossFixture> fixtureOpt = bosses(level);
         if (fixtureOpt.isEmpty()) {
             OUT.warn("[Boss] createBoss(): BossFixture not available for level "
                     + level.dimension().location() + " -- border " + border.id() + " gets no boss record.");
             return Optional.empty();
         }
 
-        var position = RULES.choosePosition(level, border);
         // FRO_058: BossFixture.create() now returns Optional<BossRecord> itself (empty on a
         // rejected negative layer) -- no wrapping needed here anymore.
-        return fixtureOpt.get().create(position, border.layer());
+        return fixtureOpt.get().create(border.layer());
     }
 
     /**
@@ -126,7 +124,7 @@ public final class BossAPI {
      *         {@code BossFixture} for the newly-grown border -- see its own warn log in that case.
      */
     public static DefeatOutcome forceDefeat(Level level, UUID bossId) {
-        Optional<BossFixture> fixtureOpt = boss(level);
+        Optional<BossFixture> fixtureOpt = bosses(level);
         if (fixtureOpt.isEmpty()) {
             return new DefeatOutcome(
                     Result.notReady("BossFixture not available for level "
@@ -141,6 +139,18 @@ public final class BossAPI {
                     Result.notFound("No boss record for id " + bossId), Optional.empty());
         }
         BossRecord record = recordOpt.get();
+
+        // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see
+        // BossRecord's own doc) -- grow() needs a real center to place the next border around, so
+        // a still-pending record can't be force-defeated yet. Checked before markDefeated() so a
+        // rejected call leaves the record untouched rather than defeated with no border grown.
+        if (!record.positioned()) {
+            return new DefeatOutcome(
+                    Result.validationRejected("Boss " + bossId
+                            + " has no finalized position yet (home border still pregenerating)"
+                            + " -- cannot force-defeat."),
+                    Optional.empty());
+        }
 
         // FRO_058: markDefeated() now guards against an already-defeated record itself, returning
         // false rather than mutating -- check it before running the grow/createBoss cascade.
@@ -163,6 +173,7 @@ public final class BossAPI {
         }
 
         Optional<BossRecord> nextBoss = createBoss(level, result.border());
+        BorderAPI.startPregeneration(level, result.border().id());
         return new DefeatOutcome(result, nextBoss);
     }
 }

@@ -4,7 +4,6 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.Level;
 
 import java.util.Optional;
 
@@ -13,27 +12,51 @@ import java.util.Optional;
  * materialization -- mirroring {@code BorderRules}/{@code DefaultBorderRules}' existing
  * "safe baseline, replace later" shape. See wiki/frontiermode/architecture/boss.md's "Spawn
  * algorithm" section: these are not one fused loop.
+ *
+ * <p><b>Position, revised by Border Pregeneration:</b> no longer commits the instant a
+ * {@code BossFixture} record is created -- {@link #choosePosition} is only ever called once
+ * {@code BorderAPI.isPregenReady()} has returned true for {@code border}'s own disk (real,
+ * validated terrain), and scores several candidates rather than picking one blind column. See
+ * wiki/frontiermode/architecture/border-pregeneration.md#worked-example-boss-placement-revised.
  */
 public interface BossRules {
 
     /**
-     * Position -- picked once, immediately, at record-creation time. A uniform random XZ column
-     * within {@code border}'s current disk. Has nothing to do with chunk loading; Y is left as a
-     * placeholder (see {@code BossRecord}'s own docs).
+     * Position -- called only once the whole target {@code border}'s disk is already
+     * pregenerated. Samples several chunk-center candidates within {@code border}'s disk
+     * ({@code BorderMath.randomPointInDisk}), resolves each candidate's real ground Y (safe now
+     * that the disk is real, generated terrain), scores them via {@link #flatnessScore}/
+     * {@link #hazardScore}, and returns the winning full position (X, resolved Y, Z) -- already
+     * validated, nothing left for materialization to check.
      */
-    BlockPos choosePosition(Level level, Border border);
+    BlockPos choosePosition(ServerLevel level, Border border);
+
+    /**
+     * 0 (worst) to 1 (best) flatness score for a candidate position's immediate footprint --
+     * "safe baseline, replace later" per border-pregeneration.md, same framing as
+     * {@code DefaultBorderRules.GROWTH_FACTOR}.
+     */
+    double flatnessScore(ServerLevel level, BlockPos candidate);
+
+    /**
+     * 0 (safe) to 1 (worst) hazard score for a candidate position (lava, deep water, the world
+     * floor, ...) -- "safe baseline, replace later," same framing as {@link #flatnessScore}.
+     */
+    double hazardScore(ServerLevel level, BlockPos candidate);
 
     /**
      * Materialization -- called only once the caller (BOSS_JIG's own tick) has already confirmed
-     * {@code Level.isLoaded(xz)}. Resolves a real ground Y at {@code xz}, spawns the vanilla mob
-     * for {@code layer}, applies placeholder stat scaling, and attaches a visible marker so "no
-     * discovery aids" (Tier 1) still means "findable by looking." Returns empty if a valid ground
-     * position or a legal spawn couldn't be resolved (e.g. the column is all liquid/void, or the
-     * entity failed to add) -- the caller retries next tick, same fixed {@code xz}, never a new
-     * random guess.
+     * {@code Level.isLoaded(position)}. {@code position} is already validated, real terrain by
+     * this point (chosen and scored by {@link #choosePosition} above) -- no in-place Y-resolution
+     * or liquid-column check happens here anymore, per border-pregeneration.md's "What this
+     * changes in Boss" section. Spawns the vanilla mob for {@code layer}, applies placeholder
+     * stat scaling, and attaches a visible marker so "no discovery aids" (Tier 1) still means
+     * "findable by looking." Returns empty only if the entity itself couldn't be created or
+     * added (not a terrain problem anymore) -- the caller retries next tick, same fixed
+     * {@code position}.
      *
      * <p>Deliberately does not call {@code MobScope.getFor(mob)} or touch {@code BossFixture} --
      * both are Satchel-wiring concerns owned by {@code BossModule}, not a "boss design" decision.
      */
-    Optional<Mob> materialize(ServerLevel level, BlockPos xz, int layer);
+    Optional<Mob> materialize(ServerLevel level, BlockPos position, int layer);
 }
