@@ -11,7 +11,7 @@ summary: Command-tree design space for an in-game Boss admin/dev surface (RM_FRO
   not yet built.
 keywords: null
 status: draft
-updated: '2026-08-29'
+updated: '2026-08-31'
 ---
 
 <!-- bh-header:start -->
@@ -123,11 +123,12 @@ until now. Real, live code today -- everything else on this page is still propos
 What's real today, for grounding every command below against actual backing code -- includes
 FRO_057's additions now that they've shipped:
 
-- `BossAPI.boss(Level)` -- resolves the level's `BossFixture`.
+- `BossAPI.bosses(Level)` -- resolves the level's `BossFixture`. (Renamed from `boss()` during playtest rebuild.)
 - `BossFixture.all()` / `get(UUID)` / `unmaterialized()` / `layers()` -- read side.
-- `BossFixture.create(BlockPos, int layer)`, `.materialize(UUID, BlockPos, UUID entityId)`,
+- `BossFixture.create(int layer)`, `.materialize(UUID, UUID entityId)`, `.finalizePosition(UUID, BlockPos)`,
   `.markDefeated(UUID)`, **`.remove(UUID)`** (FRO_057, returns `boolean`) -- the mutations that
-  exist.
+  exist. (`create()` no longer takes BlockPos; `materialize()` no longer takes BlockPos -- position
+  is nullable on `BossRecord`, set separately via `finalizePosition()` after materialization.)
 - **`BossAPI.forceDefeat(Level, UUID)`** (FRO_057) -- returns `DefeatOutcome { Result
   borderResult, Optional<BossRecord> nextBoss }`. Runs `markDefeated` then the same
   grow-\>createBoss cascade a real death triggers.
