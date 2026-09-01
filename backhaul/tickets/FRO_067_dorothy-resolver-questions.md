@@ -3,14 +3,14 @@ id: FRO_067
 uid: FRO
 number: 67
 client: FrontierMode
-status: open
+status: closed
 title: 'Navigator resolver registry: Level param + Structure(...) shape'
 context: RM_FRO_026 (Dorothy) build (FRO_065) surfaced two places the discovery-systems.md
   spec did not fully hold up once real code had to do it -- for Douglas (Architect)
   to confirm or amend, not resolved unilaterally.
 priority: normal
 opened: '2026-08-31'
-closed: null
+closed: '2026-08-31'
 ---
 
 <!-- board:start -->
@@ -46,9 +46,22 @@ Structure-backed consumer actually gets built.
 Everything else in RM_FRO_026's done bar is built and not in question here -- see FRO_065's own
 log for the full list.
 
+## Resolution
+
+**Douglas confirms both decisions (2026-08-31):**
+
+1. `TargetResolver.resolve(Level, UUID)` is correct. The Level parameter is mandatory; there's no
+   cross-level UUID registry. Curtis's implementation is sound.
+
+2. Keep `Structure(UUID structureId)` simple. UUID-only identification works for now. If future
+   Structure-backed consumers need type-specific instance ids, we can pivot then without
+   architectural friction.
+
 ## Log
 
 - 2026-08-31: Ticket opened.
+- 2026-08-31: Douglas confirms both decisions. Ticket closed.
+
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->
