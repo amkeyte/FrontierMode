@@ -50,6 +50,32 @@ bearing anywhere else, which is exactly the window to correct it before more cod
 discovery tools, per the roadmap) builds on the current direction.
 
 **Ruling requested:** should `BossModule` register its own `ScopeEvent.Loaded` hook on
+
+**Ruling: Bootstrap ownership correction — move level-bootstrap Boss creation into BossModule**
+
+`BossModule` should register its own `ScopeEvent.Loaded` listener on `BORDERS_JIG` (same
+filter: server + overworld only) and orchestrate the initial boss creation from there, rather
+than `BorderModule.onBordersScopeLoaded` reaching into `BossAPI` directly.
+
+Concretely: `BossModule.onBordersScopeLoaded()` calls `BorderAPI.grow(level)` to create the
+initial border, then creates the paired boss record via the result:
+
+    @EventHandler(key = FrontierKeys.BORDERS_JIG, event = ScopeEvent.Loaded.class)
+    static void onBordersScopeLoaded(LevelScope scope, ScopeEvent.Loaded event) {
+        Level level = scope.level();
+        Border border = BorderAPI.grow(level).orElse(null);
+        if (border != null) {
+            BossCrudFacet.create(border.layer());
+        }
+    }
+
+This flips the direction: Boss reaches into Border's lifecycle (listening to its scope events,
+which is allowed) instead of Border reaching into Boss's mutation API (which violates "Boss
+depends on Border, never the reverse"). The orchestration lives in the module that owns the
+concern (BossModule owns boss-record creation), not borrowed from the dependency.
+
+`BorderModule.onBordersScopeLoaded` is removed entirely as part of this refactor.
+
 `BOSS_JIG` (or `BORDERS_JIG`, whichever scope is right) that calls `BorderAPI.grow(level)` and
 creates its own Boss record from the result -- matching the direction both other growth triggers
 already use -- rather than `BorderModule.onBordersScopeLoaded` reaching into `BossAPI` directly?
@@ -67,6 +93,23 @@ itself is never handed to another module." `BorderPlayerBundle`/`BorderPlayerSta
 there's no dedicated resolved-facet accessor the way the world-scoped side has one.
 
 **Ruling requested:** is this an accepted exception (derived, non-persisted, non-networked state,
+
+**Ruling: BorderPlayerBundle facet discipline — accepted exception, keep as-is**
+
+`BorderPlayerBundle`/`BorderPlayerStatusFixture` does not need facet-resolver discipline.
+
+Rationale: It is derived, non-persisted state — `border.md`'s own "Known gaps" section already
+names it as "cheap to rebuild, don't bother saving it." Adding facet ceremony would add surface
+area and boilerplate for a fixture whose lifecycle is entirely determined by "is there a player
+in this scope?" That's simpler to handle as a single, direct `Optional` accessor than to split
+into facets mirroring `BordersFixture`.
+
+Keep `BorderPlayerStatusFixture` as a single, unsplit fixture. Both producer and reader reach it
+the same way they do now (direct fixture access via the bundle), no facet layer added.
+
+The discipline exists for complex, multi-concern, persisted fixtures (like `BordersFixture`).
+`BorderPlayerStatusFixture` is neither complex nor persisted — it's an exception.
+
 per `border.md`'s "Known gaps" section already calling it "cheap to recompute"), or should it get
 an equivalent facet treatment for consistency with `BordersFixture`?
 
@@ -124,6 +167,31 @@ one code path either way), but it's also exactly the shape a debugging-driven au
 copy-paste from an external caller would leave behind. Worth a quick confirm.
 
 **Ruling requested:** is `BorderPregenFixture` calling `BorderAPI.CRUD()` from inside its own
+
+**Ruling: BorderPregenFixture facade bypass — switch to direct sibling access**
+
+`BorderPregenFixture` should reach `BordersFixture` directly via bundle sibling access instead
+of calling back out through `BorderAPI.CRUD()`.
+
+Rationale: The facade exists for external callers, not for internal bundle communication.
+A sibling fixture inside the same bundle can reach its sibling directly without losing clarity
+or introducing subtle dependencies. Direct access is more efficient (no layer of indirection)
+and makes the "these two fixtures coordinate together" relationship visible in the code, rather
+than hiding behind the facade.
+
+Change `BorderPregenFixture`'s calls from:
+
+    BorderAPI.CRUD().get(borderId)  // reaching back out through facade
+
+to:
+
+    bundle.fixture(BordersFixture.KEY).get(borderId)  // direct sibling
+
+or equivalent direct bundle access pattern for the fixture's own scope/bundle structure.
+
+This also reinforces the pattern: facet-based APIs are for external consumers, sibling fixtures
+coordinate directly.
+
 bundle intentional (single code path for sibling access), or should it reach `BordersFixture`
 directly since it's already inside the same bundle?
 
@@ -245,6 +313,53 @@ on `BossModule`. Not naming destinations here -- that's the ruling being asked f
 Cartographer prescribes.
 
 **Ruling requested:** which of the above groupings warrant their own class/file (a tick-pipeline
+
+**Ruling: BossModule refactor — extract into facets, mirroring BordersFixture pattern**
+
+`BossModule` (707 lines, 18 methods, 7+ concerns) should be refactored by extracting its
+state-management logic into `BossFixture` facets, the same way `BordersFixture` uses
+`BordersCrudFacet`, `BordersRulesFacet`, `BordersInfoFacet`.
+
+**New facets on BossFixture:**
+
+`BossCrudFacet` — record lifecycle and mutations
+- `Optional<BossRecord> create(int layer)` — layer validation-gated per boss.md
+- `Optional<BossRecord> get(UUID bossId)` — read-only
+- `boolean materialize(UUID bossId, UUID entityId)` — guard: not already materialized
+- `boolean finalizePosition(UUID bossId, BlockPos pos)` — guard: position still nullable
+- `boolean markDefeated(UUID bossId)` — guard: currently alive
+- `boolean remove(UUID bossId)` — full record deletion (not state transition)
+
+`BossRulesFacet` — pluggable strategy
+- `BossRules` interface and `DefaultBossRules` impl
+- Already exists as a separate interface; expose as explicit facet for consistency
+- Position validation (flatness, hazard scoring)
+
+`BossInfoFacet` — queries and diagnostics
+- `boolean isAlive(UUID bossId)` — persistence-backed aliveness query
+- `Set<UUID> getAllAlive()` — all alive boss UUIDs in the level
+- Reconciliation diagnostics (`reconcilePathAgainstBossRecords()`)
+- Interest-registry bookkeeping for mob-scope polling
+- Log-friendly accessors for debugging
+
+**What moves into BossModule's tick handlers and listeners (no longer monolithic orchestration):**
+
+Jig registration stays (`registerBossJig()`, `registerBossMobJig()`) — that's wiring, not orchestration.
+
+Event handlers (skeleton only — actual work delegates to facets):
+- `onBordersScopeLoaded` — NEW (finding 1) calls `BorderAPI.grow()` + `BossCrudFacet.create()`
+- `onBossJigTick` — calls `BossCrudFacet` methods (finalize position, materialize, reconcile)
+- `onBossMobScopeLoaded`/`Unloaded` — mob-scope lifecycle (already minimal)
+- `onLivingDeath` — defeat cascade (resolve boss, call `BossCrudFacet.markDefeated()`, trigger growth)
+
+The point: BossModule becomes a thin orchestration layer that wires listeners and ticks, reaching
+through `BossAPI` facets for all state mutations. The grab-bag disappears because the concerns
+are now named, bounded, and live on the fixture, not scattered across static methods.
+
+**Sequencing:** This refactor depends on finding 1's ruling landing first. Once finding 1 moves
+the bootstrap listener into BossModule, that call site feeds directly into the new `BossCrudFacet`,
+making the new structure immediately useful.
+
 orchestrator, a mob-scope handler, a defeat-cascade listener, interest-registry plumbing kept
 separate from jig registration, etc.), versus which are fine staying put. Same caution finding 1
 already raised applies here too -- whatever lands for finding 1's bootstrap-ownership ruling may
@@ -261,6 +376,7 @@ per that finding, that's more surface added to the same class this finding is as
 - 2026-09-03: Finding 6 added -- deprecate BorderCommandHandler.debugCreate(), per project owner.
 - 2026-09-03: Finding 7 added -- deprecate BorderAPI.grow(Level) in favor of the BlockPos overload, per project owner; fallout/sequencing against findings 1 and 3 flagged, not yet resolved.
 - 2026-09-03: Finding 8 added -- BossModule has become a grab-bag (707 lines/18 methods/7+ concerns), find real homes for most of it, per project owner.
+- 2026-09-03: Architect rulings filed on findings 1/2/4/8 — bootstrap ownership, facet discipline exceptions, sibling access pattern, BossModule facet refactor.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->
