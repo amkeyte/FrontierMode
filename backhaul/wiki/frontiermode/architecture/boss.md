@@ -8,7 +8,7 @@ summary: Boss entity/spawn system for Tier 1 -- data model, mutation validation 
   against this.
 keywords: null
 status: verified
-updated: '2026-08-31'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -323,6 +323,61 @@ sharing one algorithm — see "Three questions, three different mechanisms" abov
 direct-call trigger, and "Defeat detection and the border-growth gap" below for exactly which call
 sites make that call. Materialization is single and uniform regardless of how a record was
 created: `BOSS_JIG`'s own tick checks every unmaterialized record the same way, every time.
+
+## Aliveness checking and despawn
+
+A boss can outlive its entity (unloaded, untracked) and can be explicitly removed (admin command).
+Two separate queries address both cases, feeding Environmental Tells (which need to know if a boss
+is alive before rendering) and border growth (which needs to happen when a boss dies).
+
+### Per-record aliveness query on `BossMobFixture`
+
+**`boolean isAlive(UUID bossId)`** — checks whether a boss record is marked alive (`alive: true`
+in `BossFixture`). This is a persistence-backed query, independent of whether the entity is
+currently loaded. Cheap; works across restarts.
+
+### Public query surface on `BossAPI`
+
+**`BossAPI.isBossAlive(Level, UUID bossId)`** — wraps the fixture query via the standard
+cross-module API shape. Callers (Environmental Tells, future systems) use this, never
+`BossMobFixture` directly.
+
+Optional convenience: **`BossAPI.getAllAliveBosses(Level)`** — returns the set of all alive boss
+UUIDs in the level, if Environmental Tells need to iterate (e.g., for rendering tells matched to
+alive bosses).
+
+### Despawn and record removal
+
+**`BossAPI.removeBoss(UUID bossId)`** — explicit admin removal (e.g., `/boss delete`). This:
+
+1. **Despawns the live entity** via `BossMobFixture`/`MobScope` if the entity is currently
+   loaded — no orphaned mobs left in the world.
+2. **Deletes the `BossRecord` entirely** from `BossFixture`'s persistence — not a state-change
+   (e.g., `alive: false`), a full removal. Rationale: a deleted boss is done. Off-path hand-placed
+   bosses (created with `/boss add`) already show deletion is the right model — you don't query
+   "are there any bosses that used to exist here" as part of normal gameplay. If you need history
+   later (e.g., "which bosses have ever spawned on this path"), that's a separate ledger, not a
+   corrupted persistent record. Keeping a `dead` record would only confuse reconciliation
+   ("is this orphaned, or deleted on purpose?") and leave stale data behind.
+3. **Does not fire a border-growth event** — deletion is administrative removal, not a "boss died"
+   cascade. No new boss is spawned, no border is grown. This mirrors
+   [RM_FRO_022](../../../roadmap/RM_FRO_022_joyce.md) ("Joyce")'s own distinction: `/boss transform defeat` *is* a
+   growth trigger (it dispatches the same cascade as Karen's `LivingDeathEvent` handler), but
+   `/boss delete` is not.
+
+### Event wiring for death-driven border growth
+
+Actual boss death — whether from combat (`LivingDeathEvent`) or command-triggered defeat
+(`forceDefeat`) — fires **`BossDeathEvent`** (or equivalent event type), which `BordersTriggers`
+listens to. This is the replacement for the current gold-block debug trigger, and belongs to
+[RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen")'s own work. Removal via `/boss delete`
+deliberately does not fire this event — administrative deletion is orthogonal to progression.
+
+This design keeps the dependency clean: `BossMobFixture` doesn't need to know `BordersTriggers`
+exists. When a boss dies (for any reason that matters to progression), the event fires and border
+growth listens.
+
+
 
 ## What can actually go wrong, and what doesn't need to
 

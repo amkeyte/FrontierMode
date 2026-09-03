@@ -52,6 +52,11 @@ public final class BossRecord {
     public UUID bossId() {
         return bossId;
     }
+    public String displayBossId()
+    {
+        String bStr = bossId.toString();
+        return bStr.substring(bStr.length()-8);
+    }
 
     /**
      * Nullable -- see this class's own doc. Check {@link #positioned()} first.

@@ -26,11 +26,11 @@ public final class BossDisplay {
                 : "(pending -- home border still pregenerating)";
 
         return "idx=" + listIndex
-                + " | id=" + r.bossId()
+                + " | id=" + r.displayBossId()
                 + " | pos: " + posText
                 + " | layer=" + r.layer()
-                + " | alive=" + r.alive()
-                + " | materialized=" + r.materialized()
+                + " | defeated=" + !r.alive()
+                + " | spawned=" + r.materialized()
                 + (r.materialized() ? " | entity=" + r.bossEntityId() : "");
     }
 }

@@ -12,6 +12,8 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
@@ -58,6 +60,18 @@ public final class BorderPregenFixture extends SatchelFixture {
     // interval too, so there's real breathing room between batches, not just a smaller one.
     private static final long THROTTLE_INTERVAL_TICKS = 4L;
     private static final int CHUNKS_PER_BATCH = 2;
+
+    // A grown border's disk is concentric with its predecessor's -- same center, bigger radius
+    // (see BordersPathFacet.grow()/DefaultBorderRules' "reuses the previous center" comment) --
+    // so a large inner prefix of a new layer's offset list was very likely already forced to
+    // FULL by the previous layer's own completed job. runBatch() prechecks each offset with a
+    // non-forcing getChunk(status, false) status lookup before paying for real generation; an
+    // already-FULL chunk is skipped without spending CHUNKS_PER_BATCH's budget. That lookup is
+    // far cheaper than generation but not literally free, and an overlap run can span hundreds
+    // of chunks -- this caps how many offsets get *examined* (skip or generate) in one batch, so
+    // a long all-already-generated run can't become its own "Can't keep up" case the way
+    // unthrottled real generation did.
+    private static final int MAX_OFFSETS_SCANNED_PER_BATCH = 64;
 
     private final List<BorderPregenRecord> jobs = new ArrayList<>();
     private final TickThrottler throttler =
@@ -246,15 +260,34 @@ public final class BorderPregenFixture extends SatchelFixture {
         int centerChunkX = border.center().getX() >> 4;
         int centerChunkZ = border.center().getZ() >> 4;
 
-        int end = Math.min(record.cursor() + CHUNKS_PER_BATCH, total);
-        for (int i = record.cursor(); i < end; i++) {
+        // Two independent caps: `generated` bounds real generation calls (the throttled-cost
+        // work CHUNKS_PER_BATCH was always meant to pace), `scanned` bounds total offsets looked
+        // at either way (the MAX_OFFSETS_SCANNED_PER_BATCH safety valve above). Cursor still
+        // just indexes the same deterministic offset list either way -- resumability is
+        // unaffected by how many of a given batch turned out to be skips.
+        int generated = 0;
+        int scanned = 0;
+        int i = record.cursor();
+        while (i < total && generated < CHUNKS_PER_BATCH && scanned < MAX_OFFSETS_SCANNED_PER_BATCH) {
             int[] offset = offsets.get(i);
-            // Forces the chunk generated up to FULL status if it isn't already -- the entire
-            // point of this fixture, per its own class doc.
-            level.getChunk(centerChunkX + offset[0], centerChunkZ + offset[1]);
+            int chunkX = centerChunkX + offset[0];
+            int chunkZ = centerChunkZ + offset[1];
+
+            // require=false: returns the chunk only if it's already at/past FULL (loaded, or on
+            // disk with no generation work needed) -- null if it would have to actually generate.
+            // Costs a status lookup, not generation, so this doesn't touch CHUNKS_PER_BATCH.
+            ChunkAccess existing =
+                    level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+            if (existing == null) {
+                // Not already there -- the real, forcing call, same as this loop always made.
+                level.getChunk(chunkX, chunkZ);
+                generated++;
+            }
+            scanned++;
+            i++;
         }
 
-        advance(record.borderId(), end, total);
+        advance(record.borderId(), i, total);
     }
 
     private void requireServerSide() {

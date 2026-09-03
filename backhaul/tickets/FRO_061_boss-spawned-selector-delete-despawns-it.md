@@ -5,12 +5,8 @@ number: 61
 client: FrontierMode
 status: open
 title: 'Boss: delete despawns its mob'
-context: '/boss delete should despawn its mob rather than leave it orphaned -- resolves
-  the entity-orphaning gap boss.md''s ''Mutation validation boundary''/''Known gaps''
-  sections already flagged (found on FRO_058), project owner''s ruling: despawn only,
-  not the full defeat cascade. (This ticket originally also carried a @spawned selector
-  item, rolled back -- redundant with the already-in-progress @status filter work;
-  see log.)'
+context: '[Susan_02] /boss delete should despawn its mob, not orphan it -- despawn
+  only. See body.'
 priority: low
 opened: '2026-08-29'
 closed: null

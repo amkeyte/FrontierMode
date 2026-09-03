@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>forceDefeat to materialized boss</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { background: #0d1117; margin: 0; padding: 24px; overflow-x: auto; }
+  #diagram { display: inline-block; }
+  h1 { color: #c9d1d9; font: 600 16px system-ui, sans-serif; margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<h1>forceDefeat() -&gt; boss instanced as a mob (scratch, not promoted to wiki)</h1>
+<div id="diagram" class="mermaid">
+sequenceDiagram
+    participant CALLER as Caller (e.g. /boss transform defeat)
+    participant API as BossAPI
+    participant BF as BossFixture
+    participant BAPI as BorderAPI
+    participant BPF as BorderPregenFixture
+    participant BM as BossModule
+    participant DBR as DefaultBossRules
+    participant LVL as ServerLevel / Mob
+    participant SAT as Satchel MobJig
+    participant BMF as BossMobFixture
+
+    Note over CALLER,API: === forceDefeat(level, bossId) -- synchronous call ===
+    CALLER->>API: forceDefeat(level, bossId)
+    API->>BF: bosses(level) -- get fixture
+    BF-->>API: BossFixture
+    API->>BF: get(bossId)
+    BF-->>API: BossRecord
+    Note over API: Two guard checks precede this point --<br/>record.positioned() and not already defeated.<br/>Both rejected paths return early with no mob.<br/>Tracing only the success path from here.
+    API->>BF: markDefeated(bossId)
+    BF-->>API: true
+    API->>BAPI: grow(level, record.position())
+    BAPI-->>API: Result (success, new Border)
+    API->>API: createBoss(level, result.border())
+    API->>BF: create(border.layer())
+    BF-->>API: new BossRecord (unpositioned, unmaterialized)
+    API->>BAPI: startPregeneration(level, result.border().id())
+    BAPI->>BPF: kicks off async pregen disk
+    API-->>CALLER: DefeatOutcome(result, nextBoss)
+
+    Note over BPF: === Some real time later, async: BorderPregenFixture finishes the disk ===
+
+    Note over BM: === BOSS_JIG tick, every server tick until ready ===
+    BM->>BM: onBossJigTick -- finalizeUnpositionedBosses()
+    BM->>BAPI: PATH(level), CRUD(level) -- resolveHomeBorder(layer)
+    BAPI-->>BM: Border
+    BM->>BAPI: isPregenReady(level, border.id())
+    BAPI-->>BM: true -- disk ready, proceed (false = retried next tick, not shown)
+    BM->>DBR: choosePosition(level, border)
+    DBR-->>BM: BlockPos, flatness/hazard scored
+    BM->>BF: finalizePosition(bossId, chosen)
+    BF-->>BM: true -- record now positioned
+
+    Note over BM: === Same tick, continues -- materializeUnresolvedBosses() ===
+    BM->>LVL: isLoaded(position)?
+    LVL-->>BM: true, assumed -- chunk already loaded
+    BM->>DBR: materialize(level, position, layer)
+    DBR->>LVL: EntityType.create(level)
+    LVL-->>DBR: Mob
+    DBR->>LVL: mob.moveTo(...), finalizeSpawn(...)
+    DBR->>LVL: mob.setPersistenceRequired()
+    DBR->>DBR: applyStatScaling(mob, layer), tagVisibly(mob, layer)
+    DBR->>LVL: addFreshEntity(mob)
+    LVL-->>DBR: true -- mob now live in the world
+    DBR-->>BM: Optional, present -- the Mob
+    BM->>BF: materialize(bossId, mob.getUUID())
+    BF-->>BM: true -- record now materialized
+    BM->>BM: addInterest(level, mob.getUUID())
+    BM->>SAT: MobScope.getFor(mob) -- fast-path introduction
+    SAT-->>BM: source introduced, attach deferred to next pulse
+
+    Note over SAT,BMF: === Next foundation pulse -- BOSS_MOB_JIG's own scope converges ===
+    SAT->>BM: ScopeEvent.Loaded (BOSS_MOB_JIG)
+    BM->>API: bosses(mob.level())
+    API-->>BM: BossFixture
+    BM->>BF: all() -- find record by bossEntityId
+    BF-->>BM: matching BossRecord
+    BM->>SAT: jig.getOrCreate(scope, BOSS_MOB_BUNDLE)
+    SAT-->>BM: BossMobBundle
+    BM->>BMF: getOrCreateFixture(BOSS_MOB, ...)
+    BMF-->>BM: BossMobFixture
+    BM->>BMF: attachTo(record.bossId())
+    Note over BMF: Boss is now a live entity in the world,<br/>Satchel-attached both directions --<br/>BossRecord.bossEntityId points to the entity,<br/>BossMobFixture.bossId points back to the record.
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: { fontSize: '20px' },
+    sequence: {
+      useMaxWidth: false,
+      actorFontSize: 18,
+      actorFontWeight: 'bold',
+      messageFontSize: 16,
+      noteFontSize: 16,
+      width: 170,
+      height: 50,
+      boxTextMargin: 8
+    }
+  });
+</script>
+</body>
+</html>
