@@ -5,16 +5,8 @@ number: 63
 client: FrontierMode
 status: open
 title: 'Boss: can a path layer legitimately be boss-less?'
-context: 'Surfaced by FRO_062 (deleting all bosses via /boss delete triggered the
-  reconciliation check''s every-tick warning -- confirmed intentional test cleanup,
-  not a bug). boss.md''s reconciliation design currently treats ANY path layer with
-  no matching BossFixture record as real data corruption (''not a normal transient
-  state''), full stop -- no notion of a deliberately boss-less layer exists. Project
-  owner + Architect need to jointly consider whether that''s too strict: should a
-  path layer be allowed to legitimately have no boss, and if so, should there eventually
-  be a real attach/detach operation to move a boss on/off a path layer on purpose,
-  distinct from outright deletion? Not a Lead Dev build question yet -- a design conversation
-  to have, not yet scoped or ruled on.'
+context: '[Susan_02] Design Q: can a path layer legitimately be boss-less? Not yet
+  scoped. See body.'
 priority: low
 opened: '2026-08-29'
 closed: null

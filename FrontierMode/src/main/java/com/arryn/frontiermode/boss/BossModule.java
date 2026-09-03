@@ -267,6 +267,15 @@ public final class BossModule {
 
             BlockPos chosen = RULES.choosePosition(level, border);
             fixture.finalizePosition(record.bossId(), chosen);
+
+            // Requested directly after a playtest boss turned out to be sitting at y=0,
+            // unreachable, with nothing in the log to say so short of manually teleporting out
+            // to check -- this is that missing checkpoint, logged the instant a position commits
+            // rather than only once (if ever) the entity actually appears.
+            OUT.info("[Boss] finalizeUnpositionedBosses(): boss " + record.bossId() + " (layer "
+                    + record.layer() + ") position finalized at " + chosen.getX() + ", "
+                    + chosen.getY() + ", " + chosen.getZ() + " -- home border " + border.id()
+                    + ". Will materialize once that chunk is loaded.");
         }
     }
 
@@ -598,10 +607,49 @@ public final class BossModule {
                     + " defeated.");
             return;
         }
-        fixtureOpt.get().markDefeated(bossId.get());
+        BossFixture fixture = fixtureOpt.get();
+
+        // Confirmed by a real playtest log, not theoretical: a single physical death can fire
+        // more than one LivingDeathEvent (a documented Forge/vanilla quirk -- multiple queued
+        // damage instances in the same tick can each drive the entity through death handling).
+        // markDefeated()'s own return told us this was already handled; onLivingDeath just never
+        // checked it, unlike BossAPI.forceDefeat (FRO_060 guarded that one, and explicitly
+        // exempted this method with "a Mob can only die once" -- disproved by tonight's log: a
+        // burst of duplicate death events for already-defeated bosses each still ran the full
+        // grow()+createBoss() cascade below, minting a wholly extra, unwanted border+boss pair
+        // per duplicate and skipping the chain several layers ahead in milliseconds). A redundant
+        // death event for an already-defeated boss is now a clean no-op, same as forceDefeat's
+        // own guard.
+        if (!fixture.markDefeated(bossId.get())) {
+            return;
+        }
 
         BlockPos deathLocation = mob.blockPosition();
         Result result = BorderAPI.grow(level, deathLocation);
+
+        if (!result.isSuccess()) {
+            // Border Pregeneration: a boss placed somewhere hazardous (DefaultBossRules
+            // .choosePosition's own "all candidates hazardous" last-resort branch) can fall
+            // indefinitely and die far outside the level's build height range ("fell out of the
+            // world") -- growing straight off that death location then fails this same
+            // validation, and until now that failure was final: nothing retried, so the whole
+            // chase-the-next-boss chain stalled dead right there, permanently, for the level.
+            // Falling back to the boss's own recorded position -- always within build height by
+            // construction, since choosePosition() only ever returns a real heightmap-resolved Y
+            // -- keeps RM_FRO_019 ("Karen")'s "center on the death location" behavior for every
+            // normal kill (this branch is a no-op unless the first grow() already failed) while
+            // giving the chain a way to recover from this one specific, previously-unrecoverable
+            // failure mode instead of stopping forever.
+            BlockPos fallbackCenter = fixture.get(bossId.get()).map(BossRecord::position).orElse(null);
+            if (fallbackCenter != null) {
+                OUT.warn("[Boss] onLivingDeath(): BorderAPI.grow(level, " + deathLocation
+                        + ") failed for defeated bossId=" + bossId.get() + ": " + result.message()
+                        + " -- retrying from this boss's own recorded position " + fallbackCenter
+                        + " instead of giving up.");
+                result = BorderAPI.grow(level, fallbackCenter);
+            }
+        }
+
         if (!result.isSuccess()) {
             OUT.warn("[Boss] onLivingDeath(): BorderAPI.grow(level, " + deathLocation
                     + ") failed for defeated bossId=" + bossId.get() + ": " + result.message()

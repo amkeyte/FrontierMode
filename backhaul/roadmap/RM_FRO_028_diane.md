@@ -3,7 +3,7 @@ id: RM_FRO_028
 uid: RM_FRO
 number: 28
 kind: work
-status: open
+status: resolved
 title: BorderPregen terrain pregeneration
 owner: Arryn
 depends_on:
@@ -66,6 +66,8 @@ Position/Materialization description is real and build-verified, not just spec'd
   ([RM_FRO_026](RM_FRO_026_dorothy.md) "Dorothy", [RM_FRO_027](RM_FRO_027_janet.md) "Janet") --
   minted per [Donna Epoch Nodes](../wiki/plans/donna-epoch-nodes.md)'s decision, despite its own
   still-open items above.
+
+- 2026-08-31: Done bar met and playtest-verified via FRO_066's full build+playtest log -- BorderPregenFixture registered, disk pregeneration throttled and tuned against a real 2121-chunk disk with zero server-lag warnings, boss materialization now genuinely tick-gated on pregen readiness. Retry/reroll, retroactive-pregen, and stalled-trigger-watchdog items remain carried forward as noted above -- not part of this node's own done bar. Resolved.
 
 ## Required By
 

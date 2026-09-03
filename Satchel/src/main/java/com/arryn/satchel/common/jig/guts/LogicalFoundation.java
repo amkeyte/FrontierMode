@@ -162,20 +162,15 @@ public final class LogicalFoundation {
 
             SatchelScope scope = opt.get();
 
-            // SAT_042: this log used to fire unconditionally, once per resolving jig per call --
-            // MobJig.reconcile() calls introduceSource(mob) every throttled poll cycle for every
-            // currently-interested mob, so at DEBUG level this was spamming one line per already-
-            // tracked mob per jig per poll, forever, even though the mutation below is a genuine
-            // no-op almost every time. Gating the log on the same hasScope() check the mutation
-            // already uses -- first-time introduction only, no behavior change to the guard
-            // itself.
+            // SAT_042 gated this log to first-time introduction only (see prior comment history)
+            // -- fixed the repeat-poll spam for an already-tracked mob, but not the underlying
+            // volume: this guard's mutation (ji.addScope below) still runs once per genuinely new
+            // scope of every entity Satchel sees at all -- every ambient bat, every chicken, not
+            // just boss mobs -- and with them constantly spawning and despawning, "once per new
+            // scope" is itself a permanent stream. Confirmed routine now, same "expected, remove
+            // rather than downgrade" call as AScopeCoupler's BundleNotFound and ScopeInfo's own
+            // CREATED/PHASE lines -- the mutation itself (the actual behavior) is untouched.
             if (!ji.hasScope(scope)) {
-                OUT.debug(
-                        "[JigLifecycle][introduceSource] "
-                                + scope.debugName()
-                                + " → "
-                                + ji.key
-                );
                 ji.addScope(scope, source);
             }
         }

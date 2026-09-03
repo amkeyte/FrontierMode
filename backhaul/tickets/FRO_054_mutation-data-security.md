@@ -5,8 +5,8 @@ number: 54
 client: FrontierMode
 status: open
 title: 'Data security pass: mutation proposals'
-context: '[Susan_02] Polish/audit: BorderProposal, applyProposal, etc. for defensive
-  hardening -- findings split into FRO_058/FRO_059, stays open as umbrella record.'
+context: '[Susan_02] Mutation defensive-hardening audit; findings split to FRO_058/059.
+  Umbrella record.'
 priority: low
 opened: '2026-08-28'
 closed: null

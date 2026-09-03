@@ -45,6 +45,7 @@ saves/
 crash-reports/
 *.log
 *.log.gz
+release/
 
 # --------------------
 # OS junk

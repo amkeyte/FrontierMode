@@ -20,7 +20,7 @@
 | [Border](wiki/frontiermode/architecture/border.md) | verified | FrontierMode's world-border system -- the mod's one substantial feature, built on Satchel's fixture/facet and jig/scope model. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/border.md) |
 | [Boss Command Surface](wiki/frontiermode/architecture/boss-commands.md) | draft | Command-tree design space for an in-game Boss admin/dev surface (RM_FRO_022 "Joyce"). Six items shipped and playtest-verified on FRO_057 (info/add/delete/mob spawn/transform defeat/debug goto, plus debug distance added mid-playtest); the rest of the info/add/delete/transform/mob/debug tree, the borderId-based selector chain, and the border-move reconciliation direction remain documented proposal, not yet built. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/boss-commands.md) |
 | [Boss](wiki/frontiermode/architecture/boss.md) | verified | Boss entity/spawn system for Tier 1 -- data model, mutation validation boundary, spawn algorithm, and the defeat-detection caller into BorderAPI. RM_FRO_019 builds against this. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/boss.md) |
-| [Difficulty](wiki/frontiermode/architecture/difficulty.md) | draft | Design pass for the Difficulty seam on BorderRules (FRO_029 Phase 4): the Layer-to-Difficulty formula, the ambient-vs-boss selector split, and the BorderPlayerStatus reshape it depends on. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/difficulty.md) |
+| [Difficulty](wiki/frontiermode/architecture/difficulty.md) | verified | Design pass for the Difficulty seam on BorderRules (FRO_029 Phase 4): the Layer-to-Difficulty formula, the ambient-vs-boss selector split, and the BorderPlayerStatus reshape it depends on. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/difficulty.md) |
 | [Boss Discovery Systems](wiki/frontiermode/architecture/discovery-systems.md) | verified | Technical shape for Tier 2's discovery-gradient tools (guardian mobs, tells, beacons, tracker, compass, warps) and the navigation/attunement mechanism, hosted in Border, that most of them build on -- proposal stage, drafted ahead of minting RM_FRO_023's real intermediate nodes. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/discovery-systems.md) |
 | [Border Path & Layer Reconciliation](wiki/frontiermode/architecture/path-layer-reconciliation.md) | draft | How fixLayers() reconciles Border.layer() to borderPath order after a manual reorder, and why the two are allowed to diverge in the first place. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/architecture/path-layer-reconciliation.md) |
 
@@ -35,6 +35,12 @@
 | [Nether and End](wiki/frontiermode/design/nether-and-end.md) | draft | How the Nether and End tie into frontier progression via the furthest Path position the player has reached rather than their own spatial frontier. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/nether-and-end.md) |
 | [Frontier Mode Overview](wiki/frontiermode/design/overview.md) | draft | Core identity, design pillars, and the gradient-not-walls philosophy for FrontierMode's game-mode concept. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/overview.md) |
 | [Progression and Frontier Mechanics](wiki/frontiermode/design/progression.md) | draft | How the frontier expands: cylinder growth, re-centering, irregular shape, and the oldest-ring-wins overlap rule. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/progression.md) |
+
+## frontiermode/diagrams
+
+| Title | Status | Summary | Edit |
+|---|---|---|---|
+| [Border Module Shape](wiki/frontiermode/diagrams/border-module-shape.md) | verified | High-level module map of Border: BordersBundle's sibling fixtures, BordersFixture's four facets, the BorderAPI facade, and the three consumer surfaces (commands, client rendering, server rules/triggers). | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/diagrams/border-module-shape.md) |
 
 ## meta
 

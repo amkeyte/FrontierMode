@@ -3,21 +3,13 @@ id: FRO_062
 uid: FRO
 number: 62
 client: FrontierMode
-status: open
+status: done
 title: Boss reconciliation warning spam (edge-triggered logging)
-context: 'Found via live playtest: BossModule.reconcilePathAgainstBossRecords() runs
-  on BOSS_JIG''s own Tick handler (every server tick) and used to OUT.warn() unconditionally
-  whenever any path-layer/BossFixture mismatch existed, with nothing to stop it re-firing
-  every tick for the same still-unresolved mismatch -- console was spammed with dozens
-  of identical warnings per second (report: all 12 path layers flagged, 20x/sec).
-  Fixed immediately given the severity (live log spam): BossModule now tracks each
-  level''s last-reported mismatch set and only logs on a real transition (new/changed
-  mismatch, or resolution), not every tick the same state persists. Not part of FRO_060''s
-  scope (different code area, pre-existing since RM_FRO_018/boss.md''s original reconciliation
-  design) -- found incidentally during that ticket''s own playtest session.'
+context: Boss reconciliation warning spam fixed via edge-triggered logging (was firing
+  every tick).
 priority: normal
 opened: '2026-08-29'
-closed: null
+closed: '2026-09-01'
 ---
 
 <!-- board:start -->
@@ -62,6 +54,8 @@ Boss reconciliation warning spam (edge-triggered logging)
   separate from this ticket's own logging-hygiene scope -- tracked on
   [FRO_063](FRO_063_boss-can-a-path-layer-legitimately-be-bo.md) for a future project owner +
   Architect conversation.
+- 2026-09-01: Closed -- project owner confirms the fix is holding, no further reconciliation warning spam.
+
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

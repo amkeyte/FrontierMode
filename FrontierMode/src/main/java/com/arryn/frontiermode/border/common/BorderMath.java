@@ -112,6 +112,49 @@ public final class BorderMath {
         );
     }
 
+    /**
+     * Like {@link #randomPointInDisk}, but excludes everything inside {@code innerRadius} --
+     * area-uniform across the annulus {@code [innerRadius, outerRadius]} rather than the whole
+     * disk. {@code innerRadius == 0} reduces to exactly {@link #randomPointInDisk}'s own
+     * distribution (same formula, degenerate inner bound).
+     *
+     * <p>Added for Boss placement (FRO_072): {@code center}/{@code outerRadius} here are meant
+     * to be one and the same border's own center and radius -- both bounds share one circle, so
+     * (unlike trying to exclude a *different*, differently-centered border's disk) this is a
+     * real, exact closed-form region. See {@code DefaultBossRules.choosePosition}'s own
+     * {@code EDGE_BIAS_INNER_FRACTION} for why: each new border centers on wherever its boss
+     * died, so a boss placed near its own border's center barely moves the next border's center
+     * either -- biasing placement toward this same border's outer edge is what makes the whole
+     * chain of borders actually walk outward (the "crawl" this project's border-path design
+     * intends) instead of nesting almost concentrically on top of each other.
+     */
+    public static BlockPos randomPointInAnnulus(RandomSource rng, BlockPos center, int innerRadius, int outerRadius) {
+        if (center == null) {
+            throw new IllegalArgumentException("center must not be null");
+        }
+        if (innerRadius < 0) {
+            throw new IllegalArgumentException("innerRadius must not be negative: " + innerRadius);
+        }
+        if (outerRadius < innerRadius) {
+            throw new IllegalArgumentException(
+                    "outerRadius must not be less than innerRadius: " + outerRadius + " < " + innerRadius);
+        }
+
+        double angle = rng.nextDouble() * Math.PI * 2.0;
+        double innerSq = (double) innerRadius * innerRadius;
+        double outerSq = (double) outerRadius * outerRadius;
+        double dist = Math.sqrt(innerSq + rng.nextDouble() * (outerSq - innerSq));
+
+        int dx = (int) Math.round(Math.cos(angle) * dist);
+        int dz = (int) Math.round(Math.sin(angle) * dist);
+
+        return new BlockPos(
+                center.getX() + dx,
+                center.getY(),
+                center.getZ() + dz
+        );
+    }
+
     // ------------------------------------------------------------------
     // RM_FRO_026 ("Dorothy"): Navigator's two point-to-point primitives -- see
     // wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border. Deliberately

@@ -5,24 +5,8 @@ number: 64
 client: FrontierMode
 status: open
 title: Boss defeat cascade grows border/level regardless of path relationship
-context: '[Susan_02] Live playtest report: defeating an /boss add-ed boss not on the
-  path caused a real level (border) expansion. Root cause confirmed by code read:
-  BossAPI.forceDefeat() and BossModule.onLivingDeath() both unconditionally call BorderAPI.grow(level,
-  position) for ANY tracked BossRecord''s defeat -- there is no check that the defeated
-  boss is the current path tip''s boss, or that it corresponds to a real path border
-  at all. BordersPathFacet.grow(BlockPos) itself has no awareness of the caller''s
-  boss -- it always appends a brand-new border to the canonical path (layerIndex =
-  previous.layer()+1) whatever center it''s given. This means: (1) a boss created
-  via /boss add <pos> <layer> at an arbitrary layer/position unrelated to the current
-  path tip still grows the path by one layer when defeated; (2) per boss-commands.md''s
-  own n:1 boss-to-border cardinality note (multiple bosses can share one layer for
-  a themed encounter), defeating just one of several bosses on a layer already triggers
-  full progression growth -- not gated on the layer''s other bosses. Architect scoping
-  needed, not a build ticket yet: should the grow+createBoss cascade require the defeated
-  boss to be tied to the current path tip layer (and/or all bosses on that layer)?
-  What does add <pos|here> <layer> actually mean for a layer that already has, or
-  never has, path-tip status? No fix applied -- parked for spec ruling, per this session''s
-  established Architect-scopes-before-Lead-Dev-builds discipline.'
+context: '[Susan_02] Boss defeat cascade grows border regardless of path relationship
+  -- needs scoping.'
 priority: normal
 opened: '2026-08-30'
 closed: null

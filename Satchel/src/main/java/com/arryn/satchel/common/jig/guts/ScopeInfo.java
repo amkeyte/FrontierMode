@@ -1,7 +1,6 @@
 package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.newconfig.newnew.*;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.level.Level;
 
 import java.time.Instant;
@@ -34,12 +33,11 @@ public final class ScopeInfo implements IJigConfigurable {
         this.scope = Objects.requireNonNull(scope, "scope");
         this.source = source;
 
-        OUT.debug(
-                "[ScopeInfo] CREATED scope="
-                        + scope.debugName()
-                        + " source="
-                        + (source == null ? "<null>" : source.getClass().getName())
-        );
+        // Was OUT.debug("[ScopeInfo] CREATED ...") -- a ScopeInfo is constructed for every scope
+        // of every entity in the world (a bat, a chicken, anything MobJig ever sees), so this
+        // fired once per mob spawn forever, confirmed routine and not just a boss-path signal by
+        // the time it was actually watched in a real playtest log. Same "expected, confirmed
+        // behavior, remove rather than downgrade" call as AScopeCoupler's BundleNotFound line.
     }
 
     // ---------------------------------------------------------------------
@@ -94,14 +92,9 @@ public final class ScopeInfo implements IJigConfigurable {
 //            );
 //        }
 
-        OUT.debug(
-                "[ScopeInfo] PHASE transition "
-                        + scope.debugName()
-                        + " "
-                        + this.phase
-                        + " -> "
-                        + next
-        );
+        // Was OUT.debug("[ScopeInfo] PHASE transition ...") -- fires on every phase change for
+        // every scope of every entity (NEW -> LOADED on every mob spawn, alongside CREATED
+        // above), same routine-and-confirmed noise, removed for the same reason.
 
         this.phase = next;
 

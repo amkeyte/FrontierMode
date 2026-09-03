@@ -5,11 +5,8 @@ number: 60
 client: FrontierMode
 status: open
 title: Boss/Border mutation validation build
-context: Lead Dev build ticket for FRO_058 and FRO_059's finalized specs (both Architect
-  spec-review tickets, closed with rulings written onto boss.md's 'Mutation validation
-  boundary' and border.md's 'Proposal identity and validation' sections). This ticket
-  is the build itself and the record of what actually landed, same split as FRO_056
-  -> FRO_057 for Boss commands.
+context: Lead Dev build for FRO_058/059's finalized specs -- see ticket body for full
+  scope.
 priority: low
 opened: '2026-08-29'
 closed: null

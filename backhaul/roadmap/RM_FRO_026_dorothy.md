@@ -3,7 +3,7 @@ id: RM_FRO_026
 uid: RM_FRO
 number: 26
 kind: work
-status: open
+status: resolved
 title: Navigator target-resolution fixture
 owner: Arryn
 depends_on:
@@ -53,6 +53,8 @@ correctly, per spec.
   ([RM_FRO_027](RM_FRO_027_janet.md) "Janet", [RM_FRO_028](RM_FRO_028_diane.md) "Diane") --
   minted first per [Donna Epoch Nodes](../wiki/plans/donna-epoch-nodes.md)'s decision. Ticketed
   to Lead Dev the same day; see this node's `ticket:` field once opened.
+
+- 2026-08-31: Done bar met and playtest-verified via FRO_065's full build+playtest log -- TargetRef/registry with a real BOSS resolver, NavigatorFixture registered as a sibling fixture, BorderMath.distanceTo()/direction() unit-exercised, all confirmed clean during the Windows playtest pass. FRO_067's two flagged spec questions (TargetResolver's `Level` param, `Structure(...)` shape) confirmed by Douglas (Architect) and closed. Resolved.
 
 ## Required By
 

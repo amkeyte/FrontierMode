@@ -3,7 +3,7 @@ id: RM_FRO_027
 uid: RM_FRO
 number: 27
 kind: work
-status: open
+status: resolved
 title: BorderCurve intensity-curve fixture
 owner: Arryn
 depends_on:
@@ -49,6 +49,8 @@ blocker to starting.
 - 2026-08-31: Node opened, alongside its two table-mates
   ([RM_FRO_026](RM_FRO_026_dorothy.md) "Dorothy", [RM_FRO_028](RM_FRO_028_diane.md) "Diane") --
   minted per [Donna Epoch Nodes](../wiki/plans/donna-epoch-nodes.md)'s decision.
+
+- 2026-08-31: Done bar met and playtest-verified via FRO_066's full build+playtest log -- BorderCurveFixture registered as a sibling fixture, curve records evaluate end-to-end against BorderMath, confirmed clean during the Windows playtest pass across real border-growth cycles. Resolved.
 
 ## Required By
 
