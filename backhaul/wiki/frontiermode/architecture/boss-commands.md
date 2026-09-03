@@ -11,7 +11,7 @@ summary: Command-tree design space for an in-game Boss admin/dev surface (RM_FRO
   not yet built.
 keywords: null
 status: draft
-updated: '2026-08-31'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -170,7 +170,9 @@ at all, so the reference has to live on `BossRecord`/`BossFixture` (the durable 
 **`BossRecord` gains `Optional<UUID> borderId`.** `empty()` for a hand-placed boss with no border
 at all -- the exact case the original decoupling was protecting, still fully served. Set once at
 creation for anything paired with real border-growth, same "copy it once, never re-read the
-source" discipline `layer` already uses for its own value.
+source" discipline `layer` already uses for its own value. Also now the field
+`pendingAttach`/`/boss attach` depend on to know which border a record belongs to -- see
+[Boss § Boss-less path layers and attach](boss.md#boss-less-path-layers-and-attach).
 
 ### Identity modes
 
@@ -280,8 +282,16 @@ rest of this section describes; see "What's actually built" above.
 │                               borderId (that field doesn't exist yet -- see "Selector scheme").
 │                               <pos> accepts `here`, same as Border's own `add here`.
 │
+├── attach <border-selector>    pair a boss onto an existing boss-less path border -- `add` with
+│                               a border to bind to instead of a raw position. Sets the new
+│                               record's `borderId` and clears that border from `pendingAttach`.
+│                               See [Boss § Boss-less path layers and
+│                               attach](boss.md#boss-less-path-layers-and-attach).
+│
 ├── delete <selector>           [BUILT] delete a record outright -- undo a mistake, clear test
-│                               debris
+│                               debris. On an on-path record, also re-marks its border
+│                               `pendingAttach` rather than leaving a bare gap -- see
+│                               [Boss](boss.md#boss-less-path-layers-and-attach).
 │
 ├── transform                    record-state mutations -- work even without a live entity
 │   ├── defeat <selector>       [BUILT] force-defeats without combat and runs the full
@@ -347,7 +357,8 @@ Everything below this line is still proposal, not built:
 - **Net-new on Boss's side:** `Optional<UUID> borderId` on `BossRecord`/`BossFixture` -- reverses
   a stated, deliberate decoupling; a `name` field, if `@name` is adopted; the `@status` filter,
   which has no Border equivalent at all; the border-move reconciliation handler (see above);
-  `mob respawn`/`damage`/`heal`.
+  `mob respawn`/`damage`/`heal`; `pendingAttach` and the `attach` command (see
+  [Boss](boss.md#boss-less-path-layers-and-attach)).
 - **Net-new on Border's side:** two new `BorderSelectorResult` modes, `@id` and `@name` -- neither
   exists today. `/border` itself gains more precise targeting as a side effect of `/boss` needing
   it.

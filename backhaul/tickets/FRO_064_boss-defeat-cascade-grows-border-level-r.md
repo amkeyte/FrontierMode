@@ -3,13 +3,13 @@ id: FRO_064
 uid: FRO
 number: 64
 client: FrontierMode
-status: open
+status: done
 title: Boss defeat cascade grows border/level regardless of path relationship
 context: '[Susan_02] Boss defeat cascade grows border regardless of path relationship
   -- needs scoping.'
 priority: normal
 opened: '2026-08-30'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -89,6 +89,39 @@ Parked on [RM_FRO_021](../roadmap/RM_FRO_021_susan-02.md) ("Susan_02") pending A
   [FRO_048](FRO_048_pathgrow-no-boss.md)) confirmed staying boss-less by design -- see FRO_048's
   own 2026-08-30 log entry and [FRO_063](FRO_063_boss-can-a-path-layer-legitimately-be-bo.md)'s
   matching entry. Rule still being drafted; not yet finalized or handed to Architect.
+- 2026-09-03: **Ruled on by the Architect (Douglas)**, tightening the project owner's draft with
+  `borderId` (landing via [FRO_082](FRO_082_boss-attach-build.md), the same field
+  [FRO_063](FRO_063_boss-can-a-path-layer-legitimately-be-bo.md) ruled on).
+
+  Both defeat-triggered call sites (`onLivingDeath`, `forceDefeat`) now check the defeated record's
+  `borderId` after `markDefeated`, before `grow`/`createBoss`: empty `borderId` (an off-path
+  `/boss add`-ed record never `/boss attach`-ed) stops the cascade right there -- this is what makes
+  an added boss "purely a standalone encounter" by construction, answering the third open question.
+  A non-empty `borderId` additionally requires every other record sharing that `borderId` to be
+  `alive: false` first -- `borderId`, not `layer`, is the correlating key, since `layer` alone can't
+  tell a deliberately standalone off-path boss from a real progression gap. This answers both the
+  first question (must be the path tip's boss -- via `borderId`, not a bare `layer` match) and the
+  second (n:1 cardinality -- yes, every boss sharing that border must fall first).
+
+  The "needs its own third case" wrinkle for the world-bootstrap grow turned out not to need one:
+  [FRO_075](FRO_075_bootstrap-ownership.md) (already ruled, from today's Cartographer-findings pass)
+  moves that call site into `BossModule`'s own `ScopeEvent.Loaded` handler, calling
+  `BorderAPI.grow(level)` + `BossCrudFacet.create(border.layer())` directly -- it was never routed
+  through a defeat to begin with, so it was never in scope for this gating rule at all. The gold-block
+  trigger (`BordersTriggers.growPath`) is being removed entirely per FRO_076, so it needs no ruling
+  here either.
+
+  While in this section of boss.md, also removed a stale "Event wiring for death-driven border
+  growth" subsection that described death firing a `BossDeathEvent` for `BordersTriggers` to listen
+  to -- this ticket's own root-cause trace confirms the real code (`onLivingDeath`/`forceDefeat`
+  calling `BorderAPI.grow` directly) never worked that way; no event of that kind exists. Fixed the
+  `getInitial()` bullet to name `BossModule`, not `BorderModule`, per FRO_075.
+
+  Full ruling written onto
+  [boss.md](../wiki/frontiermode/architecture/boss.md#cascade-gating-on-path-and-last-one-standing)'s
+  new "Cascade gating: on-path, and last one standing" section. Build routed to
+  [FRO_083](FRO_083_boss-defeat-cascade-gating-build.md), sequenced after FRO_082 since both need
+  `borderId`. Closing this ticket -- the design question it held is answered.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

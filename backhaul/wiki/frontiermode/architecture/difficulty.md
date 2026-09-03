@@ -8,7 +8,7 @@ summary: 'Design pass for the Difficulty seam on BorderRules (FRO_029 Phase 4): 
   reshape it depends on.'
 keywords: null
 status: verified
-updated: '2026-08-31'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -138,25 +138,6 @@ it here as a legitimate future extension point so it doesn't get rediscovered fr
 specifying it now. `chooseNextRadius`/`chooseInitialRadius` stay exactly as they are for this
 ticket.
 
-## Related pages
-## Recent Updates (Raymond epoch, 2026-08-31)
-
-**Infrastructure complete.** The three shared-infrastructure nodes that Difficulty seams depend on
-are now minted and built:
-
-- [RM_FRO_026 (Dorothy)](../../../roadmap/RM_FRO_026_dorothy.md) — Navigator target-resolution
-  fixture, providing `TargetRef` and `TargetType` resolver registry. Enables difficulty-aware boss
-  targeting.
-- [RM_FRO_027 (Janet)](../../../roadmap/RM_FRO_027_janet.md) — Border Curve intensity-curve
-  fixture, providing the curve infrastructure that `layerToDifficulty` will populate and `Boss`
-  will consume.
-- [RM_FRO_028 (Diane)](../../../roadmap/RM_FRO_028_diane.md) — Border Pregeneration fixture,
-  proactively generates terrain. Interacts with difficulty-based terrain validation.
-
-Implementation baseline now exists for both `layerToDifficulty` and `ambientDifficultyAt`.
-Navigator resolver strategy (target selection by difficulty) is currently open on
-[FRO_067](../../../roadmap/RM_SAT_024_raymond-01.md) with Douglas.
-
 ## Open Questions
 
 **What counts as "significantly exceeds"?** The fairness-signal formula in the Progression &
@@ -167,18 +148,15 @@ something else — is still open. Requires Game Designer/playtest feedback.
 
 **Difficulty curve shape.** `layerToDifficulty`'s placeholder is identity (`return layer;`). The
 actual curve — how Layer maps to difficulty stat multipliers, loot weighting, etc. — is still TBD
-and depends on playtest data. Janet (Border Curve) provides the infrastructure; this page doesn't
-specify the curve itself.
+and depends on playtest data. [Border Curve](border-curve.md) provides the intensity-curve
+infrastructure a real curve would build on; this page doesn't specify the curve itself.
 
-**Pregeneration interaction.** Diane (Border Pregeneration) validates terrain before a boss spawns.
-How difficulty-based terrain validation rules interact with pregeneration's throttle budget and
-retry behavior is not yet detailed. May belong in Pregeneration's own doc, or as a coordination
-point between the two.
+**Pregeneration interaction.** [Border Pregeneration](border-pregeneration.md) validates terrain
+before a boss spawns. How difficulty-based terrain validation rules interact with pregeneration's
+throttle budget and retry behavior is not yet detailed. May belong in Pregeneration's own page, or
+as a coordination point between the two.
 
-**Navigator difficulty weighting.** FRO_067 is scoping how the Navigator resolver selects targets
-by difficulty (e.g., preferring bosses within a certain difficulty band of the player's current
-ambient difficulty). That design may inform whether this page needs additional seams or clarifications.
-
+## Related pages
 
 - [Border Vocabulary](border-vocabulary.md) — the concept this implements
 - [FRO_029](../../../tickets/FRO_029_border-vocab-conformance.md) — the conformance sweep whose
@@ -188,3 +166,5 @@ ambient difficulty). That design may inform whether this page needs additional s
 - [Boss](boss.md) — the `layer`-scaling consumer this seam is built for
 - [Progression and Frontier Mechanics](../design/progression.md) — the fairness-signal design item
   this unblocks
+- [Border Curve](border-curve.md) / [Border Pregeneration](border-pregeneration.md) — the shared
+  intensity-curve and terrain-validation infrastructure this page's open questions build on
