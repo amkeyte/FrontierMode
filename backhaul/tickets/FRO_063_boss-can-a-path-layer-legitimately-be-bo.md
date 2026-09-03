@@ -3,13 +3,13 @@ id: FRO_063
 uid: FRO
 number: 63
 client: FrontierMode
-status: open
+status: done
 title: 'Boss: can a path layer legitimately be boss-less?'
 context: '[Susan_02] Design Q: can a path layer legitimately be boss-less? Not yet
   scoped. See body.'
 priority: low
 opened: '2026-08-29'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -74,6 +74,28 @@ other found-along-the-way items already live in.
   other still-open sub-question. Attach/detach itself remains not scoped, not built -- this
   raises its priority (it's now the sanctioned completion step for FRO_048's admin workflow, not
   just a nice-to-have for boss replacement) but doesn't resolve it.
+- 2026-09-03: **Both sub-questions ruled on by the Architect (Douglas).**
+
+  **Reconciliation framing:** a small persisted `Set<UUID> pendingAttach` (border ids) on
+  `BossFixture` replaces after-the-fact inference. `pathGrow()` succeeding, and `/boss delete`
+  removing an on-path record, both add the border's id to it; `reconcilePathAgainstBossRecords()`
+  now checks `pendingAttach` before logging a gap as a real data bug -- a covered gap logs at a
+  lighter level ("awaiting attach"), an uncovered one still logs loud, same as today.
+
+  **Attach/detach:** no separate detach operation -- `/boss delete` already produces the
+  `pendingAttach` state above once it's updated per this ruling, which *is* what a deliberate
+  detach would do. What was actually missing is attach: `/boss attach <border-selector>`, a thin
+  wrapper around the normal creation path that sets the new record's `borderId` and clears
+  `pendingAttach`. Depends on `Optional<UUID> borderId` landing on `BossRecord` --
+  [boss-commands.md](../wiki/frontiermode/architecture/boss-commands.md)'s "Selector scheme"
+  section already ruled on its shape; this ruling is what makes building it necessary now.
+
+  Full ruling written onto
+  [boss.md](../wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach)'s new
+  "Boss-less path layers and attach" section, with matching updates to
+  [boss-commands.md](../wiki/frontiermode/architecture/boss-commands.md)'s command tree and
+  selector scheme. Build routed to [FRO_082](FRO_082_boss-attach-build.md), same split pattern
+  FRO_058/FRO_059 -> FRO_060 used. Closing this ticket -- the design question it held is answered.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->
