@@ -24,9 +24,9 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
 
 ## Known-failed commands
 
-- [ ] **`/border delete @all`** — displays a generic error. Whether it also fails to delete
-  depends on the world, and the two sightings below disagree; see "Which of these is it" underneath.
-  Reported 2026-08-16.
+- [x] **`/border delete @all`** — cleared, 2026-09-03 (see note below). Originally reported as
+  displaying a generic error, with disagreement over whether it also failed to delete depending on
+  the world; see "Which of these is it" underneath. Reported 2026-08-16.
 
   **Sighting 1 (2026-08-16, multi-border world): refuses to delete.** Likely root cause (not
   confirmed, not fixed): `BorderCommands.applySelector()` iterates the
@@ -64,6 +64,19 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
   that nothing on the list gets triaged without the project owner asking. Tracked as
   [FRO_035](FRO_035_delete-all-verdict.md).
 
+  **Cleared, 2026-09-03 -- the CME theory is moot regardless of which sighting was "right."**
+  `BordersCrudFacet.all()` now returns `List.copyOf(fixture.all())` (confirmed in current
+  source), a defensive-copy hardening applied by [FRO_060](FRO_060_boss-border-mutation-validation-build.md)
+  on 2026-08-29 -- one day after this entry was last touched -- specifically to close this exact
+  `ConcurrentModificationException` shape (its own doc comment cites the identical bug found live
+  on Boss's side). The discriminator test named above was never run and still hasn't been, but it
+  no longer matters for closing this entry: whichever sighting was closer to the truth, the
+  live-view mutation-during-iteration hazard it depended on is now gone. Sighting 2's unexplained
+  cosmetic-error-on-success oddity is not explained by this fix and stays a genuine loose end, but
+  it's cosmetic-only and this ticket's own standing instruction (not triaged without the owner
+  asking) still applies to it -- not reopening pursuit of it here, just no longer blocking this
+  entry from being cleared.
+
 - [ ] **`/border ... @coord <x> <y> <z>`** — suspect only, not confirmed. Surfaced during
   [FRO_047](FRO_047_border-interface-refactor.md)'s build+playtest review, 2026-08-28: project
   owner reported "@coord isn't working" while everything else that session (including
@@ -87,6 +100,10 @@ crashes the server or corrupts data, it's commands refusing/erroring instead of 
 
 ## Log
 - [Arryn] next one to read this one, ask me what maintenance node to tie it to.
+- 2026-09-03: `/border delete @all` entry cleared -- PM audit (working forward from Donna_02)
+  found FRO_060's 2026-08-29 defensive-copy hardening on `BordersCrudFacet.all()` already closes
+  the ConcurrentModificationException this entry's root-cause theory depended on. See the entry's
+  own note above. `@coord` entry untouched -- still unconfirmed, ticket stays open for it.
 - 2026-08-28: Added `@coord` to the checklist as a suspect, not a confirmed failure -- flagged during FRO_047's build+playtest review, no corroborating log evidence either way. See the checklist entry itself for the full writeup. No triage performed, per this ticket's standing instruction.
 - 2026-08-21: **First entry corrected — it was asserting more than the evidence supported.** The
   checklist and this ticket's `context` line both said `/border delete @all` "throws and refuses

@@ -3,13 +3,13 @@ id: FRO_074
 uid: FRO
 number: 74
 client: FrontierMode
-status: open
+status: done
 title: Cartographer findings (running list)
 context: Running log of drift/design findings from Cartographer's diagramming pass,
   appended to over time.
 priority: normal
 opened: '2026-09-03'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -377,6 +377,26 @@ per that finding, that's more surface added to the same class this finding is as
 - 2026-09-03: Finding 7 added -- deprecate BorderAPI.grow(Level) in favor of the BlockPos overload, per project owner; fallout/sequencing against findings 1 and 3 flagged, not yet resolved.
 - 2026-09-03: Finding 8 added -- BossModule has become a grab-bag (707 lines/18 methods/7+ concerns), find real homes for most of it, per project owner.
 - 2026-09-03: Architect rulings filed on findings 1/2/4/8 — bootstrap ownership, facet discipline exceptions, sibling access pattern, BossModule facet refactor.
+- 2026-09-03: **Routed.** Finding 2 needed no ticket -- ruling was "no action, keep as-is,"
+  closed out here. Findings 1, 3, 4, 5, 6, 7, 8 split into their own tickets, same pattern
+  FRO_054 used for FRO_058/FRO_059: [FRO_075](FRO_075_bootstrap-ownership.md) (finding 1),
+  [FRO_076](FRO_076_gold-block-growth-removal.md) (finding 3),
+  [FRO_077](FRO_077_pregen-sibling-access.md) (finding 4),
+  [FRO_078](FRO_078_bordermath-to-api.md) (finding 5),
+  [FRO_079](FRO_079_debug-create-deprecation.md) (finding 6),
+  [FRO_080](FRO_080_grow-level-deprecation.md) (finding 7),
+  [FRO_081](FRO_081_bossmodule-facet-refactor.md) (finding 8). Finding 7's open sub-question
+  (what `pathGrow` passes as a center once `grow(Level)` is gone) resolved by project owner: a
+  new required command argument, no implicit default. All seven parked on
+  [RM_FRO_025](../roadmap/RM_FRO_025_donna-02.md) ("Donna_02"), project owner's explicit call
+  despite that node's edge onto [RM_FRO_023](../roadmap/RM_FRO_023_kathleen.md) ("Kathleen").
+  FRO_080 and FRO_081 carry sequencing blocks (on FRO_075/FRO_076, and FRO_075 respectively) noted
+  in their own Summaries. This ticket stays open as the running-log umbrella for future findings.
+- 2026-09-03: **Closed.** All 8 findings accounted for -- 2 needed no ticket, 1/3/4/5/6/7/8
+  routed to FRO_075 through FRO_081 (see entry above). Project owner: this Cartographer pass is
+  done for now, close rather than leave open as a running umbrella (unlike FRO_054's precedent,
+  where the audit itself was still ongoing) -- a fresh ticket opens if/when Rachael's next
+  diagramming session turns up more.
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
 <!-- bh-header:end -->

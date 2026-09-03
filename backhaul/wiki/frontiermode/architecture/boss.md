@@ -364,20 +364,11 @@ alive bosses).
    [RM_FRO_022](../../../roadmap/RM_FRO_022_joyce.md) ("Joyce")'s own distinction: `/boss transform defeat` *is* a
    growth trigger (it dispatches the same cascade as Karen's `LivingDeathEvent` handler), but
    `/boss delete` is not.
-
-### Event wiring for death-driven border growth
-
-Actual boss death — whether from combat (`LivingDeathEvent`) or command-triggered defeat
-(`forceDefeat`) — fires **`BossDeathEvent`** (or equivalent event type), which `BordersTriggers`
-listens to. This is the replacement for the current gold-block debug trigger, and belongs to
-[RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen")'s own work. Removal via `/boss delete`
-deliberately does not fire this event — administrative deletion is orthogonal to progression.
-
-This design keeps the dependency clean: `BossMobFixture` doesn't need to know `BordersTriggers`
-exists. When a boss dies (for any reason that matters to progression), the event fires and border
-growth listens.
-
-
+4. **Marks the border `pendingAttach` if the removed record was on-path.** If the removed record's
+   `borderId` (see [Boss-less path layers and attach](#boss-less-path-layers-and-attach)) pointed
+   at a border still on the level's path, that border's id is added to `pendingAttach` -- the same
+   sanctioned wait-state a boss-less `pathGrow()` produces, not a reconciliation false-positive. A
+   hand-placed off-path boss (no `borderId`) skips this step entirely, same as it always has.
 
 ## What can actually go wrong, and what doesn't need to
 
@@ -402,18 +393,20 @@ not every scenario that sounds scary is a real gap:
   here as an open design question, not a settled one, since the two are genuinely indistinguishable
   to `MobJig`'s own reason-agnostic teardown. [FRO_043](../../../tickets/FRO_043_boss-build.md)'s
   log records the call to leave this unmet rather than invent an unproven heuristic to close it.
-- **A `Border` that entered the level's progression has no matching boss record.** Given creation
-  is a direct, paired call at the moment a border is created (see "Defeat detection and the
-  border-growth gap" below), this should never legitimately happen -- every wired call site creates
-  its boss record in the same breath as the border. If it ever does, that's a real data bug (a
-  missed call site, a crash between the two calls, manual world editing) -- not a normal transient
-  state to tolerate the way an unmaterialized record is. `BOSS_JIG`'s own tick runs a defensive
-  reconciliation check alongside materialization: `BossModule.reconcilePathAgainstBossRecords()`
-  computes the path's set of `layer()` values minus `BossFixture`'s own set of `layer` values,
-  using that value itself as the correlating key (no live `Border` reference needed, matching the
-  decoupling in "Data model" above). **This check is one-directional only** -- it catches a path
-  border with no boss record, and stops there. A mismatch is logged loudly, never silently
-  self-healed.
+- **A `Border` that entered the level's progression has no matching boss record.** Most wired
+  call sites create the boss record in the same breath as the border (see "Defeat detection and the
+  border-growth gap" below); `BorderCommandHandler.pathGrow()` is the one deliberate exception --
+  see [Boss-less path layers and attach](#boss-less-path-layers-and-attach) below for why, and for
+  `pendingAttach`, the mechanism that keeps that sanctioned gap from reading as corruption.
+  `BOSS_JIG`'s own tick runs a defensive reconciliation check alongside materialization:
+  `BossModule.reconcilePathAgainstBossRecords()` computes the path's set of `layer()` values minus
+  `BossFixture`'s own set of `layer` values, using that value itself as the correlating key (no
+  live `Border` reference needed, matching the decoupling in "Data model" above), then checks any
+  gap found against `pendingAttach` before logging. **This check is one-directional only** -- it
+  catches a path border with no boss record, and stops there. A gap not covered by `pendingAttach`
+  is logged loudly as a real data bug (a missed call site, a crash between two paired calls, manual
+  world editing), never silently self-healed; a gap that *is* covered logs at a lighter level --
+  awaiting `/boss attach`, not corruption.
 
   **The reverse direction -- a boss record whose `layer` matches no real path border -- is
   deliberately not checked, and that's a ruling, not an oversight.**
@@ -428,6 +421,39 @@ not every scenario that sounds scary is a real gap:
   real border" from "intentionally standalone" -- until that field exists, an imprecise heuristic
   is worse than no check: it trains whoever reads the log to ignore reconciliation warnings.
   Revisit once `borderId` lands.
+
+## Boss-less path layers and attach
+
+A path layer can legitimately carry no boss, in exactly one sanctioned window: between
+`BorderCommandHandler.pathGrow()` growing the path (deliberately boss-less, per project-owner
+ruling -- see [FRO_048](../../../tickets/FRO_048_pathgrow-no-boss.md)) and a follow-up
+`/boss attach` pairing one onto it. `/boss delete` removing an on-path boss produces the identical
+state -- deletion and a boss-less grow are the same wait-state, not two different ones, so no
+separate "detach" operation exists or is needed.
+
+**`pendingAttach: Set<UUID>` (border ids)** is a small persisted collection on `BossFixture`,
+alongside its boss-record list -- not a per-record field, since it tracks borders with *no* record
+at all. Two write sites, both following the existing paired-call-at-the-call-site convention
+[Defeat detection and the border-growth gap](#defeat-detection-and-the-border-growth-gap)
+establishes below:
+
+- `pathGrow()` succeeding adds the newly-grown border's id.
+- `BossAPI.removeBoss()` removing a record whose `borderId` (see below) pointed at an on-path
+  border adds that border's id back in -- see [Despawn and record
+  removal](#despawn-and-record-removal)'s updated step list.
+
+`/boss attach <border-selector>` is the clearing side: it creates a boss record for the selected
+border the normal way (`BossCrudFacet.create(border.layer())` -- nullable position, finalized by
+`BOSS_JIG`'s tick same as any other new record, see "Spawn algorithm" above), sets the new
+record's `borderId` to the selected border, and removes that border's id from `pendingAttach`. No
+new creation mechanism -- `attach` is `add` with a border to pair against instead of a raw
+position, using the `borderId` field [Boss Command Surface](boss-commands.md)'s "Selector scheme"
+section already proposed.
+
+**Depends on `Optional<UUID> borderId` landing on `BossRecord`** -- [Boss Command
+Surface](boss-commands.md)'s "Selector scheme" section already ruled on the field's shape
+(`empty()` for a hand-placed off-path boss, set once at creation otherwise); this ruling is what
+makes building it necessary now rather than optional.
 
 ## Defeat detection and the border-growth gap
 
@@ -456,27 +482,58 @@ as a sibling step, extracting `position`/`layer` from the `Border` that call jus
   ("Karen"): its `LivingDeathEvent` handler resolves the dying entity's boss record (its
   `BossMobFixture` if `MobJig` already attached one, with a synchronous `MobScope.getFor(mob)`
   fallback otherwise — see [MobScope.getFor() Contract](../../satchel/spec/mobscope-getfor.md)),
-  marks that record defeated, calls `BorderAPI.grow(level, deathLocation)`, and — once that
-  succeeds — calls `BossAPI.createBoss` right after, in the same handler.
+  marks that record defeated, then -- gated per "Cascade gating" below -- calls
+  `BorderAPI.grow(level, deathLocation)` and, once that succeeds, `BossAPI.createBoss` right after,
+  in the same handler.
 - **`BossAPI.forceDefeat(Level, UUID)`, command-triggered.** [FRO_057](../../../tickets/FRO_057_boss-control-commands-build.md)
   (`/boss transform defeat`, [RM_FRO_022](../../../roadmap/RM_FRO_022_joyce.md) "Joyce"): the
-  same cascade as the combat path above — `markDefeated`, then `BorderAPI.grow` centered on the
-  record's own stored `position()`, then `createBoss` for the resulting border — but keyed off a
-  selector-resolved `bossId` instead of a dying `Mob`, so it works on an unmaterialized record
-  with no live entity at all. Deliberately not sharing code with `onLivingDeath` above; that
-  handler is Karen's own already-verified path and stays untouched.
+  same cascade as the combat path above -- `markDefeated`, then, gated the same way, `BorderAPI.grow`
+  centered on the record's own stored `position()`, then `createBoss` for the resulting border --
+  but keyed off a selector-resolved `bossId` instead of a dying `Mob`, so it works on an
+  unmaterialized record with no live entity at all. Deliberately not sharing code with
+  `onLivingDeath` above; that handler is Karen's own already-verified path and stays untouched.
 - **`getInitial()`, a level's first border.** `getInitial()` has exactly one call site in the
-  codebase — `BordersPathFacet.grow()`'s own empty-path branch. `BorderModule` subscribes to
-  Satchel's own `ScopeEvent.Loaded` (filtered to `BORDERS_JIG`'s key and the overworld dimension);
-  when an unseeded level's borders scope loads, it calls `BorderAPI.grow(level)` and then
-  `BossAPI.createBoss(level, border)` for the resulting border, in that same handler — see
+  codebase -- `BordersPathFacet.grow()`'s own empty-path branch. `BossModule` -- not `BorderModule`,
+  see [FRO_075](../../../tickets/FRO_075_bootstrap-ownership.md), which moved this listener to keep
+  the dependency direction (Boss depends on Border, never the reverse) intact -- subscribes to
+  Satchel's own `ScopeEvent.Loaded` on `BORDERS_JIG` (server + overworld only); when an unseeded
+  level's borders scope loads, it calls `BorderAPI.grow(level)` and then
+  `BossCrudFacet.create(border.layer())` for the resulting border, in that same handler -- see
   [Border § Runtime wiring](border.md#runtime-wiring) for the full mechanism, including why
-  `BordersFixture.seeded()` rather than `PATH.isEmpty()` is what gates it.
+  `BordersFixture.seeded()` rather than `PATH.isEmpty()` is what gates it. Never routed through the
+  defeat cascade -- no death occurred -- so "Cascade gating" below doesn't apply to it; this is the
+  call site the [FRO_064](../../../tickets/FRO_064_boss-defeat-cascade-grows-border-level-r.md)
+  ruling means by "the bootstrap case needs no special case."
 - **Anything else that calls `grow()`/`addBorder()` directly** (Tier 0's own description mentions
   "an admin command and a debug trigger" as existing callers) only needs the paired call if it's
   meant to produce a real progression border. If it's producing an off-path/debug border, it
   correctly gets no boss by doing nothing extra — consistent with "Data model" above's point that
   not every `Border` needs one.
+
+### Cascade gating: on-path, and last one standing
+
+Neither defeat-triggered call site above fires `grow`/`createBoss` unconditionally --
+[FRO_064](../../../tickets/FRO_064_boss-defeat-cascade-grows-border-level-r.md) traced a live
+playtest bug to exactly that gap. Both check the defeated record's `borderId` (see [Boss-less path
+layers and attach](#boss-less-path-layers-and-attach)) after `markDefeated`, before doing anything
+else:
+
+- **Off-path stops here.** `borderId` empty -- a hand-placed `/boss add`-ed record never `/boss
+  attach`-ed to a border -- means the cascade stops right after `markDefeated`. No `grow`, no
+  `createBoss`. This is the only way an added boss avoids gating progression, and it's not a
+  special case -- every record gets the same check, an off-path one just never has a `borderId` to
+  match unless someone deliberately attaches it.
+- **On-path requires every sibling on that `borderId` defeated too.** `BossFixture`'s n:1
+  boss-to-border cardinality (a themed multi-mob encounter can share one `borderId`) means one
+  defeat isn't necessarily the whole encounter. Before proceeding, the cascade checks whether any
+  other record sharing that `borderId` still has `alive: true`. If yes, stop -- this defeat is
+  recorded and nothing else happens yet. Only once the last living record sharing that `borderId`
+  falls does `grow` + `createBoss` run. `borderId`, not `layer`, is the correlating key -- tighter
+  than a layer match, which can't tell an intentionally standalone off-path boss from a real
+  progression gap (see "What can actually go wrong" above).
+
+Depends on `Optional<UUID> borderId` landing on `BossRecord`, same field [Boss-less path layers and
+attach](#boss-less-path-layers-and-attach) needs.
 
 ## Known gaps
 

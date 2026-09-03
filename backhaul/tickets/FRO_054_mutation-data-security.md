@@ -3,13 +3,13 @@ id: FRO_054
 uid: FRO
 number: 54
 client: FrontierMode
-status: open
+status: done
 title: 'Data security pass: mutation proposals'
 context: '[Susan_02] Mutation defensive-hardening audit; findings split to FRO_058/059.
   Umbrella record.'
 priority: low
 opened: '2026-08-28'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -69,6 +69,15 @@ ticket yet. Low priority: general polish, not a known live vulnerability or a bl
     `BossFixture`'s mutation boundary (bounds-check `layer`, sanity-check `position`) would close
     the concrete gap above without the added class. Final call on scope is the Architect's per
     this ticket's own text.
+- 2026-09-03: **Closed.** The scoping recommendation's `layer` half shipped via
+  [FRO_058](FRO_058_boss-mutation-validation-reconciliation.md)/[FRO_059](FRO_059_border-proposal-center-bounds-id-display.md)'s
+  rulings and [FRO_060](FRO_060_boss-border-mutation-validation-build.md)'s build --
+  `BossFixture.create()` now rejects `layer < 0`. The `position` half was **not** built --
+  `/boss add <pos\|layer>` still accepts a raw position with no bounds check (no counterpart to
+  the `center` check `border.md`'s "Proposal identity and validation" section now gives Border).
+  Same latent-not-live framing as this ticket's other findings (permission-2-gated admin surface,
+  no current call site exploits it) -- left as an accepted gap rather than rolled into this
+  closure. Revisit as its own ticket if it needs closing later.
 
 <!-- bh-header:start -->
 **mcRepos** — [Dashboard](../../BACKHAUL.md) · [Board](../BOARD.md) · [Folder](openfolder:///C:/_local/mcRepos/FrontierMode)
