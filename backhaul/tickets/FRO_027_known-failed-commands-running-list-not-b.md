@@ -5,8 +5,8 @@ number: 27
 client: FrontierMode
 status: open
 title: Known-failed commands (running list, not being worked)
-context: Running list of border commands found broken by playtest. Not being triaged
-  or fixed until further notice -- project owner's explicit call.
+context: Running list of border commands found broken by playtest; not being triaged,
+  per owner's call.
 priority: low
 opened: '2026-08-16'
 closed: null

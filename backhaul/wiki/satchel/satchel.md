@@ -7,7 +7,7 @@ summary: Core data & utility mod for FrontierMode -- bundles/fixtures, networkin
   and per-bundle persistence.
 keywords: null
 status: verified
-updated: '2026-08-27'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -118,11 +118,9 @@ what qualifies:
 
 ## Design docs
 
-Existing diagrams under `Satchel/design/`:
-
-- `satchelArchitectureOverview.svg` / `.png`
-- `satchelDataAvailabilty.svg` / `.png`
-- `Satchel external event flow.png`
+No diagrams currently exist for Satchel. New ones are produced by the
+[Cartographer](../../roles/cartographer.md) role as Mermaid source, filed under
+`satchel/diagrams/` once they exist.
 
 ## Roadmap
 

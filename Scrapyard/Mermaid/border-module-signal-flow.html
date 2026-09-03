@@ -1,0 +1,98 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>BorderModule signal flow</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { background: #0d1117; margin: 0; padding: 24px; overflow-x: auto; }
+  #diagram { display: inline-block; }
+  h1 { color: #c9d1d9; font: 600 16px system-ui, sans-serif; margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<h1>BorderModule — signal flow (scratch, not promoted to wiki)</h1>
+<div id="diagram" class="mermaid">
+sequenceDiagram
+    participant FM as FrontierMode
+    participant FEB as Forge EVENT_BUS
+    participant SEB as Satchel event bus
+    participant BM as BorderModule
+    participant BT as BordersTriggers
+    participant DBR as DefaultBorderRules
+    participant BC as BorderCommands
+    participant API as BorderAPI
+    participant BF as BordersFixture
+    participant BPB as BorderPlayerBundle
+    participant BPSF as BorderPlayerStatusFixture
+    participant Boss as BossAPI
+
+    Note over BM: === Boot: FrontierMode() constructor, once ===
+    FM->>BM: init()
+    BM->>SEB: registerJigConfig(config) -- LevelJigConfig, BOTH-applicability
+    BM->>SEB: registerJigConfig(playerConfig) -- PlayerJigConfig
+    BM->>FEB: addListener(BorderModule::onBlockPlaced)
+    Note over BM,SEB: init() also binds Tick->BordersTriggers.updateFinderItems,<br/>Tick->Rendering.onClientTick, Unloaded->Rendering.onClientUnload --<br/>those fire straight to their targets, not back through BorderModule.
+
+    Note over BM: === Command registration, once per world join ===
+    FEB->>FM: RegisterCommandsEvent
+    FM->>BM: onRegisterCommands(event)
+    BM->>BC: register(dispatcher)
+
+    Note over BM: === Block-placed growth trigger, raw Forge listener ===
+    FEB->>BM: onBlockPlaced(BlockEvent.EntityPlaceEvent)
+    BM->>BT: growPath(event)
+    BT->>DBR: growPathCriteria(level, pos, placedBlock) [BorderRules.ACTIVE]
+    DBR-->>BT: boolean
+    alt criteria met
+        BT->>API: grow(level)
+        API->>BF: PATH.grow()
+        BF-->>API: Result
+        Note over BT: sendSystemMessage - '[Border] Advanced border progression'
+    end
+
+    Note over BM: === Player-scope tick, PlayerJig, filtered to BORDER_PLAYER_JIG ===
+    SEB->>BM: ScopeEvent.Tick (PlayerJig)
+    BM->>BM: filter info.jigInfo().key == BORDER_PLAYER_JIG
+    BM->>BPB: jig.getOrCreate(scope, BORDER_PLAYER_BUNDLE)
+    BPB-->>BM: bundle
+    BM->>BPB: getOrCreateFixture(BORDER_PLAYER_STATUS, ...)
+    BPB-->>BM: fixture
+    BM->>API: CRUD(player.serverLevel())
+    API->>BF: CRUD facet
+    BF-->>BM: List of Border
+    BM->>BPSF: accept(proposal, borders, player.blockPosition())
+
+    Note over BM: === Level-scope loaded, LevelJig, filtered to BORDERS_JIG, server + overworld only ===
+    SEB->>BM: ScopeEvent.Loaded (LevelJig)
+    BM->>BM: filter key==BORDERS_JIG, side==SERVER, dimension==OVERWORLD
+    BM->>API: INFO(level)
+    API-->>BM: seeded()?
+    alt not seeded
+        BM->>API: grow(level)
+        API->>BF: PATH.grow()
+        BF-->>API: Result
+        API-->>BM: Result (border)
+        BM->>Boss: createBoss(level, border)
+        BM->>API: startPregeneration(level, border.id())
+    end
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: { fontSize: '20px' },
+    sequence: {
+      useMaxWidth: false,
+      actorFontSize: 18,
+      actorFontWeight: 'bold',
+      messageFontSize: 16,
+      noteFontSize: 16,
+      width: 170,
+      height: 50,
+      boxTextMargin: 8
+    }
+  });
+</script>
+</body>
+</html>

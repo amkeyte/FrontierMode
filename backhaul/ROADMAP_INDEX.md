@@ -16,9 +16,12 @@ Everything below has no unsatisfied dependency. This is the menu — pick from h
 
 - [**RM_FRO_021**](roadmap/RM_FRO_021_susan-02.md) — Susan epoch review/fix
 - [**RM_FRO_024**](roadmap/RM_FRO_024_donna-01.md) — Donna epoch maintenance 1
-- [**RM_FRO_026**](roadmap/RM_FRO_026_dorothy.md) — Navigator target-resolution fixture
-- [**RM_FRO_027**](roadmap/RM_FRO_027_janet.md) — BorderCurve intensity-curve fixture
-- [**RM_FRO_028**](roadmap/RM_FRO_028_diane.md) — BorderPregen terrain pregeneration
+- [**RM_FRO_029**](roadmap/RM_FRO_029_gloria.md) — Guardian Mobs epoch 1
+- [**RM_FRO_030**](roadmap/RM_FRO_030_janice.md) — Environmental Tells epoch 1
+- [**RM_FRO_031**](roadmap/RM_FRO_031_joan.md) — Beacons epoch 1
+- [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) — Ender-eye-style Tracker epoch 1
+- [**RM_FRO_033**](roadmap/RM_FRO_033_marilyn.md) — Special Compass epoch 1
+- [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) — Player-built Warps epoch 1
 
 ### Dependency structure
 
@@ -45,16 +48,16 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                   - [**RM_FRO_022**](roadmap/RM_FRO_022_joyce.md) [work · resolved] Boss control commands — depends on: RM_FRO_019
                     - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · reached] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019, RM_FRO_022
                       - [**RM_FRO_024**](roadmap/RM_FRO_024_donna-01.md) [work · open · ACTIONABLE] Donna epoch maintenance 1 — depends on: RM_FRO_017
-                      - [**RM_FRO_026**](roadmap/RM_FRO_026_dorothy.md) [work · open · ACTIONABLE] Navigator target-resolution fixture — depends on: RM_FRO_017
-                      - [**RM_FRO_027**](roadmap/RM_FRO_027_janet.md) [work · open · ACTIONABLE] BorderCurve intensity-curve fixture — depends on: RM_FRO_017
-                      - [**RM_FRO_028**](roadmap/RM_FRO_028_diane.md) [work · open · ACTIONABLE] BorderPregen terrain pregeneration — depends on: RM_FRO_017
+                      - [**RM_FRO_026**](roadmap/RM_FRO_026_dorothy.md) [work · resolved] Navigator target-resolution fixture — depends on: RM_FRO_017
+                      - [**RM_FRO_027**](roadmap/RM_FRO_027_janet.md) [work · resolved] BorderCurve intensity-curve fixture — depends on: RM_FRO_017
+                      - [**RM_FRO_028**](roadmap/RM_FRO_028_diane.md) [work · resolved] BorderPregen terrain pregeneration — depends on: RM_FRO_017
                         - [**RM_FRO_025**](roadmap/RM_FRO_025_donna-02.md) [work · open] Donna epoch review/fix — depends on: RM_FRO_024
-                        - [**RM_FRO_029**](roadmap/RM_FRO_029_gloria.md) [work · open] Guardian Mobs epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                        - [**RM_FRO_030**](roadmap/RM_FRO_030_janice.md) [work · open] Environmental Tells epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                        - [**RM_FRO_031**](roadmap/RM_FRO_031_joan.md) [work · open] Beacons epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                        - [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) [work · open] Ender-eye-style Tracker epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                        - [**RM_FRO_033**](roadmap/RM_FRO_033_marilyn.md) [work · open] Special Compass epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                        - [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) [work · open] Player-built Warps epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_029**](roadmap/RM_FRO_029_gloria.md) [work · open · ACTIONABLE] Guardian Mobs epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_030**](roadmap/RM_FRO_030_janice.md) [work · open · ACTIONABLE] Environmental Tells epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_031**](roadmap/RM_FRO_031_joan.md) [work · open · ACTIONABLE] Beacons epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) [work · open · ACTIONABLE] Ender-eye-style Tracker epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_033**](roadmap/RM_FRO_033_marilyn.md) [work · open · ACTIONABLE] Special Compass epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) [work · open · ACTIONABLE] Player-built Warps epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
                           - [**RM_FRO_023**](roadmap/RM_FRO_023_kathleen.md) [convergence · WIP] Tier 2: Guided loop operational — depends on: RM_FRO_017, RM_FRO_025
 
 ## RM_SAT
