@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Forge event to ScopeEvent</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { background: #0d1117; margin: 0; padding: 24px; overflow-x: auto; }
+  #diagram { display: inline-block; }
+  h1 { color: #c9d1d9; font: 600 16px system-ui, sans-serif; margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<h1>Satchel: Forge event -&gt; ScopeEvent</h1>
+<div id="diagram" class="mermaid">
+flowchart TD
+    subgraph FORGE["Forge (Minecraft) -- raw events"]
+        LVLEVT["LevelEvent.Load / Unload"]
+        PLYEVT["PlayerLoggedInEvent / LoggedOutEvent /<br/>PlayerChangedDimensionEvent"]
+        TICKEVT["TickEvent.ServerTickEvent<br/>(END phase, every server tick)"]
+    end
+
+    ING["ServerForgeIngress<br/>(ClientForgeIngress mirrors this client-side,<br/>not shown) -- the only real Subscribe-Event<br/>listeners in all of Satchel"]
+
+    LVLEVT --> ING
+    PLYEVT --> ING
+    TICKEVT --> ING
+
+    subgraph DISCOVERY["Scope discovery -- driven directly off<br/>Load/Unload and login/logout, not the tick engine"]
+        INTRO["introduceSource(source)"]
+        ADDSCOPE["Every installed JigInfo asks its ScopeCoupler<br/>to resolveScope(source) -- LevelScopeCoupler /<br/>PlayerScopeCoupler / MobScopeCoupler, per jig kind.<br/>First match -> JigInfo.addScope(...) --<br/>new ScopeInfo, phase NEW"]
+        REMOVE["tryRemoveSource(source)"]
+        UNLOADNOW["Same coupler resolution; on a match,<br/>calls jig.onUnload(info) directly --<br/>synchronous, not pulse-driven"]
+    end
+
+    ING -->|"LevelEvent.Load,<br/>PlayerLoggedInEvent"| INTRO
+    ING -->|"LevelEvent.Unload,<br/>PlayerLoggedOutEvent"| REMOVE
+    INTRO --> ADDSCOPE
+    REMOVE --> UNLOADNOW
+
+    PULSE["FoundationLifecycleDispatcher.pulse() --<br/>the real engine, once per server tick"]
+    ING -->|"TickEvent.ServerTickEvent"| PULSE
+
+    subgraph PERSCOPE["For every JigInfo, for every one of its<br/>ScopeInfo -- run every pulse"]
+        HEP["jig.handleExecutionPulse(info)"]
+        TICK["jig.onTick(info)"]
+    end
+
+    PULSE --> HEP
+    PULSE --> TICK
+
+    subgraph JIGBASE["ASatchelJig -- shared base every jig kind<br/>(Level / Player / Mob) extends"]
+        READY["Phase NEW: ask coupler.tryMarkReady(info) --<br/>per-scope-kind readiness check"]
+        ONLOAD["Accepted -> onLoad(info): coupler.onScopeLoad(info),<br/>then signal Loaded"]
+        STEADY["Phase LOADED instead runs<br/>coupler.onExecutionPulse(info) --<br/>steady-state work, no ScopeEvent"]
+        ONTICKJ["coupler.onJigTick(info), then signal Tick"]
+        ONUNLOADJ["signal Unloaded first,<br/>then coupler.onScopeUnload(info)"]
+    end
+
+    HEP --> READY
+    READY -->|"accepted"| ONLOAD
+    READY -->|"already LOADED"| STEADY
+    TICK --> ONTICKJ
+    UNLOADNOW --> ONUNLOADJ
+
+    DISP["ScopeLifecycleDispatcher --<br/>the only place a ScopeEvent object<br/>actually gets constructed"]
+    ONLOAD -->|"signalScopeLoaded"| DISP
+    ONTICKJ -->|"signalScopeTick<br/>(no-op unless phase LOADED)"| DISP
+    ONUNLOADJ -->|"signalScopeUnloaded"| DISP
+
+    BUS["SatchelEventBus.post(event) --<br/>synchronous, class-keyed pub/sub"]
+    DISP -->|"ScopeEvent.Loaded"| BUS
+    DISP -->|"ScopeEvent.Tick"| BUS
+    DISP -->|"ScopeEvent.Unloaded"| BUS
+
+    HANDLERS["Module EventHandlers, installed onto the bus<br/>at boot from each module's JigConfig --<br/>e.g. BossModule::onBossJigTick,<br/>BorderModule::onPlayerScopeTick"]
+    BUS --> HANDLERS
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: { fontSize: '20px' },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      nodeSpacing: 40,
+      rankSpacing: 90
+    }
+  });
+</script>
+</body>
+</html>

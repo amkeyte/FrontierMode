@@ -9,15 +9,12 @@ import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
-import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusProposal;
 import com.arryn.frontiermode.border.server.commands.BorderCommands;
 import com.arryn.frontiermode.border.server.rules.BordersTriggers;
-import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.satchel.Satchel;
-import net.minecraftforge.fml.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.player.PlayerJig;
@@ -31,9 +28,7 @@ import com.arryn.satchel.common.newconfig.newnew.PlayerJigConfig;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.level.BlockEvent;
 
 import java.util.List;
 import java.util.Objects;
@@ -116,10 +111,10 @@ public final class BorderModule {
                         // RM_FRO_012: RenderContext.CACHE eviction -- see Rendering.onClientUnload
                         // and RenderContext.evict for the full reasoning.
                         .on(ScopeEvent.Unloaded.class, Rendering::onClientUnload)
-                        // RM_FRO_018: level-bootstrap hook -- a fresh level's first border, and
-                        // its paired boss record, with no command/trigger. See
-                        // onBordersScopeLoaded's own docs.
-                        .on(ScopeEvent.Loaded.class, BorderModule::onBordersScopeLoaded)
+                        // RM_FRO_018 / FRO_075: level-bootstrap hook moved to
+                        // BossModule.onBordersScopeLoaded -- Boss depends on Border, never the
+                        // reverse, so Border no longer reaches into Boss for this (Architect
+                        // ruling, FRO_074#1).
                         .build();
 
         // ─────────────────────────────────────────────
@@ -222,24 +217,11 @@ public final class BorderModule {
                 .eventHandlers(playerEventHandlers);
 
         Satchel.registerJigConfig(playerConfig);
-
-        // onBlockPlaced is a plain static method, not an @SubscribeEvent instance method on a
-        // registered listener object -- FrontierMode's constructor only does
-        // MinecraftForge.EVENT_BUS.register(this), which picks up @SubscribeEvent methods
-        // declared on FrontierMode itself (just onRegisterCommands). Nothing was ever wiring
-        // BlockEvent.EntityPlaceEvent to BorderModule::onBlockPlaced, so gold-block path growth
-        // was fully dead code: growPathCriteria/BorderAPI.grow() were unreachable from any real
-        // gameplay action, not just untested. See FRO_017.
-        MinecraftForge.EVENT_BUS.addListener(BorderModule::onBlockPlaced);
     }
 
 
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         BorderCommands.register(event.getDispatcher());
-    }
-
-    public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
-        BordersTriggers.growPath(event);
     }
 
     // ─────────────────────────────────────────────
@@ -280,69 +262,5 @@ public final class BorderModule {
                 borders,
                 player.blockPosition()
         );
-    }
-
-    // ─────────────────────────────────────────────
-    // RM_FRO_018 (Shirley) level-bootstrap hook
-    // ─────────────────────────────────────────────
-
-    /**
-     * Auto-bootstraps a fresh overworld level's first border, with no command/trigger, and pairs
-     * it with a boss record -- see Border's "Known gaps" and Boss's "Defeat detection and the
-     * border-growth gap" wiki sections. Reads {@code seeded} rather than {@code PATH.isEmpty()}:
-     * a Path may become empty again after every border on it is removed, and that alone must not
-     * re-trigger auto-creation -- an admin who cleared every border stays in control of their own
-     * world, per the project owner's own framing (see Border's "Known gaps" section). Filtered to
-     * the overworld only -- other dimensions don't bootstrap automatically.
-     *
-     * <p>Same shared-bus discipline as every other {@code ScopeEvent} handler here: the
-     * {@code BORDERS_JIG} key check below is what keeps this from running against a foreign
-     * jig's scope. By the time {@code ScopeEvent.Loaded} fires, this scope has already converged
-     * to ready, so {@code BorderAPI.INFO(level)} is expected to resolve here, not defer.
-     */
-    private static void onBordersScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
-        Objects.requireNonNull(info, "info");
-
-        if (!FrontierKeys.BORDERS_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        // BORDERS_JIG is sideApplicability=BOTH -- ScopeEvent.Loaded fires on the client's own
-        // LevelJig too, and BorderAPI.grow()/BossAPI.createBoss() below both mutate persisted
-        // state. Same guard BordersTriggers already uses for this jig's own Tick handlers.
-        if (Satchel.require().side() == LogicalSide.CLIENT) {
-            return;
-        }
-
-        LevelScope scope = (LevelScope) info.scope();
-        Level level = scope.level();
-
-        if (!level.dimension().equals(Level.OVERWORLD)) {
-            return;
-        }
-
-        var infoOpt = BorderAPI.INFO(level);
-        if (infoOpt.isEmpty()) {
-            OUT.warn("[Border] onBordersScopeLoaded(): BordersFixture not resolvable for overworld"
-                    + " level " + level.dimension().location() + " right after its own ScopeEvent.Loaded"
-                    + " -- skipping the bootstrap check this cycle.");
-            return;
-        }
-
-        if (infoOpt.get().seeded()) {
-            return;
-        }
-
-        // FRO_047: BorderAPI.grow() now returns Result instead of a bare Border.
-        Result result = BorderAPI.grow(level);
-        if (!result.isSuccess()) {
-            OUT.warn("[Border] onBordersScopeLoaded(): initial grow() failed for overworld level "
-                    + level.dimension().location() + ": " + result.message());
-            return;
-        }
-
-        BossAPI.createBoss(level, result.border());
-        BorderAPI.startPregeneration(level, result.border().id());
     }
 }

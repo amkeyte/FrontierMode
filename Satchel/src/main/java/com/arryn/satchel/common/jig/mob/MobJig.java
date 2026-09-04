@@ -6,6 +6,8 @@ import com.arryn.satchel.common.jig.guts.ASatchelJig;
 import com.arryn.satchel.common.jig.guts.JigInfo;
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.throttle.TickThrottler;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -70,6 +72,42 @@ public final class MobJig extends ASatchelJig<MobScope> {
     public UUID determineUUID(Object source) {
         return MobScope.resolveUUID(source);
     }
+
+    /* =============================================================
+     * Additive mob-kind signals (SAT_044)
+     * ========================================================== */
+
+    /**
+     * Overrides {@link ASatchelJig#onLoad} to post {@link ScopeEvent.MobGainedInterest}
+     * immediately after the generic {@link ScopeEvent.Loaded} fires. Additive -- the
+     * super call is unchanged; this only appends the extra signal on the same call stack.
+     */
+    @Override
+    public void onLoad(ScopeInfo info) {
+        super.onLoad(info); // → coupler.onScopeLoad → signalScopeLoaded → ScopeEvent.Loaded
+        OUT.debug("[MobJig] MobGainedInterest: " + info.scope());
+        Satchel.require().eventBus().post(new ScopeEvent.MobGainedInterest(info));
+    }
+
+    /**
+     * Overrides {@link ASatchelJig#onUnload} to post {@link ScopeEvent.MobLostInterest}
+     * immediately after the generic {@link ScopeEvent.Unloaded} fires. Additive -- the
+     * super call is unchanged; this only appends the extra signal on the same call stack.
+     *
+     * <p>
+     * The {@link ScopeInfo} object is still valid for reading after {@code super.onUnload}
+     * returns, even though the scope has been evicted from {@code JigInfo} by that point.
+     */
+    @Override
+    public void onUnload(ScopeInfo info) {
+        super.onUnload(info); // → signalScopeUnloaded → ScopeEvent.Unloaded → scope evicted
+        OUT.debug("[MobJig] MobLostInterest: " + info.scope());
+        Satchel.require().eventBus().post(new ScopeEvent.MobLostInterest(info));
+    }
+
+    /* =============================================================
+     * Poll-driven reconciliation
+     * ========================================================== */
 
     /**
      * Poll-driven presence reconciliation -- called once per {@link JigInfo} per foundation pulse

@@ -1,10 +1,10 @@
 package com.arryn.frontiermode.border.server.commands;
 
-import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -172,7 +172,7 @@ public final class BorderCommandHandler {
     // GROW
     // ------------------------------------------------------------
 
-    public static int pathGrow(CommandContext<CommandSourceStack> ctx)
+    public static int pathGrow(CommandContext<CommandSourceStack> ctx, BlockPos center)
             throws CommandSyntaxException {
 
         ServerLevel level = ctx.getSource().getLevel();
@@ -180,9 +180,14 @@ public final class BorderCommandHandler {
         // RM_FRO_015: removed an "if no borders exist, refuse to grow" guard that used to sit
         // here. It was backwards -- BordersPathFacet.grow() already branches internally on an
         // empty path and bootstraps for exactly that case, which is precisely how a level's very
-        // first border is supposed to get created. Command and trigger behave the same way.
+        // first border is supposed to get created. Command and trigger behave the same way; an
+        // absent tip isn't special for the explicit-center overload below either (see its own
+        // doc).
 
-        Result result = BorderAPI.grow(level);
+        // FRO_080: BorderAPI.grow(Level) deprecated, no-implicit-default center required instead
+        // -- see BorderCommands.path()'s new "center" argument and BorderAPI.grow(Level)'s own
+        // doc comment for the one remaining caller that still legitimately needs it.
+        Result result = BorderAPI.grow(level, center);
         if (!result.isSuccess()) {
             // RM_FRO_015: same rejection path/fix as addExplicit()'s matching comment
             // (RM_FRO_011/FRO_023) -- just never applied here until testing the fixLayers() work
@@ -190,6 +195,24 @@ public final class BorderCommandHandler {
             ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
+
+        // FRO_082 (FRO_063's ruling, boss.md's "Boss-less path layers and attach" section):
+        // pathGrow() is deliberately boss-less (FRO_048) -- the newly-grown border's id is
+        // marked pendingAttach so BossModule's own reconciliation check reads this as a
+        // sanctioned wait-state ("awaiting /boss attach"), not a real data bug, until an admin
+        // runs /boss attach against it. Same "whoever calls a border-creating operation also
+        // calls into the sibling module's own API right after" shape every other paired call
+        // site in this codebase uses -- but note this is the reverse direction from every other
+        // instance of that shape: those all live on Boss's own side calling into BorderAPI
+        // (Boss depends on Border, never the reverse -- see BossModule's class doc and FRO_075).
+        // This one call, explicitly named by both FRO_082's ticket text and boss.md's own ruling,
+        // is the one place Border imports Boss (BossAPI) -- a deliberate, ticket-mandated
+        // exception to that stated direction, not an oversight; flagged here and in FRO_082's own
+        // ticket log for whoever revisits this boundary later. A missing BossAPI.CRUD(level)
+        // here (Boss's own data not resolvable yet) is a silent no-op, same "standby, don't
+        // crash" discipline every other BossAPI resolution failure in this codebase already
+        // follows -- the grow itself already succeeded and is not rolled back for it.
+        BossAPI.CRUD(level).ifPresent(crud -> crud.addPendingAttach(result.border().id()));
 
         ctx.getSource().sendSuccess(
                 () -> msg("Advanced border progression"),
@@ -339,50 +362,6 @@ public final class BorderCommandHandler {
         );
 
         return borders.size();
-    }
-
-    /**
-     * Deliberately bypasses the {@code isReady()} standby gate every other accessor in this class
-     * goes through ({@link BorderAPI}'s facet resolvers) -- calls the raw jig directly so it can
-     * distinguish "bundle exists but Borders facet ABSENT" from "not ready yet," a distinction the
-     * gated accessors collapse into one "not available" state on purpose. Debug-only; not part of
-     * FRO_047's blast radius -- {@code BordersFixture} stays a public type for exactly this kind
-     * of low-level probe (see that class's own doc for why it can't be made literally
-     * package-private).
-     */
-    public static int debugCreate(CommandContext<CommandSourceStack> ctx) {
-        ServerLevel level = ctx.getSource().getLevel();
-
-        var optBorders = BorderAPI
-                .levelJig()
-                .getOrCreate(
-                        BorderAPI.scope(level),
-                        FrontierKeys.BORDERS_BUNDLE
-                )
-                .get(FrontierKeys.BORDERS);
-
-        if (optBorders.isEmpty()) {
-            ctx.getSource().sendSuccess(
-                    () -> Component.literal(
-                            "[Border][Debug] Borders bundle exists, but Borders facet is ABSENT"
-                    ),
-                    false
-            );
-            return 0;
-        }
-
-        var borders = optBorders.get();
-        int count = borders.CRUD.all().size();
-
-        ctx.getSource().sendSuccess(
-                () -> Component.literal(
-                        "[Border][Debug] Borders facet present. Count = " + count
-                ),
-                false
-        );
-
-        return count;
-
     }
 
 }

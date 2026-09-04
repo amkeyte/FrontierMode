@@ -3,12 +3,12 @@ id: satchel/spec/mobscope-getfor
 category: satchel/spec
 slug: mobscope-getfor
 title: MobScope.getFor() Contract
-summary: 'The static-factory boundary contract BossModule and Shirley''s defeat handler
-  depend on: fast-path semantics, the Optional.empty() removed-reference case, and
-  what it guarantees about poll-cycle timing.'
+summary: 'The static-factory boundary contract BossModule and Karen''s MobDied-triggered
+  defeat handler depend on: fast-path semantics, the Optional.empty() removed-reference
+  case, and what it guarantees about poll-cycle timing.'
 keywords: null
 status: verified
-updated: '2026-08-24'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -19,11 +19,15 @@ updated: '2026-08-24'
 
 `MobScope.getFor(Mob mob)` is the sanctioned entry point for tagging a live `Mob` into Satchel's
 `MobJig` scope machinery outside of the poll's own reconciliation cycle. Two FrontierMode callers
-depend on this contract directly: `BossModule`'s boss-tagging entry point, and the defeat handler
-this node's consumer registers, which calls it synchronously inside a `LivingDeathEvent` listener
-to close a race against the entity's own teardown. Doesn't re-derive `MobJig`'s poll-driven
-presence model — see [Jig & Scope Runtime](../architecture/runtime.md#mobjig) for that; this page
-is the boundary contract for the one static factory method itself, current-state, no history.
+depend on this contract directly: `BossModule`'s boss-tagging entry point, and Karen's defeat
+handler, which calls it synchronously from within its `MobDied` handler ([Mob Lifecycle
+Signals](../architecture/mob-lifecycle-signals.md) — `SatchelEventBus.post()` is itself synchronous,
+so this still runs in the same call stack, same tick, as the `LivingDeathEvent` that triggered it;
+just one layer removed from being that raw listener directly, since `ServerForgeIngress` owns the
+raw registration now) to close a race against the entity's own teardown. Doesn't re-derive
+`MobJig`'s poll-driven presence model — see [Jig & Scope Runtime](../architecture/runtime.md#mobjig)
+for that; this page is the boundary contract for the one static factory method itself,
+current-state, no history.
 
 ## Signature and call sequence
 
@@ -63,8 +67,10 @@ reference to.
 - **Guarantee: immediate attachment.** Calling `getFor` at a moment a live `Mob` reference already
   exists — a boss freshly spawned this tick — attaches the scope immediately. It does not wait for
   the next foundation-pulse reconciliation cycle. This is the specific property the defeat handler
-  depends on: calling `getFor` synchronously inside a `LivingDeathEvent` listener closes a race that
-  waiting on the next poll cycle would not.
+  depends on: calling `getFor` synchronously from within its `MobDied` handler closes a race that
+  waiting on the next poll cycle would not — same guarantee as calling it directly inside a raw
+  `LivingDeathEvent` listener, since the synchronous chain from that event to this call is unbroken
+  either way.
 - **Guarantee: idempotent under overlap with the poll.** Calling `getFor` for a `Mob` that's already
   scoped — whether by an earlier `getFor` call or by the poll's own reconciliation reaching it
   first — is safe. `introduceSource`'s `hasScope(scope)` guard means a second call never creates a

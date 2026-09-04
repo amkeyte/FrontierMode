@@ -66,8 +66,9 @@ public final class FrontierMode {
         BorderModule.init();
 
         // RM_FRO_018 (Shirley): Boss entity/spawn system. Depends on Border -- must init after
-        // it, never the reverse (Boss's level-bootstrap pairing reads Border's own
-        // ScopeEvent.Loaded hook; see BorderModule's own bootstrap handler).
+        // it, never the reverse. FRO_075: the level-bootstrap pairing (first Border + its paired
+        // Boss record) is BossModule's own ScopeEvent.Loaded handler now, registered from inside
+        // this same init() call -- see BossModule.onBordersScopeLoaded's own doc.
         BossModule.init();
     }
 

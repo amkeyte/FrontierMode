@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.common.player;
 
-import com.arryn.frontiermode.border.common.BorderMath;
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import net.minecraft.core.BlockPos;
@@ -49,7 +49,7 @@ final class BorderPlayerLogic {
         // duplicating the ranking keeps this in sync with that one authoritative implementation
         // rather than drifting from it again.
         List<Border> containing = borders.stream()
-                .filter(b -> BorderMath.isInside(b, pos))
+                .filter(b -> BorderAPI.MATH.isInside(b, pos))
                 .toList();
 
         Border relevant = BorderRules.ACTIVE.getRelevant(containing, pos);
@@ -60,7 +60,7 @@ final class BorderPlayerLogic {
             // so nearestLayer can just mirror relevantLayer here rather than re-deriving it.
             return new BorderPlayerEval(
                     relevant.id(),
-                    BorderMath.distanceToSurface(relevant, pos),
+                    BorderAPI.MATH.distanceToSurface(relevant, pos),
                     true,
                     OptionalInt.of(relevant.layer()),
                     relevant.layer()
@@ -73,7 +73,7 @@ final class BorderPlayerLogic {
         // player outside every border (e.g. for a compass/UI hint pointing them toward one).
         Border nearest = borders.stream()
                 .min(Comparator.comparingInt(
-                        b -> BorderMath.distanceToSurface(b, pos)
+                        b -> BorderAPI.MATH.distanceToSurface(b, pos)
                 ))
                 .orElseThrow();
 
@@ -82,7 +82,7 @@ final class BorderPlayerLogic {
         // a Relevance result.
         return new BorderPlayerEval(
                 nearest.id(),
-                BorderMath.distanceToSurface(nearest, pos),
+                BorderAPI.MATH.distanceToSurface(nearest, pos),
                 false,
                 OptionalInt.empty(),
                 nearest.layer()

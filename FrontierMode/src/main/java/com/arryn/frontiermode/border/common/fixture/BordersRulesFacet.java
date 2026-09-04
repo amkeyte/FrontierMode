@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import com.arryn.frontiermode.border.common.BorderMath;
+import com.arryn.frontiermode.border.BorderAPI;
 import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
@@ -27,7 +27,7 @@ public final class BordersRulesFacet {
 
         List<Border> result = new ArrayList<>();
         for (Border b : all) {
-            if (BorderMath.isInside(b, pos)) {
+            if (BorderAPI.MATH.isInside(b, pos)) {
                 result.add(b);
             }
         }

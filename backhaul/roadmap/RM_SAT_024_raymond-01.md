@@ -50,6 +50,20 @@ nothing had surfaced needing one until this design pass, so it opens now, alongs
   (`onCreated()`, `onLoaded()`, `onRemoved()`, `onJigTick()`, `isReady()`) with signatures, firing
   guarantees, state contracts, and the `Satchel.isReady()` disambiguation this item called for.
 
+- 2026-09-03: **`MobDied`/`MobGainedInterest`/`MobLostInterest`.** Surfaced designing FrontierMode's
+  Boss defeat-cascade gating (FRO_064): Boss's defeat detection reaches raw Forge directly
+  (`LivingDeathEvent`), the one inconsistency in an otherwise `ScopeEvent`-mediated design.
+  Architect ruling written onto [Mob Lifecycle
+  Signals](../wiki/satchel/architecture/mob-lifecycle-signals.md) -- three new signals routing
+  Boss's defeat detection and presence bookkeeping through Satchel's own dispatch instead. Build
+  routed to [SAT_044](../tickets/SAT_044_mob-lifecycle-signals-build.md).
+
+- 2026-09-03: **SAT_044 split.** It mixed the Satchel-side signal-primitive build with a
+  FrontierMode-side consumer migration (Boss's defeat detection, `BOSS_MOB_JIG`) -- two different
+  clients' code in one ticket. SAT_044 keeps the signal primitives; the consumer migration moved
+  to [FRO_086](../tickets/FRO_086_boss-mobdied-migration.md) ("Donna_02", FrontierMode's own
+  epoch container), which depends on SAT_044 landing first.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

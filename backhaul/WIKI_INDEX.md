@@ -36,12 +36,6 @@
 | [Frontier Mode Overview](wiki/frontiermode/design/overview.md) | draft | Core identity, design pillars, and the gradient-not-walls philosophy for FrontierMode's game-mode concept. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/overview.md) |
 | [Progression and Frontier Mechanics](wiki/frontiermode/design/progression.md) | draft | How the frontier expands: cylinder growth, re-centering, irregular shape, and the oldest-ring-wins overlap rule. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/design/progression.md) |
 
-## frontiermode/diagrams
-
-| Title | Status | Summary | Edit |
-|---|---|---|---|
-| [Border Module Shape](wiki/frontiermode/diagrams/border-module-shape.md) | verified | High-level module map of Border: BordersBundle's sibling fixtures, BordersFixture's four facets, the BorderAPI facade, and the three consumer surfaces (commands, client rendering, server rules/triggers). | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/frontiermode/diagrams/border-module-shape.md) |
-
 ## meta
 
 | Title | Status | Summary | Edit |
@@ -67,6 +61,14 @@
 |---|---|---|---|
 | [Top Baby Names of 1945](wiki/reference/baby-names-1945.md) | verified | 1945 US top-100 baby names (SSA) -- source list for persona names, code slugs, and other naming needs across this project. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/baby-names-1945.md) |
 
+## reference/diagrams
+
+| Title | Status | Summary | Edit |
+|---|---|---|---|
+| [_Diagrams](wiki/reference/diagrams/_diagrams.md) | verified | Landing page for every Mermaid diagram in this wiki -- one consolidated category (Reference), no per-mod split. Each diagram page has a matching large-font standalone HTML render linked from here, in html/. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/_diagrams.md) |
+| [Border Module Shape](wiki/reference/diagrams/border-module-shape.md) | verified | High-level module map of Border: BordersBundle's sibling fixtures, BordersFixture's four facets, the BorderAPI facade, and the three consumer surfaces (commands, client rendering, server rules/triggers). | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/border-module-shape.md) |
+| [Satchel: Forge Event to ScopeEvent](wiki/reference/diagrams/satchel-forge-to-scopeevent.md) | verified | High-level block diagram of Satchel's own pipeline: how a raw Forge event (LevelEvent, PlayerEvent, TickEvent) becomes a ScopeEvent.Loaded/Tick/Unloaded that module EventHandlers subscribe to. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/satchel-forge-to-scopeevent.md) |
+
 ## satchel
 
 | Title | Status | Summary | Edit |
@@ -83,6 +85,7 @@
 | [Forge Event Conduit (Parked)](wiki/satchel/architecture/forge-event-conduit.md) | draft | Open idea: route a jig's declared Forge gameplay events through Satchel-scoped dispatch instead of raw MinecraftForge.EVENT_BUS registration in module code. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/forge-event-conduit.md) |
 | [Jig & Strap Registration — History](wiki/satchel/architecture/jig-registration-break.md) | verified | Historical record of the compile-blocking jig/strap registration regression found and fixed on 2026-08-13 -- investigation notes, root causes, and the fix chain. Current mechanism is documented in runtime.md. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/jig-registration-break.md) |
 | [Jig & Strap Registration — Recovery Plan](wiki/satchel/architecture/jig-registration-recovery-plan.md) | verified | Proposed direction and first cleanup step to get FrontierMode compiling again against Satchel's newer declarative config system, deprecating the dead imperative Registrar/Strap pattern. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/jig-registration-recovery-plan.md) |
+| [Mob Lifecycle Signals](wiki/satchel/architecture/mob-lifecycle-signals.md) | verified | MobDied, MobGainedInterest, MobLostInterest -- the Mob-kind signals Satchel posts alongside or independent of the generic ScopeEvent triad, and why each is shaped the way it is. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/mob-lifecycle-signals.md) |
 | [Networking](wiki/satchel/architecture/net.md) | verified | Satchel's transport-only networking layer -- packet model, guarantees, forbidden behavior. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/net.md) |
 | [New Module Checklist](wiki/satchel/architecture/new-module-checklist.md) | draft | Footguns every new Satchel jig/module consumer has hit at least once -- register schema only, wire executionPulse if sync is needed, wire Forge listeners, respect LogicalSideContext thread discipline, keep bundles single-concern. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/new-module-checklist.md) |
 | [Persistence](wiki/satchel/architecture/persistence.md) | verified | Server-side per-bundle persistence architecture (Satchel 2.0) -- BundleSavedData, identity rules, dirty propagation. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/architecture/persistence.md) |
@@ -94,4 +97,4 @@
 | Title | Status | Summary | Edit |
 |---|---|---|---|
 | [Forge Integration & Sidedness Contract](wiki/satchel/spec/forge-integration.md) | verified | Which classes may touch Forge's event buses directly, which bus each legitimate touch-point uses, and the sidedness/thread-binding rules any code reaching into Satchel must follow. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/spec/forge-integration.md) |
-| [MobScope.getFor() Contract](wiki/satchel/spec/mobscope-getfor.md) | verified | The static-factory boundary contract BossModule and Shirley's defeat handler depend on: fast-path semantics, the Optional.empty() removed-reference case, and what it guarantees about poll-cycle timing. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/spec/mobscope-getfor.md) |
+| [MobScope.getFor() Contract](wiki/satchel/spec/mobscope-getfor.md) | verified | The static-factory boundary contract BossModule and Karen's MobDied-triggered defeat handler depend on: fast-path semantics, the Optional.empty() removed-reference case, and what it guarantees about poll-cycle timing. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/satchel/spec/mobscope-getfor.md) |

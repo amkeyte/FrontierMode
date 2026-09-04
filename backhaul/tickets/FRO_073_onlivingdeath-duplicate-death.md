@@ -3,7 +3,7 @@ id: FRO_073
 uid: FRO
 number: 73
 client: FrontierMode
-status: open
+status: done
 title: 'onLivingDeath: duplicate death events mint phantom borders/bosses'
 context: 'Corrects FRO_060''s own explicit ruling that onLivingDeath was immune to
   the double-defeat bug (''a Mob can only die once''). Real playtest log disproved
@@ -12,7 +12,7 @@ context: 'Corrects FRO_060''s own explicit ruling that onLivingDeath was immune 
   a pointless radius-32 disk. Fixed directly, no Architect spec change.'
 priority: high
 opened: '2026-09-02'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -23,6 +23,7 @@ closed: null
 onLivingDeath: duplicate death events mint phantom borders/bosses
 
 ## Log
+- 2026-09-03: Resolved the flagged open question -- asked the project owner directly about the four distinct "Boss (Layer 0)" Rabbit deaths. Confirmed a testing artifact: repeated manual `/boss` command usage during that playtest, not a real duplication bug. No further investigation ticket needed. The primary fix (this ticket's actual title -- the `markDefeated()` guard in `onLivingDeath`) survived this session's FRO_081 facet refactor intact, now going through `fixture.CRUD.markDefeated(...)` -- reverified by grep. Build verification: the user confirmed "game built and loaded, ran a few boss commands" earlier this session, covering the current state of this code. Closing.
 
 - 2026-09-02: Ticket opened.
 - 2026-09-02: Fixed. `BossModule.onLivingDeath` now checks `fixture.markDefeated(bossId)`'s

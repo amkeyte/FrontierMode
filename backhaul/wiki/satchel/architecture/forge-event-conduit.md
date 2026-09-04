@@ -7,7 +7,7 @@ summary: 'Open idea: route a jig''s declared Forge gameplay events through Satch
   dispatch instead of raw MinecraftForge.EVENT_BUS registration in module code.'
 keywords: null
 status: draft
-updated: '2026-08-18'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -101,6 +101,17 @@ what would justify opening a convergence to gather them.
 `BorderModule.onBlockPlaced` would be the natural first migration candidate once/if this gets
 built — same role Border already plays for the rest of the jig/scope system.
 
+## A narrower realization already shipped, separately
+
+[Mob Lifecycle Signals](mob-lifecycle-signals.md) built a bespoke, Mob-specific version of this
+idea for Boss's defeat detection — a bare `MobDied` event, gated on `MobInterestRegistry`
+membership rather than a generic multi-jig-kind registry, produced by a one-off addition to
+`ServerForgeIngress` rather than a new `ServerForgeConduit` class. It answers the "why not just use
+`SatchelEventBus`" half of this page's own reasoning (see "Why `SatchelEventBus` isn't actually the
+blocker" above) for exactly one event type and one consumer. It doesn't resolve either Shape A or
+Shape B for the general case — `BorderModule.onBlockPlaced` is still exactly where it was — but two
+real design questions surfaced building it, worth carrying here rather than losing:
+
 ## Open, not resolved here
 
 - Whether a forwarded event needs its own `sideApplicability`-style declaration, or can infer side
@@ -111,9 +122,26 @@ built — same role Border already plays for the rest of the jig/scope system.
   already is in the facade vision.
 - Whether B's registry-at-compile-time approach composes cleanly with `JigConfigValidator`'s
   existing fail-loudly-before-anything-runs discipline, or needs its own validation pass.
+- **A real public payload wrapper, to stop handing `ScopeInfo` (internals-laden) to module code
+  through `ScopeEvent` directly.** Surfaced designing `MobDied`'s payload — it couldn't extend
+  `ScopeEvent` partly for this reason, on top of its own timing-contract mismatch (see [Mob
+  Lifecycle Signals § MobDied](mob-lifecycle-signals.md#mobdied)). Whatever shape a general Forge
+  Event Conduit ends up taking, it inherits this same problem for every event it forwards, not just
+  `MobDied`'s one.
+- **Whether `MobInterestRegistry`'s per-consumer pull/supplier model should become a single
+  Satchel-owned registry consumers push UUIDs into and out of instead.** A push model would make
+  any future gate a cheap, uniform lookup regardless of how expensive an individual consumer's own
+  "who do I care about" logic is — real upside over today's live-call-every-supplier-per-event
+  shape. The real cost is symmetry risk: every consumer would have to remember to deregister on
+  every removal path, forever, or leak a stale entry — arguably worse than today's `MobFixture`
+  choice to just accept staleness as harmless, since it'd now be a correctness requirement instead
+  of an optional one. Punted for now, not because it's a bad idea — genuinely deferred.
 
 ## Related pages
 
+- [Mob Lifecycle Signals](mob-lifecycle-signals.md) — the narrower, shipped realization for
+  Mob-kind events specifically; carries this page's open items forward from a concrete build
+  rather than a proposal
 - [Universal Sidedness Facade](facade-vision.md) — the broader vision this narrows
 - [Forge Integration & Sidedness Contract](../spec/forge-integration.md) — current-state contract
   for who touches raw Forge and why

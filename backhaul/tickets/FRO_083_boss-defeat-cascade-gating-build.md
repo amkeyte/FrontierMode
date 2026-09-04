@@ -3,13 +3,13 @@ id: FRO_083
 uid: FRO
 number: 83
 client: FrontierMode
-status: open
+status: done
 title: Boss defeat cascade gating build
 context: '[Susan_02] Lead Dev build for FRO_064''s ruling -- borderId-gated cascade,
   on-path + last-sibling check. Depends on FRO_082.'
 priority: normal
 opened: '2026-09-03'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -59,6 +59,11 @@ Same as every ticket this pass: no Gradle in the agent sandbox. Whatever gets bu
 real build/playtest evidence before closing.
 
 ## Log
+- 2026-09-03: Implemented. Added `BossFixture.anyAliveWithBorderId(UUID)` (stream `anyMatch` over `bosses`, mirroring `layers()`'s own style) plus a thin `BossInfoFacet` pass-through, since "is any other record on this border still alive" is a read-only query -- same facet home `unmaterialized()`/`unpositioned()`/`layers()` already live in. No exclusion of the just-defeated record needed: `markDefeated()` already flipped its own `alive` to `false` in `bosses` by the time either gating check runs (confirmed by reading `BossFixture.markDefeated`'s body), so only a genuinely separate sibling can make the query return `true`.
+  - **`BossModule.onLivingDeath()`** (item 1): gating check inserted right after the existing `markDefeated` guard, before `BorderAPI.grow`. Empty `borderId` -> return (no-op, off-path boss). Non-empty with a still-alive sibling on that `borderId` -> return. Otherwise falls through to the existing `grow`+`createBoss` cascade unchanged.
+  - **`BossAPI.forceDefeat()`** (item 2): identical two-step check inserted in the same spot. This one has a real design wrinkle the ticket didn't spell out: `forceDefeat` returns a `DefeatOutcome` (chat-facing `Result`), so silently no-op'ing like `onLivingDeath` isn't an option -- the player needs to know their `/boss transform defeat` did something. Judgment call: widened `DefeatOutcome` from 2 to 3 components, adding `boolean growthGated`. The two new gating outcomes report `Result.validationRejected(...)` (there's no real `BorderAPI.grow` outcome to report -- `grow` was never called) but `growthGated=true`, and `BossCommandHandler.transformDefeat` now checks that flag *before* its existing `!result.isSuccess()` failure branch, reporting a success message ("Boss X force-defeated. <reason>") instead of "Failed to force-defeat..." -- the defeat mutation genuinely succeeded (`markDefeated` already committed) even though no border grew. All 8 `DefeatOutcome` construction sites in `forceDefeat` updated to the new 3-arg shape; only one other consumer existed (`BossCommandHandler.transformDefeat`), grep-confirmed.
+  - Items 3 and 4 (no change needed to `removeBoss()`/the bootstrap call site) reverified against the current code, not just taken on the ticket's word: `removeBoss()` (FRO_082) still never calls `grow`/`createBoss`; `BossModule.onBordersScopeLoaded` (FRO_075) still never goes through a defeat. Both confirmed unaffected, no changes made.
+  - Verified via brace/paren balance and a whole-tree grep sweep (`DefeatOutcome(`/`growthGated(`/`anyAliveWithBorderId`) across every touched file plus the wider tree -- no stray 2-arg `DefeatOutcome` construction sites remain, no other consumer needed updating. No compiler available in this sandbox (see standing note) -- real build/playtest still needed, especially the two new `/boss transform defeat` gated-outcome chat messages and the n:1-cardinality "last one standing" path in an actual multi-boss-per-layer scenario.
 
 - 2026-09-03: Ticket opened. Split from FRO_064's ruling for scheduling; carries the Architect's
   ruling verbatim. Parked on [RM_FRO_021](../roadmap/RM_FRO_021_susan-02.md) ("Susan_02"), same

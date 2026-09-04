@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.boss.server.commands;
 
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -36,6 +37,7 @@ public final class BossCommands {
                         .requires(src -> src.hasPermission(2))
                         .then(info())
                         .then(add())
+                        .then(attach())
                         .then(delete())
                         .then(mob())
                         .then(transform())
@@ -129,6 +131,22 @@ public final class BossCommands {
                                     return BossCommandHandler.addHere(ctx, layer);
                                 })
                         )
+                );
+    }
+
+    // ------------------------------------------------------------
+    // ATTACH -- FRO_082 (FRO_063's ruling). Nests BorderSelectorArgumentType directly, the same
+    // way BorderCommandHandler.pathInsert/pathRemove already do -- see BossCommandHandler.attach
+    // for why this isn't wired through BossSelectorResult's own (still four-mode-only) chain.
+    // ------------------------------------------------------------
+
+    private static ArgumentBuilder<CommandSourceStack, ?> attach() {
+        return Commands.literal("attach")
+                .then(Commands.argument("selector", BorderSelectorArgumentType.selector())
+                        .executes(ctx -> BossCommandHandler.attach(
+                                ctx,
+                                BorderSelectorArgumentType.getSelector(ctx, "selector")
+                        ))
                 );
     }
 

@@ -6,6 +6,7 @@ import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.border.WorldBorder;
 
 import java.util.ArrayList;
@@ -111,7 +112,7 @@ public class BordersCrudFacet {
             return Optional.of(reason);
         }
 
-        ServerLevel level = fixture.resolveLevel();
+        Level level = fixture.resolveLevel();
         int minY = level.getMinBuildHeight();
         int maxY = level.getMaxBuildHeight();
         if (center.getY() < minY || center.getY() >= maxY) {

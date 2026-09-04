@@ -81,6 +81,12 @@ container clearing, project owner's call — see Kathleen's own log.
   Finding 2 (`BorderPlayerBundle` facet discipline) needed no ticket -- Architect's ruling was
   "no action, keep as-is," closed out on FRO_074's own log instead.
 
+- 2026-09-03: **[FRO_086](../tickets/FRO_086_boss-mobdied-migration.md) lands here** -- split out
+  of [SAT_044](../tickets/SAT_044_mob-lifecycle-signals-build.md) (Satchel's Mob Lifecycle Signals
+  build), which mixed a Satchel-side signal build with this FrontierMode-side consumer migration
+  (Boss's defeat detection + `BOSS_MOB_JIG` onto the new signals). Depends on SAT_044 landing
+  first. Normal priority.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*

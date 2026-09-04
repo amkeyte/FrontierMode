@@ -269,7 +269,14 @@ public final class BorderCommands {
                 // path grow
                 // ------------------------------------------------------------
                 .then(Commands.literal("grow")
-                        .executes(BorderCommandHandler::pathGrow)
+                        // FRO_080: no-implicit-default center, per project owner -- caller must
+                        // always supply one now, same argument shape add()'s "pos" already uses.
+                        .then(Commands.argument("center", BlockPosArgument.blockPos())
+                                .executes(ctx -> {
+                                    BlockPos center = BlockPosArgument.getLoadedBlockPos(ctx, "center");
+                                    return BorderCommandHandler.pathGrow(ctx, center);
+                                })
+                        )
                 )
 
                 // ------------------------------------------------------------
@@ -341,10 +348,7 @@ public final class BorderCommands {
     }
     private static ArgumentBuilder<CommandSourceStack, ?> debug() {
         return Commands.literal("debug")
-                .executes(BorderCommandHandler::debug)
-                .then(Commands.literal("create")
-                        .executes(BorderCommandHandler::debugCreate)
-                );
+                .executes(BorderCommandHandler::debug);
     }
 
 

@@ -152,6 +152,15 @@ if (satchelJar == null) {
     )
 }
 
+configurations {
+    // Wire the ForgeGradle-managed MC+Forge classes onto the test classpath so tests can
+    // instantiate BlockPos, Vec3, RandomSource, Border, BorderCurve, etc. directly --
+    // none of those need registry bootstrap, so plain JUnit still works.  This lets
+    // BorderMath (and similar thin MC-type wrappers) be tested directly rather than
+    // requiring a separate pure-Java logic class just to work around the classpath gap.
+    testImplementation.extendsFrom(minecraft)
+}
+
 dependencies {
     // Specify the version of Minecraft to use.
     // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
@@ -178,11 +187,10 @@ dependencies {
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
 
-    // RM_FRO_026 ("Dorothy"): first FrontierMode-side unit test (BorderMathLogicTest) -- mirrors
-    // Satchel's own testImplementation/useJUnitPlatform setup exactly. Deliberately not wired to
-    // any Minecraft/ForgeGradle classpath (no minecraft/compileOnly extension onto the test
-    // sourceSet) -- same "test the pure logic, not the Minecraft-touching wrapper" discipline
-    // Satchel's MobReconcileLogicTest/TickThrottleTest already established.
+    // RM_FRO_026 ("Dorothy"): unit test entry point. MC+Forge classes reach the test classpath via
+    // configurations.testImplementation.extendsFrom(minecraft) above -- BlockPos/Vec3/RandomSource
+    // are value types that don't need registry bootstrap, so plain JUnit still runs fast with no
+    // game startup. Mirrors Satchel's own testImplementation/useJUnitPlatform setup.
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 

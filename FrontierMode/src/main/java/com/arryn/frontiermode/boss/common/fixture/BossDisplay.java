@@ -25,10 +25,15 @@ public final class BossDisplay {
                 ? r.position().getX() + ", " + r.position().getY() + ", " + r.position().getZ()
                 : "(pending -- home border still pregenerating)";
 
+        // FRO_082: borderId -- "none" for a hand-placed off-path boss (/boss add), the actual
+        // border id for anything paired with real border-growth (see BossRecord's own doc).
+        String borderText = r.borderId().map(Object::toString).orElse("none");
+
         return "idx=" + listIndex
                 + " | id=" + r.displayBossId()
                 + " | pos: " + posText
                 + " | layer=" + r.layer()
+                + " | border=" + borderText
                 + " | defeated=" + !r.alive()
                 + " | spawned=" + r.materialized()
                 + (r.materialized() ? " | entity=" + r.bossEntityId() : "");

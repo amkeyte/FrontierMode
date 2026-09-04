@@ -3,13 +3,13 @@ id: FRO_075
 uid: FRO
 number: 75
 client: FrontierMode
-status: open
+status: done
 title: Move boss bootstrap into BossModule
 context: '[Donna_02] Move boss creation from BorderModule into BossModule per Architect
   ruling. FRO_074#1'
 priority: normal
 opened: '2026-09-03'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -45,6 +45,8 @@ creation from there:
 lands -- see their own Summaries.
 
 ## Log
+- 2026-09-03: Implemented. Moved the level-bootstrap listener from `BorderModule.onBordersScopeLoaded` into `BossModule`, registered on `BOSS_JIG`'s own `EventHandlers` (`registerBossJig()`) rather than `BORDERS_JIG`'s -- `BossModule` doesn't own `BORDERS_JIG`'s `LevelJigConfig` and can't register a second config for the same jig key (`JigConfigCompiler` throws on duplicate keys), but `ScopeEvent.Loaded` is dispatched on one shared foundation-wide bus and every handler in this codebase already filters by jig key itself (confirmed by reading `SatchelEventBus`/`JigConfigCompiler` directly), so subscribing from `BOSS_JIG`'s config and filtering for `BORDERS_JIG`'s key works cleanly. Bonus: `BOSS_JIG` is SERVER-applicability only, so this handler is never even compiled on the client -- the old CLIENT-side guard `BorderModule`'s version needed (`BORDERS_JIG` is BOTH-applicability) is gone, no longer needed.
+- 2026-09-03: Deviated from the ticket's own pseudocode -- `BossCrudFacet.create(border.layer())` doesn't exist yet (that facet lands in FRO_081, sequenced after this ticket). Used the existing `BossAPI.createBoss(level, border)` call instead (the same one the old `BorderModule` version used), preserving the full original bootstrap logic verbatim (JIG-key check, overworld-only filter, `seeded()` check, `Result`-based `grow()` handling, `startPregeneration()` call) -- only the owning class and the sidedness guard changed. Updated three stale doc-comment references elsewhere (`BorderAPI.java`, `BorderPregenFixture.java`, `FrontierMode.java`, `BordersFixture.java`) that cited the old `BorderModule.onBordersScopeLoaded` as a live call site/pattern. Verified via brace/paren balance and a dotted+bare-reference grep sweep across every touched file plus the wider `frontiermode` tree (no compiler available in this sandbox -- see standing note).
 
 - 2026-09-03: Ticket opened.
 - 2026-09-03: Ticket opened. Split from FRO_074 finding 1 for scheduling; carries the Architect's ruling verbatim, ready for Lead Dev build. Parked on [RM_FRO_025](../roadmap/RM_FRO_025_donna-02.md) ("Donna_02").

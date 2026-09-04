@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -26,6 +27,15 @@ import java.util.UUID;
  * <p>{@code bossEntityId} is nullable -- null until an entity has actually been placed in the
  * world for this record. {@code alive} is false once defeated (RM_FRO_019's own concern; this
  * node never sets it false).
+ *
+ * <p><b>{@code borderId} (FRO_082, boss-commands.md's "Selector scheme" ruling):</b>
+ * {@code Optional.empty()} for a hand-placed off-path boss ({@code /boss add}) -- the exact case
+ * {@code BossFixture}'s Border-decoupling above was protecting, still fully served. Set once at
+ * creation, never re-read from any live {@code Border} afterward (same "copy it once" discipline
+ * {@code layer} already uses), for anything paired with real border-growth: the bootstrap grow
+ * ({@code BossModule.onBordersScopeLoaded}), the defeat-triggered grow
+ * ({@code BossModule.onLivingDeath} / {@code BossAPI.forceDefeat}), and {@code /boss attach}. See
+ * wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach.
  */
 public final class BossRecord {
 
@@ -34,19 +44,22 @@ public final class BossRecord {
     private final int layer;
     private final UUID bossEntityId;
     private final boolean alive;
+    private final Optional<UUID> borderId;
 
     public BossRecord(
             UUID bossId,
             BlockPos position,
             int layer,
             UUID bossEntityId,
-            boolean alive
+            boolean alive,
+            Optional<UUID> borderId
     ) {
         this.bossId = Objects.requireNonNull(bossId, "bossId");
         this.position = position; // nullable -- see this class's own doc
         this.layer = layer;
         this.bossEntityId = bossEntityId; // nullable
         this.alive = alive;
+        this.borderId = Objects.requireNonNull(borderId, "borderId");
     }
 
     public UUID bossId() {
@@ -77,6 +90,14 @@ public final class BossRecord {
         return alive;
     }
 
+    /**
+     * Empty for a hand-placed off-path boss ({@code /boss add}); set once at creation for
+     * anything paired with real border-growth. See this class's own doc.
+     */
+    public Optional<UUID> borderId() {
+        return borderId;
+    }
+
     public boolean positioned() {
         return position != null;
     }
@@ -97,7 +118,8 @@ public final class BossRecord {
                 Objects.requireNonNull(resolvedPosition, "resolvedPosition"),
                 layer,
                 bossEntityId,
-                alive
+                alive,
+                borderId
         );
     }
 
@@ -114,7 +136,8 @@ public final class BossRecord {
                 position,
                 layer,
                 Objects.requireNonNull(entityId, "entityId"),
-                alive
+                alive,
+                borderId
         );
     }
 
@@ -130,7 +153,8 @@ public final class BossRecord {
                 position,
                 layer,
                 bossEntityId,
-                false
+                false,
+                borderId
         );
     }
 
@@ -161,6 +185,10 @@ public final class BossRecord {
             tag.putUUID("bossEntityId", r.bossEntityId);
         }
         tag.putBoolean("alive", r.alive);
+        // FRO_082: borderId, same nullable-UUID persistence shape bossEntityId already uses above
+        // (a "has" boolean plus the UUID itself, only written when present).
+        tag.putBoolean("hasBorderId", r.borderId.isPresent());
+        r.borderId.ifPresent(id -> tag.putUUID("borderId", id));
         return tag;
     }
 
@@ -169,12 +197,18 @@ public final class BossRecord {
                 ? new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"))
                 : null;
         UUID entityId = tag.getBoolean("hasEntity") ? tag.getUUID("bossEntityId") : null;
+        // FRO_082: absent on a record saved before this field existed -- getBoolean() on a
+        // missing key returns false, the correct "no borderId" default for pre-existing data.
+        Optional<UUID> borderId = tag.getBoolean("hasBorderId")
+                ? Optional.of(tag.getUUID("borderId"))
+                : Optional.empty();
         return new BossRecord(
                 tag.getUUID("bossId"),
                 position,
                 tag.getInt("layer"),
                 entityId,
-                tag.getBoolean("alive")
+                tag.getBoolean("alive"),
+                borderId
         );
     }
 }

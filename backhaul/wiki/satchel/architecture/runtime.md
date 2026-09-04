@@ -7,7 +7,7 @@ summary: The jig/scope/foundation tick-and-event delivery machinery underneath S
   -- foundations, the dispatch chain, JigConfig registration, and the three jig kinds.
 keywords: null
 status: verified
-updated: '2026-08-21'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -444,7 +444,11 @@ active interest: a UUID that was scoped last cycle and, by either path, no longe
 torn down (`ScopeEvent.Unloaded`) -- on purpose reason-agnostic, since a chunk unload and a
 genuine removal (death, discard) are indistinguishable to `ForgeEgress#getEntity` and are treated
 identically by design, the same reason-agnostic contract `LevelEvent.Unload`/
-`PlayerLoggedOutEvent` teardown already gives the other two jig kinds. `MobScope.getFor(Mob mob)` is a fast path onto this same machinery, not
+`PlayerLoggedOutEvent` teardown already gives the other two jig kinds. This stays reason-agnostic
+by design and isn't changed by [Mob Lifecycle Signals](../architecture/mob-lifecycle-signals.md)'s
+`MobDied` -- that's a separate, independent signal for the narrower case where a real
+`LivingDeathEvent` actually fired, not a change to what `Unloaded` itself means or when it fires.
+`MobScope.getFor(Mob mob)` is a fast path onto this same machinery, not
 a second ingress mechanism, and its scope is held to the exact same "stays scoped while
 resolvable, torn down when it isn't" standard as one introduced through interest alone — see its
 own spec page for what it guarantees.
