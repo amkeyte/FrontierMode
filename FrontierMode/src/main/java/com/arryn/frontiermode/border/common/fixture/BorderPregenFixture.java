@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.BorderPregenLogic;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -194,7 +195,7 @@ public final class BorderPregenFixture extends SatchelFixture {
 
         // BORDERS_JIG is BOTH-applicability (client needs it for rendering) -- pregeneration
         // mutates persisted state and forces real chunk generation, server-only, same guard
-        // BorderModule.onBordersScopeLoaded/onPlayerScopeTick already use for this reason.
+        // BorderModule.onPlayerScopeTick already uses for this reason.
         if (Satchel.require().side() == LogicalSide.CLIENT) {
             return;
         }
@@ -221,7 +222,13 @@ public final class BorderPregenFixture extends SatchelFixture {
     }
 
     private void runBatch(ServerLevel level, BorderPregenRecord record) {
-        Optional<Border> borderOpt = BorderAPI.CRUD(level).flatMap(crud -> crud.get(record.borderId()));
+        // FRO_077: direct sibling access within this fixture's own BordersBundle, not the
+        // BorderAPI.CRUD() facade -- the facade exists for external callers, not internal bundle
+        // communication (see BordersBundle -- this fixture is a sibling of BordersFixture in the
+        // same bundle instance, reached here via getBundle() rather than a fresh level lookup).
+        Optional<Border> borderOpt = this.<BordersBundle>getBundle()
+                .get(FrontierKeys.BORDERS)
+                .flatMap(fixture -> fixture.CRUD.get(record.borderId()));
         if (borderOpt.isEmpty()) {
             // The border was deleted mid-pregeneration. BorderCurve's own page requires an
             // explicit delete-cascade for its own records (see BorderAPI.removeBorder); this

@@ -5,11 +5,6 @@ import com.arryn.frontiermode.border.common.fixture.BordersRevisionMonitor;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.fml.LogicalSide;
 
 
@@ -19,25 +14,6 @@ public class BordersTriggers {
             new BordersRevisionMonitor(5);
 
     public static BorderRules RULES = BorderRules.ACTIVE;
-
-    public static void growPath(BlockEvent.EntityPlaceEvent event) {
-        if (Satchel.require().side() == LogicalSide.CLIENT) return;
-
-        if (!(event.getLevel() instanceof Level level)) return;
-        if (!(event.getEntity() instanceof Player player)) return;
-
-        if (RULES.growPathCriteria(level, event.getPos(), event.getPlacedBlock())) {
-            BorderAPI.grow(level);
-
-            // Mirrors BorderCommandHandler.pathGrow's success message ("[Border] Advanced
-            // border progression") so organic growth gives the same feedback as the admin
-            // /border grow command -- previously silent by omission, not by design. See FRO_017.
-            if (player instanceof ServerPlayer serverPlayer) {
-                serverPlayer.sendSystemMessage(
-                        Component.literal("[Border] Advanced border progression"));
-            }
-        }
-    }
 
     public static void updateFinderItems(ScopeEvent.Tick event) {
         if (Satchel.require().side() == LogicalSide.CLIENT) return;

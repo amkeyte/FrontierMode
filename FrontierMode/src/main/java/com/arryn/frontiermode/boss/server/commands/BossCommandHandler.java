@@ -5,7 +5,10 @@ import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.boss.common.fixture.BossDisplay;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.border.server.commands.BorderSelector;
+import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -139,19 +142,74 @@ public final class BossCommandHandler {
     public static int delete(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
+        // FRO_082: routed through BossAPI.removeBoss() rather than calling
+        // BossFixture.remove(id) directly (this method's own pre-FRO_082 shape) -- removeBoss()
+        // wraps the same removal and, on success, adds the pendingAttach step boss.md's
+        // "Despawn and record removal" section describes. BossAPI.bosses(level)'s own
+        // "not available yet" check now lives inside removeBoss() itself.
+        boolean removed = BossAPI.removeBoss(level, id);
+        if (!removed) {
+            ctx.getSource().sendFailure(msg("No boss record to remove: " + id
+                    + " (or boss data not available for this level yet)."));
+            return 0;
+        }
+
+        ctx.getSource().sendSuccess(() -> msg("Removed boss record " + id), false);
+        return 1;
+    }
+
+    // ------------------------------------------------------------
+    // ATTACH
+    // ------------------------------------------------------------
+
+    /**
+     * Pairs a boss onto an existing boss-less path border -- FRO_082 (FRO_063's ruling).
+     * {@code add} with a border to bind to instead of a raw position: creates a boss record via
+     * {@code BossCrudFacet.create(border.layer(), border.id())}, which sets the new record's
+     * {@code borderId} to the selected border, then clears that border from
+     * {@code pendingAttach}. See wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach.
+     *
+     * <p>Nests {@code BorderSelectorArgumentType} the same way {@code BorderCommandHandler
+     * .pathInsert}/{@code .pathRemove} already do -- the argument is Border's own selector
+     * grammar directly, resolved to exactly one border via {@code BorderSelector.resolveSingle}
+     * (throws its own {@code CommandSyntaxException} on zero or more than one match), not a mode
+     * nested inside {@code BossSelectorResult} -- {@code @border} as a {@code BossSelector} mode
+     * is still documented proposal, not built (see boss-commands.md's "Selector scheme"; this
+     * command doesn't need it, since it always creates a fresh record rather than resolving an
+     * existing boss).
+     */
+    public static int attach(CommandContext<CommandSourceStack> ctx, BorderSelectorResult selector)
+            throws CommandSyntaxException {
+
+        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        ServerLevel level = ctx.getSource().getLevel();
+
+        Border border = BorderSelector.resolveSingle(selector, sp);
+
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
+        BossFixture fixture = fixtureOpt.get();
 
-        boolean removed = fixtureOpt.get().remove(id);
-        if (!removed) {
-            ctx.getSource().sendFailure(msg("No boss record to remove: " + id));
+        Optional<BossRecord> recordOpt = fixture.CRUD.create(border.layer(), border.id());
+        if (recordOpt.isEmpty()) {
+            ctx.getSource().sendFailure(msg("Rejected: could not create a boss record for border "
+                    + border.id() + " (negative layer -- see server log)."));
             return 0;
         }
+        BossRecord record = recordOpt.get();
 
-        ctx.getSource().sendSuccess(() -> msg("Removed boss record " + id), false);
+        // No-op, not an error, if border.id() wasn't actually pending -- attach doesn't require
+        // the target to already be in pendingAttach (boss.md's own spec places no such
+        // restriction on it), just clears it either way.
+        fixture.CRUD.removePendingAttach(border.id());
+
+        ctx.getSource().sendSuccess(
+                () -> msg("Attached boss " + record.bossId() + " to border " + border.id() + "."),
+                false
+        );
         return 1;
     }
 
@@ -205,6 +263,19 @@ public final class BossCommandHandler {
 
         BossAPI.DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
         Result result = outcome.borderResult();
+
+        // FRO_083: growthGated means the defeat itself succeeded (markDefeated already ran) but
+        // the grow/createBoss cascade was correctly withheld -- report it as a success, not a
+        // command failure, even though borderResult() itself is a validationRejected Result (see
+        // DefeatOutcome's own doc for why there's no real grow() outcome to report here).
+        if (outcome.growthGated()) {
+            ctx.getSource().sendSuccess(
+                    () -> msg("Boss " + id + " force-defeated. " + result.message()),
+                    false
+            );
+            return 1;
+        }
+
         if (!result.isSuccess()) {
             ctx.getSource().sendFailure(
                     msg("Failed to force-defeat boss " + id + ": " + result.message())

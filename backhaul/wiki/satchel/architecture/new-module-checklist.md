@@ -8,7 +8,7 @@ summary: Footguns every new Satchel jig/module consumer has hit at least once --
   LogicalSideContext thread discipline, keep bundles single-concern.
 keywords: null
 status: draft
-updated: '2026-08-17'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -52,6 +52,13 @@ you haven't registered a jig config before.
        return;
    }
    ```
+   **A `MobJig` consumer has two more signals worth knowing about**, beyond the generic triad above
+   — see [Mob Lifecycle Signals](mob-lifecycle-signals.md). `MobGainedInterest`/`MobLostInterest`
+   fire alongside (not instead of) the generic `Loaded`/`Unloaded` for Mob-kind scopes specifically,
+   and are usually the more honest ones to subscribe to for a `MobJig` consumer's own presence
+   bookkeeping. `MobDied` is a separate, unscoped signal for a confirmed real death — bare, not a
+   `ScopeEvent`, so it isn't covered by the jig-key guard above; a handler checks its own relevance
+   by UUID instead.
 4. **Don't assume `LogicalSideContext` is bound on threads you didn't get from a Forge event.**
    `ServerForgeIngress`/`ClientForgeIngress` bind it at the top of every `@SubscribeEvent` handler
    — that's the only place it's guaranteed set. Code reached from a worker thread, an async
@@ -121,6 +128,7 @@ jig-key guard from item 3, construct a `LevelJigConfig`, attach both, register.
 ## Related pages
 
 - [Jig & Scope Runtime](runtime.md) — the mechanics this checklist assumes
+- [Mob Lifecycle Signals](mob-lifecycle-signals.md) — the extra MobJig-specific signals item 3 points at
 - [Bundle](bundle.md)
 - [Fixture](fixture.md)
 - [Networking](net.md)

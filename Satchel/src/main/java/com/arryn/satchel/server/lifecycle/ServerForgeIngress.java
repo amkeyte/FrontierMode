@@ -4,6 +4,8 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
+import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
+import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
 import com.arryn.satchel.common.tracking.SatchelHealth;
@@ -12,6 +14,7 @@ import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -29,6 +32,7 @@ import java.util.UUID;
  *   <li>Bootstrap the server foundation</li>
  *   <li>Introduce host sources to Satchel</li>
  *   <li>Drive execution pulses</li>
+ *   <li>Post {@link MobDied} when a registered mob dies (SAT_044)</li>
  * </ul>
  *
  * <p>
@@ -185,6 +189,42 @@ public final class ServerForgeIngress {
                                 "player could log in. Skipping sync this call."
                 )
         );
+    }
+
+    /* =============================================================
+     * Mob death signal — MobDied (SAT_044)
+     * ========================================================== */
+
+    /**
+     * Posts {@link MobDied} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus} when
+     * a mob that at least one registered supplier has interest in dies.
+     *
+     * <p>
+     * Gate: checks the union of every {@link MobInterestRegistry} supplier's interest set for
+     * the dying entity's UUID. No match -- the overwhelming common case -- returns immediately,
+     * constructing nothing. A match anywhere posts one bare {@code MobDied} to the whole bus;
+     * every subscriber checks its own relevance before acting.
+     *
+     * <p>
+     * No {@code BOOTER.bindFoundation()} call: this fires mid-gameplay, long after the
+     * foundation is established. The {@code Satchel.isReady()} guard is the real safety net.
+     */
+    @SubscribeEvent
+    public static void onLivingDeath(LivingDeathEvent e) {
+        if (e.getEntity().level().isClientSide()) return;
+        if (!Satchel.isReady()) {
+            OUT.debug("[MobDied] gate: Satchel not ready -- " + e.getEntity().getUUID());
+            return;
+        }
+
+        UUID uuid = e.getEntity().getUUID();
+        if (!MobInterestRegistry.isAnyInterested(uuid)) {
+            OUT.debug("[MobDied] gate: not interested -- " + uuid);
+            return;
+        }
+
+        OUT.debug("[MobDied] posting for " + uuid);
+        Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
     }
 
     /* =================================ss============================
