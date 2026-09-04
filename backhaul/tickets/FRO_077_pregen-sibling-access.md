@@ -3,13 +3,13 @@ id: FRO_077
 uid: FRO
 number: 77
 client: FrontierMode
-status: open
+status: done
 title: BorderPregenFixture sibling access
 context: '[Donna_02] Switch BorderPregenFixture to direct sibling access, not the
   facade. FRO_074#4'
 priority: low
 opened: '2026-09-03'
-closed: null
+closed: '2026-09-03'
 ---
 
 <!-- board:start -->
@@ -36,6 +36,7 @@ to:
 or the equivalent direct-bundle-access pattern for this fixture's own scope/bundle structure.
 
 ## Log
+- 2026-09-03: Built by Lead Dev. `BorderPregenFixture.runBatch`'s one `BorderAPI.CRUD(level).flatMap(...)` call replaced with direct sibling access: `this.<BordersBundle>getBundle().get(FrontierKeys.BORDERS).flatMap(fixture -> fixture.CRUD.get(...))`, per the Architect's ruling. `BorderAPI` import dropped from the file (no longer used). No sandbox compile available (see FRO_079's log) -- verified by manual review.
 
 - 2026-09-03: Ticket opened.
 - 2026-09-03: Ticket opened. Split from FRO_074 finding 4 for scheduling; carries the Architect's ruling verbatim. Parked on [RM_FRO_025](../roadmap/RM_FRO_025_donna-02.md) ("Donna_02").

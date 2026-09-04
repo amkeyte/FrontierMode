@@ -19,9 +19,11 @@ updated: '2026-09-03'
 
 Boss entity/spawn system for [FrontierMode Operational Tiers](../../plans/operational-tiers.md)
 Tier 1 — "Core loop operational." [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen,"
-defeat detection) builds its `LivingDeathEvent` listener against the "Defeat detection and the
-border-growth gap" section below. Depends on Satchel's
-[RM_SAT_021](../../../roadmap/RM_SAT_021_frank.md) ("Frank," `MobJig`/`MobScope`).
+defeat detection) builds its `MobDied` handler (see [Mob Lifecycle
+Signals](../../satchel/architecture/mob-lifecycle-signals.md) — Satchel's own dispatch, not a raw
+`LivingDeathEvent` listener) against the "Defeat detection and the border-growth gap" section
+below. Depends on Satchel's [RM_SAT_021](../../../roadmap/RM_SAT_021_frank.md) ("Frank,"
+`MobJig`/`MobScope`).
 
 ## Scope
 
@@ -105,9 +107,14 @@ nothing else registered against it yet — so this is just the ordinary registra
 second instance of checklist item 7's mistake. Unlike `BossFixture`, this is **not persisted** —
 it's fed from `BossFixture`'s record whenever a boss's entity happens to be present, the same
 "cheap to rebuild, don't bother saving it" shape `BorderPlayerStatusFixture` already established
-in this codebase for exactly this reason. It exists only while the entity is confirmed live, and
-disappears cleanly when it isn't — no data is ever lost by that, because it was never the
-authoritative copy of anything. This is the live-interaction surface: whatever needs to actually
+in this codebase for exactly this reason. It exists only while the entity is confirmed live —
+with one caveat worth being precise about: "confirmed" means as of the last poll cycle or explicit
+attach, not continuously re-verified between events. [Mob Lifecycle Signals §
+MobDied](../../satchel/architecture/mob-lifecycle-signals.md#mobdied) means a real death can be
+signaled up to a poll cycle before the corresponding `MobLostInterest` tears this fixture down —
+anything holding a live `Mob` reference through that window must check `isAlive()`/`isRemoved()`
+itself rather than trust that "still attached" implies "still alive." It disappears cleanly once
+torn down — no data is ever lost by that, because it was never the authoritative copy of anything. This is the live-interaction surface: whatever needs to actually
 touch the entity (defeat correlation now, a health-bar or diegetic danger-marker render in a later
 tier) reads through this, not `BossFixture`.
 
@@ -210,16 +217,20 @@ registers two independent jigs:
 5. `EventHandlers` on `BOSS_JIG`'s own `ScopeEvent.Tick` drive both materialization and the
    defensive reconciliation check (see "What can actually go wrong" below) — cheap enough to share
    one tick, logically independent of each other. Separate handlers on `BOSS_MOB_JIG`'s
-   `ScopeEvent.Loaded`/`Unloaded` attach/release `BossMobFixture` when `MobJig` confirms a tracked
-   boss becomes present or stops being present.
+   `MobGainedInterest`/`MobLostInterest` (see [Mob Lifecycle
+   Signals](../../satchel/architecture/mob-lifecycle-signals.md) — the Mob-kind-specific siblings
+   fired alongside the generic `ScopeEvent.Loaded`/`Unloaded`) attach/release `BossMobFixture` when
+   `MobJig` confirms a tracked boss becomes present or stops being present.
 6. `BossModule.init()` is called once from `FrontierMode`'s constructor, immediately after
    `BorderModule.init()` — Boss depends on Border (its level-bootstrap pairing reads Border's own
    `ScopeEvent.Loaded` hook, see [Border § Runtime wiring](border.md#runtime-wiring)), never the
    reverse; Border has no knowledge Boss exists.
 
-The `LivingDeathEvent` listener itself belongs to [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)
+The `MobDied` handler itself belongs to [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)
 ("Karen") — not part of `BossModule` as it stands; see "Defeat detection and the border-growth gap"
-below for where it plugs in.
+below for where it plugs in. The raw `LivingDeathEvent` registration this handler used to be lives
+in `ServerForgeIngress` now, not here — see [Mob Lifecycle
+Signals](../../satchel/architecture/mob-lifecycle-signals.md).
 
 ## Three questions, three different mechanisms
 
@@ -383,14 +394,19 @@ not every scenario that sounds scary is a real gap:
   the same one.
 - **A tracked boss is genuinely destroyed while loaded** (`/kill`, or a `LivingDeathEvent` from
   ordinary combat). A death can only happen to something currently loaded, so once
-  [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)'s listener is wired, that path is reliable by
-  construction, independent of the presence-poll's cadence.
-- **A boss is removed by something that doesn't fire `LivingDeathEvent`** — a bare `/kill` before
-  Karen's listener exists, external world-editing, a bug in an unrelated mod. `BossFixture` keeps
-  saying `alive: true` with the now-gone entity's UUID; nothing here clears it to trigger a
-  respawn. Distinguishing this case from an ordinary chunk unload needs either a real death signal
-  (Karen's own listener) or an "expected but absent for N consecutive polls" heuristic — flagged
-  here as an open design question, not a settled one, since the two are genuinely indistinguishable
+  [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)'s `MobDied` handler is wired, that path is
+  reliable by construction, independent of the presence-poll's cadence — see [Mob Lifecycle
+  Signals § MobDied](../../satchel/architecture/mob-lifecycle-signals.md#mobdied).
+- **A boss is removed by something that never fires `LivingDeathEvent` at all** — external
+  world-editing, a bug in an unrelated mod. `BossFixture` keeps saying `alive: true` with the
+  now-gone entity's UUID; nothing here clears it to trigger a respawn. [Mob Lifecycle
+  Signals § MobDied](../../satchel/architecture/mob-lifecycle-signals.md#mobdied) is the real death
+  signal for the case where `LivingDeathEvent` *does* fire — this narrower remaining gap is
+  specifically the removals that never fire it in the first place, which `MobDied` can't help with
+  by construction. Distinguishing this residual case from an ordinary chunk unload still needs
+  either a different real signal or an "expected but absent for N consecutive polls" heuristic —
+  flagged here as an open design question, not a settled one, since the two are genuinely
+  indistinguishable
   to `MobJig`'s own reason-agnostic teardown. [FRO_043](../../../tickets/FRO_043_boss-build.md)'s
   log records the call to leave this unmet rather than invent an unproven heuristic to close it.
 - **A `Border` that entered the level's progression has no matching boss record.** Most wired
@@ -457,9 +473,10 @@ makes building it necessary now rather than optional.
 
 ## Defeat detection and the border-growth gap
 
-[RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen") owns the `LivingDeathEvent` handler
-itself. Growing a border centered on the defeated boss's home block, while keeping `borderPath`
-consistent, is Border's own job: `BordersPathFacet.grow(BlockPos center)` — an overload of the
+[RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) ("Karen") owns the `MobDied` handler itself
+(see [Mob Lifecycle Signals](../../satchel/architecture/mob-lifecycle-signals.md) — the raw
+`LivingDeathEvent` registration lives in `ServerForgeIngress`, not here). Growing a border centered
+on the defeated boss's home block, while keeping `borderPath` consistent, is Border's own job: `BordersPathFacet.grow(BlockPos center)` — an overload of the
 no-arg `grow()`, not a separately-named method — takes an explicit center in place of
 `DefaultBorderRules.chooseNextCenter()`'s own random pick; radius and `layer` are unaffected,
 coming from the same rules either overload uses (`chooseNextRadius()`, `previous.layer() + 1`).
@@ -479,9 +496,12 @@ fixed. Instead, whoever *calls* a border-creating operation also calls into `Bos
 as a sibling step, extracting `position`/`layer` from the `Border` that call just returned:
 
 - **`grow(center)`, post-defeat.** Belongs to [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)
-  ("Karen"): its `LivingDeathEvent` handler resolves the dying entity's boss record (its
-  `BossMobFixture` if `MobJig` already attached one, with a synchronous `MobScope.getFor(mob)`
-  fallback otherwise — see [MobScope.getFor() Contract](../../satchel/spec/mobscope-getfor.md)),
+  ("Karen"): its `MobDied` handler (see [Mob Lifecycle
+  Signals](../../satchel/architecture/mob-lifecycle-signals.md) — subscribed via
+  `EventHandlers.on(MobDied.class, ...)`, not a raw Forge listener) resolves the dying entity's
+  boss record (its `BossMobFixture` if `MobJig` already attached one, with a synchronous
+  `MobScope.getFor(mob)` fallback otherwise, called on the `Mob` the event's own `LivingDeathEvent`
+  payload carries — see [MobScope.getFor() Contract](../../satchel/spec/mobscope-getfor.md)),
   marks that record defeated, then -- gated per "Cascade gating" below -- calls
   `BorderAPI.grow(level, deathLocation)` and, once that succeeds, `BossAPI.createBoss` right after,
   in the same handler.
@@ -537,8 +557,11 @@ attach](#boss-less-path-layers-and-attach) needs.
 
 ## Known gaps
 
-- **A tracked boss removed by something that never fires `LivingDeathEvent` still needs its own
-  reconciliation check** -- see "What can actually go wrong" above. An open design question, not an
+- **A tracked boss removed by something that never fires `LivingDeathEvent` at all still needs its
+  own reconciliation check** -- see "What can actually go wrong" above. [Mob Lifecycle
+  Signals § MobDied](../../satchel/architecture/mob-lifecycle-signals.md#mobdied) resolved this for
+  the case where `LivingDeathEvent` does fire; this narrower residual case (external world-editing,
+  an unrelated mod's bug) is untouched by construction. Still an open design question, not an
   assumed answer.
 - **Reverse-direction reconciliation (a boss record whose `layer` matches no real path border) is
   deferred, not built** -- see "What can actually go wrong" above. Needs `borderId` (still
@@ -560,3 +583,4 @@ attach](#boss-less-path-layers-and-attach) needs.
 - [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md) / [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md) — roadmap trackers
 - [RM_SAT_021](../../../roadmap/RM_SAT_021_frank.md) — the `MobJig` prerequisite
 - [FRO_058](../../../tickets/FRO_058_boss-mutation-validation-reconciliation.md) — the mutation validation/reconciliation spec review this page's "Mutation validation boundary" section and "Known gaps" answer
+- [Mob Lifecycle Signals](../../satchel/architecture/mob-lifecycle-signals.md) — `MobDied`/`MobGainedInterest`/`MobLostInterest`, the Satchel-side dispatch this page's defeat detection and attach/release wiring build against

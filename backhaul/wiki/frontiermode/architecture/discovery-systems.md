@@ -9,7 +9,7 @@ summary: Technical shape for Tier 2's discovery-gradient tools (guardian mobs, t
   RM_FRO_023's real intermediate nodes.
 keywords: null
 status: verified
-updated: '2026-08-31'
+updated: '2026-09-03'
 ---
 
 <!-- bh-header:start -->
@@ -165,10 +165,12 @@ and [`BossTellFixture`](#environmental-tells) below -- riding `BossBundle`'s own
 the same way every sibling fixture in this design does, though this one barely needs it.
 
 A spawn-time modifier, not a periodic one: it hooks Forge's own mob-spawn-finalization event
-(exact hook is Lead Dev's call) rather than rolling its own independent check, the same way
-[Boss](boss.md)'s defeat detection hooks `LivingDeathEvent` alongside its own tick-driven
-materialization -- intercepting before a hostile mob fully materializes, not replacing one after
-the fact. Never attuned -- always "closest, right now": filters `BossFixture` down to whatever
+(exact hook is Lead Dev's call) rather than rolling its own independent check -- intercepting
+before a hostile mob fully materializes, not replacing one after the fact. This is a raw Forge
+touch point in its own right, not routed through [Boss](boss.md)'s own defeat detection or [Mob
+Lifecycle Signals](../../satchel/architecture/mob-lifecycle-signals.md) -- spawn-finalization isn't
+a Mob-kind lifecycle concern those signals cover, and this fixture's own tick/pulse wiring (see
+above) is the precedent worth following instead. Never attuned -- always "closest, right now": filters `BossFixture` down to whatever
 counts as relevant to find the nearest boss, then reads that boss's home border's [`BorderCurve`
 record(s)](border-curve.md) -- a `"placement"`-purpose curve for spawn density/replacement rate,
 and separately a `"difficulty"`-purpose curve for the spawned variant's stat scaling -- each

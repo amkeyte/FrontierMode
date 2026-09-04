@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.client.render.level;
 
-import com.arryn.frontiermode.border.common.BorderMath;
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.DefaultBorderRules;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -127,7 +127,7 @@ public final class GrowthTriggerRenderer {
             BlockPos candidate = BlockPos.containing(fx, fy, fz);
 
             // 🔑 Single source of truth for containment
-            if (!BorderMath.isInside(radius, candidate, anchor)) {
+            if (!BorderAPI.MATH.isInside(radius, candidate, anchor)) {
                 continue;
             }
 

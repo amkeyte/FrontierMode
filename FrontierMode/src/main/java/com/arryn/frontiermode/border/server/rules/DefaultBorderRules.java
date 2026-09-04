@@ -2,7 +2,6 @@ package com.arryn.frontiermode.border.server.rules;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
-import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.server.rules.items.BorderPathCompass;
@@ -10,8 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.OptionalInt;
@@ -124,7 +121,7 @@ public final class DefaultBorderRules implements BorderRules {
 
         for (Border border : containing) {
             int layer = border.layer();
-            double centerDistSq = BorderMath.distanceSqToCenter(border, pos);
+            double centerDistSq = BorderAPI.MATH.distanceSqToCenter(border, pos);
 
             if (best == null
                     || layer < bestLayer
@@ -145,31 +142,12 @@ public final class DefaultBorderRules implements BorderRules {
     }
 
     @Override
-    public boolean growPathCriteria(Level level, BlockPos pos, BlockState placed) {
-        if (!placed.is(Blocks.GOLD_BLOCK)) return false;
-
-        var tipOpt = BorderAPI.PATH(level)
-                .flatMap(BordersPathFacet::tip);
-
-        // No path tip yet is a real, expected state -- a fresh world/fixture before any border
-        // has ever been grown -- not an error. BordersPathFacet.grow() already treats this case
-        // as first-class (its own empty-path branch, which ignores `pos` and is always
-        // spawn-centered per DefaultBorderRules' own class doc above). So here: any gold
-        // block placement is valid to trigger that initial growth when there's nothing to be
-        // "close enough" to yet. Was `.orElseThrow()` -- crashed the server on the very first
-        // gold block ever placed in a fresh world. See SAT_023-adjacent finding, FRO_015.
-        if (tipOpt.isEmpty()) return true;
-
-        return BorderMath.isInside(GROWTH_RING_RADIUS + 1, pos, tipOpt.get().center());
-    }
-
-    @Override
     public void updateFinderItems(Level level) {
 
         var tipOpt = BorderAPI.PATH(level)
                 .flatMap(BordersPathFacet::tip);
 
-        // Same "no path tip yet" state as growPathCriteria above -- nothing to point players at
+        // Same "no path tip yet" state the removed gold-block growth trigger (FRO_076) used to
         // until a border exists, not an error. Was `.orElseThrow()`, which crashed the server
         // tick (via SatchelEventBus.post -> ScopeEvent.Tick) on every fresh-world tick before the
         // first border was ever grown. See FRO_015.

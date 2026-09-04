@@ -47,8 +47,8 @@ public final class BordersFixture
     // RM_FRO_018: whether this level's path has ever had a border appended to it, ever -- set
     // once inside BordersPathFacet.grow()'s own append (every caller, not just the bootstrap
     // case), cleared by nothing. isEmpty() alone can't distinguish "brand-new world" from "an
-    // admin removed every border," so this is what BorderModule's own ScopeEvent.Loaded bootstrap
-    // hook checks instead -- see Border's "Known gaps" section.
+    // admin removed every border," so this is what BossModule's own ScopeEvent.Loaded bootstrap
+    // hook (FRO_075) checks instead -- see Border's "Known gaps" section.
     private static final String KEY_SEEDED = "seeded";
     /**
      * Not readiness-gated on its own -- reach only through {@code BorderAPI.PATH(Level)}, never

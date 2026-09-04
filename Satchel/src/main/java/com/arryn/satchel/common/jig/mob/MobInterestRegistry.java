@@ -4,6 +4,8 @@ import com.arryn.satchel.common.identity.JigKey;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,5 +40,29 @@ public final class MobInterestRegistry {
     public static MobInterestSupplier get(JigKey<?> key) {
         Objects.requireNonNull(key, "key");
         return SUPPLIERS.getOrDefault(key, MobInterestSupplier.NONE);
+    }
+
+    /**
+     * Returns {@code true} if the given UUID appears in the interest set of any
+     * currently-registered supplier, across all levels.
+     *
+     * <p>
+     * Called live from {@code ServerForgeIngress.onLivingDeath} as the gate before
+     * constructing and posting a {@link com.arryn.satchel.common.lifecycle.MobDied}
+     * event. Suppliers are queried fresh on every call -- no cached snapshot -- so
+     * interest registered via {@code materialize()} is visible immediately (SAT_044).
+     *
+     * <p>
+     * The overwhelming common case (every ordinary mob death in the world) returns
+     * {@code false} quickly: if {@code SUPPLIERS} is empty the loop body never runs.
+     */
+    public static boolean isAnyInterested(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid");
+        for (MobInterestSupplier supplier : SUPPLIERS.values()) {
+            for (Set<UUID> set : supplier.interestedMobs().values()) {
+                if (set.contains(uuid)) return true;
+            }
+        }
+        return false;
     }
 }

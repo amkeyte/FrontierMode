@@ -15,6 +15,15 @@ import java.util.Objects;
  * Y is intentionally ignored so that math matches rendered borders.
  *
  * This class favors clarity and correctness over micro-optimizations.
+ *
+ * <p><b>Public for structural reasons only, same as {@code BordersFixture}
+ * (see that class's own "External Access Is Not Compiler-Enforced" doc) -- {@link
+ * com.arryn.frontiermode.border.BorderAPI}, the sanctioned facade for everything outside
+ * {@code border.common}, lives in a different package ({@code com.arryn.frontiermode.border})
+ * and cannot reach a package-private member here, so literal package-privacy was never available.
+ * {@code BorderAPI.MATH} (FRO_078) is the sanctioned path for anything outside this package --
+ * enforced by doc-comment discipline, not the compiler, same mitigation {@code BordersFixture}
+ * already accepts for the identical structural reason.</b>
  */
 public final class BorderMath {
 

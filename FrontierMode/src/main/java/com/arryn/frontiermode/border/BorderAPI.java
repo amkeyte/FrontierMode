@@ -2,6 +2,7 @@ package com.arryn.frontiermode.border;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
+import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderCurve;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
@@ -24,8 +25,10 @@ import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 import java.util.Map;
@@ -71,13 +74,22 @@ public final class BorderAPI {
         return Satchel.require();
     }
 
-    public static LevelJig levelJig() {
+    /**
+     * Internal helper backing {@link #resolveFixture(Level)}/{@link #resolveBordersBundle(Level)}
+     * below. FRO_079 removed this method's old public counterpart (it bypassed the
+     * {@code isReady()} standby gate for the since-deprecated {@code /border debug create}
+     * command, its one external caller) -- demoted to private rather than deleted outright,
+     * since {@code resolveFixture}/{@code resolveBordersBundle} both still call it internally
+     * (an earlier pass here deleted it entirely by mistake, missing these two unqualified
+     * in-class call sites; a dotted-call grep alone doesn't catch those).
+     */
+    private static LevelJig levelJig() {
         return (LevelJig)
                 foundation().requireJigInfo(FrontierKeys.BORDERS_JIG).jig;
     }
 
     /**
-     * RM_FRO_006: the {@code PlayerJig} analogue of {@link #levelJig()}, backing
+     * RM_FRO_006: the {@code PlayerJig} analogue of {@link #levelJig()} above -- backs
      * {@link #playerStatus(ServerPlayer)}/{@link #getRelevant(ServerPlayer)} below.
      */
     public static PlayerJig playerJig() {
@@ -86,19 +98,19 @@ public final class BorderAPI {
     }
 
     /**
-     * FRO_021 investigated whether this bypasses {@code LevelResolver}'s token-aware defer logic
-     * in a way that matters: it does bypass it, but its only real call site
-     * ({@code BorderCommandHandler.debugCreate}) is server-only, and the server never defers --
-     * {@code ServerForgeIngress} binds the world-identity token before introducing any source, so
-     * {@code LevelScope}'s UUID is already stable (token-folded) the first time this could
-     * possibly run.
+     * Internal helper backing {@link #resolveFixture(Level)}/{@link #resolveBordersBundle(Level)}
+     * below -- constructs a fresh {@link LevelScope} for {@code level}. FRO_079 demoted this
+     * method's old public counterpart to private for the same reason as {@link #levelJig()}
+     * above -- dead as public surface once {@code BorderCommandHandler.debugCreate} was removed,
+     * but still needed internally.
      */
-    public static LevelScope scope(Level level) {
+    private static LevelScope scope(Level level) {
         return new LevelScope(level);
     }
 
     // Edge-triggered logging for resolveFixture()'s three "not ready yet" outcomes below -- same
-    // shape BossModule.LAST_RECONCILIATION_MISMATCH already uses. RenderContext's own lazy-
+    // shape BossInfoFacet.lastReportedMismatch (FRO_081; formerly BossModule
+    // .LAST_RECONCILIATION_MISMATCH) already uses. RenderContext's own lazy-
     // resolve-and-cache accessors (crud()/path()/info()) call straight back into this method
     // every single render frame for as long as it keeps returning empty, so logging every
     // attempt at DEBUG level was spamming dozens of identical lines per second during the (now
@@ -385,7 +397,18 @@ public final class BorderAPI {
     /**
      * Thin wrapper over {@link BordersPathFacet#grow()} -- not-ready degrades to
      * {@link Result#notReady} instead of the old {@code orElseThrow(ScopeNotReady)}.
+     *
+     * @deprecated FRO_080 (per project owner): standardize on the explicit-center
+     * {@link #grow(Level, BlockPos)} overload instead -- this no-center form defers to
+     * {@link com.arryn.frontiermode.border.server.rules.BorderRules#chooseNextCenter}/
+     * {@code chooseInitialCenter} with no way for a caller to override it. Not removed: 
+     * {@code BossModule.onBordersScopeLoaded}'s level-bootstrap listener (FRO_075) is a real,
+     * legitimate remaining caller -- a fresh level's very first border genuinely has no natural
+     * center to supply, which is exactly the case this overload exists for. New callers should
+     * use {@link #grow(Level, BlockPos)}; {@code /border path grow} was migrated to it (FRO_080)
+     * and now requires an explicit {@code center} argument, no implicit default.
      */
+    @Deprecated
     public static Result grow(Level level) {
         return PATH(level)
                 .map(BordersPathFacet::grow)
@@ -518,7 +541,7 @@ public final class BorderAPI {
      * never automatic on border creation, per border-pregeneration.md's own "Starting a border's
      * pregeneration is an explicit call" section. The direct call, paired with whatever code just
      * created the border and its matching boss record -- see that page's own framing, and
-     * {@code BorderModule.onBordersScopeLoaded}/{@code BossModule.onLivingDeath}/
+     * {@code BossModule.onBordersScopeLoaded} (FRO_075)/{@code BossModule.onLivingDeath}/
      * {@code BossAPI.forceDefeat} for the three call sites that make it a third call alongside
      * those two.
      *
@@ -544,4 +567,74 @@ public final class BorderAPI {
         fixtureOpt.get().start(borderId);
         return Result.success(existing.get());
     }
+
+    // ---------------------------------------------------------------------
+    // Math -- FRO_078: BorderMath's own operations, routed through BorderAPI's surface so every
+    // cross-module touch point into Border -- stateful or not -- goes through the one facade
+    // consistently, rather than "state goes through BorderAPI, math doesn't." Namespaced under
+    // MATH (BorderAPI.MATH.isInside(...), etc.) rather than flat static methods directly on
+    // BorderAPI, mirroring PATH/CRUD/RULES/INFO's own grouped-facet shape above -- Math has no
+    // per-level state to resolve (it's stateless geometry), so MATH is a plain nested holder, not
+    // a resolver method returning Optional<Facet> the way those four are.
+    //
+    // BorderMath itself stays public (see its own doc) -- it's used directly by several border.*
+    // sub-packages internally (client rendering, fixtures, player logic, rules), and it can't be
+    // made package-private to just BorderAPI's own package the way PATH/CRUD/RULES/INFO's
+    // backing fixture is, since BorderAPI and BorderMath don't share a package. MATH is the
+    // sanctioned path for everything outside border.common -- enforced by doc-comment discipline
+    // here, not the compiler, same mitigation BordersFixture's own doc already accepts.
+    // ---------------------------------------------------------------------
+
+    public static BorderMath MATH;
+//
+//    public static final class MATH {
+//        private MATH() {
+//        }
+//
+//        public static boolean isInside(Border border, BlockPos pos) {
+//            return BorderMath.isInside(border, pos);
+//        }
+//
+//        public static boolean isInside(int range, BlockPos pos, BlockPos center) {
+//            return BorderMath.isInside(range, pos, center);
+//        }
+//
+//        public static int distanceToSurface(Border border, BlockPos pos) {
+//            return BorderMath.distanceToSurface(border, pos);
+//        }
+//
+//        public static double distanceSqToCenter(Border border, BlockPos pos) {
+//            return BorderMath.distanceSqToCenter(border, pos);
+//        }
+//
+//        public static BlockPos randomPointInDisk(RandomSource rng, BlockPos center, int radius) {
+//            return BorderMath.randomPointInDisk(rng, center, radius);
+//        }
+//
+//        /**
+//         * RM_FRO_018/FRO_072: area-uniform sample in the annulus {@code [innerRadius,
+//         * outerRadius]} around {@code center} -- {@code DefaultBossRules.choosePosition}'s own
+//         * edge-biased boss placement is the first real cross-module consumer this wrapper was
+//         * added for.
+//         */
+//        public static BlockPos randomPointInAnnulus(RandomSource rng, BlockPos center, int innerRadius, int outerRadius) {
+//            return BorderMath.randomPointInAnnulus(rng, center, innerRadius, outerRadius);
+//        }
+//
+//        public static double distanceTo(BlockPos a, BlockPos b) {
+//            return BorderMath.distanceTo(a, b);
+//        }
+//
+//        public static Vec3 direction(BlockPos from, BlockPos to) {
+//            return BorderMath.direction(from, to);
+//        }
+//
+//        public static double intensityAt(BorderCurve descriptor, double normalizedDistance) {
+//            return BorderMath.intensityAt(descriptor, normalizedDistance);
+//        }
+//
+//        public static double intensityAt(Border border, BorderCurve descriptor, BlockPos point) {
+//            return BorderMath.intensityAt(border, descriptor, point);
+//        }
+//    }
 }

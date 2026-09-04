@@ -11,7 +11,6 @@ package com.arryn.frontiermode.border.server.rules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.List;
 import java.util.OptionalInt;
@@ -63,8 +62,6 @@ public interface BorderRules {
     Border getRelevant(List<Border> containing, BlockPos pos);
 
     List<String> borderNames();
-
-    boolean growPathCriteria(Level level, BlockPos pos, BlockState placed);
 
     void updateFinderItems(Level level);
 
