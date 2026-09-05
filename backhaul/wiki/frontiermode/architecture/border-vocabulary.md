@@ -7,7 +7,7 @@ summary: 'Canon terminology for FrontierMode''s Border system: Relevance, Layer,
   and Difficulty, replacing overloaded use of ''level'' across the wiki and code.'
 keywords: null
 status: verified
-updated: '2026-08-27'
+updated: '2026-09-05'
 ---
 
 <!-- bh-header:start -->
@@ -74,11 +74,20 @@ loop. `PATH.tip()` is the current frontier edge. Growing the path pushes the
 explore farther — that's the entire mechanism behind "the frontier's shape is a record of where
 the player has actually been."
 
-**Aspirational vs. actual, worth being honest about:** the live growth trigger today is gold-block
-placement near the path tip (`BordersTriggers.growPath`) — a debug-shaped stand-in, not player
-progression in the sense this definition means. Path-as-implemented is currently just "creation
-order"; Path-as-intended is "player progression order." They become the same thing once Boss
-(RM_FRO_018/019) lands and growth is actually centered on a boss's death location, not before.
+**Resolved, 2026-09-04 — Path-as-implemented now matches Path-as-intended.** The
+gold-block-placement growth trigger (`BordersTriggers.growPath`, the raw block-placed listener,
+and `growPathCriteria`) was removed entirely
+([FRO_076](../../../tickets/FRO_076_gold-block-growth-removal.md)) once Boss (RM_FRO_018/019)
+made boss-defeat growth the live mechanism: `BossModule.onLivingDeath`'s defeat cascade calls
+`BorderAPI.grow(level, deathLocation)`, so path growth is now centered on where a boss actually
+died — player progression, not creation order.
+
+**One deliberate, documented exception:** `/border path grow` (the manual admin command) still
+grows the path boss-less by design, per project owner's ruling
+([FRO_048](../../../tickets/FRO_048_pathgrow-no-boss.md),
+[FRO_063](../../../tickets/FRO_063_boss-can-a-path-layer-legitimately-be-bo.md)) — a deliberate
+two-step admin workflow (grow, then `/boss attach`,
+[FRO_082](../../../tickets/FRO_082_boss-attach-build.md)), not a stand-in awaiting a fix.
 
 ### Difficulty
 
