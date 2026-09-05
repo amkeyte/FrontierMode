@@ -10,6 +10,7 @@ depends_on:
 - RM_FRO_026
 - RM_FRO_027
 - RM_FRO_028
+- RM_FRO_035
 created: '2026-08-31'
 superseded_by: null
 ticket: null
@@ -41,3 +42,4 @@ attunement state of its border, updated by a tick handler that reads the relevan
 - [Boss Discovery § Environmental Tells](../wiki/frontiermode/design/boss-discovery.md#environmental-tells) — the design intent
 - [Boss Discovery Systems § Environmental Tells](../wiki/frontiermode/architecture/discovery-systems.md#environmental-tells) — the technical shape
 - [RM_FRO_026](RM_FRO_026_dorothy.md), [RM_FRO_027](RM_FRO_027_janet.md), [RM_FRO_028](RM_FRO_028_diane.md) — the infrastructure this depends on
+- [RM_FRO_035](RM_FRO_035_donna-03.md) ("Donna_03") — Border Pregeneration's carried-forward open items (retry/reroll, throttle budget, stalled-trigger watchdog, retroactive pregen), added 2026-09-05

@@ -59,16 +59,22 @@ close enough to mint, and in what order, not the technical shape itself.
 
 | Tool | Status | Node |
 |---|---|---|
-| Guardian Mobs | Open, ready for implementation | [RM_FRO_029](../../roadmap/RM_FRO_029_gloria.md) (Gloria, rank 23) |
-| Environmental Tells | Open, ready for implementation | [RM_FRO_030](../../roadmap/RM_FRO_030_janice.md) (Janice, rank 24) |
-| Beacons | Blocked on attunement game-rules pass | [RM_FRO_031](../../roadmap/RM_FRO_031_joan.md) (Joan, rank 25) |
-| Ender-eye-style Tracker | Deferred, no blockers | [RM_FRO_032](../../roadmap/RM_FRO_032_elizabeth.md) (Elizabeth, rank 26) |
-| Special Compass | Blocked on attunement game-rules pass | [RM_FRO_033](../../roadmap/RM_FRO_033_marilyn.md) (Marilyn, rank 27) |
-| Player-built Warps | Open, needs Satchel audit | [RM_FRO_034](../../roadmap/RM_FRO_034_virginia.md) (Virginia, rank 28) |
+| Guardian Mobs | Open, blocked on [RM_FRO_035](../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03") pregen follow-ups | [RM_FRO_029](../../roadmap/RM_FRO_029_gloria.md) (Gloria, rank 23) |
+| Environmental Tells | Open, blocked on [RM_FRO_035](../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03") pregen follow-ups | [RM_FRO_030](../../roadmap/RM_FRO_030_janice.md) (Janice, rank 24) |
+| Beacons | Blocked on attunement game-rules pass, also on Donna_03 | [RM_FRO_031](../../roadmap/RM_FRO_031_joan.md) (Joan, rank 25) |
+| Ender-eye-style Tracker | Deferred; also now blocked on Donna_03 | [RM_FRO_032](../../roadmap/RM_FRO_032_elizabeth.md) (Elizabeth, rank 26) |
+| Special Compass | Blocked on attunement game-rules pass, also on Donna_03 | [RM_FRO_033](../../roadmap/RM_FRO_033_marilyn.md) (Marilyn, rank 27) |
+| Player-built Warps | Open, needs Satchel audit; also now blocked on Donna_03 | [RM_FRO_034](../../roadmap/RM_FRO_034_virginia.md) (Virginia, rank 28) |
 
-**Sequencing:** Guardian Mobs and Environmental Tells can proceed to implementation immediately (no
-blockers). Beacons and Compass are held pending the attunement game-rules pass. Tracker and Warps
-are deferred to a future round.
+**Sequencing, corrected 2026-09-05:** all six nodes now also depend on
+[RM_FRO_035](../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03"), the container gathering
+[RM_FRO_028](../../roadmap/RM_FRO_028_diane.md) (Diane)'s own carried-forward Border
+Pregeneration open items (retry/reroll, throttle budget, stalled-trigger watchdog, retroactive
+pregen) -- none are Environmental-Tells-specific, so the edge applies uniformly. Guardian Mobs and
+Environmental Tells no longer read as fully unblocked; they're gated on Donna_03 alongside
+whatever else already gated their siblings. Beacons and Compass are still separately held pending
+the attunement game-rules pass; Tracker and Warps are still deferred/pending a Satchel audit --
+Donna_03 adds to those, it doesn't replace them.
 
 **This staging plan is complete.** All six nodes are minted; the next phase is implementation as
 blockers clear.
@@ -76,12 +82,17 @@ blockers clear.
 **Decision: all three infrastructure nodes completed; all six discovery-gradient nodes now minted.**
 Navigator, Border Curve, and Border Pregeneration are built and provide the code baseline for the
 six discovery tools. All six nodes are minted (2026-08-31) with appropriate status markers: Guardian
-Mobs and Environmental Tells are open and ready for implementation; Beacons and Compass are marked
-blocked pending the attunement game-rules pass; Tracker is deferred (no blockers, but lower priority);
-Warps is open but flagged for a quick Satchel audit before proceeding.
+Mobs and Environmental Tells were originally open and ready for implementation, but as of
+2026-09-05 all six (including these two) also depend on
+[RM_FRO_035](../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03") clearing; Beacons and Compass are
+additionally marked blocked pending the attunement game-rules pass; Tracker is deferred (lower
+priority, and now also gated on Donna_03); Warps is open but flagged for a quick Satchel audit
+before proceeding, on top of the same Donna_03 edge.
 
-This plan is complete. Further work is implementation of Guardian Mobs and Environmental Tells, and
-coordination with the Game Designer on the attunement pass that unblocks Beacons and Compass.
+This plan is complete. Further work is clearing [RM_FRO_035](../../roadmap/RM_FRO_035_donna-03.md)
+("Donna_03")'s carried-forward pregen items, implementation of Guardian Mobs and Environmental
+Tells once that lands, and coordination with the Game Designer on the attunement pass that
+unblocks Beacons and Compass.
 
 ## Related pages
 

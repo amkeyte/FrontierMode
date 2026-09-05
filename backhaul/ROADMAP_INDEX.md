@@ -58,7 +58,7 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                         - [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) [work · open · ACTIONABLE] Ender-eye-style Tracker epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
                         - [**RM_FRO_033**](roadmap/RM_FRO_033_marilyn.md) [work · open · ACTIONABLE] Special Compass epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
                         - [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) [work · open · ACTIONABLE] Player-built Warps epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                          - [**RM_FRO_023**](roadmap/RM_FRO_023_kathleen.md) [convergence · WIP] Tier 2: Guided loop operational — depends on: RM_FRO_017, RM_FRO_025
+                          - [**RM_FRO_023**](roadmap/RM_FRO_023_kathleen.md) [convergence · WIP] Tier 2: Guided loop operational — depends on: RM_FRO_029, RM_FRO_030, RM_FRO_031, RM_FRO_032, RM_FRO_033, RM_FRO_034
 
 ## RM_SAT
 
