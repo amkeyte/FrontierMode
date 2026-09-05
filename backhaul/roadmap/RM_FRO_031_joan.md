@@ -10,6 +10,7 @@ depends_on:
 - RM_FRO_026
 - RM_FRO_027
 - RM_FRO_028
+- RM_FRO_035
 created: '2026-08-31'
 superseded_by: null
 ticket: null
@@ -43,3 +44,4 @@ design decisions, not code.
 - [Boss Discovery § Beacons](../wiki/frontiermode/design/boss-discovery.md#beacons) — the design intent
 - [Boss Discovery Systems § Beacons](../wiki/frontiermode/architecture/discovery-systems.md#beacons) — the technical shape
 - [RM_FRO_026](RM_FRO_026_dorothy.md), [RM_FRO_027](RM_FRO_027_janet.md), [RM_FRO_028](RM_FRO_028_diane.md) — the infrastructure this depends on
+- [RM_FRO_035](RM_FRO_035_donna-03.md) ("Donna_03") — Border Pregeneration's carried-forward open items (retry/reroll, throttle budget, stalled-trigger watchdog, retroactive pregen), added 2026-09-05

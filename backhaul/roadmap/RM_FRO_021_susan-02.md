@@ -213,6 +213,14 @@ point it gets its own `depends_on` edge onto whatever that is, same as any other
   RM_FRO_020 only). Same benign pattern [BKHL_002](../tickets/BKHL_002_convergence-gate.md)'s own
   log documents repeatedly. Reviewed, no change made.
 
+- 2026-09-04: **[FRO_085](../tickets/FRO_085_border-boss-dependency-inversion.md) lands here**
+  (found unparked during a PM sweep) -- traces to FRO_082/FRO_063's boss-attach build, this
+  container's own lineage. A real, still-open Architect question (accept `BorderCommandHandler`
+  importing `BossAPI` as a named exception to "Boss depends on Border, never the reverse," or
+  redesign via an event) -- not resolved by this parking, just correctly homed. This container
+  stays deliberately unwired to any convergence, so it doesn't gate Kathleen the way a Donna_02
+  item would.
+
 ## Required By
 
 *(computed — nothing depends on this yet)*
