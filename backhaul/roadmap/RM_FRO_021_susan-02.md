@@ -223,4 +223,6 @@ point it gets its own `depends_on` edge onto whatever that is, same as any other
 
 ## Required By
 
+<!-- required-by:start -->
 *(computed — nothing depends on this yet)*
+<!-- required-by:end -->

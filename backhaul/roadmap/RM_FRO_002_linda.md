@@ -33,4 +33,9 @@ work (jig wiring, commands, rendering) hangs off of.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_003**](RM_FRO_003_barbara.md) — Wire Border into Satchel's jig runtime
+- [**RM_FRO_004**](RM_FRO_004_patricia.md) — Command and selector interface
+- [**RM_FRO_005**](RM_FRO_005_carol.md) — Client-side border rendering
+- [**RM_FRO_008**](RM_FRO_008_sharon.md) — Border prototype verified end-to-end
+<!-- required-by:end -->

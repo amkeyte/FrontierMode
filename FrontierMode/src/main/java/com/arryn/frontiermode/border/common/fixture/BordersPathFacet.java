@@ -1,8 +1,9 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.satchel.Satchel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -53,7 +54,7 @@ public final class BordersPathFacet {
     }
 
     public void insert(int index, Border border) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         if (!fixture.all().contains(border)) {
             throw new IllegalArgumentException(
@@ -73,7 +74,7 @@ public final class BordersPathFacet {
 
 
     public boolean remove(Border border) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         boolean removed = fixture.borderPath.remove(border.id());
         if (removed) {
@@ -103,9 +104,9 @@ public final class BordersPathFacet {
      * whichever center this form would otherwise choose.
      */
     public Result grow() {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
-        ServerLevel level = fixture.resolveLevel();
+        Level level = fixture.resolveLevel();
         BorderProposal prop = fixture.CRUD.getProposal();
 
         Optional<Border> tipOpt = tip();
@@ -146,9 +147,9 @@ public final class BordersPathFacet {
      * {@code BorderAPI.grow(Level, BlockPos)}).
      */
     public Result grow(BlockPos center) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
-        ServerLevel level = fixture.resolveLevel();
+        Level level = fixture.resolveLevel();
         BorderProposal prop = fixture.CRUD.getProposal();
 
         Optional<Border> tipOpt = tip();
@@ -177,7 +178,7 @@ public final class BordersPathFacet {
     }
 
     public int insertAll(int index, Collection<Border> borders) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         // Validate first (no partial mutation)
         for (Border b : borders) {
@@ -211,7 +212,7 @@ public final class BordersPathFacet {
 
 
     public int removeAll(Collection<Border> borders) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         int removed = 0;
         for (Border b : borders) {
@@ -226,7 +227,7 @@ public final class BordersPathFacet {
 // ------------------------------------------------------------
 
     public void moveDown(Border border) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         int idx = fixture.borderPath.indexOf(border.id());
         if (idx < 0) {
@@ -242,7 +243,7 @@ public final class BordersPathFacet {
     }
 
     public void moveUp(Border border) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         int idx = fixture.borderPath.indexOf(border.id());
         if (idx < 0) {
@@ -281,7 +282,7 @@ public final class BordersPathFacet {
      * {@code false}.
      */
     public int fixLayers() {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         Map<UUID, Integer> pathTargets = new LinkedHashMap<>();
         List<UUID> path = fixture.borderPath;

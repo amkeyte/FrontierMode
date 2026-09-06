@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss.server.commands;
 
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossModule;
+import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossDisplay;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
@@ -220,7 +221,7 @@ public final class BossCommandHandler {
     public static int mobSpawn(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        BossModule.MaterializeOutcome outcome = BossModule.forceMaterialize(level, id);
+        MaterializeOutcome outcome = BossModule.forceMaterialize(level, id);
         return switch (outcome) {
             case SPAWNED -> {
                 ctx.getSource().sendSuccess(() -> msg("Force-spawned boss " + id), false);

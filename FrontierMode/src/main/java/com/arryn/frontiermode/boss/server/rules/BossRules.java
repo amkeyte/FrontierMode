@@ -2,8 +2,8 @@ package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 
 import java.util.Optional;
 
@@ -29,20 +29,20 @@ public interface BossRules {
      * {@link #hazardScore}, and returns the winning full position (X, resolved Y, Z) -- already
      * validated, nothing left for materialization to check.
      */
-    BlockPos choosePosition(ServerLevel level, Border border);
+    BlockPos choosePosition(Level level, Border border);
 
     /**
      * 0 (worst) to 1 (best) flatness score for a candidate position's immediate footprint --
      * "safe baseline, replace later" per border-pregeneration.md, same framing as
      * {@code DefaultBorderRules.GROWTH_FACTOR}.
      */
-    double flatnessScore(ServerLevel level, BlockPos candidate);
+    double flatnessScore(Level level, BlockPos candidate);
 
     /**
      * 0 (safe) to 1 (worst) hazard score for a candidate position (lava, deep water, the world
      * floor, ...) -- "safe baseline, replace later," same framing as {@link #flatnessScore}.
      */
-    double hazardScore(ServerLevel level, BlockPos candidate);
+    double hazardScore(Level level, BlockPos candidate);
 
     /**
      * Materialization -- called only once the caller (BOSS_JIG's own tick) has already confirmed
@@ -58,5 +58,27 @@ public interface BossRules {
      * <p>Deliberately does not call {@code MobScope.getFor(mob)} or touch {@code BossFixture} --
      * both are Satchel-wiring concerns owned by {@code BossModule}, not a "boss design" decision.
      */
-    Optional<Mob> materialize(ServerLevel level, BlockPos position, int layer);
+    Optional<Mob> materialize(Level level, BlockPos position, int layer);
+
+    /**
+     * FRO_087 (Janice): cadence for the tell-pass in {@code BossTellFixture} -- how many server
+     * ticks between each per-player intensity evaluation and particle/sound roll. Safe baseline:
+     * 20 ticks (~1 second). Tuning is playtest territory.
+     */
+    int tellTickInterval();
+
+    /**
+     * FRO_087 (Janice): probability coefficient for the tell particle roll. Applied as
+     * {@code intensity × tellParticleCoefficient()} against a [0,1) uniform random draw -- so a
+     * coefficient of 0.3 means a player at the boss position itself gets a 30% roll each
+     * interval. Safe baseline: 0.3. Tuning is playtest territory.
+     */
+    double tellParticleCoefficient();
+
+    /**
+     * FRO_087 (Janice): probability coefficient for the tell sound roll. Independent of the
+     * particle roll -- same intensity value, separate draw. Safe baseline: 0.05 (much rarer than
+     * particle). Tuning is playtest territory.
+     */
+    double tellSoundCoefficient();
 }

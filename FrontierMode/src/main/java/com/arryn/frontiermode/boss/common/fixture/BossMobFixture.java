@@ -1,7 +1,15 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
+import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.mob.MobJig;
+import com.arryn.satchel.common.jig.mob.MobScope;
+import net.minecraft.world.entity.Mob;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -35,5 +43,36 @@ public final class BossMobFixture extends SatchelFixture {
 
     public UUID bossId() {
         return bossId;
+    }
+
+    /**
+     * Resolves the dying entity's boss id, if it's a tracked boss. Checks the entity's existing
+     * {@link BossMobFixture} first; if MobJig hasn't attached one yet, falls back to a
+     * synchronous {@link MobScope#getFor(Mob)} call before concluding it's genuinely not tracked.
+     * Safe to call on the death event since the entity is loaded by definition.
+     */
+    public static Optional<UUID> resolveBossId(Mob mob) {
+        Optional<UUID> existing = existingBossId(mob);
+        if (existing.isPresent()) {
+            return existing;
+        }
+        MobScope.getFor(mob);
+        return existingBossId(mob);
+    }
+
+    private static Optional<UUID> existingBossId(Mob mob) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+        MobScope scope = new MobScope(mob);
+        Optional<ScopeInfo> infoOpt =
+                Satchel.require().tryScopeInfo(FrontierKeys.BOSS_MOB_JIG, scope);
+        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+            return Optional.empty();
+        }
+        var jig = (MobJig) infoOpt.get().jigInfo().jig;
+        BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
+        BossMobFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new);
+        return Optional.ofNullable(fixture.bossId());
     }
 }

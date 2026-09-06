@@ -79,4 +79,7 @@ Reversible per `bhrm`'s convergence semantics: if new evidence of a gap shows up
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_020**](RM_SAT_020_jerry.md) — Build PlayerJig/PlayerScope
+- [**RM_SAT_021**](RM_SAT_021_frank.md) — Build MobJig/MobScope
+<!-- required-by:end -->

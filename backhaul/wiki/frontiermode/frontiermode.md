@@ -52,6 +52,8 @@ mod; see [FRO_001](../../tickets/FRO_001_readme-boilerplate.md)).
 - [Border Path & Layer Reconciliation](architecture/path-layer-reconciliation.md) — design for the
   `fixLayers()` gap (RM_FRO_015).
 - [Boss](architecture/boss.md) — Tier 1's boss entity/spawn system design (RM_FRO_018/019).
+- [Effects](architecture/effects.md) — cross-cutting server/client effect dispatch (particles,
+  sounds) other modules call into, `draft`, see FRO_089.
 
 ## Design
 

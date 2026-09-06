@@ -70,4 +70,10 @@ mistake; the page's own wording still needs a pass.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_029**](RM_FRO_029_gloria.md) — Guardian Mobs epoch 1
+- [**RM_FRO_031**](RM_FRO_031_joan.md) — Beacons epoch 1
+- [**RM_FRO_032**](RM_FRO_032_elizabeth.md) — Ender-eye-style Tracker epoch 1
+- [**RM_FRO_033**](RM_FRO_033_marilyn.md) — Special Compass epoch 1
+- [**RM_FRO_034**](RM_FRO_034_virginia.md) — Player-built Warps epoch 1
+<!-- required-by:end -->

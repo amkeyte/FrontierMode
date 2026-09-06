@@ -13,7 +13,6 @@ import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusProposal;
 import com.arryn.frontiermode.border.server.commands.BorderCommands;
-import com.arryn.frontiermode.border.server.rules.BordersTriggers;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -106,7 +105,6 @@ public final class BorderModule {
         // ─────────────────────────────────────────────
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(ScopeEvent.Tick.class, BordersTriggers::updateFinderItems)
                         .on(ScopeEvent.Tick.class, Rendering::onClientTick)
                         // RM_FRO_012: RenderContext.CACHE eviction -- see Rendering.onClientUnload
                         // and RenderContext.evict for the full reasoning.

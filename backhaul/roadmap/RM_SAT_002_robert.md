@@ -35,4 +35,7 @@ heavier jig/scope-coupling runtime
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_003**](RM_SAT_003_john.md) — Introduce the jig/foundation runtime
+- [**RM_SAT_004**](RM_SAT_004_william.md) — Rename facet to fixture
+<!-- required-by:end -->

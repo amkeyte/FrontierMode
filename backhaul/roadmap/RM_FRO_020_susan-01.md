@@ -102,4 +102,7 @@ evidence alone yet, just named so it isn't missed once FRO_047 is further along.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_019**](RM_FRO_019_karen.md) — Boss defeat border-growth caller
+- [**RM_FRO_021**](RM_FRO_021_susan-02.md) — Susan epoch review/fix
+<!-- required-by:end -->

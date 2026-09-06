@@ -9,8 +9,8 @@ authority: Full write access to src/ and build config in the repo(s) assigned. O
   implementation-level decisions; escalates anything that requires a design change
   instead of working around it.
 reports_to: null
-status: active
-updated: '2026-08-28'
+status: retired
+updated: '2026-09-05'
 ---
 
 <!-- bh-header:start -->
@@ -18,6 +18,8 @@ updated: '2026-08-28'
 <!-- bh-header:end -->
 
 # Lead Dev
+
+> **Retired.** Superseded by [Dev (FrontierMode)](dev-fro.md) and [Dev (Satchel)](dev-sat.md).
 
 Implements features and fixes across the mod repos.
 

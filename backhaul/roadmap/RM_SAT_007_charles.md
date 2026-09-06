@@ -53,4 +53,6 @@ operates on fixtures by name).
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_009**](RM_SAT_009_michael.md) — Bare-necessity strip-down and sanitization pass
+<!-- required-by:end -->
