@@ -18,7 +18,7 @@ import java.util.UUID;
  * one. This facet exists so {@code BossModule}'s own orchestration and {@code BossAPI}'s facade
  * route through one explicit CRUD surface instead of reimplementing/duplicating this logic
  * inline -- each method here forwards straight to the identically-named {@link BossFixture}
- * method, which already guards {@code requireServerSide()} and its own validation/
+ * method, which already guards {@code Satchel#requireServer()} and its own validation/
  * {@code markDirty()} itself.
  */
 public class BossCrudFacet {

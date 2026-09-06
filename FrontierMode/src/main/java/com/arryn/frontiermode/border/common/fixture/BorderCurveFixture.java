@@ -6,7 +6,6 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +41,7 @@ public final class BorderCurveFixture extends SatchelFixture {
     }
 
     private void saveCurves(CompoundTag root) {
-        requireServerSide();
+        Satchel.requireServer();
 
         ListTag list = new ListTag();
         for (BorderCurve curve : curves) {
@@ -90,7 +89,7 @@ public final class BorderCurveFixture extends SatchelFixture {
     // ------------------------------------------------------------------
 
     public BorderCurve create(UUID borderId, String purpose, Shape shape, double steepness) {
-        requireServerSide();
+        Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
         Objects.requireNonNull(purpose, "purpose");
         Objects.requireNonNull(shape, "shape");
@@ -109,7 +108,7 @@ public final class BorderCurveFixture extends SatchelFixture {
      *         curves is the common case, not an error).
      */
     public int removeForBorder(UUID borderId) {
-        requireServerSide();
+        Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
         int before = curves.size();
@@ -122,9 +121,4 @@ public final class BorderCurveFixture extends SatchelFixture {
         return removed;
     }
 
-    private void requireServerSide() {
-        if (Satchel.require().side() == LogicalSide.CLIENT) {
-            throw new IllegalStateException();
-        }
-    }
 }

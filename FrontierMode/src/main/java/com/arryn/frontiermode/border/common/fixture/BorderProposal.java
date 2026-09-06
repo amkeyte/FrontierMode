@@ -1,8 +1,9 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.satchel.common.jig.level.LevelScope;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 
 import java.util.UUID;
 
@@ -65,7 +66,8 @@ public final class BorderProposal {
      * logic of their own.
      */
     private void applyGeometryDefaults() {
-        ServerLevel level = fixture.resolveLevel();
+        Level scope = ((LevelScope) fixture.scope()).level();
+        Level level = fixture.resolveLevel();
         this.center = BorderRules.ACTIVE.chooseInitialCenter(level);
         this.radius = BorderRules.ACTIVE.chooseInitialRadius(level);
     }

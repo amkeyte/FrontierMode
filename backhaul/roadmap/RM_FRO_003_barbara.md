@@ -52,4 +52,7 @@ time against the current, not the dead, mechanism.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_007**](RM_FRO_007_nancy.md) — Bare-necessity strip-down and sanitization pass
+- [**RM_FRO_008**](RM_FRO_008_sharon.md) — Border prototype verified end-to-end
+<!-- required-by:end -->

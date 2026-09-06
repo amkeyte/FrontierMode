@@ -56,4 +56,9 @@ retrospective this pass closed with, including the recommendations that became
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_012**](RM_SAT_012_donald.md) — Consolidate BundleFactories into schema
+- [**RM_SAT_013**](RM_SAT_013_gary.md) — Add silent-inertness health-check
+- [**RM_SAT_014**](RM_SAT_014_joseph.md) — Fix LevelJig unload/rescope leak
+- [**RM_SAT_015**](RM_SAT_015_george.md) — Clean up dead registrar/ModelJig code
+<!-- required-by:end -->

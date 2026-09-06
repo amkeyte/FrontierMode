@@ -34,4 +34,6 @@ RM_SAT_007 for the resolutions.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_011**](RM_SAT_011_larry.md) — Foundation runtime verified end-to-end
+<!-- required-by:end -->

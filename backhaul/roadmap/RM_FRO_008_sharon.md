@@ -49,4 +49,11 @@ two paired convergence nodes rather than one node with a cross-graph edge.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_006**](RM_FRO_006_sandra.md) — Per-player border evaluation
+- [**RM_FRO_009**](RM_FRO_009_judith.md) — Clean up dead BorderView code
+- [**RM_FRO_011**](RM_FRO_011_betty.md) — Border mutation validation hardening
+- [**RM_FRO_012**](RM_FRO_012_carolyn.md) — Client render lifecycle cleanup
+- [**RM_FRO_013**](RM_FRO_013_judy.md) — Border fixture & compass robustness
+- [**RM_FRO_015**](RM_FRO_015_margaret.md) — Border command-surface completion
+<!-- required-by:end -->

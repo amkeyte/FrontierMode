@@ -146,4 +146,7 @@ gain real siblings to RM_FRO_009") held — see the 2026-08-16 entry above.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_018**](RM_FRO_018_shirley.md) — Boss entity/spawn system
+- [**RM_FRO_020**](RM_FRO_020_susan-01.md) — Susan epoch maintenance 1
+<!-- required-by:end -->

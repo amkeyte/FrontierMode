@@ -115,4 +115,6 @@ convergence-bypass shape, since this node never names Donna itself.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_017**](RM_FRO_017_donna.md) — Tier 1: Core loop operational
+<!-- required-by:end -->

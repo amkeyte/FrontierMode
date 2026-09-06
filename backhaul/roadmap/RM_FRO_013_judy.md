@@ -110,4 +110,6 @@ verify directly, no multi-session play test needed.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_010**](RM_FRO_010_susan.md) — Prototype hardening
+<!-- required-by:end -->

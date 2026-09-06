@@ -11,11 +11,10 @@ import com.arryn.satchel.common.util.throttle.TickThrottler;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.server.level.ServerLevel;
+//import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkStatus;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +39,7 @@ import java.util.UUID;
  * <p>Tick-driven work runs through {@link #onJigTick()} -- fixture-level, automatically invoked
  * once per valid tick for this fixture's own bundle instance (Satchel's {@code TrackerFixture} is
  * the precedent for this hook), so no separate {@code EventHandlers} wiring is needed in
- * {@code BorderModule.init()} the way {@code BordersTriggers}/{@code Rendering} need for
+ * {@code BorderModule.init()} the way {@code Rendering} need for
  * {@link BordersFixture}'s own tick-driven neighbors. Reuses
  * {@code com.arryn.satchel.common.util.throttle.TickThrottler} for pacing, per that page's
  * "Reused, not reinvented" section -- the same class {@link SatchelFixture}'s own trace-log
@@ -88,7 +87,7 @@ public final class BorderPregenFixture extends SatchelFixture {
     }
 
     private void saveJobs(CompoundTag root) {
-        requireServerSide();
+        Satchel.requireServer();
 
         ListTag list = new ListTag();
         for (BorderPregenRecord record : jobs) {
@@ -145,7 +144,7 @@ public final class BorderPregenFixture extends SatchelFixture {
      * twice is safe, not an error, per this fixture's own class doc.
      */
     public boolean start(UUID borderId) {
-        requireServerSide();
+        Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
         if (get(borderId).isPresent()) {
@@ -193,20 +192,11 @@ public final class BorderPregenFixture extends SatchelFixture {
             return;
         }
 
-        // BORDERS_JIG is BOTH-applicability (client needs it for rendering) -- pregeneration
-        // mutates persisted state and forces real chunk generation, server-only, same guard
-        // BorderModule.onPlayerScopeTick already uses for this reason.
-        if (Satchel.require().side() == LogicalSide.CLIENT) {
+        if(!Satchel.isServer()){
             return;
         }
 
         if (!throttler.allow()) {
-            return;
-        }
-
-        LevelScope levelScope = (LevelScope) scope();
-        Level level = levelScope.level();
-        if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
 
@@ -217,11 +207,11 @@ public final class BorderPregenFixture extends SatchelFixture {
             if (record.complete()) {
                 continue;
             }
-            runBatch(serverLevel, record);
+            runBatch(((LevelScope) scope()).level(), record);
         }
     }
 
-    private void runBatch(ServerLevel level, BorderPregenRecord record) {
+    private void runBatch(Level level, BorderPregenRecord record) {
         // FRO_077: direct sibling access within this fixture's own BordersBundle, not the
         // BorderAPI.CRUD() facade -- the facade exists for external callers, not internal bundle
         // communication (see BordersBundle -- this fixture is a sibling of BordersFixture in the
@@ -295,11 +285,5 @@ public final class BorderPregenFixture extends SatchelFixture {
         }
 
         advance(record.borderId(), i, total);
-    }
-
-    private void requireServerSide() {
-        if (Satchel.require().side() == LogicalSide.CLIENT) {
-            throw new IllegalStateException();
-        }
     }
 }

@@ -11,6 +11,7 @@ import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
@@ -133,6 +134,16 @@ public final class FrontierKeys {
             new JigKey<>(
                     "frontiermode:boss_mob_jig",
                     MobJig.class
+            );
+
+    // RM_FRO_030 (Janice): BossTellFixture -- sibling fixture in BOSS_BUNDLE alongside
+    // BossFixture itself. See BossModule.registerBossJig() for the schema wiring and
+    // wiki/frontiermode/architecture/discovery-systems.md#environmental-tells for the design.
+
+    public static final FixtureKey<BossTellFixture> BOSS_TELL =
+            new FixtureKey<>(
+                    "frontiermode:boss_tell_fixture",
+                    BossTellFixture.class
             );
 
 

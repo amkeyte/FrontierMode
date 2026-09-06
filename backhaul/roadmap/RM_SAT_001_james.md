@@ -29,4 +29,7 @@ ticket: null
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_002**](RM_SAT_002_robert.md) — Establish the bundle/facet state model
+- [**RM_SAT_006**](RM_SAT_006_david.md) — Integrate DocletProject API-dump tooling
+<!-- required-by:end -->

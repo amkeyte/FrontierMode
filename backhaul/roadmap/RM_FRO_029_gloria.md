@@ -48,3 +48,9 @@ just on which borders' config actually uses this tool.
 - [Border Curve § Guardian Mobs worked example](../wiki/frontiermode/architecture/border-curve.md#guardian-mobs-worked-example) — the concrete shape in code
 - [RM_FRO_026](RM_FRO_026_dorothy.md) (Navigator), [RM_FRO_027](RM_FRO_027_janet.md) (Border Curve), [RM_FRO_028](RM_FRO_028_diane.md) (Border Pregeneration) — the infrastructure this depends on
 - [RM_FRO_035](RM_FRO_035_donna-03.md) ("Donna_03") — Border Pregeneration's carried-forward open items (retry/reroll, throttle budget, stalled-trigger watchdog, retroactive pregen), added 2026-09-05
+
+## Required By
+
+<!-- required-by:start -->
+- [**RM_FRO_023**](RM_FRO_023_kathleen.md) — Tier 2: Guided loop operational
+<!-- required-by:end -->

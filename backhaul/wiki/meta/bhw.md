@@ -6,7 +6,7 @@ title: BHW — Wiki Conventions
 summary: Wiki page ID scheme, slug convention, and CLI cheatsheet.
 keywords: null
 status: draft
-updated: '2026-08-13'
+updated: '2026-09-06'
 ---
 
 <!-- bh-header:start -->
@@ -48,11 +48,25 @@ detail instead.
 
 ## No changelog content on wiki pages
 
-A wiki page describes the thing as it is now, not how it got there. Don't write "Update
-(TICKET, date): X changed to Y" inline, don't keep a section around "for history" once it no
-longer describes current behavior, and don't narrate that content was "backfilled" or
-"reconstructed" — none of that helps a reader who just wants to know the current state, and it's
-one more thing to notice has gone stale.
+**"Describes the thing as it is" doesn't mean "as already shipped in code."** `<mod>/architecture/*`
+pages are frequently the spec a page's own account commits to *before* anything is built against
+it -- that's the whole point of `draft` status, and there's real precedent for writing this way
+throughout the project: `border-curve.md`, `boss-commands.md`, and `discovery-systems.md` were
+all worked out in the wiki ahead of minting any roadmap node (see `border-pregeneration.md`'s own
+account of the pattern: "worked out in the wiki ahead of minting any RM_FRO node, because getting
+the shape wrong before it's in the graph is the expensive mistake"), and Dev roles are told
+outright to build *against* `*/architecture/*` pages as the spec -- not to treat them as a status
+report on code that already exists. So "current" means the design the page is committing to right
+now, not "already shipped." Describing an intended structure ahead of the code is not a violation
+of this rule -- it's a large part of what an architecture page is *for*. Use `draft` -> `verified`
+to carry the shipped-or-not distinction; don't hedge about it in prose instead.
+
+What this rule actually forbids is narrating how the page's *own account* of a design changed over
+time -- the page's history, not the code's maturity. Don't write "Update (TICKET, date): X changed
+to Y" inline, don't keep a section around "for history" once it no longer describes the current
+design, and don't narrate that content was "backfilled" or "reconstructed" — none of that helps a
+reader who just wants to know the current state (whether that state is shipped code or a
+committed-to design not yet built), and it's one more thing to notice has gone stale.
 
 History belongs in the place that's actually built to hold it: a ticket's log, a roadmap node's
 status trail (`superseded`/`done` nodes stay on record deliberately — see `meta/bhrm.md`), or

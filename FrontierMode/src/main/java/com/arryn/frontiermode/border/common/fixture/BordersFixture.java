@@ -8,8 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraftforge.fml.LogicalSide;
+import net.minecraft.world.level.Level;
 
 import java.util.*;
 
@@ -106,7 +105,7 @@ public final class BordersFixture
     }
 
     private void saveBorders(CompoundTag root) {
-        requireServerSide();
+        Satchel.requireServer();
 
         ListTag list = new ListTag();
         for (Border border : borders) {
@@ -206,7 +205,7 @@ public final class BordersFixture
     }
 
     boolean remove(UUID id) {
-        requireServerSide();
+        Satchel.requireServer();
 
         boolean removed = borders.removeIf(b -> b.id().equals(id));
         if (!removed) {
@@ -220,14 +219,8 @@ public final class BordersFixture
         return true;
     }
 
-    //TODO move this into super.
-    void requireServerSide() {
-        if(Satchel.require().side() == LogicalSide.CLIENT)
-            throw new IllegalStateException();
-    }
-
     void markPathDirty() {
-        requireServerSide();
+        Satchel.requireServer();
         markDirty();
     }
 
@@ -236,23 +229,18 @@ public final class BordersFixture
      * against -- moved here from the deleted {@code BorderLogic.resolveLevel()}, same body.
      * Shared by {@link BordersPathFacet#grow()} and {@link BorderProposal}'s own defaulting.
      */
-    ServerLevel resolveLevel() {
+    Level resolveLevel() {
         if (!(scope() instanceof LevelScope levelScope)) {
             throw new IllegalStateException("Non level scope.");
         }
-
-        if (!(levelScope.level() instanceof ServerLevel serverLevel)) {
-            throw new IllegalStateException("Non server level");
-        }
-
-        return serverLevel;
+        return levelScope.level();
     }
 
     // ------------------------------------------------------------------
     // New accept path (temporary)
     // ------------------------------------------------------------------
     Border accept(BorderProposal proposal) {
-        requireServerSide();
+        Satchel.requireServer();
 
         Border border = proposal.create();
 
@@ -303,7 +291,7 @@ public final class BordersFixture
      * every future call. Still logged loudly either way, so the fact that it happened isn't lost.
      */
     int reassignLayers(Map<UUID, Integer> pathTargets) {
-        requireServerSide();
+        Satchel.requireServer();
 
         List<Border> replacements = new ArrayList<>();
         List<UUID> phantomPathEntries = new ArrayList<>();

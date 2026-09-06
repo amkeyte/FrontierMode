@@ -38,4 +38,6 @@ ticket FRO_004, not a roadmap node — it's Lead Dev implementation work, not a 
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_010**](RM_SAT_010_ronald.md) — Migrate in-source architecture docs into the wiki
+<!-- required-by:end -->

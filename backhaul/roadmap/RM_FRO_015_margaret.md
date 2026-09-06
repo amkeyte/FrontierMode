@@ -313,4 +313,6 @@ to Lead Dev, same as RM_FRO_011's own text asked for.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_010**](RM_FRO_010_susan.md) — Prototype hardening
+<!-- required-by:end -->

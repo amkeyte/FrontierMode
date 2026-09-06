@@ -60,6 +60,7 @@ TRIAGE NOTE (carried over from BH_002, still unresolved): this may already be ad
 
 ## Log
 
+- 2026-09-05: Recurred a third time, new variant: a device-bridge session (mounted at $HOME/mnt/mcRepos, config.local.json still Windows paths) had the BACKHAUL_LOCAL_ROOT export step in its own bootstrap prompt (confirmed present in all 8 mcRepos role files today) but talked itself out of running it, reasoning that the export was a 'sandbox workaround' that wouldn't apply to a device-bridge session specifically. That reasoning is wrong -- the trigger is the path mismatch between the configured Windows content_roots and wherever the CLI actually finds the folder mounted, not the session's connection type -- and was corrected via chat before any command ran. Not a documentation gap this time (the step was right there in the prompt); logging as a trend data point on whether agents rationalizing around this step, rather than simply not finding it, becomes a recurring pattern worth a firmer fix (e.g. wording the step so it can't be read as conditional).
 - 2026-08-28: **Recurred, root-caused as a discoverability gap, and fixed structurally.** A
   device-bridge/sandbox session hit this exact failure again — CLI wouldn't run against
   `config.local.json`'s real Windows paths — and, not knowing this ticket or the

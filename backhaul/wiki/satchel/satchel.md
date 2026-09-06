@@ -97,6 +97,9 @@ that doesn't describe the mod; see [SAT_001](../../tickets/SAT_001_readme-boiler
   history behind the runtime's current shape; superseded as a live reference by the page above
 - [Jig & Strap Registration — Recovery Plan](architecture/jig-registration-recovery-plan.md) —
   the design reasoning that held up through that fix
+- [Utilities](architecture/utilities.md) — cross-cutting `common/util`/`server/util` helpers:
+  structured logging (`OUT`/`Tracer`), tick-interval gating (`TickThrottler`), side-marking
+  (`SideToken`)
 
 All pages above are `verified`.
 

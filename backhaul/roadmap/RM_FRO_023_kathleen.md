@@ -85,4 +85,6 @@ Tier 3 node directly and skip this one.
 
 ## Required By
 
+<!-- required-by:start -->
 *(computed — nothing depends on this yet)*
+<!-- required-by:end -->

@@ -63,8 +63,6 @@ public interface BorderRules {
 
     List<String> borderNames();
 
-    void updateFinderItems(Level level);
-
     // ------------------------------------------------------------------
     // Difficulty (Border Vocabulary: Layer is one input to Difficulty, not
     // the definition of it -- see wiki frontiermode/architecture/difficulty.md).

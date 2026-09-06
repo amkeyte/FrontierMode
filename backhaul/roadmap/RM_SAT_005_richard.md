@@ -30,4 +30,6 @@ until fixtures exist as the unit of serialization.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_007**](RM_SAT_007_charles.md) — Satchel 2.0 persistence model
+<!-- required-by:end -->

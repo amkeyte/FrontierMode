@@ -6,13 +6,15 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.server.level.ServerLevel;
+//import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 import java.util.Optional;
@@ -83,7 +85,7 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public BlockPos choosePosition(ServerLevel level, Border border) {
+    public BlockPos choosePosition(Level level, Border border) {
         BlockPos bestSafe = null;
         double bestSafeScore = Double.NEGATIVE_INFINITY;
         BlockPos bestAny = null;
@@ -147,7 +149,7 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public double flatnessScore(ServerLevel level, BlockPos candidate) {
+    public double flatnessScore(Level level, BlockPos candidate) {
         // Safe baseline: compares candidate's own resolved height against its four cardinal
         // neighbors, FLATNESS_SAMPLE_DISTANCE blocks over -- a flat plateau scores near 1.0, a
         // sharp cliff edge scores near 0.0. Not a locked algorithm -- Game Designer/playtest
@@ -170,7 +172,7 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public double hazardScore(ServerLevel level, BlockPos candidate) {
+    public double hazardScore(Level level, BlockPos candidate) {
         // Safe baseline: 1.0 (worst, disqualifying in choosePosition) for any of three real
         // hazards --
         //   - the resolved position itself sits in a fluid (open water/lava -- same
@@ -198,7 +200,7 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public Optional<Mob> materialize(ServerLevel level, BlockPos position, int layer) {
+    public Optional<Mob> materialize(Level level, BlockPos position, int layer) {
         // Border Pregeneration: position was already validated (flatness/hazard-scored) against
         // real, pregenerated terrain when choosePosition() chose it -- no in-place Y-resolution
         // or liquid-column check left to do here. See border-pregeneration.md's "Worked example:
@@ -210,8 +212,14 @@ public final class DefaultBossRules implements BossRules {
             return Optional.empty();
         }
 
+
+
         mob.moveTo(position.getX() + 0.5, position.getY(), position.getZ() + 0.5, rng.nextFloat() * 360.0F, 0.0F);
-        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(position), MobSpawnType.EVENT, null, null);
+        if (!(level instanceof ServerLevel serverLevel)) {
+            throw new IllegalStateException("Non server level");
+        }
+
+        mob.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(position), MobSpawnType.EVENT, null, null);
 
         // Never set anywhere for boss mobs until now -- a plain vanilla Mob spawned via
         // finalizeSpawn is still subject to natural despawn (instant if far from every player,
@@ -261,5 +269,28 @@ public final class DefaultBossRules implements BossRules {
         mob.setCustomName(Component.literal("Boss (Layer " + layer + ")"));
         mob.setCustomNameVisible(true);
         mob.setGlowingTag(true);
+    }
+
+    // ------------------------------------------------------------------
+    // FRO_087 (Janice): BossTellFixture tunable baseline values
+    // ------------------------------------------------------------------
+
+    @Override
+    public int tellTickInterval() {
+        // ~1 second at 20 TPS. Safe baseline; playtest territory.
+        return 20;
+    }
+
+    @Override
+    public double tellParticleCoefficient() {
+        // 30% roll at maximum intensity. Safe baseline; playtest territory.
+        return 0.3;
+    }
+
+    @Override
+    public double tellSoundCoefficient() {
+        // 5% roll at maximum intensity -- sounds rarer than particles by design.
+        // Safe baseline; playtest territory.
+        return 0.05;
     }
 }

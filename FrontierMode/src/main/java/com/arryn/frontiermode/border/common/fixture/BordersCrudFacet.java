@@ -2,10 +2,10 @@ package com.arryn.frontiermode.border.common.fixture;
 
 
 import com.arryn.frontiermode.border.common.BorderConstants;
+import com.arryn.satchel.Satchel;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.border.WorldBorder;
 
@@ -39,7 +39,7 @@ public class BordersCrudFacet {
      * page's "Mutation surface" section for the full contract this follows.
      */
     public Result applyProposal(BorderProposal proposal) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
         proposal.requireNotConsumed();
 
         Optional<String> failure = failureReason(proposal);
@@ -67,7 +67,7 @@ public class BordersCrudFacet {
      * a real correctness requirement (found via real playtest, RM_FRO_015).
      */
     private Optional<String> failureReason(BorderProposal proposal) {
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         int radius = proposal.radius();
         if (radius < BorderConstants.MIN_RADIUS || radius > BorderConstants.MAX_RADIUS) {
@@ -126,13 +126,13 @@ public class BordersCrudFacet {
     }
 
     public boolean remove(UUID uuid){
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         return fixture.remove(uuid);
     }
 
     public boolean remove(Border border){
-        fixture.requireServerSide();
+        Satchel.requireServer();
 
         return fixture.remove(border.id());
     }

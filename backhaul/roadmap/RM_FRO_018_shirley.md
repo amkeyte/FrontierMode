@@ -320,4 +320,7 @@ done bar, not this node's.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_017**](RM_FRO_017_donna.md) — Tier 1: Core loop operational
+- [**RM_FRO_019**](RM_FRO_019_karen.md) — Boss defeat border-growth caller
+<!-- required-by:end -->
