@@ -40,3 +40,9 @@ two are implemented and playtested.
 - [Boss Discovery Systems § Ender-eye-style Tracker](../wiki/frontiermode/architecture/discovery-systems.md#ender-eye-style-tracker) — the technical shape
 - [RM_FRO_026](RM_FRO_026_dorothy.md), [RM_FRO_027](RM_FRO_027_janet.md), [RM_FRO_028](RM_FRO_028_diane.md) — the infrastructure this depends on
 - [RM_FRO_035](RM_FRO_035_donna-03.md) ("Donna_03") — Border Pregeneration's carried-forward open items (retry/reroll, throttle budget, stalled-trigger watchdog, retroactive pregen), added 2026-09-05
+
+## Required By
+
+<!-- required-by:start -->
+- [**RM_FRO_023**](RM_FRO_023_kathleen.md) — Tier 2: Guided loop operational
+<!-- required-by:end -->

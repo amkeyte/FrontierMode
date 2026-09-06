@@ -151,4 +151,6 @@ lifecycle/ingress needs real-play confirmation, not a compile check alone. Concr
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_023**](RM_SAT_023_raymond.md) — Scope generalizes beyond Level
+<!-- required-by:end -->

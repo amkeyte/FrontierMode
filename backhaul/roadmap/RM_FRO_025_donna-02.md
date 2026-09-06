@@ -122,4 +122,6 @@ container clearing, project owner's call — see Kathleen's own log.
 
 ## Required By
 
+<!-- required-by:start -->
 *(computed — nothing depends on this yet)*
+<!-- required-by:end -->

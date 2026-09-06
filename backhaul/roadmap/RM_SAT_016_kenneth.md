@@ -48,4 +48,6 @@ footguns one at a time.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_SAT_017**](RM_SAT_017_paul.md) — Prototype hardening
+<!-- required-by:end -->

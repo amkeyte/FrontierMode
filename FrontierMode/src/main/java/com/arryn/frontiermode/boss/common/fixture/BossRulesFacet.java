@@ -4,8 +4,9 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
+//import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 
 import java.util.Optional;
 
@@ -33,31 +34,50 @@ public final class BossRulesFacet {
         this.fixture = fixture;
     }
 
-    /**
-     * See {@link BossRules#choosePosition(ServerLevel, Border)}.
-     */
-    public BlockPos choosePosition(ServerLevel level, Border border) {
+
+    public BlockPos choosePosition(Level level, Border border) {
         return RULES.choosePosition(level, border);
     }
 
     /**
-     * See {@link BossRules#flatnessScore(ServerLevel, BlockPos)}.
+     * See {@link BossRules#flatnessScore(Level, BlockPos)}.
      */
-    public double flatnessScore(ServerLevel level, BlockPos candidate) {
+    public double flatnessScore(Level level, BlockPos candidate) {
         return RULES.flatnessScore(level, candidate);
     }
 
     /**
-     * See {@link BossRules#hazardScore(ServerLevel, BlockPos)}.
+     * See {@link BossRules#hazardScore(Level, BlockPos)}.
      */
-    public double hazardScore(ServerLevel level, BlockPos candidate) {
+    public double hazardScore(Level level, BlockPos candidate) {
         return RULES.hazardScore(level, candidate);
     }
 
     /**
-     * See {@link BossRules#materialize(ServerLevel, BlockPos, int)}.
+     * See {@link BossRules#materialize(Level, BlockPos, int)}.
      */
-    public Optional<Mob> materialize(ServerLevel level, BlockPos position, int layer) {
+    public Optional<Mob> materialize(Level level, BlockPos position, int layer) {
         return RULES.materialize(level, position, layer);
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}.
+     */
+    public int tellTickInterval() {
+        return RULES.tellTickInterval();
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellParticleCoefficient()}.
+     */
+    public double tellParticleCoefficient() {
+        return RULES.tellParticleCoefficient();
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellSoundCoefficient()}.
+     */
+    public double tellSoundCoefficient() {
+        return RULES.tellSoundCoefficient();
     }
 }

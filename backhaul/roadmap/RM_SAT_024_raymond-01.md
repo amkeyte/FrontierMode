@@ -66,4 +66,6 @@ nothing had surfaced needing one until this design pass, so it opens now, alongs
 
 ## Required By
 
+<!-- required-by:start -->
 *(computed — nothing depends on this yet)*
+<!-- required-by:end -->

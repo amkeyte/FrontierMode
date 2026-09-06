@@ -8,7 +8,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -67,6 +66,9 @@ public final class BossFixture extends SatchelFixture {
      */
     public final BossInfoFacet INFO = new BossInfoFacet(this);
 
+    /** Spawn-lifecycle operations -- see {@link BossSpawnFacet}. */
+    public final BossSpawnFacet SPAWN = new BossSpawnFacet(this);
+
     private final List<BossRecord> bosses = new ArrayList<>();
 
     // FRO_082: Set<UUID> of border ids awaiting /boss attach -- a boss-less path layer produced
@@ -89,7 +91,7 @@ public final class BossFixture extends SatchelFixture {
     }
 
     private void saveBosses(CompoundTag root) {
-        requireServerSide();
+        Satchel.requireServer();
 
         ListTag list = new ListTag();
         for (BossRecord record : bosses) {
@@ -120,7 +122,7 @@ public final class BossFixture extends SatchelFixture {
     // establishes (NbtUtils.createUUID/loadUUID over a TAG_INT_ARRAY list) -- mirrored exactly
     // rather than inventing a second UUID-collection persistence idiom.
     private void savePendingAttach(CompoundTag root) {
-        requireServerSide();
+        Satchel.requireServer();
 
         ListTag list = new ListTag();
         for (UUID id : pendingAttach) {
@@ -272,7 +274,7 @@ public final class BossFixture extends SatchelFixture {
     }
 
     private Optional<BossRecord> create(int layer, Optional<UUID> borderId) {
-        requireServerSide();
+        Satchel.requireServer();
 
         if (layer < 0) {
             OUT.warn("[Boss] create(): rejected -- negative layer " + layer + ".");
@@ -304,7 +306,7 @@ public final class BossFixture extends SatchelFixture {
      * overwriting a committed position.
      */
     public boolean finalizePosition(UUID bossId, BlockPos resolvedPosition) {
-        requireServerSide();
+        Satchel.requireServer();
         Objects.requireNonNull(resolvedPosition, "resolvedPosition");
 
         Optional<BossRecord> existing = get(bossId);
@@ -333,7 +335,7 @@ public final class BossFixture extends SatchelFixture {
      * immutable) -- same remove-then-add-back shape {@code BordersFixture.reassignLayers} uses.
      */
     public boolean materialize(UUID bossId, UUID entityId) {
-        requireServerSide();
+        Satchel.requireServer();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
@@ -370,7 +372,7 @@ public final class BossFixture extends SatchelFixture {
      * ("Karen")'s own concern.
      */
     public boolean markDefeated(UUID bossId) {
-        requireServerSide();
+        Satchel.requireServer();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
@@ -410,7 +412,7 @@ public final class BossFixture extends SatchelFixture {
      *         to remove (not an error -- {@code /boss delete} reports this as a plain failure).
      */
     public boolean remove(UUID bossId) {
-        requireServerSide();
+        Satchel.requireServer();
 
         boolean removed = bosses.removeIf(r -> r.bossId().equals(bossId));
         if (removed) {
@@ -442,7 +444,7 @@ public final class BossFixture extends SatchelFixture {
      *         plain no-op, not an error -- {@code Set.add}'s own idempotent contract).
      */
     public boolean addPendingAttach(UUID borderId) {
-        requireServerSide();
+        Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
         boolean added = pendingAttach.add(borderId);
@@ -460,7 +462,7 @@ public final class BossFixture extends SatchelFixture {
      *         plain no-op, not an error).
      */
     public boolean removePendingAttach(UUID borderId) {
-        requireServerSide();
+        Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
         boolean removed = pendingAttach.remove(borderId);
@@ -469,10 +471,5 @@ public final class BossFixture extends SatchelFixture {
         }
         return removed;
     }
-
-    private void requireServerSide() {
-        if (Satchel.require().side() == LogicalSide.CLIENT) {
-            throw new IllegalStateException();
-        }
-    }
 }
+

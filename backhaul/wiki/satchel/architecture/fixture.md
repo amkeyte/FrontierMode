@@ -7,7 +7,7 @@ summary: 'The fixture/facet package -- Satchel''s modder-facing unit of persiste
   state: lifecycle, field registration, save/load contract, isolation rules.'
 keywords: null
 status: verified
-updated: '2026-08-31'
+updated: '2026-09-05'
 ---
 
 <!-- bh-header:start -->
@@ -249,10 +249,15 @@ to ask if the fixture considers itself ready to use.
 JVM/game level. A fixture-level `isReady()` is a per-fixture-instance readiness check, independent
 of foundation-level readiness.
 
-**Example:** A fixture managing a border's pregeneration might return `false` from `isReady()` until
-the disk generation is complete, allowing Boss code to poll this query and defer placement until
-generation finishes (see [Border Pregeneration](../../frontiermode/architecture/border-pregeneration.md)
-for a real use case).
+**Example:** A cooldown fixture might return `false` from `isReady()` until its own hydration-derived
+setup finishes. Note this is a whole-fixture-instance question, not a per-record one -- a fixture
+holding many independent per-record jobs (e.g. one pregeneration job per border) can't answer "is
+job A done" through base `isReady()` at all, since it can't distinguish "record A is done" from
+"record B isn't." That fixture needs its own business-specific query method instead (see [Border
+Pregeneration § `isReady()`: the base contract, unmodified — and a new query on
+top](../../frontiermode/architecture/border-pregeneration.md#isready-the-base-contract-unmodified--and-a-new-query-on-top)
+for a real example: `isReadyFor(UUID borderId)`, sitting alongside the unmodified base `isReady()`,
+not overriding it).
 
 **Default implementation:** The base `SatchelFixture` provides a default `isReady()` that returns
 `true`. Override only if your fixture has a meaningful "not ready yet" state.

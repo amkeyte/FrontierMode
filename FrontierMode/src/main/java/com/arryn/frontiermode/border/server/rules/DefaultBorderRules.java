@@ -4,7 +4,6 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
-import com.arryn.frontiermode.border.server.rules.items.BorderPathCompass;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
@@ -141,24 +140,6 @@ public final class DefaultBorderRules implements BorderRules {
         return DEFAULT_BORDER_NAMES;
     }
 
-    @Override
-    public void updateFinderItems(Level level) {
-
-        var tipOpt = BorderAPI.PATH(level)
-                .flatMap(BordersPathFacet::tip);
-
-        // Same "no path tip yet" state the removed gold-block growth trigger (FRO_076) used to
-        // until a border exists, not an error. Was `.orElseThrow()`, which crashed the server
-        // tick (via SatchelEventBus.post -> ScopeEvent.Tick) on every fresh-world tick before the
-        // first border was ever grown. See FRO_015.
-        if (tipOpt.isEmpty()) return;
-
-        BlockPos tipCenter = tipOpt.get().center();
-
-        for (Player player : level.players()) {
-            BorderPathCompass.giveOrUpdate(player, tipCenter);
-        }
-    }
 
     // ------------------------------------------------------------------
     // Difficulty

@@ -9,6 +9,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
+import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -88,6 +89,45 @@ public final class BossAPI {
 
     public static Optional<BossInfoFacet> INFO(Level level) {
         return bosses(level).map(f -> f.INFO);
+    }
+
+    /**
+     * FRO_087 (Janice): resolves {@link BossTellFixture} for {@code level} -- same
+     * "standby, don't crash" discipline as {@link #bosses(Level)}. Used at boss-creation call
+     * sites (via {@code BossModule}) and by any future caller that needs to read or mutate tell
+     * records directly.
+     */
+    public static Optional<BossTellFixture> bossTells(Level level) {
+        if (!Satchel.isReady()) {
+            OUT.debug("[BossAPI] bossTells(): Satchel not ready yet -> Optional.empty level="
+                    + level.dimension().location());
+            return Optional.empty();
+        }
+
+        LevelScope scope = new LevelScope(level);
+
+        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BOSS_JIG, scope);
+        if (infoOpt.isEmpty()) {
+            OUT.debug("[BossAPI] bossTells(): scope not yet known -> Optional.empty level="
+                    + level.dimension().location());
+            return Optional.empty();
+        }
+
+        var info = infoOpt.get();
+        if (!info.isReady()) {
+            OUT.debug("[BossAPI] bossTells(): scope NOT ready -> Optional.empty level="
+                    + level.dimension().location() + " phase=" + info.phase());
+            return Optional.empty();
+        }
+
+        try {
+            return levelJig()
+                    .getOrCreate(scope, FrontierKeys.BOSS_BUNDLE)
+                    .get(FrontierKeys.BOSS_TELL);
+        } catch (RuntimeException e) {
+            throw new SatchelException.AccessFailed(
+                    "Failed to resolve BossTellFixture for level " + level.dimension().location(), e);
+        }
     }
 
     /**

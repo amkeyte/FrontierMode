@@ -10,7 +10,7 @@ summary: Proactive, throttled terrain generation for a border's entire disk, own
   boss.md's Spawn Algorithm.
 keywords: null
 status: verified
-updated: '2026-08-31'
+updated: '2026-09-05'
 ---
 
 <!-- bh-header:start -->
@@ -36,14 +36,18 @@ border creation** -- a consumer creates the border, then separately triggers pre
 see "`BorderPregenFixture`" below for why, and what that means for a border nobody ever triggers
 it for.
 
-**Everything on this page is proposal, not ruling** -- same status as [Border
-Curve](border-curve.md) and [Boss Discovery Systems](discovery-systems.md) before it: worked out
-in the wiki ahead of minting any `RM_FRO` node, because getting the shape wrong before it's in the
-graph is the expensive mistake (see [BHRM — Persona names are not
+**Minted and built as [RM_FRO_028](../../../roadmap/RM_FRO_028_diane.md) ("Diane") -- resolved,
+done bar met, playtest-verified.** Started life the same way [Border
+Curve](border-curve.md) and [Boss Discovery Systems](discovery-systems.md) did: worked out in the
+wiki ahead of minting any `RM_FRO` node, because getting the shape wrong before it's in the graph
+is the expensive mistake (see [BHRM — Persona names are not
 reusable](../../meta/bhrm.md#persona-names-are-not-reusable)). It also **partially supersedes**
 [Boss § Spawn algorithm](boss.md#spawn-algorithm-a-pluggable-strategy-mirroring-borderrules) --
 see "What this changes in Boss" below for exactly which parts, since that page carries a
-`verified` status this one doesn't disturb lightly.
+`verified` status this one doesn't disturb lightly. Four items from this page's own Open
+Questions were carried forward rather than resolved before minting -- now tracked as
+[RM_FRO_035](../../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03"); see the Open Questions
+section below for the current, corrected status of each.
 
 ## Why this is Border's job, not Boss's
 
@@ -131,6 +135,48 @@ server-side world-pregeneration tools already use safely today. No new pacing me
 just an application of one that was already sitting in the framework, evidently built ahead of
 having a caller.
 
+### Signaling completion: a `BorderPregenEvent.Complete`, alongside the poll
+
+The poll (`isReadyFor`/`BorderAPI.isPregenReady()`, below) is the durable, re-checkable ground
+truth -- any consumer, at any time, gets a correct answer from it, including one that starts
+existing after a border's disk already finished generating. But it forces every consumer onto
+Boss's own "no-op and recheck next tick" cadence even when nothing else about that consumer needs
+to poll at all. Satchel already has a real, closed precedent for exactly this shape: [Mob
+Lifecycle Signals](../../satchel/architecture/mob-lifecycle-signals.md)'s `MobDied` -- a
+standalone event, not a `ScopeEvent` subtype, posted to `SatchelEventBus` and subscribed to via
+the ordinary `EventHandlers.on(EventClass.class, handler)` shape. `BorderPregenEvent.Complete`
+follows the same pattern for the same underlying reason `MobDied` isn't a `ScopeEvent`: pregen
+completion is a per-border-record fact, not a per-jig-scope one, and `BorderPregenFixture` holds
+one record per border in the path, not one fixture instance per border -- the same multiplicity
+mismatch "`isReady()`: the base contract" below works through for the poll side of this same
+question.
+
+`BorderPregenFixture.onJigTick()` posts `BorderPregenEvent.Complete(Level, UUID borderId)`
+(name/fields illustrative, Lead Dev's call) exactly once per border, in the same tick its
+persisted `complete` flag flips true -- flip state, then signal, the same order
+`ScopeLifecycleDispatcher` already uses for `ScopeEvent.Loaded` (see [Satchel: Forge Event to
+ScopeEvent](../../reference/diagrams/satchel-forge-to-scopeevent.md)). Boss (and eventually an
+Environmental Tell) subscribes with `EventHandlers.on(BorderPregenEvent.Complete.class,
+handler)`; the handler checks `event.borderId()` against its own record's `borderId` and no-ops
+if it doesn't match -- the same self-check discipline `MobDied`'s bare, unscoped post already
+established as correct, not sloppy, for this codebase.
+
+**Unlike `MobDied`, no interest-registry gate is needed before posting.** `MobDied` gates on a
+registry because the event it wraps -- `LivingDeathEvent` -- fires for every mob death in the
+world, the overwhelming majority irrelevant; gating avoids constructing and posting noise.
+`BorderPregenEvent.Complete` has no such volume problem: a border's disk finishes pregenerating
+once, a rare and already-deliberate occurrence, so posting unconditionally on every real
+completion is cheap and correct as-is.
+
+This is deliberately *not* a replacement for the poll, only a faster path to it: a subscriber
+that's already listening reacts the instant generation finishes instead of waiting for its own
+next tick to notice, while the poll stays correct as the fallback for a subscriber that starts
+listening late, misses the event, or never subscribes at all -- the same "signal is a
+notification, state is the ground truth" split this design already leans on for
+`isReady()`/`isReadyFor()` vs. `ScopeEvent`. The worked example below still describes the poll as
+the mechanism Boss depends on for correctness; the event is the optimization once subscribed, not
+a second source of truth.
+
 ### `isReady()`: the base contract, unmodified — and a new query on top
 
 Worth being precise here, correcting something said too loosely earlier in this same design
@@ -147,23 +193,35 @@ fixture itself safe to query at all) and then `isReadyFor(borderId)` (is this sp
 done) -- two different questions at two different granularities, not one overridden method
 answering both.
 
+The fixture-level `isReady()`/`onJigTick()` documentation gap this design surfaced elsewhere in
+Satchel's own wiki is now closed -- see `fixture.md`'s [Per-Fixture Lifecycle API
+Reference](../../satchel/architecture/fixture.md#boolean-isready), added via
+[RM_SAT_024](../../../roadmap/RM_SAT_024_raymond-01.md)/SAT_043.
+
 ## `BorderAPI`'s new query surface
 
 Boss and Border are separate jigs (`BOSS_JIG`/`BORDERS_JIG`), so this is a genuine cross-module
 read, not two fixtures in the same bundle checking each other. Consistent with "Boss depends on
 Border, never the reverse," this surfaces as a new method on `BorderAPI` -- something like
 `BorderAPI.isPregenReady(Level, UUID borderId)` -- that internally does both checks above and
-hands back a single boolean. Boss's tick code (and eventually a Static Tell's own tick code) calls
-this rather than reaching into `BordersBundle`'s fixtures directly, the same discipline every other
-cross-module read in this design already follows.
+hands back a single boolean. Boss's tick code (and eventually an Environmental Tell's own tick
+code) calls this rather than reaching into `BordersBundle`'s fixtures directly, the same discipline
+every other cross-module read in this design already follows. A `BorderPregenEvent.Complete`
+signal exists alongside this query for a subscriber that wants to react immediately rather than
+poll -- see "Signaling completion" above; the query stays the correctness fallback either way.
 
 ## Worked example: Boss placement, revised
 
 - **Position — still geometry, now gated.** The candidate-selection step still samples within the
-  target `Border`'s disk via `BorderMath.randomPointInDisk`, but Boss's tick handler no-ops on a
+  target `Border`'s disk via `BorderAPI.MATH.randomPointInDisk` (routed through `BorderAPI`'s
+  delegating math surface per [FRO_078](../../../tickets/FRO_078_bordermath-to-api.md), closed
+  2026-09-03 -- `BorderMath` itself stays the real implementation and stays public, but every
+  cross-module caller now goes through `BorderAPI.MATH`; this page's wording just hadn't caught up
+  until now), but Boss's tick handler no-ops on a
   record whose position isn't finalized until `BorderAPI.isPregenReady()` returns true for its
-  home border -- the identical no-op-and-recheck-next-tick shape the existing materialization poll
-  already uses for `Level.isLoaded()`. Once ready, the whole disk is already real, generated
+  home border (or it reacts immediately via `BorderPregenEvent.Complete` if already subscribed --
+  see "Signaling completion" above) -- the identical no-op-and-recheck-next-tick shape the existing
+  materialization poll already uses for `Level.isLoaded()`. Once ready, the whole disk is already real, generated
   terrain, so checking several chunk-center candidates against `BossRules`/`DefaultBossRules`'s new
   flatness and hazard scores (each a 0-1 tunable, "safe baseline, replace later" matching every
   other pluggable strategy in this codebase) costs nothing extra per candidate and leaves nothing
@@ -197,18 +255,33 @@ which is why it's called out here explicitly rather than silently landing as an 
 
 ## Open questions
 
+Four of the five items below were carried forward at [RM_FRO_028](../../../roadmap/RM_FRO_028_diane.md)'s
+own mint time rather than resolved first; they're now formally tracked as
+[RM_FRO_035](../../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03") on the roadmap, gating all six
+Tier 2 discovery-gradient siblings (Guardian Mobs through Player-built Warps), not just
+Environmental Tells -- see that node for why. The fifth (`isReady()`'s documentation gap) is
+already resolved, noted below.
+
 - **Retry/reroll if an entire disk somehow fails validation** -- vanishingly unlikely once
   searching across a whole generated border instead of one blind candidate, but not provably
   impossible (an extreme biome, a pathological seed). Not resolved here; flagged so it isn't
   assumed away.
+- **Whether `BorderPregenEvent.Complete` needs `JigConfigValidator`-style registration
+  discipline** -- other event subscriptions in this codebase get validated at compile time
+  (fail-loudly-before-anything-runs); `MobDied` (see [Mob Lifecycle
+  Signals](../../satchel/architecture/mob-lifecycle-signals.md)) doesn't answer this either, since
+  its own producer sits in `ServerForgeIngress` outside that validation path entirely. Whether an
+  ad hoc bus post from inside `onJigTick()` needs the same treatment, or is fine as-is, isn't
+  resolved here.
 - **Exact throttle budget** (chunks per allowed tick, `TickThrottler`'s own interval) -- a tuning
   number, not an architecture decision; same category as `DefaultBorderRules.GROWTH_FACTOR`'s own
   "safe baseline" framing.
-- **`isReady()`'s fixture-level contract is under-documented on the Satchel side** -- `fixture.md`
-  covers `onCreated`/`onLoaded` but not `isReady()` or `onJigTick()`, which this design leans on
-  directly. This is a real gap in Satchel's own wiki, not a design error here -- now tracked as
-  [RM_SAT_024](../../../roadmap/RM_SAT_024_raymond-01.md) ("Raymond epoch maintenance 1") on
-  Satchel's own roadmap; out of scope for this page to fix.
+- **`isReady()`'s fixture-level contract is under-documented on the Satchel side -- resolved.**
+  `fixture.md` now has a full [Per-Fixture Lifecycle API
+  Reference](../../satchel/architecture/fixture.md#boolean-isready) covering `onCreated`,
+  `onLoaded`, `onRemoved`, `onJigTick()`, and `isReady()`, added via
+  [RM_SAT_024](../../../roadmap/RM_SAT_024_raymond-01.md) ("Raymond epoch maintenance 1")/SAT_043.
+  No longer an open item; kept here as a marker so it isn't re-carried by mistake.
 - **Punted: a border-creation call site that forgets the pregeneration trigger stalls its boss
   permanently, silently.** The two-call design (create the border, then separately trigger
   pregeneration -- see "Starting a border's pregeneration is an explicit call" above) means a
@@ -233,11 +306,17 @@ which is why it's called out here explicitly rather than silently landing as an 
 - [Border Curve](border-curve.md) -- the sibling fixture this page's placement precedent follows,
   and the anchor assumption this page's wander/leash mechanism keeps valid
 - [Boss Discovery Systems](discovery-systems.md) -- the discovery-gradient design this page's
-  exploit-prevention argument protects, and the Static Tell (beacons/platform) that will want the
-  same guarantee this page provides
+  exploit-prevention argument protects, and the Environmental Tells platform (or eventually a
+  beacon/trail) that will want the same guarantee this page provides
+- [Mob Lifecycle Signals](../../satchel/architecture/mob-lifecycle-signals.md) -- `MobDied`, the
+  real, closed precedent `BorderPregenEvent.Complete` follows for being a standalone event rather
+  than a `ScopeEvent`
 - [Boss Discovery](../design/boss-discovery.md) -- the design intent behind "no accidental
   discovery signals"
-- [Donna Epoch Nodes](../../plans/donna-epoch-nodes.md) -- where this becomes a tracked candidate
-  once it's ready to mint, alongside Navigator and Border Curve
+- [Donna Epoch Nodes](../../plans/donna-epoch-nodes.md) -- this cluster's staging history
+- [RM_FRO_028](../../../roadmap/RM_FRO_028_diane.md) ("Diane") -- this page's own real, resolved
+  roadmap node
+- [RM_FRO_035](../../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03") -- where this page's carried-
+  forward Open Questions are formally tracked
 - [RM_FRO_023](../../../roadmap/RM_FRO_023_kathleen.md) ("Kathleen") -- the convergence this
-  cluster's real nodes will fold into
+  cluster's real nodes fold into

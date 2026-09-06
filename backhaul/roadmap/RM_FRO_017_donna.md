@@ -133,4 +133,9 @@ directly and skip this one.
 
 ## Required By
 
-*(computed — nothing depends on this yet)*
+<!-- required-by:start -->
+- [**RM_FRO_024**](RM_FRO_024_donna-01.md) — Donna epoch maintenance 1
+- [**RM_FRO_026**](RM_FRO_026_dorothy.md) — Navigator target-resolution fixture
+- [**RM_FRO_027**](RM_FRO_027_janet.md) — BorderCurve intensity-curve fixture
+- [**RM_FRO_028**](RM_FRO_028_diane.md) — BorderPregen terrain pregeneration
+<!-- required-by:end -->
