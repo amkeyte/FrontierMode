@@ -7,9 +7,7 @@ status: reached
 title: Prototype hardening
 owner: Arryn
 depends_on:
-- RM_SAT_012
 - RM_SAT_013
-- RM_SAT_014
 - RM_SAT_015
 - RM_SAT_016
 - RM_SAT_019
@@ -76,6 +74,8 @@ Reversible per `bhrm`'s convergence semantics: if new evidence of a gap shows up
   token sync). RM_SAT_018 previously depended on this node *and* RM_SAT_019 directly, in parallel
   — routing around this convergence's own gate. RM_SAT_019 becomes part of what "hardening
   converged" means instead; RM_SAT_018 now depends on this node alone.
+
+- 2026-09-07: Roadmap graph-hygiene pass: pruned redundant `depends_on` edge(s) -- [RM_SAT_012](RM_SAT_012_donald.md) -- implied via [RM_SAT_016](RM_SAT_016_kenneth.md); [RM_SAT_014](RM_SAT_014_joseph.md) -- implied via [RM_SAT_019](RM_SAT_019_dennis.md). No change to actual gating (the pruned target still has to resolve before this node can, just via the remaining edge rather than a direct one); this only removes duplicate lines from the rendered graph. `bhrm downstream`/`dependents` remain the way to see the full transitive picture now that `depends_on` lists only immediate blockers.
 
 ## Required By
 

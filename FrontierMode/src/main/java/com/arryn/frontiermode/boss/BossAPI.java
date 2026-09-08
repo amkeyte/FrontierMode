@@ -6,6 +6,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
@@ -15,6 +16,7 @@ import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.level.Level;
 
@@ -131,6 +133,44 @@ public final class BossAPI {
     }
 
     /**
+     * RM_FRO_029 (Gloria): resolves {@link BossGuardiansFixture} for {@code level} -- same
+     * "standby, don't crash" discipline as {@link #bosses(Level)}, mirroring {@link #bossTells}
+     * exactly. Used by {@code BossModule.onMobSpawnFinalize}.
+     */
+    public static Optional<BossGuardiansFixture> guardians(Level level) {
+        if (!Satchel.isReady()) {
+            OUT.debug("[BossAPI] guardians(): Satchel not ready yet -> Optional.empty level="
+                    + level.dimension().location());
+            return Optional.empty();
+        }
+
+        LevelScope scope = new LevelScope(level);
+
+        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BOSS_JIG, scope);
+        if (infoOpt.isEmpty()) {
+            OUT.debug("[BossAPI] guardians(): scope not yet known -> Optional.empty level="
+                    + level.dimension().location());
+            return Optional.empty();
+        }
+
+        var info = infoOpt.get();
+        if (!info.isReady()) {
+            OUT.debug("[BossAPI] guardians(): scope NOT ready -> Optional.empty level="
+                    + level.dimension().location() + " phase=" + info.phase());
+            return Optional.empty();
+        }
+
+        try {
+            return levelJig()
+                    .getOrCreate(scope, FrontierKeys.BOSS_BUNDLE)
+                    .get(FrontierKeys.BOSS_GUARDIANS);
+        } catch (RuntimeException e) {
+            throw new SatchelException.AccessFailed(
+                    "Failed to resolve BossGuardiansFixture for level " + level.dimension().location(), e);
+        }
+    }
+
+    /**
      * Creates a new, unpositioned boss record for {@code border} -- the direct call paired at a
      * real border-creation call site (see boss.md's "Defeat detection and the border-growth gap").
      * Border Pregeneration moved position selection off this call entirely: the record starts
@@ -144,7 +184,7 @@ public final class BossAPI {
         Optional<BossFixture> fixtureOpt = bosses(level);
         if (fixtureOpt.isEmpty()) {
             OUT.warn("[Boss] createBoss(): BossFixture not available for level "
-                    + level.dimension().location() + " -- border " + border.id() + " gets no boss record.");
+                    + level.dimension().location() + " -- border " + Ids.shortId(border.id()) + " gets no boss record.");
             return Optional.empty();
         }
 
@@ -334,6 +374,18 @@ public final class BossAPI {
 
         Optional<BossRecord> nextBoss = createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
+        // FRO_087 fix: this cascade skipped tell-record creation that the other two
+        // paired-creation call sites (BossJigHandlers.onBordersScopeLoaded/onMobDied) both
+        // already do -- without it, a boss produced via /boss transform defeat never got a
+        // BossTellRecord, so it never got its 3x3 bedrock platform (ambient particle/sound
+        // tells still worked, since those read BossFixture directly, not this record).
+        BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
+        // RM_FRO_029 (Gloria): same paired-creation discipline -- this is one of the three call
+        // sites ensureGuardianCurves runs from (the other two are
+        // BossJigHandlers.onBordersScopeLoaded/onMobDied).
+        BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
+        nextBoss.ifPresent(rec ->
+                bossTells(level).ifPresent(tell -> tell.createRecord(rec.bossId())));
         return new DefeatOutcome(result, nextBoss, false);
     }
 }

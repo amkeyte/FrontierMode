@@ -7,7 +7,7 @@ summary: FrontierMode's world-border system -- the mod's one substantial feature
   built on Satchel's fixture/facet and jig/scope model.
 keywords: null
 status: verified
-updated: '2026-08-29'
+updated: '2026-09-07'
 ---
 
 <!-- bh-header:start -->
@@ -290,7 +290,16 @@ a query. It throws `SatchelException.ScopeNotReady` on a not-ready level, same a
   subscribed through the `EventHandlers` wiring described above. `RenderContext` is the shared per-level cache both
   renderers read from (`BorderAPI`'s facet resolvers, refreshed every 20 ticks via
   `BordersRevisionMonitor`). `BorderView` is dead — fully commented out, not part of the live
-  pipeline despite the name suggesting otherwise.
+  pipeline despite the name suggesting otherwise. **`GrowthTriggerRenderer` anchors on an
+  approximate, client-derived boss position, never the real one:** the paired boss's exact
+  location is deliberately never synced to the client (see [Boss § Module
+  wiring](boss.md#module-wiring)), so the particle ring instead anchors on a position the client
+  reconstructs itself -- `BorderMath.randomPointInAnnulus`, seeded off the border's own `id()`,
+  landing "in the right neighborhood, edge-biased like a real boss would be" without ever holding
+  the true answer. See
+  [FRO_093](../../../tickets/FRO_093_boss-position-on-the-client-secrecy-poli.md) for the full
+  ruling and the two rejected alternatives (syncing the real position onto `Border`, or widening
+  `BOSS_JIG` to the client).
 - **Readiness**: not-ready degrades differently depending on who's calling, not through one
   uniform mechanism. Every `BorderAPI` facet resolver (`PATH`/`CRUD`/`RULES`/`INFO`) proactively
   checks `Satchel.isReady()` ([SAT_032](../../../tickets/SAT_032_isready-gate.md)) before doing

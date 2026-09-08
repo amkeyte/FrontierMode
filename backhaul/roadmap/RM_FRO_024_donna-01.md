@@ -77,6 +77,15 @@ was — opened alongside the epoch's start rather than waited on until something
   [RM_SAT_024](RM_SAT_024_raymond-01.md) ("Raymond epoch maintenance 1") on Satchel's own
   roadmap, since it's Satchel's documentation debt, not FrontierMode's.
 
+- 2026-09-07: A fifth item flagged for review, project owner's own musing while closing out [FRO_094](../tickets/FRO_094_boss-client-secrecy-anchor-build.md) (boss client-secrecy anchor build) -- not actioned, just parked here so it isn't lost: a broader **boss-location security** pass, sometime later. Not scoped yet -- FRO_094 itself already keeps the real `BossRecord`/`bossEntityId()` off the client for the growth-trigger ring specifically, but the project owner is thinking about whether that same discipline needs auditing more widely (other client-visible surfaces, commands, or packets that might carry a real boss position). No ruling, no ticket -- revisit if/when the project owner picks it back up.
+
+- 2026-09-07: A sixth item, project owner's direct call while ruling Guardian Mobs' visible-marker
+  question -- not actioned, just parked here so it isn't lost: guardian glow (the new `guardian`
+  scoreboard team on [Effects](../wiki/frontiermode/architecture/effects.md#team-assignment-persistent-visual-state))
+  is currently always-on for every player, built that way deliberately for now. At some point this
+  should sit behind an admin/debug command instead of being a permanent player-facing visual --
+  not scoped, not ticketed, revisit when it's actually picked up.
+
 ## Required By
 
 <!-- required-by:start -->

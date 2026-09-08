@@ -7,10 +7,6 @@ status: reached
 title: Border prototype verified end-to-end
 owner: Arryn
 depends_on:
-- RM_FRO_002
-- RM_FRO_003
-- RM_FRO_004
-- RM_FRO_005
 - RM_FRO_007
 created: '2026-08-14'
 superseded_by: null
@@ -46,6 +42,8 @@ This convergence is now airtight — no open questions left against it.
 
 Cross-linked with [RM_SAT_011](RM_SAT_011_larry.md) — see that node for why this is modeled as
 two paired convergence nodes rather than one node with a cross-graph edge.
+
+- 2026-09-07: Roadmap graph-hygiene pass: pruned redundant `depends_on` edge(s) -- [RM_FRO_002](RM_FRO_002_linda.md), [RM_FRO_003](RM_FRO_003_barbara.md), [RM_FRO_004](RM_FRO_004_patricia.md), [RM_FRO_005](RM_FRO_005_carol.md) -- all four fully implied by [RM_FRO_007](RM_FRO_007_nancy.md) alone (007 already depends on 003/004/005, each of which depends on 002). No change to actual gating (the pruned target still has to resolve before this node can, just via the remaining edge rather than a direct one); this only removes duplicate lines from the rendered graph. `bhrm downstream`/`dependents` remain the way to see the full transitive picture now that `depends_on` lists only immediate blockers.
 
 ## Required By
 

@@ -8,7 +8,7 @@ summary: Boss entity/spawn system for Tier 1 -- data model, mutation validation 
   against this.
 keywords: null
 status: verified
-updated: '2026-09-03'
+updated: '2026-09-08'
 ---
 
 <!-- bh-header:start -->
@@ -191,13 +191,24 @@ registers two independent jigs:
    `BossBundle` has since picked up two Tier 2 sibling fixtures riding this same tick/pulse wiring
    -- `BossTellFixture` and `BossGuardiansFixture` — see [Boss Discovery Systems](discovery-systems.md#guardian-mobs)
    for both; neither is Tier 1 scope, named here only so this section's fixture list stays current.
-2. `BOSS_JIG`, a `LevelJigConfig` distinct from Border's `BORDERS_JIG`, left at `sideApplicability`'s
-   own `SERVER` default — unlike Border, Boss has no client-rendering need in Tier 1 (no discovery
-   aids). `withTick(true)` and `withExecutionPulse(true)` are both set — `BossBundle` is fully
-   decoupled from `BordersBundle` (see "Data model" above), so it needs its own tick capability for
-   materialization below, not a borrowed ride on Border's; persistence flush only ever runs from
-   inside `onExecutionPulse`, so `withTick(true)` alone would be silent inertness (the exact lesson
-   [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md)'s own log recorded on Border).
+2. `BOSS_JIG`, a `LevelJigConfig` distinct from Border's `BORDERS_JIG`, stays `SERVER`-only --
+   deliberately, not merely "no client-rendering need in Tier 1" as this section once put it.
+   [FRO_093](../../../tickets/FRO_093_boss-position-on-the-client-secrecy-poli.md) settles this for
+   real: boss location is meant to be secret from the client (see [Boss Discovery
+   Systems](discovery-systems.md) and [Border Pregeneration § The exploit this
+   closes](border-pregeneration.md#the-exploit-this-closes)'s own "only leak through designed
+   signals" principle), so `BOSS_JIG` stays `SERVER`-only even now that a real client-rendering
+   need has actually surfaced (`GrowthTriggerRenderer`'s boss-anchor request -- see [Border §
+   Commands and client surface](border.md#commands-and-client-surface)), answered instead by a
+   client-side approximation that never touches `BossFixture`'s real data at all. The default was
+   previously silent (`LevelJigConfig`'s own class default, never an explicit call here); this is
+   now stated on purpose, the same discipline `BOSS_MOB_JIG`'s own explicit call and comment below
+   already follow. `withTick(true)` and `withExecutionPulse(true)` are both set — `BossBundle` is
+   fully decoupled from `BordersBundle` (see "Data model" above), so it needs its own tick
+   capability for materialization below, not a borrowed ride on Border's; persistence flush only
+   ever runs from inside `onExecutionPulse`, so `withTick(true)` alone would be silent inertness
+   (the exact lesson [RM_FRO_018](../../../roadmap/RM_FRO_018_shirley.md)'s own log recorded on
+   Border).
 3. `FixtureDecl`/`BundleDecl`/`Schema` for `BossMobFixture`, wrapped in `BossMobBundle`
    (`MobScope`) — see "Data model" above for why this still needs its own bundle wrapper even
    though `MobScope` has no pre-existing bundle to fold into. `BOSS_MOB_JIG`, a `MobJigConfig` with
@@ -309,6 +320,13 @@ hardcoded algorithm):
   `Level.isLoaded()`, then spawn," with no in-place Y-resolution or liquid-column edge case left
   to handle here. See that page for the full mechanism, the exploit it closes, and the new bounded
   wander/leash movement model this design also introduces.
+  **Worth being explicit about which side owns what:** `BorderAPI.isPregenReady()` only promises
+  the chunk is real, generated terrain -- it says nothing about whether that terrain is *good*
+  ground. Flatness and hazard scoring are entirely this module's own call, via
+  `BossRules`/`DefaultBossRules`; Border makes no suitability promise and isn't asked to. See
+  [Border Pregeneration § Why this is Border's job, not
+  Boss's](border-pregeneration.md#why-this-is-borders-job-not-bosss) for why that split is
+  deliberate, not an oversight.
 - **Mob type / stat scaling by the boss's own recorded `layer`** — `BossFixture.layer`, the
   copy-once value set at creation (see "Data model" above), **never** a live `Border.layer()`
   lookup at spawn or materialization time. This is the same guarantee [Border
@@ -316,12 +334,28 @@ hardcoded algorithm):
   section warns against reintroducing — stated here explicitly so a reader who jumps straight to
   this section doesn't have to cross-check "Data model" to confirm it. A placeholder table, not a
   locked curve — layer 0/1 is [Progression & Frontier
-  Mechanics](../design/progression.md#starting-conditions)'s own named example (a rabbit), higher
-  layers step up through tougher vanilla mobs (zombie, spider, skeleton, zombified piglin,
-  pillager, vindicator, ravager) with health/attack-damage scaled linearly per layer above that
-  baseline. Real balance tuning is Game Designer/playtest territory once there's something to play,
-  same category as `DefaultBorderRules.GROWTH_FACTOR`'s own "safe baseline" framing — this is a
-  working default, not a final curve.
+  Mechanics](../design/progression.md#starting-conditions)'s own named example (a rabbit) and
+  stays pinned there; the remaining seven tiers step every three layers rather than every one
+  (project owner's call, stretching the original one-layer-per-tier spacing 3x so the toughest
+  tier reads as a genuinely late-game encounter rather than showing up a handful of borders in):
+
+  | Layer | Mob |
+  |---|---|
+  | 0–1 | Rabbit |
+  | 2–4 | Zombie |
+  | 5–7 | Spider |
+  | 8–10 | Skeleton |
+  | 11–13 | Zombified Piglin |
+  | 14–16 | Pillager |
+  | 17–19 | Vindicator |
+  | 20+ | Ravager |
+
+  with health/attack-damage still scaled linearly per layer above that baseline, unchanged — the
+  stretch means a ravager now carries roughly 20 layers' worth of that linear bonus rather than 8's,
+  a compounding effect that's intentional here, not a side effect to correct. Real balance tuning
+  is still Game Designer/playtest territory once there's something to play, same category as
+  `DefaultBorderRules.GROWTH_FACTOR`'s own "safe baseline" framing — this table and the linear
+  formula it rides on are both a working default, not a final curve.
 - **Tagging:** happens in the same step as materialization above, not a separate pass — the entity
   is guaranteed loaded at that exact instant (`isLoaded` just confirmed it), so `MobScope.getFor(mob)`
   attaches `BossMobFixture` right there, no reason to wait a full poll cycle when the reference is
@@ -492,7 +526,19 @@ level's very first border, not a failure case unique to a caller-supplied center
 **Pairing boss-record creation with border creation — the actual trigger for "Should a boss record
 exist at all?" above.** This isn't Border's job and isn't a Border-side hook — Border doesn't know
 `BossModule` exists, and that dependency direction (Boss depends on Border, never the reverse) stays
-fixed. Instead, whoever *calls* a border-creating operation also calls into `BossAPI` right after,
+fixed.
+
+**One named exception to "Boss depends on Border, never the reverse":**
+`BorderCommandHandler.pathGrow()` (a boss-less path grow, see [Boss-less path layers and
+attach](#boss-less-path-layers-and-attach) above) imports `BossAPI` directly to mark the newly-grown
+border `pendingAttach`. This is the one place Border code calls into Boss. It's accepted as a
+bounded, deliberate exception rather than redesigned via an event
+([FRO_085](../../../tickets/FRO_085_border-boss-dependency-inversion.md)): the call is
+Optional-guarded (a missing `BossAPI.CRUD(level)` is a silent no-op, same "standby, don't crash"
+discipline every other `BossAPI` resolution failure in this codebase follows), and the border grow
+itself is not rolled back if it fails.
+
+Instead, whoever *calls* a border-creating operation also calls into `BossAPI` right after,
 as a sibling step, extracting `position`/`layer` from the `Border` that call just returned:
 
 - **`grow(center)`, post-defeat.** Belongs to [RM_FRO_019](../../../roadmap/RM_FRO_019_karen.md)

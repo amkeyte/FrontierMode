@@ -144,12 +144,33 @@ public final class BordersFixture
 
 
         // NEW: border path
+        // FRO_055 investigation, 2026-09-06: this loop appended onto borderPath with no clear()
+        // first, unlike borders.clear() a few lines up -- so every load after the very first one
+        // (i.e. every client refresh per SAT_030's fix, which calls this exact same callback
+        // again with no lifecycle transition) re-appended the server's *complete* path on top of
+        // whatever was already here, duplicating every prior entry instead of replacing them.
+        // tipId() (borderPath.get(size()-1)) would still often land on a real, current border
+        // right after a single fresh growth (the newest complete list is appended last, in
+        // order), which is likely why this was never caught by a simple "does the tip look
+        // right immediately after one grow" check -- but the list itself was quietly bloating
+        // without bound, and anything sensitive to path order/contents/size beyond just the very
+        // last element (moveUp/moveDown, indexOf, insert's duplicate-id guard, fixLayers) would
+        // see corrupted, duplicate-laden state. Added the missing clear() to match borders.clear()
+        // above -- same idiom, same reason.
+        borderPath.clear();
         if (root.contains(KEY_BORDER_PATH, Tag.TAG_LIST)) {
             ListTag pathTag = root.getList(KEY_BORDER_PATH, Tag.TAG_INT_ARRAY);
             for (Tag tag : pathTag) {
                 borderPath.add(NbtUtils.loadUUID(tag));
             }
         }
+        // Temporary diagnostic for FRO_055 -- compare this line's output on the server vs. a
+        // connected client right after a real border-growth event. Side is whatever this process
+        // actually is (server or the connecting client), same as every other OUT.info call in
+        // this class already logs unconditionally on both sides. Remove once FRO_055 is resolved
+        // or the client/server sync mismatch is otherwise root-caused.
+        OUT.info("            [FRO_055] borderPath after load: size=" + borderPath.size()
+                + ", tip=" + (borderPath.isEmpty() ? "none" : borderPath.get(borderPath.size() - 1)));
     }
 
     // ---------------------------------------------------------------------
@@ -186,7 +207,6 @@ public final class BordersFixture
     @Override
     public void onCreated() {
         super.onCreated();
-        borderPath.clear();//cleanup
     }
 
     List<Border> all() {

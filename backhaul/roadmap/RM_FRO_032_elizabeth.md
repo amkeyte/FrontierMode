@@ -9,7 +9,6 @@ owner: Arryn
 depends_on:
 - RM_FRO_026
 - RM_FRO_027
-- RM_FRO_028
 - RM_FRO_035
 created: '2026-08-31'
 superseded_by: null
@@ -34,6 +33,8 @@ state, no special infrastructure needed beyond what Navigator and Border Curve a
 but is intentionally deferred in priority behind Guardian Mobs and Environmental Tells, which are
 earlier in the discovery gradient experience. Will be scoped and minted in a future pass once those
 two are implemented and playtested.
+
+- 2026-09-07: Roadmap graph-hygiene pass: pruned redundant `depends_on` edge(s) -- [RM_FRO_028](RM_FRO_028_diane.md) -- implied via [RM_FRO_035](RM_FRO_035_donna-03.md), which depends on 028 directly. No change to actual gating (the pruned target still has to resolve before this node can, just via the remaining edge rather than a direct one); this only removes duplicate lines from the rendered graph. `bhrm downstream`/`dependents` remain the way to see the full transitive picture now that `depends_on` lists only immediate blockers.
 
 ## Related pages
 

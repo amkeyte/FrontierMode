@@ -84,6 +84,5 @@ FRO_016's fix was a defensive skip at the consumer; this fix addresses the actua
 ## Required By
 
 <!-- required-by:start -->
-- [**RM_SAT_017**](RM_SAT_017_paul.md) — Prototype hardening
 - [**RM_SAT_019**](RM_SAT_019_dennis.md) — Sync a Satchel world-identity token
 <!-- required-by:end -->

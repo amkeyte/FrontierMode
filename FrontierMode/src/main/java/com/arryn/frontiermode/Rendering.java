@@ -7,8 +7,12 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.SatchelEvent;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.mojang.brigadier.arguments.BoolArgumentType;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.LevelEvent;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -60,6 +64,42 @@ public class Rendering {
     /* --------------------------------------------------------------------- */
     /* Render pass                                                            */
     /* --------------------------------------------------------------------- */
+
+    /**
+     * RM_FRO_037 test aid (2026-09-08, project owner request): "/border debug rings <true|false>"
+     * -- toggles {@link WorldBordersRenderer}'s own visibility flag. Registered on the CLIENT
+     * command dispatcher (not {@code BorderCommands}' server-side one) via
+     * {@link RegisterClientCommandsEvent} -- this never leaves the client and the server never
+     * sees it, which is the correct shape for a purely local rendering decision (no networking
+     * needed, and no collision with the server's own "/border debug ..." tree: Forge's client and
+     * server command dispatchers are separate parse graphs, so a full match on this one runs
+     * locally regardless of what the server also has registered under the same literal). Shares
+     * this class's own {@code Dist.CLIENT} gate (the class-level {@code @Mod.EventBusSubscriber}
+     * above already keeps Forge from firing this on a dedicated server at all).
+     */
+    @SubscribeEvent
+    public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
+        event.getDispatcher().register(
+                Commands.literal("border")
+                        .then(Commands.literal("debug")
+                                .then(Commands.literal("rings")
+                                        .then(Commands.argument("visible", BoolArgumentType.bool())
+                                                .executes(ctx -> {
+                                                    boolean value = BoolArgumentType.getBool(ctx, "visible");
+                                                    WorldBordersRenderer.setVisible(value);
+                                                    ctx.getSource().sendSuccess(
+                                                            () -> Component.literal(
+                                                                    "[Border][Debug] Rendered rings: "
+                                                                            + (value ? "ON" : "OFF")),
+                                                            false
+                                                    );
+                                                    return 1;
+                                                })
+                                        )
+                                )
+                        )
+        );
+    }
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {

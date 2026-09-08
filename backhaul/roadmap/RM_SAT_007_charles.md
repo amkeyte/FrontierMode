@@ -7,8 +7,6 @@ status: reached
 title: Satchel 2.0 persistence model
 owner: Arryn
 depends_on:
-- RM_SAT_003
-- RM_SAT_004
 - RM_SAT_005
 - RM_SAT_006
 - RM_SAT_008
@@ -50,6 +48,8 @@ operates on fixtures by name).
   RM_SAT_006 in particular is named for ordering/traceability (RM_SAT_009 supersedes it, doesn't
   require it finished) — same nuance that used to live on RM_SAT_009's own page, carried over
   rather than lost in the move.
+
+- 2026-09-07: Roadmap graph-hygiene pass: pruned redundant `depends_on` edge(s) -- [RM_SAT_003](RM_SAT_003_john.md) -- implied via [RM_SAT_008](RM_SAT_008_thomas.md); [RM_SAT_004](RM_SAT_004_william.md) -- implied via [RM_SAT_005](RM_SAT_005_richard.md). No change to actual gating (the pruned target still has to resolve before this node can, just via the remaining edge rather than a direct one); this only removes duplicate lines from the rendered graph. `bhrm downstream`/`dependents` remain the way to see the full transitive picture now that `depends_on` lists only immediate blockers.
 
 ## Required By
 

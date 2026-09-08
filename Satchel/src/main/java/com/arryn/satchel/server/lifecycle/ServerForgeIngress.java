@@ -9,6 +9,7 @@ import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
 import com.arryn.satchel.common.tracking.SatchelHealth;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
 import net.minecraft.server.level.ServerLevel;
@@ -213,17 +214,17 @@ public final class ServerForgeIngress {
     public static void onLivingDeath(LivingDeathEvent e) {
         if (e.getEntity().level().isClientSide()) return;
         if (!Satchel.isReady()) {
-            OUT.debug("[MobDied] gate: Satchel not ready -- " + e.getEntity().getUUID());
+            OUT.debug("[MobDied] gate: Satchel not ready -- " + Ids.shortId(e.getEntity().getUUID()));
             return;
         }
 
         UUID uuid = e.getEntity().getUUID();
         if (!MobInterestRegistry.isAnyInterested(uuid)) {
-            OUT.debug("[MobDied] gate: not interested -- " + uuid);
+            OUT.debug("[MobDied] gate: not interested -- " + Ids.shortId(uuid));
             return;
         }
 
-        OUT.debug("[MobDied] posting for " + uuid);
+        OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
     }
 

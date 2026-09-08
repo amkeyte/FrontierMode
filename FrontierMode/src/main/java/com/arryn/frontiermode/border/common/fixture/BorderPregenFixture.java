@@ -3,9 +3,11 @@ package com.arryn.frontiermode.border.common.fixture;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.BorderPregenLogic;
+import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.throttle.TickThrottler;
 import net.minecraft.nbt.CompoundTag;
@@ -49,24 +51,26 @@ public final class BorderPregenFixture extends SatchelFixture {
 
     private static final String KEY_JOBS = "pregenJobs";
 
-    // Safe baseline, replace later -- both are tuning numbers per that page's own "Open
-    // questions" section ("Exact throttle budget"), not architecture decisions. Two playtest data
-    // points so far, both against a real 1009-chunk (radius 18) disk: 1 tick/16 chunks -> "Can't
-    // keep up, 45 ticks behind"; 1 tick/8 chunks -> barely better, "41 ticks behind" despite half
-    // the batch size. That non-improvement is the tell: at interval=1 every tick was forcing
-    // fresh, far-out chunk generation back-to-back for 100+ consecutive ticks with zero gap to
-    // recover in between, so the problem is sustained load, not a per-batch spike -- trimming
-    // batch size alone doesn't fix that while it still fires every tick. This pass widens the
-    // interval too, so there's real breathing room between batches, not just a smaller one.
-    private static final long THROTTLE_INTERVAL_TICKS = 4L;
-    private static final int CHUNKS_PER_BATCH = 2;
+    // Exact throttle budget lives on BorderRules/DefaultBorderRules (pregenChunksPerBatch() /
+    // pregenThrottleIntervalTicks()) as a Lead Dev-tunable coefficient, per
+    // wiki/frontiermode/architecture/border-pregeneration.md's "Open questions" / FRO_092 -- not
+    // a hardcoded constant here. See DefaultBorderRules for the current values and the playtest
+    // notes behind them.
+
+    // Liveness check (FRO_092): fires every STALL_CHECK_INTERVAL_TICKS and crashes if an
+    // in-progress job's cursor hasn't moved since the last check -- a border-creation call site
+    // that forgot to trigger pregeneration, or any other reason a job stops making progress,
+    // surfaces immediately and loudly instead of stalling silently forever. Deliberately
+    // disk-size-agnostic: "still ongoing" is relative to this job's own last checkpoint, not a
+    // predicted total duration.
+    private static final long STALL_CHECK_INTERVAL_TICKS = 200L;
 
     // A grown border's disk is concentric with its predecessor's -- same center, bigger radius
     // (see BordersPathFacet.grow()/DefaultBorderRules' "reuses the previous center" comment) --
     // so a large inner prefix of a new layer's offset list was very likely already forced to
     // FULL by the previous layer's own completed job. runBatch() prechecks each offset with a
     // non-forcing getChunk(status, false) status lookup before paying for real generation; an
-    // already-FULL chunk is skipped without spending CHUNKS_PER_BATCH's budget. That lookup is
+    // already-FULL chunk is skipped without spending the batch's chunk budget. That lookup is
     // far cheaper than generation but not literally free, and an overlap run can span hundreds
     // of chunks -- this caps how many offsets get *examined* (skip or generate) in one batch, so
     // a long all-already-generated run can't become its own "Can't keep up" case the way
@@ -75,12 +79,20 @@ public final class BorderPregenFixture extends SatchelFixture {
 
     private final List<BorderPregenRecord> jobs = new ArrayList<>();
     private final TickThrottler throttler =
-            new TickThrottler(THROTTLE_INTERVAL_TICKS, new TickThrottler.AutoClock());
+            new TickThrottler(BorderRules.ACTIVE.pregenThrottleIntervalTicks(), new TickThrottler.AutoClock());
+
+    private final TickThrottler stallCheckThrottler =
+            new TickThrottler(STALL_CHECK_INTERVAL_TICKS, new TickThrottler.AutoClock());
 
     // Wall-clock start times for the "how long did this take" log line below -- deliberately not
     // persisted (just a log nicety, not state anything reads back): a job resumed after a server
     // restart just logs its completion without a duration instead of a wrong one.
     private final Map<UUID, Long> startedAtMillis = new HashMap<>();
+
+    // Liveness bookkeeping for the stall check above -- deliberately not persisted, same as
+    // startedAtMillis: a server restart just starts watching fresh rather than falsely flagging
+    // a resumed job as stalled on its very first tick back.
+    private final Map<UUID, Integer> lastSeenCursor = new HashMap<>();
 
     public BorderPregenFixture() {
         registerCustom(KEY_JOBS, this::saveJobs, this::loadJobs);
@@ -154,7 +166,7 @@ public final class BorderPregenFixture extends SatchelFixture {
         jobs.add(new BorderPregenRecord(borderId, false, 0));
         startedAtMillis.put(borderId, System.currentTimeMillis());
         markDirty();
-        OUT.info("[BorderPregen] Pregeneration started for border " + borderId + ".");
+        OUT.info("[BorderPregen] Pregeneration started for border " + Ids.shortId(borderId) + ".");
         return true;
     }
 
@@ -178,7 +190,7 @@ public final class BorderPregenFixture extends SatchelFixture {
             String durationText = startedAt != null
                     ? String.format(" (took %.1fs)", (System.currentTimeMillis() - startedAt) / 1000.0)
                     : "";
-            OUT.info("[BorderPregen] Pregeneration complete for border " + borderId + durationText + ".");
+            OUT.info("[BorderPregen] Pregeneration complete for border " + Ids.shortId(borderId) + durationText + ".");
         }
     }
 
@@ -196,6 +208,8 @@ public final class BorderPregenFixture extends SatchelFixture {
             return;
         }
 
+        checkStalled();
+
         if (!throttler.allow()) {
             return;
         }
@@ -208,6 +222,33 @@ public final class BorderPregenFixture extends SatchelFixture {
                 continue;
             }
             runBatch(((LevelScope) scope()).level(), record);
+        }
+    }
+
+    /**
+     * Liveness check, per this class's own "Liveness check" doc above -- crashes if an
+     * in-progress job's cursor hasn't moved since the last time this check ran for it. Runs
+     * ahead of the pacing throttler's own gate so it keeps watching even on ticks the pacing
+     * throttler itself declines.
+     */
+    private void checkStalled() {
+        if (!stallCheckThrottler.allow()) {
+            return;
+        }
+
+        for (BorderPregenRecord record : List.copyOf(jobs)) {
+            if (record.complete()) {
+                lastSeenCursor.remove(record.borderId());
+                continue;
+            }
+
+            Integer previousCursor = lastSeenCursor.put(record.borderId(), record.cursor());
+            if (previousCursor != null && previousCursor == record.cursor()) {
+                throw new IllegalStateException(
+                        "[BorderPregen] Border " + record.borderId()
+                                + " appears stalled -- cursor stuck at " + record.cursor()
+                                + " for at least " + STALL_CHECK_INTERVAL_TICKS + " ticks.");
+            }
         }
     }
 
@@ -242,7 +283,7 @@ public final class BorderPregenFixture extends SatchelFixture {
         // forward) -- logs the disk size exactly once per job, right after "started", instead of
         // making someone count individual chunk-load calls.
         if (record.cursor() == 0) {
-            OUT.info("[BorderPregen] Border " + record.borderId() + " disk is " + total
+            OUT.info("[BorderPregen] Border " + Ids.shortId(record.borderId()) + " disk is " + total
                     + " chunks (radius " + chunkRadius + ").");
         }
 
@@ -258,26 +299,42 @@ public final class BorderPregenFixture extends SatchelFixture {
         int centerChunkZ = border.center().getZ() >> 4;
 
         // Two independent caps: `generated` bounds real generation calls (the throttled-cost
-        // work CHUNKS_PER_BATCH was always meant to pace), `scanned` bounds total offsets looked
+        // work chunksPerBatch was always meant to pace), `scanned` bounds total offsets looked
         // at either way (the MAX_OFFSETS_SCANNED_PER_BATCH safety valve above). Cursor still
         // just indexes the same deterministic offset list either way -- resumability is
         // unaffected by how many of a given batch turned out to be skips.
+        int chunksPerBatch = BorderRules.ACTIVE.pregenChunksPerBatch();
         int generated = 0;
         int scanned = 0;
         int i = record.cursor();
-        while (i < total && generated < CHUNKS_PER_BATCH && scanned < MAX_OFFSETS_SCANNED_PER_BATCH) {
+        while (i < total && generated < chunksPerBatch && scanned < MAX_OFFSETS_SCANNED_PER_BATCH) {
             int[] offset = offsets.get(i);
             int chunkX = centerChunkX + offset[0];
             int chunkZ = centerChunkZ + offset[1];
 
             // require=false: returns the chunk only if it's already at/past FULL (loaded, or on
             // disk with no generation work needed) -- null if it would have to actually generate.
-            // Costs a status lookup, not generation, so this doesn't touch CHUNKS_PER_BATCH.
+            // Costs a status lookup, not generation, so this doesn't touch chunksPerBatch.
             ChunkAccess existing =
                     level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
             if (existing == null) {
                 // Not already there -- the real, forcing call, same as this loop always made.
                 level.getChunk(chunkX, chunkZ);
+
+                // FRO_092: Border only promises generation, never suitability (see
+                // wiki/frontiermode/architecture/border-pregeneration.md) -- but generation
+                // itself is still expected to succeed every time it's forced. Vanishingly
+                // unlikely per FRO_091's own ruling, and not worth a retry/reroll mechanism
+                // against a failure mode nobody's actually hit -- crash loudly instead so a
+                // pathological seed or extreme biome surfaces immediately as a bug report, not a
+                // silently incomplete disk.
+                if (level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) == null) {
+                    throw new IllegalStateException(
+                            "[BorderPregen] Border " + record.borderId()
+                                    + " chunk (" + chunkX + ", " + chunkZ + ") at cursor " + i
+                                    + " did not reach FULL status after forced generation.");
+                }
+
                 generated++;
             }
             scanned++;

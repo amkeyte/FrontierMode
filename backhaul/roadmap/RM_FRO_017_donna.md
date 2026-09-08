@@ -7,8 +7,6 @@ status: reached
 title: 'Tier 1: Core loop operational'
 owner: Arryn
 depends_on:
-- RM_FRO_018
-- RM_FRO_019
 - RM_FRO_022
 created: '2026-08-16'
 superseded_by: null
@@ -131,6 +129,8 @@ those siblings into this node's own `depends_on` the same way Susan absorbed San
 [BKHL_002](../tickets/BKHL_002_convergence-gate.md) — don't let them feed some future Tier 2 node
 directly and skip this one.
 
+- 2026-09-07: Roadmap graph-hygiene pass: pruned redundant `depends_on` edge(s) -- [RM_FRO_018](RM_FRO_018_shirley.md), [RM_FRO_019](RM_FRO_019_karen.md) -- both fully implied by [RM_FRO_022](RM_FRO_022_joyce.md) alone (022 depends on 019, which depends on 018). No change to actual gating (the pruned target still has to resolve before this node can, just via the remaining edge rather than a direct one); this only removes duplicate lines from the rendered graph. `bhrm downstream`/`dependents` remain the way to see the full transitive picture now that `depends_on` lists only immediate blockers.
+
 ## Required By
 
 <!-- required-by:start -->
@@ -138,4 +138,7 @@ directly and skip this one.
 - [**RM_FRO_026**](RM_FRO_026_dorothy.md) — Navigator target-resolution fixture
 - [**RM_FRO_027**](RM_FRO_027_janet.md) — BorderCurve intensity-curve fixture
 - [**RM_FRO_028**](RM_FRO_028_diane.md) — BorderPregen terrain pregeneration
+- [**RM_FRO_036**](RM_FRO_036_donna-04.md) — Donna epoch maintenance 4
+- [**RM_FRO_037**](RM_FRO_037_brenda.md) — Frontier Sickness epoch 1
+- [**RM_FRO_038**](RM_FRO_038_martha.md) — Feral mobs epoch 1
 <!-- required-by:end -->

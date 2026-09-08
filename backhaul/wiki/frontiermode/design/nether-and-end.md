@@ -39,6 +39,15 @@ position. Worth keeping in mind if the loop ever stops guaranteeing that coincid
 that reorders or branches the path) — this page's gate should track Path even if that ever
 happens, not whatever Layer says.
 
+## Exterior scoping
+
+Frontier Sickness and Feral (see [Exterior](exterior.md)) are Overworld-only — the Nether and End
+have no Frontier line to stand outside of, so neither mechanic applies in either dimension.
+Guarding against the Nether becoming a fast-travel bypass around ordinary Overworld exploration
+rests entirely on the Path-based difficulty scaling above, not on any Exterior mechanic; whether
+the End gets any equivalent treatment, or stays fully vanilla, is still an open call and not
+decided by this page yet.
+
 ## Portals
 
 The original instinct was to force nether portals to be built only from the Overworld side and

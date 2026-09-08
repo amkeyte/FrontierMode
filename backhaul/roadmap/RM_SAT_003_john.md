@@ -35,6 +35,5 @@ instances to concrete scopes. Consumed downstream by FrontierMode's Border featu
 ## Required By
 
 <!-- required-by:start -->
-- [**RM_SAT_007**](RM_SAT_007_charles.md) — Satchel 2.0 persistence model
 - [**RM_SAT_008**](RM_SAT_008_thomas.md) — Jig Config compiler rewrite
 <!-- required-by:end -->

@@ -120,6 +120,19 @@ container clearing, project owner's call — see Kathleen's own log.
   this is a correction on real evidence, not a reversal to second-guess later. FRO_075-081/086/084
   stay closed -- their own work is real and done; only this container's own status is affected.
 
+- 2026-09-07: **Boss hazardous-placement fallback observed live, project owner's own playtest against [FRO_092](../tickets/FRO_092_border-pregen-carryforward-build.md)'s session -- not this container's own item, parked here.** On a radius-32 border (3209 chunks), `DefaultBossRules.choosePosition()` hit its own existing "all `POSITION_CANDIDATES` scored hazardous" fallback (see that method's own comments -- this is the same anticipated edge case `POSITION_CANDIDATES` was already bumped 5 -> 20 for after an earlier real instance) and placed the boss at y=-64 over water (`run-server/logs/debug.log`, 23:19:23: `choosePosition(): all 20 candidates for border c11d5460... scored hazardous -- placing at -600, -64, -536 anyway`). That boss's later death then also hit `BossJigHandlers.onMobDied()`'s existing out-of-build-height fallback (death location resolved to y=-5423, outside `[-64, 320)`) and recovered correctly by retrying from the boss's own recorded position. Both are pre-existing, already-logged defensive paths working exactly as designed -- not a regression, and nothing crashed.
+
+  Worth a maintenance look regardless: even at `POSITION_CANDIDATES = 20`, a very large (radius 32+), water-heavy border can still exhaust every candidate. Not actioned -- just recorded per project owner's direction. Possible future angles if this keeps recurring at large radii: bump `POSITION_CANDIDATES` further, scale the candidate count with border radius instead of a flat constant, or widen `hazardScore()`'s search beyond a single heightmap column per candidate.
+
+- 2026-09-08: **Boss mob-type table stretched, project owner's direct call -- pure wiki edit,
+  no functional stakes, closed same day** (same shape as [FRO_084](../tickets/FRO_084_border-vocab-growth-removed.md)
+  above). [Boss § Spawn algorithm](../wiki/frontiermode/architecture/boss.md#spawn-algorithm-a-pluggable-strategy-mirroring-borderrules)'s
+  placeholder mob-type table (rabbit, then one vanilla-mob tier per layer up to ravager at layer
+  ~8) is stretched 3x -- rabbit stays pinned at layer 0-1 per Progression's own starting-conditions
+  example, the remaining seven tiers now step every three layers instead of one, landing ravager at
+  layer 20. No ticket -- the table was already marked "a working default, not a final curve," so
+  Architect edited it directly rather than routing it through Lead Dev.
+
 ## Required By
 
 <!-- required-by:start -->

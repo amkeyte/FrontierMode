@@ -1,0 +1,53 @@
+{
+  "entry_cue": {
+    "subtitle": "subtitles.frontiermode.entry_cue",
+    "sounds": [
+      "frontiermode:entry_cue"
+    ]
+  },
+  "boss_tell_1": {
+    "subtitle": "subtitles.frontiermode.boss_tell_1",
+    "sounds": [
+      {
+        "name": "frontiermode:boss_tell_1",
+        "stream": true
+      }
+    ]
+  },
+  "boss_tell_2": {
+    "subtitle": "subtitles.frontiermode.boss_tell_2",
+    "sounds": [
+      {
+        "name": "frontiermode:boss_tell_2",
+        "stream": true
+      }
+    ]
+  },
+  "boss_tell_3": {
+    "subtitle": "subtitles.frontiermode.boss_tell_3",
+    "sounds": [
+      {
+        "name": "frontiermode:boss_tell_3",
+        "stream": true
+      }
+    ]
+  },
+  "boss_tell_4": {
+    "subtitle": "subtitles.frontiermode.boss_tell_4",
+    "sounds": [
+      {
+        "name": "frontiermode:boss_tell_4",
+        "stream": true
+      }
+    ]
+  },
+  "boss_tell_5": {
+    "subtitle": "subtitles.frontiermode.boss_tell_5",
+    "sounds": [
+      {
+        "name": "frontiermode:boss_tell_5",
+        "stream": true
+      }
+    ]
+  }
+}

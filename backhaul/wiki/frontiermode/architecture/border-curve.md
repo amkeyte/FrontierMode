@@ -125,7 +125,11 @@ it (global code).
 A boss's home border carries two `BorderCurve` records:
 
 - `purpose: "placement"`, `shape: LINEAR` -- feeds spawn density/replacement probability, climbing
-  linearly as distance to center shrinks.
+  linearly as distance to center shrinks. Evaluated against a fraction of the border's radius
+  (`BossRules.guardianPlacementRadiusFraction()`, 0.5 by default) rather than the bare radius, so
+  the ramp is concentric with the border but compressed into a smaller reference circle around the
+  boss -- keeps guardians appearing in a noticeably bounded ring instead of spread across the
+  entire border.
 - `purpose: "difficulty"`, `shape: LOG` -- feeds the guardian variant's stat scaling, climbing
   logarithmically (a sharper spike close to the boss, flattening further out) -- independent of
   `BorderRules.layerToDifficulty` (see "Relationship to Difficulty" below).

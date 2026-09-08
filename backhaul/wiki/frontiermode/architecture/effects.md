@@ -7,7 +7,7 @@ summary: Cross-cutting server/client effect dispatch (particle sends, area sound
   that other modules call into rather than rolling their own -- see FRO_089.
 keywords: null
 status: draft
-updated: '2026-09-06'
+updated: '2026-09-07'
 ---
 
 <!-- bh-header:start -->
@@ -71,6 +71,59 @@ that one always stays server-broadcast regardless of how the rest of a given eff
 Nothing currently built needs this exception, but the API shape shouldn't fight reaching for it
 when something eventually does.
 
+## Team assignment (persistent visual state)
+
+**A third dispatch category, ruled 2026-09-07 (project owner's direct call) alongside particles
+and sound -- not fire-and-forget, and not one of the two dispatch paths above.** Scoreboard team
+assignment drives one specific visual: a colored glow outline (`Entity.getTeamColor()` reads the
+entity's team color, defaulting to white with no team -- the same mechanism
+[Boss](boss.md)'s own unteamed `setGlowingTag(true)` already relies on for its default-white
+outline). Unlike a particle burst or a sound, team membership is *persistent* entity state, not a
+single triggered moment -- it has no client-derived/parity counterpart, either: scoreboard state
+is inherently server-authoritative and syncs to clients automatically via vanilla's own network
+code, so every real case here is server-broadcast by nature, the same exception already named in
+the Sound section above ("team membership... can't be derived client-side at all").
+
+Proposed shape, mirroring this codebase's own idempotent-create-if-absent convention
+(`createTellCurveIfAbsent`/`createGuardianCurvesIfAbsent`):
+
+```java
+public static PlayerTeam ensureTeam(Scoreboard scoreboard, String name, ChatFormatting color) {
+    PlayerTeam team = scoreboard.getPlayerTeam(name);
+    if (team == null) {
+        team = scoreboard.addPlayerTeam(name);
+        team.setColor(color);
+    }
+    return team;
+}
+
+public static void assignToTeam(Entity entity, PlayerTeam team) {
+    entity.getScoreboard() /* or the caller's own Scoreboard reference */
+        .addPlayerToTeam(entity.getScoreboardName(), team);
+}
+```
+
+**First real consumer: [Guardian Mobs](guardian-mobs.md#4-visible-marker----ruled-2026-09-07-project-owners-direct-call-revised-same-day)**
+(RM_FRO_029) -- a single shared `guardian` team, colored `ChatFormatting.DARK_PURPLE`, applied
+to every guardian regardless of tier so it reads as distinct from a boss's default-white glow at
+a glance. Color is a one-line default, "safe baseline, replace later" like every other tunable in
+this project -- not a locked design decision.
+
+**Known limitation, accepted 2026-09-07, project owner's direct call: team membership is allowed
+to leak.** A team's entries are keyed by `entity.getScoreboardName()` (a mob's own UUID string)
+and nothing here removes an entry when the underlying entity dies or despawns -- Guardian Mobs is
+deliberately untracked (no record anywhere of *which* mobs are guardians), so there's no hook to
+clean one up from. Entries accumulate quietly for the life of the world. Accepted for now, the
+same acceptance already ruled for pregeneration's own old-world-compatibility question on
+[Border Pregeneration](border-pregeneration.md#open-questions) -- worlds get reset between test
+sessions, so an unbounded scoreboard entry list isn't a real cost yet. Revisit if this capability
+is ever asked to run unattended on a long-lived, non-reset world.
+
+**Future, explicitly not built now:** gating guardian glow behind an admin/debug command (so it
+isn't just always-on for every player) is a known next step -- parked, not lost, on
+[RM_FRO_024](../../../roadmap/RM_FRO_024_donna-01.md) ("Donna epoch maintenance 1")'s own log
+rather than tracked here, since it's an unscheduled follow-up, not part of this ruling.
+
 ## Boundary: a generic utility, not a domain-render owner
 
 Other modules call in through `EffectsAPI` with plain parameters. `EffectsMod` never reaches back
@@ -90,5 +143,9 @@ rendering.
 - [Utilities](../../satchel/architecture/utilities.md) -- the Satchel-level parity primitive the
   client-derived path is built on
 - [Border](border.md), [Boss](boss.md) -- the first consumers migrating existing effect calls in
+- [Guardian Mobs](guardian-mobs.md) -- the first real consumer of team assignment (the `guardian`
+  glow-color team), added 2026-09-07
+- [RM_FRO_024](../../../roadmap/RM_FRO_024_donna-01.md) ("Donna epoch maintenance 1") -- where
+  the deferred admin/debug-gating follow-up for guardian glow is parked
 - [Border Curve](border-curve.md) -- `BorderMath`, the closer precedent for this module's own
   dispatch-layer shape

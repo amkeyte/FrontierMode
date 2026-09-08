@@ -86,5 +86,25 @@ public interface BorderRules {
      * don't reimplement or skip the Relevance step themselves.
      */
     OptionalInt ambientDifficultyAt(List<Border> containing, BlockPos pos);
+
+    // ------------------------------------------------------------------
+    // Border Pregeneration (wiki/frontiermode/architecture/border-pregeneration.md, FRO_092).
+    // Tuning numbers only, not architecture decisions -- same "safe baseline, replace later"
+    // category as GROWTH_FACTOR above. Kept on this interface rather than a separate
+    // PregenRules sibling, matching this interface's existing one-rules-helper-per-module
+    // precedent (see the Difficulty section above for the same reasoning).
+    // ------------------------------------------------------------------
+
+    /**
+     * Real chunk-generation calls allowed per throttled batch, feeding
+     * {@code BorderPregenFixture}'s pacing {@code TickThrottler}.
+     */
+    int pregenChunksPerBatch();
+
+    /**
+     * Minimum ticks between allowed pregeneration batches -- the interval
+     * {@code BorderPregenFixture}'s pacing {@code TickThrottler} is built with.
+     */
+    long pregenThrottleIntervalTicks();
 }
 

@@ -4,7 +4,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import net.minecraft.core.BlockPos;
-//import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -79,5 +79,63 @@ public final class BossRulesFacet {
      */
     public double tellSoundCoefficient() {
         return RULES.tellSoundCoefficient();
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellSoundCooldownTicks()}.
+     * RM_FRO_037 boss-audio-tell follow-up (2026-09-08): missed adding this passthrough when the
+     * interface/impl methods were added -- this facet is the only path {@code BossTellFixture}
+     * actually calls through ({@code bossFixture.RULES} is a {@code BossRulesFacet}, not the raw
+     * {@link com.arryn.frontiermode.boss.server.rules.BossRules} instance), so the real compile
+     * error ("cannot find symbol ... location: variable RULES of type BossRulesFacet") was exactly
+     * this gap, not a problem with the interface/impl themselves.
+     */
+    public int tellSoundCooldownTicks() {
+        return RULES.tellSoundCooldownTicks();
+    }
+
+    /** See {@link com.arryn.frontiermode.boss.server.rules.BossRules#glowEnabled()}. */
+    public boolean glowEnabled() {
+        return RULES.glowEnabled();
+    }
+
+    /** See {@link com.arryn.frontiermode.boss.server.rules.BossRules#setGlowEnabled(boolean)}. */
+    public void setGlowEnabled(boolean value) {
+        RULES.setGlowEnabled(value);
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianPlacementCoefficient()}.
+     */
+    public double guardianPlacementCoefficient() {
+        return RULES.guardianPlacementCoefficient();
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianPlacementRadiusFraction()}.
+     */
+    public double guardianPlacementRadiusFraction() {
+        return RULES.guardianPlacementRadiusFraction();
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianTier(double)}.
+     */
+    public int guardianTier(double difficultyIntensity) {
+        return RULES.guardianTier(difficultyIntensity);
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tagGuardian(Mob, int, double, ServerLevel)}.
+     */
+    public void tagGuardian(Mob mob, int tier, double difficultyIntensity, ServerLevel level) {
+        RULES.tagGuardian(mob, tier, difficultyIntensity, level);
+    }
+
+    /**
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#applyGuardianStatScaling(Mob, double)}.
+     */
+    public void applyGuardianStatScaling(Mob mob, double difficultyIntensity) {
+        RULES.applyGuardianStatScaling(mob, difficultyIntensity);
     }
 }

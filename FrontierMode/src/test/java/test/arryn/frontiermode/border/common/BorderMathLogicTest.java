@@ -53,4 +53,37 @@ class BorderMathLogicTest {
         assertArrayEquals(new double[] {1.0, 0.0}, BorderMathLogic.direction(0, 0, 10, 0), DELTA);
         assertArrayEquals(new double[] {0.0, -1.0}, BorderMathLogic.direction(0, 0, 0, -10), DELTA);
     }
+
+    // ------------------------------------------------------------------
+    // FRO_099 ("Frontier Sickness core build" -- RM_FRO_037): distanceToEdge, the shared core
+    // behind BorderMath.distanceToSurface()'s bugfix and BorderMath.distanceOutside(). Named
+    // "a real (100, 0) point against a radius-40 circle centered at origin" as the regression
+    // case for the old squared-vs-linear bug: the buggy formula
+    // (distanceSqToCenter - radius = 100*100 - 40 = 9960) was wildly larger than the true answer
+    // (100 - 40 = 60) for anything more than a few blocks from the edge -- this pins the correct
+    // linear answer down explicitly so that bug can't silently come back.
+    // ------------------------------------------------------------------
+
+    @Test
+    void distanceToEdge_is_zero_exactly_on_the_edge() {
+        assertEquals(0.0, BorderMathLogic.distanceToEdge(40.0, 40), DELTA);
+    }
+
+    @Test
+    void distanceToEdge_is_negative_inside_the_circle() {
+        assertEquals(-15.0, BorderMathLogic.distanceToEdge(25.0, 40), DELTA);
+    }
+
+    @Test
+    void distanceToEdge_is_positive_outside_the_circle_and_matches_the_real_pre_bugfix_regression_case() {
+        // (100,0) against a radius-40 circle centered at (0,0): centerDistance=100, so the true
+        // answer is 100-40=60 -- not the old buggy 100*100-40=9960 the squared-distance formula
+        // produced.
+        assertEquals(60.0, BorderMathLogic.distanceToEdge(100.0, 40), DELTA);
+    }
+
+    @Test
+    void distanceToEdge_at_the_center_is_the_negative_radius() {
+        assertEquals(-40.0, BorderMathLogic.distanceToEdge(0.0, 40), DELTA);
+    }
 }

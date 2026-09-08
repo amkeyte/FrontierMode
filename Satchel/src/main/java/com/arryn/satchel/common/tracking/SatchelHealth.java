@@ -21,6 +21,7 @@ import com.arryn.satchel.common.newconfig.newnew.JigPolicies;
 import com.arryn.satchel.common.newconfig.newnew.LevelJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.MobJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.PlayerJigConfig;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -648,7 +649,7 @@ public final class SatchelHealth {
         if (!mob.isRemoved()) {
             String message = "[SatchelHealth] VIOLATION: MobScope torn down on side=" + side
                     + " while its backing mob is still present (isRemoved()=false). "
-                    + "mob=" + mob.getType() + " uuid=" + scope.uuid()
+                    + "mob=" + mob.getType() + " uuid=" + Ids.shortId(scope.uuid())
                     + " -- this is the RM_SAT_022 latent teardown bug (or a new regression of the "
                     + "same shape) caught live. See SAT_039 / RM_SAT_022 before treating this as "
                     + "a surprise.";

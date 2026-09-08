@@ -47,6 +47,17 @@ memorable, non-colliding label going forward — draw from here instead of inven
 | Karen | Roadmap node slug (reused, new number — see note below), [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) |
 | Joyce | Roadmap node slug, [RM_FRO_022](../../roadmap/RM_FRO_022_joyce.md) |
 | Kathleen | Roadmap node slug, [RM_FRO_023](../../roadmap/RM_FRO_023_kathleen.md) |
+| Dorothy | Roadmap node slug, [RM_FRO_026](../../roadmap/RM_FRO_026_dorothy.md) |
+| Janet | Roadmap node slug, [RM_FRO_027](../../roadmap/RM_FRO_027_janet.md) |
+| Diane | Roadmap node slug, [RM_FRO_028](../../roadmap/RM_FRO_028_diane.md) |
+| Gloria | Roadmap node slug, [RM_FRO_029](../../roadmap/RM_FRO_029_gloria.md) |
+| Janice | Roadmap node slug, [RM_FRO_030](../../roadmap/RM_FRO_030_janice.md) |
+| Joan | Roadmap node slug, [RM_FRO_031](../../roadmap/RM_FRO_031_joan.md) |
+| Elizabeth | Roadmap node slug, [RM_FRO_032](../../roadmap/RM_FRO_032_elizabeth.md) |
+| Marilyn | Roadmap node slug, [RM_FRO_033](../../roadmap/RM_FRO_033_marilyn.md) |
+| Virginia | Roadmap node slug, [RM_FRO_034](../../roadmap/RM_FRO_034_virginia.md) |
+| Brenda | Roadmap node slug, [RM_FRO_037](../../roadmap/RM_FRO_037_brenda.md) |
+| Martha | Roadmap node slug, [RM_FRO_038](../../roadmap/RM_FRO_038_martha.md) |
 | James | Roadmap node slug, [RM_SAT_001](../../roadmap/RM_SAT_001_james.md) |
 | Robert | Roadmap node slug, [RM_SAT_002](../../roadmap/RM_SAT_002_robert.md) |
 | John | Roadmap node slug, [RM_SAT_003](../../roadmap/RM_SAT_003_john.md) |
@@ -81,8 +92,9 @@ own log). Both names were reused the same day for real new nodes — Shirley for
 [RM_FRO_018](../../roadmap/RM_FRO_018_shirley.md), Karen for
 [RM_FRO_019](../../roadmap/RM_FRO_019_karen.md) — under new numbers, since the old node numbers
 themselves stay retired (IDs aren't reused once minted). Both names are now used again. Joyce (rank 18, [RM_FRO_022](../../roadmap/RM_FRO_022_joyce.md)) and
-Kathleen (rank 19, [RM_FRO_023](../../roadmap/RM_FRO_023_kathleen.md)) are also now used; the next
-unused RM_FRO name is Dorothy (rank 20); the next unused RM_SAT name is Daniel (rank 24). Edward
+Kathleen (rank 19, [RM_FRO_023](../../roadmap/RM_FRO_023_kathleen.md)) are also now used, as are
+Dorothy through Virginia (ranks 20-28) and Brenda and Martha (ranks 29-30, [RM_FRO_037](../../roadmap/RM_FRO_037_brenda.md)/[RM_FRO_038](../../roadmap/RM_FRO_038_martha.md)); the next
+unused RM_FRO name is Helen (rank 31); the next unused RM_SAT name is Daniel (rank 24). Edward
 (rank 18) is **not** back in the pool despite RM_SAT_018's retirement — see the no-reuse rule in
 [BHRM — Roadmap Conventions](../meta/bhrm.md).
 

@@ -258,5 +258,4 @@ assumed).
 
 <!-- required-by:start -->
 - [**RM_SAT_022**](RM_SAT_022_roger.md) — Make MobJig side-agnostic
-- [**RM_SAT_023**](RM_SAT_023_raymond.md) — Scope generalizes beyond Level
 <!-- required-by:end -->

@@ -281,6 +281,5 @@ assuming it from the vanilla/Forge behavior alone.
 ## Required By
 
 <!-- required-by:start -->
-- [**RM_FRO_017**](RM_FRO_017_donna.md) — Tier 1: Core loop operational
 - [**RM_FRO_022**](RM_FRO_022_joyce.md) — Boss control commands
 <!-- required-by:end -->

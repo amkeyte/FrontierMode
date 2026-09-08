@@ -1,8 +1,10 @@
 package com.arryn.frontiermode.border.common.player;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.common.FrontierSicknessLogic;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.border.server.rules.PlayerRules;
 import net.minecraft.core.BlockPos;
 
 import java.util.Comparator;
@@ -20,19 +22,55 @@ import java.util.OptionalInt;
  */
 final class BorderPlayerLogic {
 
+    /**
+     * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): {@code previous} is this player's last
+     * accepted {@link BorderPlayerStatus} (or {@code null} on the very first evaluation, e.g.
+     * just after login) -- needed only for {@code sicknessSeverity}'s target-and-catch-up climb,
+     * which is stateful across ticks unlike every other field this method derives. This keeps
+     * the method itself a pure function of its inputs (no hidden fields on this class), with
+     * {@link BorderPlayerStatusFixture} remaining the one place that actually holds continuity
+     * between ticks, per that fixture's own "not persisted, live-recomputed" contract.
+     */
     public BorderPlayerEval evaluate(
             List<Border> borders,
-            BlockPos pos
+            BlockPos pos,
+            BorderPlayerStatus previous
     ) {
+        double previousSeverity = previous != null ? previous.sicknessSeverity() : 0.0;
+
         if (pos == null || borders == null || borders.isEmpty()) {
+            // No border data to reduce over -- Frontier-distance defensively reads as "not in the
+            // Exterior" rather than undefined, same "standby, don't crash" discipline as every
+            // other early-return branch in this class. Severity still decays toward 0 from
+            // whatever it previously was, exactly as it would if frontierDistance had genuinely
+            // dropped to 0 -- this isn't a special case for severity, just this branch also being
+            // a (degenerate) frontierDistance=0 tick.
+            double decayed = FrontierSicknessLogic.climbSeverity(previousSeverity, 0.0, PlayerRules.SICKNESS_CLIMB_RATE);
             return new BorderPlayerEval(
                     null,
                     Integer.MAX_VALUE,
                     false,
                     OptionalInt.empty(),
-                    -1
+                    -1,
+                    0,
+                    decayed
             );
         }
+
+        // RM_FRO_037: Frontier-distance -- a second reduction over this same `borders` list,
+        // independent of the containing/relevant resolution below. Every established Border
+        // counts here, not just ones the point is inside or on-path -- see
+        // wiki/frontiermode/architecture/exterior.md#frontier-becomes-a-named-computed-aggregate.
+        // A point inside (or on) at least one Border always reduces to 0 here, since
+        // BorderAPI.MATH.distanceOutside floors at 0 for that Border -- no separate inside-check
+        // needed before running this.
+        int frontierDistance = borders.stream()
+                .mapToInt(b -> BorderAPI.MATH.distanceOutside(pos, b.center(), b.radius()))
+                .min()
+                .orElse(0);
+
+        double target = FrontierSicknessLogic.severityTarget(frontierDistance, PlayerRules.SICKNESS_TARGET_SCALE);
+        double sicknessSeverity = FrontierSicknessLogic.climbSeverity(previousSeverity, target, PlayerRules.SICKNESS_CLIMB_RATE);
 
         // Borders are concentric per layer (DefaultBorderRules' own class doc), so a player deep
         // inside a fully-grown border stack is inside every layer at once. The original version
@@ -63,7 +101,9 @@ final class BorderPlayerLogic {
                     BorderAPI.MATH.distanceToSurface(relevant, pos),
                     true,
                     OptionalInt.of(relevant.layer()),
-                    relevant.layer()
+                    relevant.layer(),
+                    frontierDistance,
+                    sicknessSeverity
             );
         }
 
@@ -85,7 +125,9 @@ final class BorderPlayerLogic {
                 BorderAPI.MATH.distanceToSurface(nearest, pos),
                 false,
                 OptionalInt.empty(),
-                nearest.layer()
+                nearest.layer(),
+                frontierDistance,
+                sicknessSeverity
         );
     }
 }

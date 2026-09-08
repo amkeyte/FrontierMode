@@ -15,6 +15,23 @@ public final class WorldBordersRenderer {
     /** Total radial thickness = 0.3m */
     private static final float RING_HALF_THICKNESS = 0.15f;
 
+    // Project-owner request (2026-09-08): a debug toggle for the rendered rings themselves,
+    // separate from RenderContext.standby()'s own "nothing to draw yet" gate above -- this one is
+    // a deliberate player choice, not a data-readiness check. Driven by a client-only command
+    // (Rendering.onRegisterClientCommands registers "/border debug rings <true|false>") since
+    // visibility of a purely client-side render pass has no server-side meaning at all -- nothing
+    // here needs a network packet. Defaults to visible (true), matching this renderer's behavior
+    // before the toggle existed.
+    private static boolean visible = true;
+
+    public static void setVisible(boolean value) {
+        visible = value;
+    }
+
+    public static boolean isVisible() {
+        return visible;
+    }
+
 
 
     // ---------------------------------------------------------------------
@@ -22,6 +39,7 @@ public final class WorldBordersRenderer {
     // ---------------------------------------------------------------------
 
     public void render(PoseStack poseStack) {
+        if (!visible) return;
 
         RenderContext ctx = RenderContext.getInstance()
                 .filter(rc -> !rc.standby())

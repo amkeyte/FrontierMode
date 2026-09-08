@@ -3,13 +3,13 @@ id: FRO_060
 uid: FRO
 number: 60
 client: FrontierMode
-status: open
+status: done
 title: Boss/Border mutation validation build
 context: Lead Dev build for FRO_058/059's finalized specs -- see ticket body for full
   scope.
 priority: low
 opened: '2026-08-29'
-closed: null
+closed: '2026-09-06'
 ---
 
 <!-- board:start -->
@@ -64,6 +64,66 @@ real `javac`/Gradle compile.
 
 ## Log
 
+- 2026-09-06: Playtest run: fresh world, project owner created several off-path bosses (`/boss add`/`/boss
+  addhere`) alongside the natural progression boss, then ran `/boss transform defeat @all`.
+
+  Result: no ConcurrentModificationException, no command abort, no stack trace anywhere in the
+  server log. The progression boss's defeat correctly triggered its grow+createBoss cascade
+  (border 15cc223d/layer 1 pregenerated, boss 52936c29 finalized) in the middle of the same @all
+  batch that also processed five other bosses -- exactly the mid-loop list-mutation scenario this
+  ticket's `List.copyOf(bosses)` fix in `BossFixture.all()` exists to survive. That's the direct
+  confirmation the CME fix works, not just compiles.
+
+  Bonus, unplanned confirmation: one boss (0ae31e09) produced a `markDefeated(): ... is already
+  defeated -- ignoring` warning with no phantom border/boss cascade following it. This is FRO_073's
+  scenario playing out live (a single physical mob death firing more than one LivingDeathEvent) --
+  both FRO_058's fixture-level guard and FRO_073's onLivingDeath guard are doing their job together,
+  confirmed under real multi-boss load rather than just the single-boss case those tickets closed
+  on.
+
+  Separately observed, not this ticket's scope: the freshly-created layer-1 boss (52936c29) died to
+  fire ~1.4s after spawning. Checked FRO_070 (void/ravine hazard fix) and it's already closed --
+  that fix covers fluid contact and missing footing, not necessarily "spawned near an existing fire
+  source." Treating as incidental terrain bad luck, not a regression, unless it recurs.
+
+  Negative-layer and malformed-border-proposal guards remain unverified via command (still
+  believed unreachable through any current command surface, per this ticket's own prior reasoning)
+  -- not a blocker.
+
+  Verified. Closing.
+- 2026-09-06: Re-audited this ticket's scope against current source (this codebase has moved a lot since
+  2026-08-29 -- SAT_048, FRO_087/088/089 all landed and touched adjacent files this session).
+  Result: everything in "What to build" (items 1-7) and both bug fixes from the 2026-08-29 log
+  entries are present, correct, and compose cleanly with this session's later changes -- no
+  conflicts, no stale/reverted code found.
+
+  Confirmed present:
+  - BossFixture.create(int)/create(int,UUID) both return Optional<BossRecord>; materialize()/
+    markDefeated() both return boolean; all() returns List.copyOf(bosses) (the CME fix).
+  - BossAPI.forceDefeat() checks markDefeated()'s return before the grow/createBoss cascade.
+  - BossCommandHandler.addExplicit/addHere updated for the Optional contract -- and now also carry
+    FRO_087's createRecord() calls right alongside, added cleanly on top, no rework needed.
+  - BordersCrudFacet.failureReason() has the displayName (blank/32-char-max) and center
+    (WorldBorder.MAX_SIZE/2 horizontal, level min/max build height vertical) checks; .all() returns
+    List.copyOf(fixture.all()) (the preemptive Border-side hardening).
+  - BorderConstants.MAX_DISPLAY_NAME_LENGTH = 32.
+  - BorderProposal.id(UUID)/displayName(String) carry the FRO_059 doc-comment ruling (sanctioned
+    contract lives on the setters, not the plain getters -- reads correctly against border.md's
+    "Proposal identity and validation" section).
+  - Wiki cross-check: boss.md's "Mutation validation boundary" and border.md's "Proposal identity
+    and validation" both match what's actually built. FRO_058/FRO_059 (the spec tickets) both show
+    status: done.
+
+  Not yet directly playtest-verified: the specific `/boss transform defeat @all`
+  ConcurrentModificationException fix (needs >=2 simultaneously alive bosses to actually exercise
+  the selector loop -- natural progression only ever has one alive boss at a time; off-path
+  `/boss add`/`/boss addhere` bosses are the way to get a second one for this test). The negative-
+  layer and malformed-border-proposal guards are defense-in-depth per the ticket's own reasoning
+  (Brigadier already blocks negative layer at the command surface; no current command builds a raw
+  out-of-bounds BorderProposal) -- not blocking, same as FRO_060's own text already argued.
+
+  Plan: targeted playtest checklist handed to the project owner (see chat) -- primarily the @all
+  defeat scenario with 2+ alive bosses. Close once confirmed.
 - 2026-08-29: Ticket opened, scope copied forward from FRO_058/FRO_059's closed spec rulings.
 
 - 2026-08-29: **Code written** (device-bridge session, no Gradle available -- not yet compiled or

@@ -101,6 +101,35 @@ public final class BorderCurveFixture extends SatchelFixture {
     }
 
     /**
+     * Upsert: replaces the named {@code (borderId, purpose)} curve with a fresh one carrying
+     * {@code shape}/{@code steepness} if one already exists (a new record, new {@code id} --
+     * nothing outside this fixture holds a curve by its own {@code id}, every real caller resolves
+     * via {@link #forBorder(UUID, String)}), or creates one if absent -- same net effect as
+     * {@link #create} on a border with no such curve yet.
+     *
+     * <p>Added for exactly the gap {@code create}-if-absent helpers like
+     * {@code BossTellFixture.createTellCurveIfAbsent}/{@code BossGuardiansFixture
+     * .ensureGuardianCurves} can't cover on their own: a curve's shape/steepness is "safe
+     * baseline, replace later" tuning territory by design, and this whole cluster is still being
+     * played and adjusted -- a live world that already seeded a curve under the old constants
+     * would otherwise be stuck with them until the world resets, since {@code create}-if-absent
+     * never touches an existing record. This lets a consumer's own "ensure current shape" helper
+     * reconcile forward instead.
+     */
+    public BorderCurve replace(UUID borderId, String purpose, Shape shape, double steepness) {
+        Satchel.requireServer();
+        Objects.requireNonNull(borderId, "borderId");
+        Objects.requireNonNull(purpose, "purpose");
+        Objects.requireNonNull(shape, "shape");
+
+        curves.removeIf(c -> c.borderId().equals(borderId) && c.purpose().equals(purpose));
+        BorderCurve curve = new BorderCurve(UUID.randomUUID(), borderId, purpose, shape, steepness);
+        curves.add(curve);
+        markDirty();
+        return curve;
+    }
+
+    /**
      * Purges every curve referencing {@code borderId} -- the delete-cascade
      * {@code BorderAPI.removeBorder} calls, per this fixture's own class doc.
      *
