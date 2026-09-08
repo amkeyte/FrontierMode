@@ -8,7 +8,6 @@ title: Scope generalizes beyond Level
 owner: Arryn
 depends_on:
 - RM_SAT_020
-- RM_SAT_021
 - RM_SAT_022
 created: '2026-08-23'
 superseded_by: null
@@ -82,6 +81,8 @@ server plus a connected client. Same standard [RM_SAT_017](RM_SAT_017_paul.md) (
   stale while closing out unrelated work and correctly left the flip itself to PM.
 - 2026-08-23: Node opened by PM, replacing the retired RM_SAT_018 as this graph's forward
   convergence. Project owner's call.
+
+- 2026-09-07: Roadmap graph-hygiene pass: pruned redundant `depends_on` edge(s) -- [RM_SAT_021](RM_SAT_021_frank.md) -- implied via [RM_SAT_022](RM_SAT_022_roger.md), which depends on 021 directly. No change to actual gating (the pruned target still has to resolve before this node can, just via the remaining edge rather than a direct one); this only removes duplicate lines from the rendered graph. `bhrm downstream`/`dependents` remain the way to see the full transitive picture now that `depends_on` lists only immediate blockers.
 
 ## Required By
 

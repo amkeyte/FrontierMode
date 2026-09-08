@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Sick Wildlife ELI5</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { background: #0d1117; margin: 0; padding: 24px; overflow-x: auto; }
+  #diagram { display: inline-block; }
+  h1 { color: #c9d1d9; font: 600 16px system-ui, sans-serif; margin: 0 0 16px; }
+</style>
+</head>
+<body>
+<h1>Sick Wildlife (RM_FRO_037 / FRO_099) -- ELI5 (scratch, not promoted to wiki)</h1>
+<div id="diagram" class="mermaid">
+flowchart TD
+    DIST["How far past the Frontier's edge is a spot?<br/>(0 or less = still inside, nothing below applies)"]
+
+    subgraph TELL["Animals already nearby a player<br/>(ExteriorTellFixture -- rechecked a few times a second, per player)"]
+        PDIST{"Is the PLAYER<br/>outside the Frontier?"}
+        FIND["Look at every passive animal<br/>near the player -- rabbits, etc."]
+        ROLL1["Roll odds per animal,<br/>separately for particle and sound"]
+        PARTICLE["Poison-colored particle<br/>(only that player sees it)"]
+        SOUND["Hurt-sounding noise<br/>(anyone nearby can hear it)"]
+        SKIP1["Nothing happens"]
+    end
+
+    subgraph SPAWN["New animals spawning<br/>(BorderModule -- every time vanilla spawns a passive animal)"]
+        SDIST{"Is the SPAWN SPOT<br/>outside the Frontier?"}
+        MULT["Farther out = more likely --<br/>rises fast right at the edge,<br/>then levels off"]
+        ROLL2["Roll the odds once"]
+        EXTRA["Spawn one extra copy of<br/>that same animal nearby"]
+        SKIP2["Animal spawns normally,<br/>no extra copy"]
+    end
+
+    DIST --> PDIST
+    DIST --> SDIST
+
+    PDIST -->|"yes"| FIND --> ROLL1
+    ROLL1 -->|"wins"| PARTICLE
+    ROLL1 -->|"wins"| SOUND
+    PDIST -->|"no"| SKIP1
+
+    SDIST -->|"yes"| MULT --> ROLL2
+    ROLL2 -->|"wins"| EXTRA
+    ROLL2 -->|"loses"| SKIP2
+    SDIST -->|"no"| SKIP2
+
+    NOTE["Both halves are purely cosmetic --<br/>no real damage, no real death.<br/>An animal (or player) stops being<br/>flagged the moment it is back inside.<br/><br/>Not shown: a separate one-time<br/>entry-cue sound that plays for<br/>the PLAYER the first time they<br/>cross into the Exterior."]
+
+    TELL ~~~ NOTE
+    SPAWN ~~~ NOTE
+
+    classDef note fill:#161b22,stroke:#30363d,color:#8b949e,text-align:left;
+    class NOTE note
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: { fontSize: '20px' },
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      nodeSpacing: 40,
+      rankSpacing: 90
+    }
+  });
+</script>
+</body>
+</html>

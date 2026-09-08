@@ -8,6 +8,7 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Mob;
 
@@ -38,7 +39,7 @@ final class BossMobJigHandlers {
                         .findFirst());
 
         if (recordOpt.isEmpty()) {
-            OUT.debug("[Boss] onScopeLoaded: no BossFixture record for entity " + entityId
+            OUT.debug("[Boss] onScopeLoaded: no BossFixture record for entity " + Ids.shortId(entityId)
                     + " -- not a tracked boss, ignoring.");
             return;
         }
@@ -55,6 +56,6 @@ final class BossMobJigHandlers {
         ScopeInfo info = event.info();
         MobScope scope = (MobScope) info.scope();
         OUT.debug("[Boss] Boss mob scope unloaded (chunk unload or removal, indistinguishable"
-                + " here): " + scope.uuid());
+                + " here): " + Ids.shortId(scope.uuid()));
     }
 }

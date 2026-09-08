@@ -54,6 +54,9 @@ mod; see [FRO_001](../../tickets/FRO_001_readme-boilerplate.md)).
 - [Boss](architecture/boss.md) — Tier 1's boss entity/spawn system design (RM_FRO_018/019).
 - [Effects](architecture/effects.md) — cross-cutting server/client effect dispatch (particles,
   sounds) other modules call into, `draft`, see FRO_089.
+- [Exterior](architecture/exterior.md) — Frontier-distance query (the answer to Border's own
+  "Frontier isn't a named aggregate yet" gap), and the Border/Boss infrastructure Frontier
+  Sickness and Feral are proposed to reuse, `draft`.
 
 ## Design
 
@@ -65,6 +68,7 @@ Creative vision and player-experience intent for the mode, maintained by the Gam
 - [Progression and Frontier Mechanics](design/progression.md)
 - [Boss Discovery](design/boss-discovery.md)
 - [Guardian Mobs](design/guardian-mobs.md)
+- [Exterior](design/exterior.md)
 - [Nether and End](design/nether-and-end.md)
 - [Multiplayer Sketch (Parked)](design/multiplayer-sketch.md) and
   [Nethack Ideas (Parked)](design/nethack-ideas-parked.md) — explicitly out of

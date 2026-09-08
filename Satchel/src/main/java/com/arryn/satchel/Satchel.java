@@ -193,6 +193,6 @@ public final class Satchel {
     }
     public static boolean isServer(){
         var side = require().side();
-        return side != LogicalSide.SERVER;
+        return side == LogicalSide.SERVER;
     }
 }

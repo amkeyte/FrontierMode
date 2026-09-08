@@ -3,14 +3,14 @@ id: RM_FRO_035
 uid: RM_FRO
 number: 35
 kind: work
-status: open
+status: resolved
 title: Donna epoch maintenance 3
 owner: Arryn
 depends_on:
 - RM_FRO_028
 created: '2026-09-05'
 superseded_by: null
-ticket: null
+ticket: FRO_092
 ---
 
 <!-- bh-header:start -->
@@ -67,6 +67,19 @@ mistake; the page's own wording still needs a pass.
   unblocked ("ready for implementation" / "no blockers") on [Donna Epoch
   Nodes](../wiki/plans/donna-epoch-nodes.md); that page's sequencing note is being corrected in
   the same pass.
+
+- 2026-09-06: [FRO_091](../tickets/FRO_091_pregen-carryforward-spec.md) opened -- Architect spec-review ticket for all four carried-forward items above, project owner's call. Douglas rules directly on border-pregeneration.md's Open Questions section; a Lead Dev build ticket follows once scope is settled.
+
+- 2026-09-06: FRO_091 closed -- all four carried-forward items ruled, plus a fifth
+  (`BorderPregenEvent.Complete` registration discipline) caught untracked during review and folded
+  in per project owner's direction. Rulings written onto
+  [border-pregeneration.md](../wiki/frontiermode/architecture/border-pregeneration.md#open-questions)'s
+  Open Questions section. [FRO_092](../tickets/FRO_092_border-pregen-carryforward-build.md) opened
+  as the Lead Dev build ticket for the two items needing real implementation (throttle value,
+  stalled-trigger watchdog); `ticket:` field above updated to point at it. This node stays open
+  until FRO_092's build lands.
+
+- 2026-09-07: Done bar met and playtest-verified via FRO_092's real build.log plus an extensive live session -- normal pregeneration confirmed across a wide size range (13 to 3209 chunks) under the new `BorderRules.pregenChunksPerBatch()`/`pregenThrottleIntervalTicks()` tunables with no behavior change, and the new 200-tick stalled-trigger liveness check produced zero false positives across multiple full jobs, including one that ran to completion unattended. The disk-validation-failure crash path went unexercised (no real failure occurred; project owner couldn't reliably induce one live) but was independently verified by source read-through -- accepted, not a blocker, per the ticket's own reasoning. Wiki/spec drift between FRO_091's original log-only ruling and the crash-based behavior actually built was caught and corrected on border-pregeneration.md in the same close. Resolved -- this clears the last shared-infrastructure gate on RM_FRO_029/031/032/033/034 (Guardian Mobs, Beacons, Tracker, Compass, Warps), all of which now have every `depends_on` edge satisfied.
 
 ## Required By
 

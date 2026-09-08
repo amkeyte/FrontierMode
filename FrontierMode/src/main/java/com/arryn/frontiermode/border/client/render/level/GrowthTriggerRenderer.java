@@ -16,8 +16,16 @@ import java.util.Optional;
 /**
  * Client-side visual affordance for the border growth trigger.
  * <p>
- * Emits subtle particles at the grounded center of the path tip.
- * Purely visual: no authority, no persistence, no gameplay logic.
+ * Emits subtle particles at a grounded, deterministic approximation of the paired boss's
+ * position -- not the border's own geometric center, and deliberately not the boss's real
+ * position either. Purely visual: no authority, no persistence, no gameplay logic.
+ * <p>
+ * FRO_094 (building FRO_093's Architect ruling): boss location is deliberately secret from the
+ * client (see {@code boss.md} § Module wiring), so this can never resolve a real {@code
+ * BossRecord} -- there isn't one on the client to read. Instead it reconstructs a stable,
+ * edge-biased point from data the client already legitimately has (the synced {@link Border}'s
+ * own id/center/radius), close enough to "where a real boss would plausibly be" for a decorative
+ * debug/admin aura without ever holding the true answer. See {@link #approximateBossPosition}.
  */
 public final class GrowthTriggerRenderer {
 
@@ -77,18 +85,18 @@ public final class GrowthTriggerRenderer {
         Border tip = rc.pathTip().orElse(null);
         if (tip == null) return;
 
-        // Resolve grounded anchor at the tip center
-        BlockPos center = tip.center();
+        // Resolve grounded anchor at the approximate (never real) boss position -- FRO_094
+        BlockPos approxBoss = approximateBossPosition(tip);
         int groundY = level.getHeight(
                 Heightmap.Types.MOTION_BLOCKING,
-                center.getX(),
-                center.getZ()
+                approxBoss.getX(),
+                approxBoss.getZ()
         );
 
         BlockPos anchor = new BlockPos(
-                center.getX(),
+                approxBoss.getX(),
                 groundY,
-                center.getZ()
+                approxBoss.getZ()
         );
 
         // Distance culling
@@ -106,6 +114,34 @@ public final class GrowthTriggerRenderer {
 
         Vector3f color = RingColorPalette.get(tip.layer());
         spawnParticles(level, anchor, color);
+    }
+
+    /* --------------------------------------------------------------------- */
+    /* Boss-position approximation (FRO_094)                                  */
+    /* --------------------------------------------------------------------- */
+
+    // Mirrors DefaultBossRules.EDGE_BIAS_INNER_FRACTION's *shape* (sample the outer share of the
+    // radius, biased toward the edge, since new borders crawl outward from wherever their boss
+    // died) without depending on that class -- FRO_093's ruling was explicit that this build adds
+    // no Boss-package touch. This is a visual approximation matching the general placement
+    // pattern, not a reference to boss-package internals or a claim of reproducing its exact
+    // output.
+    private static final double APPROX_EDGE_BIAS_INNER_FRACTION = 0.6;
+
+    /**
+     * Deterministic, per-border, edge-biased point standing in for the paired boss's real
+     * position. Never crosses into boss-owned data or state -- seeded purely from the {@link
+     * Border} the client already has synced, so the same border always resolves to the same
+     * point (a stable anchor, not a different guess every tick) and no two distinct borders
+     * collide on the same seed.
+     */
+    private static BlockPos approximateBossPosition(Border border) {
+        RandomSource seeded = RandomSource.create(
+                border.id().getMostSignificantBits() ^ border.id().getLeastSignificantBits());
+
+        int innerRadius = (int) Math.round(border.radius() * APPROX_EDGE_BIAS_INNER_FRACTION);
+
+        return BorderAPI.MATH.randomPointInAnnulus(seeded, border.center(), innerRadius, border.radius());
     }
 
     /* --------------------------------------------------------------------- */

@@ -7,6 +7,7 @@ import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
@@ -16,6 +17,7 @@ import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Mob;
@@ -58,8 +60,11 @@ final class BossJigHandlers {
 
     /**
      * Handles {@code BORDERS_JIG}'s own {@code ScopeEvent.Loaded} -- registered on
-     * {@code BOSS_JIG}'s config so this handler only ever installs server-side. Orchestrates
-     * the level's initial Border+Boss bootstrap: Boss depends on Border, never the reverse.
+     * {@code BOSS_JIG}'s config so this handler only ever installs server-side. Two
+     * responsibilities on every fire, in order: rehydrates the {@link BossInterests} entry for
+     * any boss already materialized before this server start (see the rehydration block's own
+     * comment below), then orchestrates the level's initial Border+Boss bootstrap if it isn't
+     * seeded yet: Boss depends on Border, never the reverse.
      */
     static void onBordersScopeLoaded(ScopeEvent.Loaded event) {
         ScopeInfo info = event.info();
@@ -77,6 +82,25 @@ final class BossJigHandlers {
         if (!level.dimension().equals(Level.OVERWORLD)) {
             return;
         }
+
+        // Rehydrate Satchel's in-memory MobDied interest set for any boss already materialized
+        // before this server start. BossInterests.MAP is plain in-memory state (see that class's
+        // own doc) -- materializeUnresolved()/forceMaterialize() are its only other writers, and
+        // neither one ever revisits a boss that already has a live entity, since both only ever
+        // touch unmaterialized records. A boss loaded from disk with materialized()==true would
+        // otherwise never get its real entity UUID added back in, and Satchel's MobDied gate
+        // would silently drop its eventual death as "not interested" for the rest of this
+        // server's life -- the defeat -> border-growth -> next-boss chain below would simply
+        // never fire. Runs on every BORDERS_JIG-load cycle (this method's own trigger), not just
+        // the not-yet-seeded bootstrap path below, since a previously-materialized boss can be
+        // present whether or not this level still needs seeding.
+        BossAPI.bosses(level).ifPresent(fixture -> {
+            for (BossRecord record : fixture.all()) {
+                if (record.materialized()) {
+                    BossInterests.add(level, record.bossEntityId());
+                }
+            }
+        });
 
         var infoOpt = BorderAPI.INFO(level);
         if (infoOpt.isEmpty()) {
@@ -103,6 +127,8 @@ final class BossJigHandlers {
         Optional<BossRecord> newBoss = BossAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
+        // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
+        BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
         newBoss.ifPresent(rec ->
                 BossAPI.bossTells(level).ifPresent(tell -> tell.createRecord(rec.bossId())));
     }
@@ -119,7 +145,7 @@ final class BossJigHandlers {
     static void onMobDied(MobDied event) {
         Mob mob = (Mob) event.forgeEvent().getEntity();
         Level level = event.level();
-        OUT.debug("[Boss] onMobDied: received for " + event.uuid());
+        OUT.debug("[Boss] onMobDied: received for " + Ids.shortId(event.uuid()));
 
         Optional<UUID> bossId = BossMobFixture.resolveBossId(mob);
         if (bossId.isEmpty()) {
@@ -175,6 +201,8 @@ final class BossJigHandlers {
         Optional<BossRecord> newBoss = BossAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
+        // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
+        BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
         newBoss.ifPresent(rec ->
                 BossAPI.bossTells(level).ifPresent(tell -> tell.createRecord(rec.bossId())));
     }

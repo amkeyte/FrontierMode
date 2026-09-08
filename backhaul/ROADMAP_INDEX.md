@@ -16,8 +16,11 @@ Everything below has no unsatisfied dependency. This is the menu — pick from h
 
 - [**RM_FRO_021**](roadmap/RM_FRO_021_susan-02.md) — Susan epoch review/fix
 - [**RM_FRO_024**](roadmap/RM_FRO_024_donna-01.md) — Donna epoch maintenance 1
-- [**RM_FRO_030**](roadmap/RM_FRO_030_janice.md) — Environmental Tells epoch 1
-- [**RM_FRO_035**](roadmap/RM_FRO_035_donna-03.md) — Donna epoch maintenance 3
+- [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) — Ender-eye-style Tracker epoch 1
+- [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) — Player-built Warps epoch 1
+- [**RM_FRO_036**](roadmap/RM_FRO_036_donna-04.md) — Donna epoch maintenance 4
+- [**RM_FRO_037**](roadmap/RM_FRO_037_brenda.md) — Frontier Sickness epoch 1
+- [**RM_FRO_038**](roadmap/RM_FRO_038_martha.md) — Feral mobs epoch 1
 
 ### Dependency structure
 
@@ -29,7 +32,7 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
     - [**RM_FRO_004**](roadmap/RM_FRO_004_patricia.md) [work · resolved] Command and selector interface — depends on: RM_FRO_002
     - [**RM_FRO_005**](roadmap/RM_FRO_005_carol.md) [work · resolved] Client-side border rendering — depends on: RM_FRO_002
       - [**RM_FRO_007**](roadmap/RM_FRO_007_nancy.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_FRO_003, RM_FRO_004, RM_FRO_005
-        - [**RM_FRO_008**](roadmap/RM_FRO_008_sharon.md) [convergence · reached] Border prototype verified end-to-end — depends on: RM_FRO_002, RM_FRO_003, RM_FRO_004, RM_FRO_005, RM_FRO_007
+        - [**RM_FRO_008**](roadmap/RM_FRO_008_sharon.md) [convergence · reached] Border prototype verified end-to-end — depends on: RM_FRO_007
           - [**RM_FRO_006**](roadmap/RM_FRO_006_sandra.md) [work · resolved] Per-player border evaluation — depends on: RM_FRO_008
           - [**RM_FRO_009**](roadmap/RM_FRO_009_judith.md) [work · resolved] Clean up dead BorderView code — depends on: RM_FRO_008
           - [**RM_FRO_011**](roadmap/RM_FRO_011_betty.md) [work · resolved] Border mutation validation hardening — depends on: RM_FRO_008
@@ -42,19 +45,22 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                 - [**RM_FRO_019**](roadmap/RM_FRO_019_karen.md) [work · resolved] Boss defeat border-growth caller — depends on: RM_FRO_018, RM_FRO_020
                 - [**RM_FRO_021**](roadmap/RM_FRO_021_susan-02.md) [work · open · ACTIONABLE] Susan epoch review/fix — depends on: RM_FRO_020
                   - [**RM_FRO_022**](roadmap/RM_FRO_022_joyce.md) [work · resolved] Boss control commands — depends on: RM_FRO_019
-                    - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · reached] Tier 1: Core loop operational — depends on: RM_FRO_018, RM_FRO_019, RM_FRO_022
+                    - [**RM_FRO_017**](roadmap/RM_FRO_017_donna.md) [convergence · reached] Tier 1: Core loop operational — depends on: RM_FRO_022
                       - [**RM_FRO_024**](roadmap/RM_FRO_024_donna-01.md) [work · open · ACTIONABLE] Donna epoch maintenance 1 — depends on: RM_FRO_017
                       - [**RM_FRO_026**](roadmap/RM_FRO_026_dorothy.md) [work · resolved] Navigator target-resolution fixture — depends on: RM_FRO_017
                       - [**RM_FRO_027**](roadmap/RM_FRO_027_janet.md) [work · resolved] BorderCurve intensity-curve fixture — depends on: RM_FRO_017
                       - [**RM_FRO_028**](roadmap/RM_FRO_028_diane.md) [work · resolved] BorderPregen terrain pregeneration — depends on: RM_FRO_017
+                      - [**RM_FRO_036**](roadmap/RM_FRO_036_donna-04.md) [work · open · ACTIONABLE] Donna epoch maintenance 4 — depends on: RM_FRO_017
+                      - [**RM_FRO_037**](roadmap/RM_FRO_037_brenda.md) [work · open · ACTIONABLE] Frontier Sickness epoch 1 — depends on: RM_FRO_017
+                      - [**RM_FRO_038**](roadmap/RM_FRO_038_martha.md) [work · open · ACTIONABLE] Feral mobs epoch 1 — depends on: RM_FRO_017
                         - [**RM_FRO_025**](roadmap/RM_FRO_025_donna-02.md) [work · open] Donna epoch review/fix — depends on: RM_FRO_024
-                        - [**RM_FRO_030**](roadmap/RM_FRO_030_janice.md) [work · open · ACTIONABLE] Environmental Tells epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
-                        - [**RM_FRO_035**](roadmap/RM_FRO_035_donna-03.md) [work · open · ACTIONABLE] Donna epoch maintenance 3 — depends on: RM_FRO_028
-                          - [**RM_FRO_029**](roadmap/RM_FRO_029_gloria.md) [work · open] Guardian Mobs epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028, RM_FRO_035
-                          - [**RM_FRO_031**](roadmap/RM_FRO_031_joan.md) [work · open] Beacons epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028, RM_FRO_035
-                          - [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) [work · open] Ender-eye-style Tracker epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028, RM_FRO_035
-                          - [**RM_FRO_033**](roadmap/RM_FRO_033_marilyn.md) [work · open] Special Compass epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028, RM_FRO_035
-                          - [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) [work · open] Player-built Warps epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028, RM_FRO_035
+                        - [**RM_FRO_030**](roadmap/RM_FRO_030_janice.md) [work · resolved] Environmental Tells epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_028
+                        - [**RM_FRO_035**](roadmap/RM_FRO_035_donna-03.md) [work · resolved] Donna epoch maintenance 3 — depends on: RM_FRO_028
+                          - [**RM_FRO_029**](roadmap/RM_FRO_029_gloria.md) [work · resolved] Guardian Mobs epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_035
+                          - [**RM_FRO_031**](roadmap/RM_FRO_031_joan.md) [work · open] Beacons epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_035, RM_FRO_036
+                          - [**RM_FRO_032**](roadmap/RM_FRO_032_elizabeth.md) [work · open · ACTIONABLE] Ender-eye-style Tracker epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_035
+                          - [**RM_FRO_033**](roadmap/RM_FRO_033_marilyn.md) [work · open] Special Compass epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_035, RM_FRO_036
+                          - [**RM_FRO_034**](roadmap/RM_FRO_034_virginia.md) [work · open · ACTIONABLE] Player-built Warps epoch 1 — depends on: RM_FRO_026, RM_FRO_027, RM_FRO_035
                             - [**RM_FRO_023**](roadmap/RM_FRO_023_kathleen.md) [convergence · WIP] Tier 2: Guided loop operational — depends on: RM_FRO_029, RM_FRO_030, RM_FRO_031, RM_FRO_032, RM_FRO_033, RM_FRO_034
 
 ## RM_SAT
@@ -78,7 +84,7 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
     - [**RM_SAT_004**](roadmap/RM_SAT_004_william.md) [work · resolved] Rename facet to fixture — depends on: RM_SAT_002
       - [**RM_SAT_005**](roadmap/RM_SAT_005_richard.md) [work · resolved] Build the networking layer — depends on: RM_SAT_004
       - [**RM_SAT_008**](roadmap/RM_SAT_008_thomas.md) [work · resolved] Jig Config compiler rewrite — depends on: RM_SAT_003
-        - [**RM_SAT_007**](roadmap/RM_SAT_007_charles.md) [convergence · reached] Satchel 2.0 persistence model — depends on: RM_SAT_003, RM_SAT_004, RM_SAT_005, RM_SAT_006, RM_SAT_008
+        - [**RM_SAT_007**](roadmap/RM_SAT_007_charles.md) [convergence · reached] Satchel 2.0 persistence model — depends on: RM_SAT_005, RM_SAT_006, RM_SAT_008
           - [**RM_SAT_009**](roadmap/RM_SAT_009_michael.md) [work · resolved] Bare-necessity strip-down and sanitization pass — depends on: RM_SAT_007
             - [**RM_SAT_010**](roadmap/RM_SAT_010_ronald.md) [work · resolved] Migrate in-source architecture docs into the wiki — depends on: RM_SAT_009
               - [**RM_SAT_011**](roadmap/RM_SAT_011_larry.md) [convergence · reached] Foundation runtime verified end-to-end — depends on: RM_SAT_010
@@ -88,10 +94,10 @@ Depth-ordered (longest path from a root), not a literal tree — a node with mul
                 - [**RM_SAT_015**](roadmap/RM_SAT_015_george.md) [work · resolved] Clean up dead registrar/ModelJig code — depends on: RM_SAT_011
                   - [**RM_SAT_016**](roadmap/RM_SAT_016_kenneth.md) [work · resolved] Write new-Satchel-module checklist — depends on: RM_SAT_012
                   - [**RM_SAT_019**](roadmap/RM_SAT_019_dennis.md) [work · resolved] Sync a Satchel world-identity token — depends on: RM_SAT_014
-                    - [**RM_SAT_017**](roadmap/RM_SAT_017_paul.md) [convergence · reached] Prototype hardening — depends on: RM_SAT_012, RM_SAT_013, RM_SAT_014, RM_SAT_015, RM_SAT_016, RM_SAT_019
+                    - [**RM_SAT_017**](roadmap/RM_SAT_017_paul.md) [convergence · reached] Prototype hardening — depends on: RM_SAT_013, RM_SAT_015, RM_SAT_016, RM_SAT_019
                       - [**RM_SAT_020**](roadmap/RM_SAT_020_jerry.md) [work · resolved] Build PlayerJig/PlayerScope — depends on: RM_SAT_017
                       - [**RM_SAT_021**](roadmap/RM_SAT_021_frank.md) [work · resolved] Build MobJig/MobScope — depends on: RM_SAT_017
                         - [**RM_SAT_022**](roadmap/RM_SAT_022_roger.md) [work · resolved] Make MobJig side-agnostic — depends on: RM_SAT_021
-                          - [**RM_SAT_023**](roadmap/RM_SAT_023_raymond.md) [convergence · reached] Scope generalizes beyond Level — depends on: RM_SAT_020, RM_SAT_021, RM_SAT_022
+                          - [**RM_SAT_023**](roadmap/RM_SAT_023_raymond.md) [convergence · reached] Scope generalizes beyond Level — depends on: RM_SAT_020, RM_SAT_022
                             - [**RM_SAT_024**](roadmap/RM_SAT_024_raymond-01.md) [work · open · ACTIONABLE] Raymond epoch maintenance 1 — depends on: RM_SAT_023
 

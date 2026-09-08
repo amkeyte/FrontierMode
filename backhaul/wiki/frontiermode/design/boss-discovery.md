@@ -97,6 +97,9 @@ loot specifically.
 - [Frontier Mode Overview](overview.md)
 - [Progression & Frontier Mechanics](progression.md)
 - [Guardian Mobs](guardian-mobs.md)
+- [Discovery Structures (Draft)](discovery-structures.md) — a possible new, higher tier of the
+  gradient above: permanent or upkeep-based player-built/environmental structures, still being
+  workshopped.
 - [Border Vocabulary](../architecture/border-vocabulary.md) — why "Border" replaces "level" here
   as the mechanic term.
 - [Boss Discovery Systems](../architecture/discovery-systems.md) — the architecture counterpart to

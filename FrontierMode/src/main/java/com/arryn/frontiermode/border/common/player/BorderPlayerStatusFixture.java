@@ -69,7 +69,11 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
             List<Border> borders,
             BlockPos pos
     ) {
-        BorderPlayerEval eval = logic.evaluate(borders, pos);
+        // RM_FRO_037: `current` (this fixture's own previous snapshot, or null before the first
+        // tick) is threaded in so sicknessSeverity's target-and-catch-up climb has continuity to
+        // climb from -- see BorderPlayerLogic.evaluate's own doc for why that state lives here
+        // rather than on the stateless evaluator.
+        BorderPlayerEval eval = logic.evaluate(borders, pos, current);
 
         return new BorderPlayerStatus(
                 this,
@@ -78,7 +82,9 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
                 eval.distanceToNearest(),
                 eval.insideNearest(),
                 eval.relevantLayer(),
-                eval.nearestLayer()
+                eval.nearestLayer(),
+                eval.frontierDistance(),
+                eval.sicknessSeverity()
         );
     }
 

@@ -7,9 +7,11 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
+import com.arryn.frontiermode.border.common.player.ExteriorTellFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.satchel.Satchel;
@@ -94,6 +96,17 @@ public final class FrontierKeys {
                     PlayerJig.class
             );
 
+    // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): ExteriorTellFixture -- Sick Wildlife's
+    // cosmetic tell, a sibling fixture inside BORDER_PLAYER_BUNDLE alongside
+    // BorderPlayerStatusFixture. See BorderModule.init() for the schema wiring and
+    // wiki/frontiermode/design/exterior.md#sensory-design for the design.
+
+    public static final FixtureKey<ExteriorTellFixture> EXTERIOR_TELL =
+            new FixtureKey<>(
+                    "frontiermode:exterior_tell_fixture",
+                    ExteriorTellFixture.class
+            );
+
     // RM_FRO_018 (Shirley): Boss entity/spawn system. Two independent jig configs -- BossFixture
     // is LevelJig-scoped (one record collection per level, persisted), BossMobFixture is
     // MobJig-scoped (one live view per currently-materialized boss entity, not persisted). See
@@ -144,6 +157,16 @@ public final class FrontierKeys {
             new FixtureKey<>(
                     "frontiermode:boss_tell_fixture",
                     BossTellFixture.class
+            );
+
+    // RM_FRO_029 (Gloria): BossGuardiansFixture -- third sibling fixture in BOSS_BUNDLE alongside
+    // BossFixture/BossTellFixture. See BossModule.registerBossJig() for the schema wiring and
+    // wiki/frontiermode/architecture/guardian-mobs.md for the design.
+
+    public static final FixtureKey<BossGuardiansFixture> BOSS_GUARDIANS =
+            new FixtureKey<>(
+                    "frontiermode:boss_guardians_fixture",
+                    BossGuardiansFixture.class
             );
 
 

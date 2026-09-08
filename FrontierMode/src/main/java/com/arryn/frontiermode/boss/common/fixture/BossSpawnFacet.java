@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.satchel.common.jig.mob.MobScope;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 //import net.minecraft.server.level.ServerLevel;
@@ -48,9 +49,9 @@ public final class BossSpawnFacet {
 
             BlockPos chosen = fixture.RULES.choosePosition(level, border);
             fixture.CRUD.finalizePosition(record.bossId(), chosen);
-            OUT.info("[Boss] finalizeUnpositioned(): boss " + record.bossId() + " (layer "
+            OUT.info("[Boss] finalizeUnpositioned(): boss " + Ids.shortId(record.bossId()) + " (layer "
                     + record.layer() + ") position finalized at " + chosen.getX() + ", "
-                    + chosen.getY() + ", " + chosen.getZ() + " -- home border " + border.id()
+                    + chosen.getY() + ", " + chosen.getZ() + " -- home border " + Ids.shortId(border.id())
                     + ". Will materialize once that chunk is loaded.");
         }
     }
@@ -71,7 +72,7 @@ public final class BossSpawnFacet {
                 onMaterialized.accept(mob.getUUID());
                 if (MobScope.getFor(mob).isEmpty()) {
                     OUT.warn("[Boss] materializeUnresolved(): MobScope.getFor rejected a mob just"
-                            + " spawned (bossId=" + record.bossId() + ") -- presence poll will"
+                            + " spawned (bossId=" + Ids.shortId(record.bossId()) + ") -- presence poll will"
                             + " still pick it up once ready.");
                 }
             });
@@ -88,7 +89,7 @@ public final class BossSpawnFacet {
             Consumer<UUID> onMaterialized) {
         Optional<BossRecord> recordOpt = fixture.CRUD.get(bossId);
         if (recordOpt.isEmpty()) {
-            OUT.warn("[Boss] forceMaterialize(): no record for bossId=" + bossId);
+            OUT.warn("[Boss] forceMaterialize(): no record for bossId=" + Ids.shortId(bossId));
             return MaterializeOutcome.NO_RECORD;
         }
         BossRecord record = recordOpt.get();
@@ -98,7 +99,7 @@ public final class BossSpawnFacet {
         }
 
         if (!record.positioned()) {
-            OUT.warn("[Boss] forceMaterialize(): bossId=" + bossId
+            OUT.warn("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId)
                     + " has no finalized position yet (home border still pregenerating)"
                     + " -- cannot force-materialize.");
             return MaterializeOutcome.DECLINED;
@@ -106,25 +107,25 @@ public final class BossSpawnFacet {
 
         BlockPos xz = record.position();
         OUT.info("[Boss] forceMaterialize(): forcing chunk load at " + xz
-                + " for bossId=" + bossId);
+                + " for bossId=" + Ids.shortId(bossId));
         level.getChunk(xz);
 
         Optional<Mob> mobOpt = fixture.RULES.materialize(level, xz, record.layer());
         if (mobOpt.isEmpty()) {
             OUT.warn("[Boss] forceMaterialize(): BossRules.materialize declined for bossId="
-                    + bossId + " at " + xz + " (e.g. an all-liquid column).");
+                    + Ids.shortId(bossId) + " at " + xz + " (e.g. an all-liquid column).");
             return MaterializeOutcome.DECLINED;
         }
 
         Mob mob = mobOpt.get();
         fixture.CRUD.materialize(record.bossId(), mob.getUUID());
         onMaterialized.accept(mob.getUUID());
-        OUT.info("[Boss] forceMaterialize(): spawned bossId=" + bossId
-                + " entity=" + mob.getUUID() + " at " + mob.blockPosition());
+        OUT.info("[Boss] forceMaterialize(): spawned bossId=" + Ids.shortId(bossId)
+                + " entity=" + Ids.shortId(mob.getUUID()) + " at " + mob.blockPosition());
 
         if (MobScope.getFor(mob).isEmpty()) {
             OUT.warn("[Boss] forceMaterialize(): MobScope.getFor rejected the just-spawned mob"
-                    + " (bossId=" + bossId + ") -- presence poll will still pick it up.");
+                    + " (bossId=" + Ids.shortId(bossId) + ") -- presence poll will still pick it up.");
         }
 
         return MaterializeOutcome.SPAWNED;

@@ -3,13 +3,13 @@ id: FRO_089
 uid: FRO
 number: 89
 client: FrontierMode
-status: open
+status: done
 title: 'Propose EffectsMod: cross-cutting effects module'
 context: BossTellFixture owns particle/sound calls that are presentation logic, not
   fixture state.
 priority: normal
 opened: '2026-09-06'
-closed: null
+closed: '2026-09-06'
 ---
 
 <!-- board:start -->
@@ -145,6 +145,35 @@ fixture can relocate to `boss/server/fixture/` cleanly.
 
 ## Log
 
+- 2026-09-06: Closing. EffectsMod/EffectsAPI's server-broadcast path (sendParticleToPlayer, broadcastSound) is
+  now live-verified through extensive playtest this session: BossTellFixture routes all of its
+  particle and sound dispatch through this facade, and both particles and sound have been
+  confirmed actually appearing/playing in real games across several rounds of tuning (positioning,
+  scatter shape, coefficients). The compile-error fix this ticket folded in (spawnTellParticle's
+  bad Level/Player targeted-send call) is proven by the fact the project builds and runs at all.
+
+  Not yet exercised: ClientEffectsAPI's client-derived/parity dispatch path (no consumer wired --
+  GrowthTriggerRenderer is the likely first caller once FRO_055 clears) and specifically the
+  playSoundOnParity signature flagged as unverified against any existing call site. Leaving that as
+  a known, low-risk unexercised piece rather than a blocking issue -- it's inert until a real caller
+  exists, and FRO_055 is the ticket that would surface it.
+
+  Not committed (git managed by project owner this session).
+- 2026-09-06: Built the EffectsMod proposal as scoped, plus the client-derived/parity dispatch path built for real now (project owner: "let's just build the client side bit so we don't have to burn cycles on it later"), rather than left as a documented stub.
+
+  New module, mirroring the client/common/server shape from wiki/frontiermode/architecture/effects.md:
+  - effects/EffectsMod.java -- init hook, wired into FrontierMode.java's constructor after BossModule.init() (no fixture/init-order dependency on Border or Boss either direction).
+  - effects/common/EffectsAPI.java -- server-broadcast facade. sendParticleToPlayer(ServerPlayer, ...) (targeted, via player.serverLevel().sendParticles(...)) and broadcastSound(Level, ...) (via Level#playSound(null, ...), broadcasts to all nearby players).
+  - effects/client/ClientEffectsAPI.java -- client-derived/parity dispatch, built on SAT_047's SimParity. spawnParticleOnParity(...) and playSoundOnParity(...), both gated by SimParity.isCheckpoint(gameTime, interval) then SimParity.parityRoll(sourceId, gameTime, salt) against a caller-supplied probability, dispatching via ClientLevel#addParticle / ClientLevel#playLocalSound on pass. No consumer wired to this yet -- GrowthTriggerRenderer (currently blocked on FRO_055) is the likely first real caller once that clears; built now per explicit instruction so the shape exists before a second consumer forces a rework.
+  - effects/server/ -- empty placeholder package, matching the client/common/server module shape; no server-only dispatch code needed yet.
+
+  Bug fix, folded into this same pass (this is the "known issue in BossTellFixture spawnTellParticle" the project owner flagged as blocking their build): BossTellFixture.spawnTellParticle was calling a Level.sendParticles(Player, ...) targeted overload that doesn't exist on the base Level/Player types -- only on ServerLevel/ServerPlayer. This was a real compile error, not a runtime issue. Fixed by retyping spawnTellParticle's player param to ServerPlayer and routing the call through EffectsAPI.sendParticleToPlayer. runTellsForPlayers retyped to take ServerLevel (guarded in tick() with an instanceof ServerLevel check, warn-and-return on failure -- same defensive style as this fixture's other guards), its player loop retyped to ServerPlayer, and its inline level.playSound(null, ...) call routed through EffectsAPI.broadcastSound. Also updated two now-stale comments/Javadoc in this file that referenced BorderAPI.MATH as broken (fixed under FRO_088 in this same session) and moved the effects-routing note into the code itself.
+
+  Verification note (standing constraint, same as this session's prior work): no real compiler available in this environment (Java 11 present, project targets 17; no network path to the Gradle 8.8 distribution). All of the above was cross-checked manually against already-compiling call sites in this exact codebase: ServerPlayer.serverLevel() (used elsewhere), ClientLevel#addParticle's 7-arg form (matches GrowthTriggerRenderer's existing usage), ServerLevel#players() returning List<ServerPlayer> (corroborated by a commented-out but otherwise-correct usage in the dead PlayerTickHandler.java), and ServerLevel#sendParticles's 11-arg targeted form. One signature I could not cross-verify against any existing call site in this codebase: Level#playLocalSound's exact parameter order/types used in ClientEffectsAPI.playSoundOnParity -- flagging this specifically for the real build to catch if it doesn't compile as written.
+
+  Not committed (git managed by project owner this session). Real build/playtest still owed before this can close.
+
+  Stale ticket note, not acted on: this ticket's own "Immediate unblock" text suggests relocating BossTellFixture to boss/server/fixture/. That package-split was proposed separately and was rejected by the project owner earlier this session -- flagging here rather than acting on it or editing the wiki. No files were moved.
 - 2026-09-06: Ticket opened.
 - 2026-09-06: Scope expanded, project owner's call: `EffectsMod` is a full client/common/server
   module from the start, matching Border/Boss's shape, with an `EffectsAPI` facade -- not a

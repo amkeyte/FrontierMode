@@ -60,19 +60,52 @@ public final class BorderMath {
 
 
     /**
-     * Returns the distance from {@code pos} to the border surface.
+     * Returns the signed distance from {@code pos} to the border surface.
      *
-     * - 0 → inside or on the border
-     * - N → N blocks outside the border
+     * - negative → inside the border (how far inside)
+     * - 0 → exactly on the border
+     * - positive → outside the border (how far outside)
      *
      * Distance is computed in X/Z space only.
+     *
+     * <p>FRO_099 bugfix: this used to compute {@code distanceSqToCenter(border, pos) -
+     * border.radius()} -- subtracting a linear radius from a *squared* center distance, which is
+     * dimensionally wrong (it degenerates to something close to correct only very near the
+     * border's edge, and is badly off everywhere else). Fixed to a real center distance via
+     * {@link BorderMathLogic#distanceToEdge}, the same pure core {@link #distanceOutside} below
+     * now shares.
      */
     public static int distanceToSurface(Border border, BlockPos pos) {
         if (border == null || pos == null) {
             return 0;
         }
 
-        return (int) (distanceSqToCenter(border,pos)-border.radius());
+        double centerDistance = BorderMathLogic.distanceTo(
+                pos.getX(), pos.getZ(), border.center().getX(), border.center().getZ());
+
+        return (int) Math.round(BorderMathLogic.distanceToEdge(centerDistance, border.radius()));
+    }
+
+    /**
+     * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): disc-edge distance -- {@code 0} when
+     * {@code p} is inside or on the disc described by {@code center}/{@code radius}, the XZ gap
+     * otherwise. Unlike {@link #distanceToSurface}, this is never negative -- it answers "how far
+     * *outside* this one border," not "how far from its edge in either direction," which is
+     * exactly what a Frontier-distance reduction (a min over every established Border, per
+     * wiki/frontiermode/architecture/exterior.md#the-distance-to-frontier-query) needs: a point
+     * inside any single Border contributes 0 to that min, not a large negative number that would
+     * wrongly win it.
+     *
+     * <p>Y is intentionally ignored, matching every other Border geometry query -- a Border is a
+     * full-height cylinder.
+     */
+    public static int distanceOutside(BlockPos p, BlockPos center, int radius) {
+        if (p == null || center == null) {
+            return 0;
+        }
+
+        double centerDistance = BorderMathLogic.distanceTo(p.getX(), p.getZ(), center.getX(), center.getZ());
+        return (int) Math.round(Math.max(0.0, BorderMathLogic.distanceToEdge(centerDistance, radius)));
     }
 
     public static double distanceSqToCenter(Border border, BlockPos pos) {
