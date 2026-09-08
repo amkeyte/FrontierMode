@@ -5,12 +5,12 @@ slug: border-pregeneration
 title: Border Pregeneration
 summary: Proactive, throttled terrain generation for a border's entire disk, owned
   by Border itself -- closes the "chunks are still loading" discovery exploit and
-  gives Boss (and future consumers, like a placed Environmental Tell) real validated
-  terrain to build on instead of a blind, unchecked coordinate. Partially supersedes
-  boss.md's Spawn Algorithm.
+  gives Boss (and future consumers, like a placed Environmental Tell) a real, generated
+  footprint to validate against instead of a blind, unchecked coordinate. Partially
+  supersedes boss.md's Spawn Algorithm.
 keywords: null
 status: verified
-updated: '2026-09-05'
+updated: '2026-09-07'
 ---
 
 <!-- bh-header:start -->
@@ -29,12 +29,15 @@ can read as a signal no discovery mechanic ever intended to give them.
 
 This page describes the fix: **Border proactively, throttled-generates a border's entire disk
 once triggered to do so**, and everything downstream -- boss placement, boss movement, and any
-future consumer of "this area of the world is real and validated" (a placed [Environmental
+future consumer needing "this area of the world is real, generated ground" (a placed [Environmental
 Tell](discovery-systems.md#beacons-and-particle-trails), for instance) builds on top of real
-terrain instead of a blind coordinate. **Pregeneration is an explicit action, not automatic on
-border creation** -- a consumer creates the border, then separately triggers pregeneration for it;
-see "`BorderPregenFixture`" below for why, and what that means for a border nobody ever triggers
-it for.
+terrain instead of a blind coordinate. That guarantee stops at generation -- whether the terrain is
+*good* ground (flat, hazard-free, whatever a given consumer cares about) is entirely that
+consumer's own call, not something Border decides or promises; see "Why this is Border's job, not
+Boss's" below. **Pregeneration is an explicit action, not automatic on border creation** -- a
+consumer creates the border, then separately triggers pregeneration for it; see
+"`BorderPregenFixture`" below for why, and what that means for a border nobody ever triggers it
+for.
 
 **Minted and built as [RM_FRO_028](../../../roadmap/RM_FRO_028_diane.md) ("Diane") -- resolved,
 done bar met, playtest-verified.** Started life the same way [Border
@@ -58,11 +61,16 @@ Pregeneration is fundamentally about a border's own footprint existing in the wo
 of what -- if anything -- ever gets placed inside it. Boss is the first real consumer, but it
 won't be the last: [Boss Discovery Systems](discovery-systems.md) already anticipates a placed,
 findable Environmental Tell (a platform, or eventually a beacon/trail) that needs exactly the same
-guarantee -- real, validated ground to sit on -- with no boss-specific reasoning involved at all.
-Housing this on Boss would mean every future consumer either depends on Boss for something that
-has nothing to do with bosses, or reinvents its own copy. Housing it on Border means Boss reads a
-capability Border already offers for its own reasons, the same shape `TargetRef`/Navigator's
-resolver registry already established.
+guarantee -- real, generated ground to build its own validation against -- with no boss-specific
+reasoning involved at all. **That's a guarantee about generation only, not suitability, and
+deliberately so:** what counts as "good enough" ground is consumer-specific (Boss's own flatness/
+hazard scoring may not be what an Environmental Tell needs), so Border can't own that judgment
+without either baking Boss's own rules into a module that doesn't know Boss exists, or inventing a
+generic check that might not fit the next consumer either. Housing this on Boss would mean every
+future consumer either depends on Boss for something that has nothing to do with bosses, or
+reinvents its own copy. Housing it on Border means Boss reads a capability Border already offers
+for its own reasons, the same shape `TargetRef`/Navigator's resolver registry already
+established.
 
 ## The exploit this closes
 
@@ -255,47 +263,72 @@ which is why it's called out here explicitly rather than silently landing as an 
 
 ## Open questions
 
-Four of the five items below were carried forward at [RM_FRO_028](../../../roadmap/RM_FRO_028_diane.md)'s
-own mint time rather than resolved first; they're now formally tracked as
-[RM_FRO_035](../../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03") on the roadmap, gating all six
-Tier 2 discovery-gradient siblings (Guardian Mobs through Player-built Warps), not just
-Environmental Tells -- see that node for why. The fifth (`isReady()`'s documentation gap) is
-already resolved, noted below.
+All items below are now resolved via
+[FRO_091](../../../tickets/FRO_091_pregen-carryforward-spec.md), the Architect spec-review ticket
+for [RM_FRO_035](../../../roadmap/RM_FRO_035_donna-03.md) ("Donna_03"). Four were formally carried
+forward at RM_FRO_035's own mint time, gating all six Tier 2 discovery-gradient siblings (Guardian
+Mobs through Player-built Warps); `isReady()`'s documentation gap had already resolved separately
+(RM_SAT_024/SAT_043, noted below); and the `BorderPregenEvent.Complete` registration-discipline
+question below had gone untracked by both lists entirely -- caught during FRO_091's review and
+folded into its scope.
+[FRO_092](../../../tickets/FRO_092_border-pregen-carryforward-build.md) is the Lead Dev build
+ticket covering the throttle value and the stalled-trigger watchdog. Two of its built items (the
+stalled-trigger check and the disk-validation-failure case, both below) landed as a hard crash
+rather than the log-only warning originally ruled here -- simplified with the project owner
+mid-build; see FRO_092's own log for the full detail.
 
-- **Retry/reroll if an entire disk somehow fails validation** -- vanishingly unlikely once
-  searching across a whole generated border instead of one blind candidate, but not provably
-  impossible (an extreme biome, a pathological seed). Not resolved here; flagged so it isn't
-  assumed away.
+- **Retry/reroll if an entire disk somehow fails validation -- resolved: no mechanism,
+  accepted risk.** [FRO_091](../../../tickets/FRO_091_pregen-carryforward-spec.md) ruled this an
+  accepted-risk case rather than a build item: vanishingly unlikely once searching across a whole
+  generated border instead of one blind candidate, and not worth a retry/reroll mechanism against
+  a failure mode nobody's actually hit. **Built ([FRO_092](../../../tickets/FRO_092_border-pregen-carryforward-build.md))
+  as a hard crash, not a log-only warning** -- simplified with the project owner mid-build from
+  this page's original log-and-continue ruling: `runBatch()` re-verifies `FULL` chunk status
+  immediately after each forced `Level.getChunk()` call and throws, naming the border, chunk
+  coordinates, and cursor, if it didn't land. A pathological seed or extreme biome now surfaces as
+  an immediate, uncaught crash rather than a warning line to notice later.
 - **Whether `BorderPregenEvent.Complete` needs `JigConfigValidator`-style registration
-  discipline** -- other event subscriptions in this codebase get validated at compile time
-  (fail-loudly-before-anything-runs); `MobDied` (see [Mob Lifecycle
-  Signals](../../satchel/architecture/mob-lifecycle-signals.md)) doesn't answer this either, since
-  its own producer sits in `ServerForgeIngress` outside that validation path entirely. Whether an
-  ad hoc bus post from inside `onJigTick()` needs the same treatment, or is fine as-is, isn't
-  resolved here.
-- **Exact throttle budget** (chunks per allowed tick, `TickThrottler`'s own interval) -- a tuning
-  number, not an architecture decision; same category as `DefaultBorderRules.GROWTH_FACTOR`'s own
-  "safe baseline" framing.
+  discipline -- resolved: no, fine as-is.** Folded into
+  [FRO_091](../../../tickets/FRO_091_pregen-carryforward-spec.md)'s scope after being caught
+  untracked by both Diane's own carryforward list and RM_FRO_035. The ruling follows the precedent
+  this event already claims for itself: `BorderPregenEvent.Complete` is explicitly modeled on
+  `MobDied` (see [Mob Lifecycle Signals](../../satchel/architecture/mob-lifecycle-signals.md)),
+  whose own producer sits outside `JigConfigValidator`'s compile-time validation path entirely and
+  is accepted as correct, not sloppy. An ad hoc bus post from inside `onJigTick()` gets the same
+  treatment -- no additional registration discipline needed.
+- **Exact throttle budget -- resolved: a `Rules`-level tunable, not a hardcoded
+  constant.** [FRO_091](../../../tickets/FRO_091_pregen-carryforward-spec.md) rules this the same
+  category as `DefaultBorderRules.GROWTH_FACTOR`'s own "safe baseline, replace later" framing --
+  chunks-per-allowed-tick and `TickThrottler`'s own interval live as a `BorderRules`/
+  `DefaultBorderRules` coefficient, tunable without a code change. The actual number is Lead Dev's
+  call at build time, not an architecture decision.
 - **`isReady()`'s fixture-level contract is under-documented on the Satchel side -- resolved.**
   `fixture.md` now has a full [Per-Fixture Lifecycle API
   Reference](../../satchel/architecture/fixture.md#boolean-isready) covering `onCreated`,
   `onLoaded`, `onRemoved`, `onJigTick()`, and `isReady()`, added via
   [RM_SAT_024](../../../roadmap/RM_SAT_024_raymond-01.md) ("Raymond epoch maintenance 1")/SAT_043.
   No longer an open item; kept here as a marker so it isn't re-carried by mistake.
-- **Punted: a border-creation call site that forgets the pregeneration trigger stalls its boss
-  permanently, silently.** The two-call design (create the border, then separately trigger
-  pregeneration -- see "Starting a border's pregeneration is an explicit call" above) means a
-  missed second call leaves `isReadyFor()` false forever, and Boss's position-finalization tick
-  just no-ops on that record indefinitely with no error surfaced anywhere. Not fixed here --
-  stricter call-site validation isn't worth designing against a hypothetical missed call right
-  now. The likely eventual answer is a `Rules`-level watchdog (mirroring `BossRules`/
-  `DefaultBorderRules`'s own pluggable-strategy shape) that periodically scans for exactly this
-  kind of stuck-forever state -- a record stalled well past any reasonable pregen duration -- and
-  surfaces it loudly to an admin instead of failing silently. Not this page's mechanism to design
-  now; noted so the idea isn't lost.
-- **What a level does with a border that already existed before this mechanism shipped** -- an
-  already-progressed world has path borders with bosses long since placed the old way. Whether
-  those get retroactively pregenerated or are simply grandfathered in is unresolved.
+- **A border-creation call site that forgets the pregeneration trigger stalls its boss
+  permanently, silently -- resolved: reuse Satchel mechanisms, not a new watchdog module.**
+  [FRO_091](../../../tickets/FRO_091_pregen-carryforward-spec.md) corrects this page's own earlier
+  guess (a new `Rules`-level watchdog module): no new module is needed. `BorderPregenFixture`
+  already ticks via its own `onJigTick()` and already owns a `TickThrottler` instance for pacing
+  chunk generation (see "Reused, not reinvented" above); the fix is a second, longer-interval
+  `TickThrottler` in that same fixture. **Built ([FRO_092](../../../tickets/FRO_092_border-pregen-carryforward-build.md))
+  as a liveness check, not a predicted-duration estimate, and as a hard crash, not a log-only
+  warning** -- both simplified with the project owner mid-build from this page's original ruling:
+  at a 200-tick interval, the second throttler compares an in-progress job's `cursor` against its
+  own last-checked value and throws, naming the border and cursor, if it hasn't moved --
+  deliberately disk-size-agnostic, no `BorderRules` involvement, no elapsed-duration estimate to
+  get wrong. No new event (no `BorderPregenEvent.Stalled` sibling to `Complete`) -- a thrown
+  exception surfaces the failure directly, so there's no separate signal left to design.
+- **What a level does with a border that already existed before this mechanism shipped --
+  resolved: moot, not a real scenario right now.** [FRO_091](../../../tickets/FRO_091_pregen-carryforward-spec.md)
+  rules there's no old-world compatibility requirement to design against at this stage of the
+  project -- worlds get reset for testing, and FrontierMode isn't playably compatible with old
+  worlds regardless of this mechanism. Neither retroactive pregeneration nor an explicit
+  grandfathering policy is worth building or codifying now; revisit if and when old-world
+  compatibility becomes a real requirement.
 
 ## Related pages
 

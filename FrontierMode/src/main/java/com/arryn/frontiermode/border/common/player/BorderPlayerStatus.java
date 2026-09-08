@@ -24,6 +24,8 @@ public final class BorderPlayerStatus {
     private final boolean insideNearest;
     private final OptionalInt relevantLayer;
     private final int nearestLayer;
+    private final int frontierDistance;
+    private final double sicknessSeverity;
 
     BorderPlayerStatus(
             BorderPlayerStatusFixture authority,
@@ -32,7 +34,9 @@ public final class BorderPlayerStatus {
             int distanceToNearest,
             boolean insideNearest,
             OptionalInt relevantLayer,
-            int nearestLayer
+            int nearestLayer,
+            int frontierDistance,
+            double sicknessSeverity
     ) {
         this.authority = authority;
         this.playerId = playerId;
@@ -41,6 +45,8 @@ public final class BorderPlayerStatus {
         this.insideNearest = insideNearest;
         this.relevantLayer = relevantLayer;
         this.nearestLayer = nearestLayer;
+        this.frontierDistance = frontierDistance;
+        this.sicknessSeverity = sicknessSeverity;
     }
 
     // ----------------------------
@@ -77,5 +83,23 @@ public final class BorderPlayerStatus {
 
     public int nearestLayer() {
         return nearestLayer;
+    }
+
+    /**
+     * RM_FRO_037: raw distance past the nearest point on the Frontier's boundary -- {@code 0}
+     * when the player isn't in the Exterior at all. See
+     * wiki/frontiermode/architecture/exterior.md#the-distance-to-frontier-query.
+     */
+    public int frontierDistance() {
+        return frontierDistance;
+    }
+
+    /**
+     * RM_FRO_037: Frontier Sickness's current climbing severity -- see
+     * {@code FrontierSicknessLogic}. Uncapped, per
+     * wiki/frontiermode/design/exterior.md#frontier-sickness's "no designed ceiling."
+     */
+    public double sicknessSeverity() {
+        return sicknessSeverity;
     }
 }

@@ -348,7 +348,18 @@ public final class BorderCommands {
     }
     private static ArgumentBuilder<CommandSourceStack, ?> debug() {
         return Commands.literal("debug")
-                .executes(BorderCommandHandler::debug);
+                .executes(BorderCommandHandler::debug)
+                // RM_FRO_037 test aid: /border debug spawn-animal [count] -- see
+                // BorderCommandHandler.spawnTestAnimals's own doc for why this exists alongside
+                // the datapack function's /summon-based approach (this one actually fires
+                // MobSpawnEvent.FinalizeSpawn; /summon never does).
+                .then(Commands.literal("spawn-animal")
+                        .executes(ctx -> BorderCommandHandler.spawnTestAnimals(ctx, 10))
+                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 200))
+                                .executes(ctx -> BorderCommandHandler.spawnTestAnimals(
+                                        ctx, IntegerArgumentType.getInteger(ctx, "count")))
+                        )
+                );
     }
 
 

@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -81,4 +82,91 @@ public interface BossRules {
      * particle). Tuning is playtest territory.
      */
     double tellSoundCoefficient();
+
+    /**
+     * RM_FRO_037 (Curtis, boss-audio-tell follow-up, 2026-09-08): hard per-boss cooldown (in
+     * ticks) on the tell sound roll, on top of {@link #tellSoundCoefficient()}'s own probability.
+     * Needed once the tell sound stopped being a sub-second blip: {@link #tellTickInterval()}
+     * (~1s) combined with a 5% roll meant a several-seconds-long clip could easily get
+     * re-triggered -- by the same player rolling again, or by a different player near the same
+     * boss rolling independently -- before the previous one finished, stacking overlapping
+     * playback instead of a clean one-at-a-time rotation. This cooldown is evaluated first: only
+     * once it's elapsed for a given boss does the probability roll even get a chance to fire
+     * again for that boss. Safe baseline: 600 ticks (30 seconds), sized to this ticket's own
+     * project-owner-supplied clip length -- revisit if any clip in the round-robin set ends up a
+     * different length than the others.
+     */
+    int tellSoundCooldownTicks();
+
+    /**
+     * Project owner request (2026-09-08): a live debug toggle for whether {@code tagVisibly}
+     * (Boss materialize) and {@code tagGuardian} (Guardian Mobs tagging) apply
+     * {@code Entity#setGlowingTag(true)} to the mob they're tagging. Unlike every other method on
+     * this interface, this pair is mutable, real-time state rather than a fixed strategy/baseline
+     * -- deliberately still routed through {@code BossRules}/{@code BossRulesFacet} rather than a
+     * standalone static field (the way {@code WorldBordersRenderer}'s own ring-visibility toggle
+     * is), because this one needs to be reachable from a SERVER command (glow is real synced
+     * entity state, not a purely client-side render decision) and {@code BossRulesFacet} is
+     * already the one existing path {@code BossCommandHandler} and {@code BossTellFixture} both
+     * use to reach the live {@code DefaultBossRules} instance. Default {@code true} -- matches
+     * this codebase's behavior before the toggle existed.
+     */
+    boolean glowEnabled();
+
+    /** See {@link #glowEnabled()}. */
+    void setGlowEnabled(boolean value);
+
+    /**
+     * RM_FRO_029 (Gloria): probability coefficient for the Guardian Mobs placement roll, mirroring
+     * {@link #tellParticleCoefficient()}'s exact shape -- applied as
+     * {@code placementIntensity x guardianPlacementCoefficient()} against a [0,1) uniform draw.
+     * Safe baseline: 0.15 (guardians are meant to be a rarer, more meaningful discovery-gradient
+     * signal than an environmental tell, not a constant background occurrence). Tuning is Game
+     * Designer/playtest territory, same as every other coefficient in this cluster -- see
+     * RM_FRO_029's own "which Borders actually turn Guardian Mobs on" open item for the config
+     * layer this coefficient sits underneath.
+     */
+    double guardianPlacementCoefficient();
+
+    /**
+     * RM_FRO_029 (Gloria), revised 2026-09-07 after playtest: the {@code "placement"} roll doesn't
+     * normalize distance against the boss's own full {@code border.radius()} -- doing so spread a
+     * {@code LINEAR} ramp thin enough across a large border that it read as "no guardians past a
+     * short distance," not a gradient. Instead, the roll's own normalized distance divides by
+     * {@code border.radius() * guardianPlacementRadiusFraction()} -- a smaller reference circle
+     * concentric with the border, same shape/formula as before, just compressed so the ramp from
+     * "certain" to "never" is actually noticeable as a tell while a player closes in. Clamped like
+     * every other normalized distance in this cluster ({@code BorderMath.intensityAt}'s own
+     * {@code [0,1]} clamp), so anything beyond this fraction of the radius reads as the curve's own
+     * edge value (0 for {@code LINEAR}) -- no guardians out there at all, by construction. Safe
+     * baseline: 0.5 (half the border's radius). Tuning is Game Designer/playtest territory, same as
+     * every other value in this cluster -- this one moved twice in one playtest session already.
+     */
+    double guardianPlacementRadiusFraction();
+
+    /**
+     * RM_FRO_029 (Gloria): buckets a rolled guardian's {@code difficultyIntensity} (from the
+     * border's {@code "difficulty"}-purpose curve) into a tier -- the same pluggable-strategy
+     * territory {@link #materialize}'s layer-to-mob-table lookup already occupies. Safe baseline:
+     * a flat linear bucket count, "safe baseline, replace later." Feeds both {@link #tagGuardian}'s
+     * displayed tier and, indirectly, {@link #applyGuardianStatScaling}.
+     */
+    int guardianTier(double difficultyIntensity);
+
+    /**
+     * RM_FRO_029 (Gloria): applies the visible guardian marker -- name tag
+     * ({@code "GM-<tier>[<intensity>%]"}) and a shared, team-colored glow -- mirroring
+     * {@code DefaultBossRules.tagVisibly()} directly, per
+     * wiki/frontiermode/architecture/guardian-mobs.md's "Marker and stat scaling" ruling
+     * (2026-09-07): both the name tag and the glow ship together, not just the name-tag half.
+     */
+    void tagGuardian(Mob mob, int tier, double difficultyIntensity, ServerLevel level);
+
+    /**
+     * RM_FRO_029 (Gloria): applies stat scaling keyed off {@code difficultyIntensity} rather than
+     * layer -- mirrors {@code DefaultBossRules.applyStatScaling()} directly, same "safe baseline,
+     * replace later" framing as {@link #tellParticleCoefficient()} and every other tunable in this
+     * cluster. Ships in v1 alongside the marker, per the same 2026-09-07 ruling -- not deferred.
+     */
+    void applyGuardianStatScaling(Mob mob, double difficultyIntensity);
 }

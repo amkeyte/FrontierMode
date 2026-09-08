@@ -40,4 +40,26 @@ public final class BorderMathLogic {
 
         return new double[] {dx / len, dz / len};
     }
+
+    // ------------------------------------------------------------------
+    // FRO_099 ("Frontier Sickness core build" -- RM_FRO_037): distance-to-edge, the shared core
+    // behind both BorderMath.distanceToSurface() (signed -- negative means inside) and
+    // BorderMath.distanceOutside() (clamped to 0 at/inside the edge). Split out here for the same
+    // unit-testability reason distanceTo()/direction() already are: a plain double formula, no
+    // BlockPos/Border on this project's test classpath.
+    //
+    // Also the bugfix for the live distanceToSurface bug flagged in FRO_099's own scope: the old
+    // implementation subtracted a linear radius from a *squared* center distance
+    // (distanceSqToCenter(border, pos) - border.radius()), which is dimensionally wrong -- this
+    // takes a real (non-squared) center distance instead.
+    // ------------------------------------------------------------------
+
+    /**
+     * Signed distance from a point already {@code distanceToCenter} blocks from a circle's
+     * center to that circle's edge -- negative when the point is inside, zero exactly on the
+     * edge, positive outside.
+     */
+    public static double distanceToEdge(double distanceToCenter, double radius) {
+        return distanceToCenter - radius;
+    }
 }

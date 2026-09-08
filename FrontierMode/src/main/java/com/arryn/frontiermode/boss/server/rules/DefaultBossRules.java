@@ -2,7 +2,10 @@ package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -14,6 +17,8 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
 //import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
@@ -137,7 +142,7 @@ public final class DefaultBossRules implements BossRules {
         // that belongs in the log the moment it happens, not discovered later by someone
         // teleporting out to an empty location.
         OUT.warn("[Boss] choosePosition(): all " + POSITION_CANDIDATES + " candidates for border "
-                + border.id() + " scored hazardous -- placing at " + bestAny.getX() + ", "
+                + Ids.shortId(border.id()) + " scored hazardous -- placing at " + bestAny.getX() + ", "
                 + bestAny.getY() + ", " + bestAny.getZ() + " anyway (best of a bad batch).");
         return bestAny;
     }
@@ -263,12 +268,29 @@ public final class DefaultBossRules implements BossRules {
         }
     }
 
+    // Project owner request (2026-09-08): live debug toggle for Boss/Guardian glow -- see
+    // BossRules#glowEnabled's own doc for why this is mutable state on an otherwise
+    // strategy/baseline interface. Not persisted -- resets to true (the pre-toggle default) on
+    // server restart, same "off/on signal" ephemeral-state discipline as every other debug-only
+    // flag in this codebase (WorldBordersRenderer.visible, BossTellFixture's rotation maps, etc.).
+    private boolean glowEnabled = true;
+
+    @Override
+    public boolean glowEnabled() {
+        return glowEnabled;
+    }
+
+    @Override
+    public void setGlowEnabled(boolean value) {
+        glowEnabled = value;
+    }
+
     private void tagVisibly(Mob mob, int layer) {
         // "No discovery aids" (Tier 1) means findable by looking, not invisible until you already
         // know -- a lightweight visible marker, not a real discovery mechanic (that's Tier 2).
         mob.setCustomName(Component.literal("Boss (Layer " + layer + ")"));
         mob.setCustomNameVisible(true);
-        mob.setGlowingTag(true);
+        mob.setGlowingTag(glowEnabled);
     }
 
     // ------------------------------------------------------------------
@@ -283,8 +305,15 @@ public final class DefaultBossRules implements BossRules {
 
     @Override
     public double tellParticleCoefficient() {
-        // 30% roll at maximum intensity. Safe baseline; playtest territory.
-        return 0.3;
+        // Was temporarily maxed to 1.0 as a location-debug aid alongside PARTICLE_COUNT's bump
+        // in BossTellFixture (player call, 2026-09-06: "make it a ridiculous amount to see where
+        // they're actually showing up") -- guaranteed a particle fire on every tick-interval
+        // where intensity > 0, so a walk toward/around a boss revealed the tell radius without
+        // waiting on RNG. Scatter shape confirmed good ("that's about where I want it"), so
+        // dialed back to the original 70% tuned baseline -- roll is intensity x this coefficient,
+        // peaking at 1.0 right at the boss and fading to 0.0 at the border edge. Playtest
+        // territory, tune further if it now reads too sparse without the debug multiplier.
+        return 0.7;
     }
 
     @Override
@@ -292,5 +321,102 @@ public final class DefaultBossRules implements BossRules {
         // 5% roll at maximum intensity -- sounds rarer than particles by design.
         // Safe baseline; playtest territory.
         return 0.05;
+    }
+
+    @Override
+    public int tellSoundCooldownTicks() {
+        // 30 seconds at 20 TPS -- see BossRules#tellSoundCooldownTicks's own doc for why this
+        // exists (round-robin, 4x ~30s clips, project owner request 2026-09-08). Safe baseline;
+        // playtest territory, and worth revisiting per-clip if the 4 supplied sounds aren't all
+        // the same length.
+        return 600;
+    }
+
+    // ------------------------------------------------------------------
+    // RM_FRO_029 (Gloria): BossGuardiansFixture tunable baseline values
+    // ------------------------------------------------------------------
+
+    // 2026-09-07 playtest, fourth and (per Arryn) final bump for this round: 0.15 -> 0.4 -> 0.6.
+    // Max 60% chance per spawn attempt at intensity 1.0 (right on top of the boss), decaying with
+    // placementIntensity same as always. Still a roll, not a guarantee, so ordinary vanilla spawns
+    // still happen near the boss too. Called "good for now" after this value -- further tuning is
+    // a fresh playtest decision, not an assumed follow-up.
+    private static final double GUARDIAN_PLACEMENT_COEFFICIENT = 0.6;
+
+    // 2026-09-07 playtest, revised twice same session: started at the full border radius (read as
+    // "clustered right on the boss, nothing beyond ~30 blocks" on a large border -- the LINEAR
+    // ramp was mathematically correct but imperceptibly thin across the whole disc); briefly tried
+    // FLAT/uniform across the whole border (reverted -- "doesn't act as a tell at all," no gradient
+    // to notice at all). Settled: same LINEAR formula, same direction (climbs toward the boss), but
+    // normalized against half the border's own radius instead of the whole thing -- a real,
+    // noticeable ramp concentrated in a smaller ring around the boss. Safe baseline; playtest
+    // territory, same as GUARDIAN_PLACEMENT_COEFFICIENT above.
+    private static final double GUARDIAN_PLACEMENT_RADIUS_FRACTION = 0.5;
+
+    // Difficulty-intensity tier bucket count -- difficultyIntensity in [0,1] split evenly into
+    // this many tiers (0..GUARDIAN_TIER_COUNT-1). Safe baseline, same "flat table" framing as
+    // LAYER_MOBS above.
+    private static final int GUARDIAN_TIER_COUNT = 4;
+
+    // Same "+X% per unit of intensity" shape as HEALTH_SCALE_PER_LAYER, but keyed off a
+    // continuous [0,1] intensity rather than a discrete layer -- +100% max health/attack damage
+    // at difficultyIntensity == 1.0 (right on top of the boss), scaling down linearly toward the
+    // border's edge. Safe baseline; playtest territory.
+    private static final double GUARDIAN_HEALTH_SCALE = 1.0;
+
+    // Single shared team every guardian regardless of tier joins -- see
+    // wiki/frontiermode/architecture/effects.md#team-assignment-persistent-visual-state. Dark, to
+    // read as distinct from Boss's own unteamed (vanilla white) glow at a glance, especially
+    // underground. Safe baseline; playtest territory.
+    private static final String GUARDIAN_TEAM_NAME = "guardian";
+    private static final ChatFormatting GUARDIAN_TEAM_COLOR = ChatFormatting.DARK_PURPLE;
+
+    @Override
+    public double guardianPlacementCoefficient() {
+        return GUARDIAN_PLACEMENT_COEFFICIENT;
+    }
+
+    @Override
+    public double guardianPlacementRadiusFraction() {
+        return GUARDIAN_PLACEMENT_RADIUS_FRACTION;
+    }
+
+    @Override
+    public int guardianTier(double difficultyIntensity) {
+        double d = Math.max(0.0, Math.min(1.0, difficultyIntensity));
+        int tier = (int) Math.floor(d * GUARDIAN_TIER_COUNT);
+        return Math.min(tier, GUARDIAN_TIER_COUNT - 1);
+    }
+
+    @Override
+    public void tagGuardian(Mob mob, int tier, double difficultyIntensity, ServerLevel level) {
+        mob.setCustomName(Component.literal(
+                "GM-" + tier + "[" + Math.round(difficultyIntensity * 100) + "%]"));
+        mob.setCustomNameVisible(true);
+
+        // EffectsAPI.assignToTeam takes the Scoreboard explicitly rather than reading it off the
+        // entity -- Entity has no getScoreboard() accessor in the real 1.20.1 API (checked against
+        // real Forge/Mojang-mapped sources; the wiki page's own sketch assumed one existed via
+        // entity.getScoreboard(), which doesn't compile).
+        Scoreboard scoreboard = level.getScoreboard();
+        PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, GUARDIAN_TEAM_NAME, GUARDIAN_TEAM_COLOR);
+        EffectsAPI.assignToTeam(mob, scoreboard, team);
+
+        mob.setGlowingTag(glowEnabled);
+    }
+
+    @Override
+    public void applyGuardianStatScaling(Mob mob, double difficultyIntensity) {
+        double factor = 1.0 + (GUARDIAN_HEALTH_SCALE * difficultyIntensity);
+
+        var healthAttr = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (healthAttr != null) {
+            healthAttr.setBaseValue(healthAttr.getBaseValue() * factor);
+            mob.setHealth(mob.getMaxHealth());
+        }
+        var damageAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (damageAttr != null) {
+            damageAttr.setBaseValue(damageAttr.getBaseValue() * factor);
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss.common.fixture;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -311,13 +312,13 @@ public final class BossFixture extends SatchelFixture {
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
-            OUT.warn("[Boss] finalizePosition(): no record for bossId=" + bossId + " -- ignoring.");
+            OUT.warn("[Boss] finalizePosition(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
             return false;
         }
 
         BossRecord record = existing.get();
         if (record.positioned()) {
-            OUT.warn("[Boss] finalizePosition(): bossId=" + bossId + " already has a finalized"
+            OUT.warn("[Boss] finalizePosition(): bossId=" + Ids.shortId(bossId) + " already has a finalized"
                     + " position (" + record.position() + ") -- ignoring.");
             return false;
         }
@@ -339,7 +340,7 @@ public final class BossFixture extends SatchelFixture {
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
-            OUT.warn("[Boss] materialize(): no record for bossId=" + bossId + " -- ignoring.");
+            OUT.warn("[Boss] materialize(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
             return false;
         }
 
@@ -349,8 +350,8 @@ public final class BossFixture extends SatchelFixture {
             // record.materialized() before calling in, but the fixture itself had no defense of
             // its own. Without this, any other future caller could re-materialize a live record
             // with a fresh entityId, silently orphaning the old one.
-            OUT.warn("[Boss] materialize(): bossId=" + bossId + " is already materialized"
-                    + " (entity " + record.bossEntityId() + ") -- ignoring.");
+            OUT.warn("[Boss] materialize(): bossId=" + Ids.shortId(bossId) + " is already materialized"
+                    + " (entity " + Ids.shortId(record.bossEntityId()) + ") -- ignoring.");
             return false;
         }
 
@@ -376,7 +377,7 @@ public final class BossFixture extends SatchelFixture {
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
-            OUT.warn("[Boss] markDefeated(): no record for bossId=" + bossId + " -- ignoring.");
+            OUT.warn("[Boss] markDefeated(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
             return false;
         }
 
@@ -386,7 +387,7 @@ public final class BossFixture extends SatchelFixture {
             // that the record was still alive before running the full grow-and-spawn cascade, so
             // /boss transform defeat run twice against the same boss re-triggered it a second
             // time with no real defeat behind it. See boss.md's "Mutation validation boundary".
-            OUT.warn("[Boss] markDefeated(): bossId=" + bossId + " is already defeated -- ignoring.");
+            OUT.warn("[Boss] markDefeated(): bossId=" + Ids.shortId(bossId) + " is already defeated -- ignoring.");
             return false;
         }
 

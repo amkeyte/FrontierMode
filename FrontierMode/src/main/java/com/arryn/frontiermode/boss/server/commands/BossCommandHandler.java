@@ -4,6 +4,7 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossDisplay;
+import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.border.common.fixture.Border;
@@ -102,6 +103,10 @@ public final class BossCommandHandler {
 
         BossRecord record = recordOpt.get();
         fixture.finalizePosition(record.bossId(), pos);
+        // FRO_087 fix: off-path (/boss add) bosses want a BossTellRecord too, purely for the
+        // 3x3 platform -- no "tell" BorderCurve exists for them (no border), and the tell pass
+        // already filters them out via borderId().isEmpty(), so only the record is needed here.
+        BossAPI.bossTells(level).ifPresent(tell -> tell.createRecord(record.bossId()));
         ctx.getSource().sendSuccess(() -> msg("Created boss record " + record.bossId()), false);
         return 1;
     }
@@ -132,6 +137,8 @@ public final class BossCommandHandler {
 
         BossRecord record = recordOpt.get();
         fixture.finalizePosition(record.bossId(), pos);
+        // FRO_087 fix: see addExplicit()'s matching comment above.
+        BossAPI.bossTells(sp.serverLevel()).ifPresent(tell -> tell.createRecord(record.bossId()));
         sp.sendSystemMessage(msg("Created boss record " + record.bossId() + " at your location"));
         return 1;
     }
@@ -206,6 +213,13 @@ public final class BossCommandHandler {
         // the target to already be in pendingAttach (boss.md's own spec places no such
         // restriction on it), just clears it either way.
         fixture.CRUD.removePendingAttach(border.id());
+
+        // FRO_087 fix: attach() pairs a fresh boss record with a real, already-existing border
+        // -- the same "paired creation" shape the bootstrap/defeat-cascade call sites use -- so
+        // it needs the same tell-curve-plus-record pairing they already do, which this call site
+        // was missing.
+        BossTellFixture.createTellCurveIfAbsent(level, border.id());
+        BossAPI.bossTells(level).ifPresent(tell -> tell.createRecord(record.bossId()));
 
         ctx.getSource().sendSuccess(
                 () -> msg("Attached boss " + record.bossId() + " to border " + border.id() + "."),
@@ -393,6 +407,56 @@ public final class BossCommandHandler {
                         "Boss %s is %.1f blocks away (pos: %d, %d, %d).",
                         id, dist, pos.getX(), pos.getY(), pos.getZ()
                 )),
+                false
+        );
+        return 1;
+    }
+
+    // ------------------------------------------------------------
+    // DEBUG GLOW -- project owner request (2026-09-08), not part of FRO_057's original six.
+    // Global debug state (not per-boss), so it doesn't go through applySelector the way
+    // debugGoto/debugDistance do -- there's no selector argument on "/boss debug glow".
+    // ------------------------------------------------------------
+
+    public static int setGlow(CommandContext<CommandSourceStack> ctx, boolean value) {
+
+        ServerLevel level = ctx.getSource().getLevel();
+
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
+        if (fixtureOpt.isEmpty()) {
+            ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
+            return 0;
+        }
+        BossFixture fixture = fixtureOpt.get();
+
+        fixture.RULES.setGlowEnabled(value);
+
+        // Retroactively apply to every currently-materialized, alive boss on this level -- glow
+        // is a synced entity flag (Entity#setGlowingTag), set once at tag time and never
+        // re-evaluated on its own, so without this a toggle would only visibly take effect for
+        // bosses materialized AFTER the command runs. Guardian Mobs can't get the same treatment:
+        // BossGuardiansFixture tags them once at spawn (a raw MobSpawnEvent.FinalizeSpawn
+        // listener) and keeps no record of which mobs it tagged afterward, so there's nothing
+        // here to look back up for them -- only future guardian spawns will reflect this value.
+        int updated = 0;
+        for (BossRecord record : fixture.all()) {
+            if (!record.alive() || record.bossEntityId() == null) {
+                continue;
+            }
+            var entity = level.getEntity(record.bossEntityId());
+            if (entity == null) {
+                continue; // not currently loaded -- picks up the current value next time it (re)materializes/reloads
+            }
+            entity.setGlowingTag(value);
+            updated++;
+        }
+
+        int finalUpdated = updated;
+        ctx.getSource().sendSuccess(
+                () -> msg("[Boss][Debug] Glow set to " + value + ". Updated " + finalUpdated
+                        + " currently-loaded boss(es) immediately. Future Guardian Mobs will pick "
+                        + "this up when they spawn; already-spawned guardians can't be "
+                        + "retroactively updated (not tracked after spawn)."),
                 false
         );
         return 1;

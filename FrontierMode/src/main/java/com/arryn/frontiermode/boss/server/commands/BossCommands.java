@@ -4,6 +4,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -205,6 +206,17 @@ public final class BossCommands {
 
     private static ArgumentBuilder<CommandSourceStack, ?> debug() {
         return Commands.literal("debug")
+                // Project owner request (2026-09-08): "/boss debug glow <true|false>" -- toggles
+                // whether Boss/Guardian tagging applies Entity#setGlowingTag, and immediately
+                // re-applies that value to every currently-materialized boss on this level (see
+                // BossCommandHandler.setGlow's own doc for why guardians can't be retroactively
+                // updated the same way).
+                .then(Commands.literal("glow")
+                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                .executes(ctx -> BossCommandHandler.setGlow(
+                                        ctx, BoolArgumentType.getBool(ctx, "value")))
+                        )
+                )
                 .then(Commands.literal("goto")
                         .then(Commands.argument("selector", BossSelectorArgumentType.selector())
                                 .executes(ctx -> applySelector(

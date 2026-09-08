@@ -71,6 +71,20 @@ ordering in this engine where it could see non-empty state. It's also a differen
 
 ## Log
 
+- 2026-09-06: Drive-by item from this ticket's own "What to build" #2, done while investigating FRO_055
+  (same suspected root area -- Satchel's client bundle-sync layer): removed
+  `BordersFixture.onCreated()`'s dead `borderPath.clear()` call. Already confirmed dead code and
+  unrelated to the actual count-mismatch investigation by the 2026-08-28 Architect review noted
+  above -- just real enough to remove while in the file. No behavior change; compiles clean
+  (brace-balance checked, and this file's live in a project that's been building/running all
+  session).
+
+  Item 1 (the actual client/server count mismatch investigation) is still open -- see the FRO_055
+  log entry for where that investigation currently stands (points at Satchel's bundle-sync layer,
+  same as this ticket's own "Ruled out" section already suspected via the "CLIENT bundle became
+  dirty (read-only violation)" warning).
+
+  Not committed (git managed by project owner this session).
 - 2026-08-28: Ticket opened (Architect), off FRO_047's playtest note plus a same-day trace ruling
   out `onCreated()`'s `borderPath.clear()` as the cause. Not yet investigated by Lead Dev.
 

@@ -69,12 +69,12 @@ circle around the player's base. This is intentional. The design goal isn't "get
 spawn in a straight line," it's meaningful, undirected exploration: the frontier's actual shape is
 a record of where the player has actually been and fought, not a distance meter.
 
-The **Frontier** is the outer boundary formed by the union of every Border established so far. It
-is marked visually where it currently sits. Past that marker there is no invisible wall — a player
-can walk straight through it — but mobs on the other side are ruthlessly, deliberately too
-difficult for the player's current Border. This is the "gradient, not a wall" pillar made
-concrete: nothing stops the player physically, but everything about the far side tells them they
-went too far, too fast.
+The **Frontier** is the outer boundary formed by the union of every Border established so far.
+Past it lies the **Exterior** — there is no invisible wall, a player can walk straight through —
+but staying there carries a real, escalating cost of its own; see [Exterior](exterior.md) for what
+that cost actually is (Frontier Sickness) and the corrupted wildlife (Feral) found there. This is
+the "gradient, not a wall" pillar made concrete: nothing stops the player physically, but
+everything about the far side tells them they went too far, too fast.
 
 ## Persistence and the overlap rule
 

@@ -23,6 +23,7 @@ import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -529,7 +530,7 @@ public final class BorderAPI {
         CURVE(level).ifPresentOrElse(
                 curveFixture -> curveFixture.removeForBorder(id),
                 () -> OUT.warn("[Border] removeBorder(): BorderCurveFixture not available "
-                        + "level=" + level.dimension().location() + " -- border " + id
+                        + "level=" + level.dimension().location() + " -- border " + Ids.shortId(id)
                         + " removed, but its curves (if any) were not cleaned up.")
         );
 
@@ -585,56 +586,63 @@ public final class BorderAPI {
     // here, not the compiler, same mitigation BordersFixture's own doc already accepts.
     // ---------------------------------------------------------------------
 
-    public static BorderMath MATH;
-//
-//    public static final class MATH {
-//        private MATH() {
-//        }
-//
-//        public static boolean isInside(Border border, BlockPos pos) {
-//            return BorderMath.isInside(border, pos);
-//        }
-//
-//        public static boolean isInside(int range, BlockPos pos, BlockPos center) {
-//            return BorderMath.isInside(range, pos, center);
-//        }
-//
-//        public static int distanceToSurface(Border border, BlockPos pos) {
-//            return BorderMath.distanceToSurface(border, pos);
-//        }
-//
-//        public static double distanceSqToCenter(Border border, BlockPos pos) {
-//            return BorderMath.distanceSqToCenter(border, pos);
-//        }
-//
-//        public static BlockPos randomPointInDisk(RandomSource rng, BlockPos center, int radius) {
-//            return BorderMath.randomPointInDisk(rng, center, radius);
-//        }
-//
-//        /**
-//         * RM_FRO_018/FRO_072: area-uniform sample in the annulus {@code [innerRadius,
-//         * outerRadius]} around {@code center} -- {@code DefaultBossRules.choosePosition}'s own
-//         * edge-biased boss placement is the first real cross-module consumer this wrapper was
-//         * added for.
-//         */
-//        public static BlockPos randomPointInAnnulus(RandomSource rng, BlockPos center, int innerRadius, int outerRadius) {
-//            return BorderMath.randomPointInAnnulus(rng, center, innerRadius, outerRadius);
-//        }
-//
-//        public static double distanceTo(BlockPos a, BlockPos b) {
-//            return BorderMath.distanceTo(a, b);
-//        }
-//
-//        public static Vec3 direction(BlockPos from, BlockPos to) {
-//            return BorderMath.direction(from, to);
-//        }
-//
-//        public static double intensityAt(BorderCurve descriptor, double normalizedDistance) {
-//            return BorderMath.intensityAt(descriptor, normalizedDistance);
-//        }
-//
-//        public static double intensityAt(Border border, BorderCurve descriptor, BlockPos point) {
-//            return BorderMath.intensityAt(border, descriptor, point);
-//        }
-//    }
+    public static final class MATH {
+        private MATH() {
+        }
+
+        public static boolean isInside(Border border, BlockPos pos) {
+            return BorderMath.isInside(border, pos);
+        }
+
+        public static boolean isInside(int range, BlockPos pos, BlockPos center) {
+            return BorderMath.isInside(range, pos, center);
+        }
+
+        public static int distanceToSurface(Border border, BlockPos pos) {
+            return BorderMath.distanceToSurface(border, pos);
+        }
+
+        /**
+         * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): {@link BorderMath#distanceOutside}
+         * mirrored per the FRO_078 facade convention -- every cross-module touch point into
+         * Border, stateful or not, goes through this one surface.
+         */
+        public static int distanceOutside(BlockPos p, BlockPos center, int radius) {
+            return BorderMath.distanceOutside(p, center, radius);
+        }
+
+        public static double distanceSqToCenter(Border border, BlockPos pos) {
+            return BorderMath.distanceSqToCenter(border, pos);
+        }
+
+        public static BlockPos randomPointInDisk(RandomSource rng, BlockPos center, int radius) {
+            return BorderMath.randomPointInDisk(rng, center, radius);
+        }
+
+        /**
+         * RM_FRO_018/FRO_072: area-uniform sample in the annulus {@code [innerRadius,
+         * outerRadius]} around {@code center} -- {@code DefaultBossRules.choosePosition}'s own
+         * edge-biased boss placement is the first real cross-module consumer this wrapper was
+         * added for.
+         */
+        public static BlockPos randomPointInAnnulus(RandomSource rng, BlockPos center, int innerRadius, int outerRadius) {
+            return BorderMath.randomPointInAnnulus(rng, center, innerRadius, outerRadius);
+        }
+
+        public static double distanceTo(BlockPos a, BlockPos b) {
+            return BorderMath.distanceTo(a, b);
+        }
+
+        public static Vec3 direction(BlockPos from, BlockPos to) {
+            return BorderMath.direction(from, to);
+        }
+
+        public static double intensityAt(BorderCurve descriptor, double normalizedDistance) {
+            return BorderMath.intensityAt(descriptor, normalizedDistance);
+        }
+
+        public static double intensityAt(Border border, BorderCurve descriptor, BlockPos point) {
+            return BorderMath.intensityAt(border, descriptor, point);
+        }
+    }
 }

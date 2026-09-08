@@ -6,6 +6,7 @@ import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
@@ -23,9 +24,10 @@ import com.arryn.satchel.common.newconfig.newnew.JigPolicies;
 import com.arryn.satchel.common.newconfig.newnew.LevelJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.MobJigConfig;
 import com.arryn.satchel.common.util.out.OUT;
-//import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.living.MobSpawnEvent;
 
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,25 @@ public final class BossModule {
         BossCommands.register(event.getDispatcher());
     }
 
+    /**
+     * RM_FRO_029 (Gloria): delegate target for {@code FrontierMode.onMobSpawnFinalize}, mirroring
+     * {@link #onRegisterCommands}'s identical shape (a raw Forge {@code @SubscribeEvent} on
+     * {@code FrontierMode.java} delegating immediately, by name, to a module static method --
+     * {@code FrontierMode.java} stays the single real Forge-subscription point).
+     *
+     * <p>Never cancels the spawn either way -- Guardian Mobs is a modifier on an already-happening
+     * spawn, not a summon. "Standby, don't crash": a level that isn't a real {@link ServerLevel},
+     * or a {@link BossGuardiansFixture} that isn't resolvable yet (Satchel not ready, scope not
+     * known), is a silent no-op -- the vanilla spawn proceeds unmodified either way.
+     */
+    public static void onMobSpawnFinalize(MobSpawnEvent.FinalizeSpawn event) {
+        if (!(event.getLevel() instanceof ServerLevel level)) {
+            return;
+        }
+        BossAPI.guardians(level).ifPresent(guardians ->
+                guardians.onMobSpawnFinalize(event.getEntity(), level));
+    }
+
     // ── TargetType.BOSS resolver ──────────────────────────────────────────────
 
     private static void registerNavigatorResolver() {
@@ -83,11 +104,20 @@ public final class BossModule {
                         BossTellFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
+        // RM_FRO_029 (Gloria): third BossBundle sibling, event-driven off onMobSpawnFinalize below
+        // rather than BOSS_JIG's own tick -- rides this same bundle purely for membership/access
+        // parity with its siblings, per guardian-mobs.md's own reasoning.
+        var bossGuardiansFixture =
+                new JigBundles.FixtureDecl<BossGuardiansFixture>(
+                        FrontierKeys.BOSS_GUARDIANS,
+                        BossGuardiansFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
         var bossBundle =
                 new JigBundles.BundleDecl<LevelScope, BossBundle>(
                         FrontierKeys.BOSS_BUNDLE,
                         (LevelScope scope) -> new BossBundle(scope, FrontierKeys.BOSS_BUNDLE),
-                        List.of(bossFixture, bossTellFixture)
+                        List.of(bossFixture, bossTellFixture, bossGuardiansFixture)
                 );
 
         EventHandlers eventHandlers =
@@ -98,6 +128,12 @@ public final class BossModule {
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);
+        // FRO_094: boss location is deliberately secret from the client -- see boss.md § Module
+        // wiring and FRO_093's Architect ruling (discovery-systems.md / border-pregeneration.md's
+        // "exploit this closes"). LevelJigConfig already defaults to SERVER, so this is a
+        // documentation fix, not a behavior change -- stated explicitly for the real reason,
+        // mirroring BOSS_MOB_JIG's own explicit call below ("Defeat detection is server-only").
+        config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
         config.bundles().schema(new JigBundles.Schema<>(List.of(bossBundle)));
         // BossFixture is the sole durable record of boss identity -- needs real persistence.
         config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));

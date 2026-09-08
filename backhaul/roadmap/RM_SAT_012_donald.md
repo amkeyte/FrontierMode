@@ -139,5 +139,4 @@ at `bundleDecls.get(key)` instead of `BundleFactories.entryFor(key)`; once prove
 
 <!-- required-by:start -->
 - [**RM_SAT_016**](RM_SAT_016_kenneth.md) — Write new-Satchel-module checklist
-- [**RM_SAT_017**](RM_SAT_017_paul.md) — Prototype hardening
 <!-- required-by:end -->
