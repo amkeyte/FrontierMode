@@ -1,3 +1,5 @@
+import net.minecraftforge.gradle.userdev.tasks.RenameJarInPlace
+
 plugins {
     id 'java'
     id 'idea'
@@ -231,8 +233,47 @@ tasks.named('jar', Jar).configure {
         ])
     }
 
-    // This is the preferred method to reobfuscate your jar file
-    finalizedBy 'reobfJar'
+}
+
+// ------------------------------------------------------------
+// Reobfuscation -- REQUIRED. Without this block ForgeGradle never creates
+// a reobfJar task, so the finalizedBy above silently does nothing and the
+// plain jar (compiled against official/MCP names) is what gets shipped.
+// Forge's distributed runtime jar uses SRG names -- ForgeGradle bridges
+// that gap in dev/IDE runs, which is why the missing block was invisible
+// in-IDE but broke every real install. Mirrors Satchel's SAT_052 fix.
+// ------------------------------------------------------------
+tasks.withType(RenameJarInPlace).configureEach {
+    enabled = true
+}
+
+tasks.matching { it.name.startsWith("reobf") }.configureEach {
+    enabled = true
+}
+
+reobf {
+    jar {}
+}
+
+// ------------------------------------------------------------
+// Release: reobfuscate and copy to C:/_local/mcRepos/Release/<version>/
+// Run: ./gradlew release
+// This is the ONLY place reobfJar is triggered; normal `jar` builds stay
+// non-obf so they work correctly in dev run/mods directories.
+// ------------------------------------------------------------
+tasks.register('release', Copy) {
+    group = 'frontiermode'
+    description = "Reobfuscates and copies the release jar to C:/_local/mcRepos/Release/${mod_version}/ for GitHub upload."
+    dependsOn tasks.named('reobfJar')
+
+    def releaseDir = file("C:/_local/mcRepos/Release/${mod_version}")
+
+    doFirst {
+        releaseDir.mkdirs()
+    }
+
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into releaseDir
 }
 
 // ------------------------------------------------------------

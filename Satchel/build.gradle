@@ -153,6 +153,25 @@ tasks.withType(RenameJarInPlace).configureEach {
 tasks.matching { it.name.startsWith("reobf") }.configureEach {
     enabled = true
 }
+
+// ------------------------------------------------------------
+// Reobfuscation [SAT_052] -- REQUIRED, was missing entirely. The `jar` task
+// above ships mod code compiled against official/MCP names (e.g.
+// `Commands.literal`, `FriendlyByteBuf.readUUID`). Forge's actual
+// distributed runtime jar keeps its own classes under SRG names (e.g.
+// `Commands.m_82127_`) -- ForgeGradle's dev run environment bridges that gap
+// for you, which is why this was invisible in-IDE, but every real player
+// install threw NoSuchMethodError/NoSuchFieldError on any vanilla member
+// Satchel touched. Without this block, ForgeGradle never creates a
+// `reobfJar` task at all, so the `tasks.matching{it.name.startsWith("reobf")}`
+// line above silently matched nothing. `reobf { jar {} }` registers
+// `reobfJar` (a RenameJarInPlace step, finalizing `jar`) that rewrites the
+// `jar` task's output in place from official names to SRG names before it's
+// shipped.
+// ------------------------------------------------------------
+reobf {
+    jar {}
+}
 //jar {
 //    archiveClassifier.set("dev")
 //}
@@ -176,6 +195,10 @@ tasks.register('copyToFrontierMode', Copy) {
     // server block), so both need their own copy of the Satchel jar on the mod-loading path.
     def frontierModsDirs = [file("${frontierRoot}/run/mods"), file("${frontierRoot}/run-server/mods")]
 
+    // Copy the NON-obf dev jar. Do NOT depend on reobfJar here -- reobfJar
+    // renames the jar in-place to SRG names, so depending on it would push an
+    // obf'd jar into FrontierMode's run/mods, breaking dev runs.
+    // For the obf'd release jar, use: ./gradlew release
     dependsOn tasks.named('jar')
 
     doFirst {
@@ -201,8 +224,25 @@ tasks.register('copyToFrontierMode', Copy) {
     }
 }
 
-tasks.named('jar').configure {
-    finalizedBy tasks.named('copyToFrontierMode')
+// ------------------------------------------------------------
+// Release: reobfuscate and copy to C:/_local/mcRepos/Release/<version>/
+// Run: ./gradlew release
+// This is the ONLY place reobfJar is triggered; normal `jar` and
+// `copyToFrontierMode` produce non-obf dev jars.
+// ------------------------------------------------------------
+tasks.register('release', Copy) {
+    group = 'satchel'
+    description = "Reobfuscates and copies the release jar to C:/_local/mcRepos/Release/${mod_version}/ for GitHub upload."
+    dependsOn tasks.named('reobfJar')
+
+    def releaseDir = file("C:/_local/mcRepos/Release/${mod_version}")
+
+    doFirst {
+        releaseDir.mkdirs()
+    }
+
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into releaseDir
 }
 
 // Gradle's JavaExec doesn't forward stdin to the child process by default, so console
