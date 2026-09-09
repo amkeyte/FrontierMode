@@ -59,6 +59,7 @@
 | [Full Documentation Coverage Plan](wiki/plans/doc-coverage.md) | published | Plan to bring FrontierMode and Satchel's wiki up to full design/spec coverage of existing code before content work starts. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/doc-coverage.md) |
 | [Donna Epoch Nodes](wiki/plans/donna-epoch-nodes.md) | draft | Candidate RM_FRO nodes for the Donna epoch's Tier 2 discovery-gradient cluster. Its shared-infrastructure trio (Navigator, Border Curve, Border Pregeneration) is minted -- RM_FRO_026/027/028; the six discovery tools remain staged here, pending their own scoping pass against that trio's real code. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/donna-epoch-nodes.md) |
 | [FrontierMode Operational Tiers](wiki/plans/operational-tiers.md) | published | The experience-tier framework FrontierMode's roadmap convergence nodes are organized around, instead of one convergence per module. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/operational-tiers.md) |
+| [SAT_053 Git Handoff](wiki/plans/sat-053-git-handoff.md) | draft | What happened to git during the SAT_049 investigation, and how the SAT_053 redesign work is set up for whoever picks it up. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/sat-053-git-handoff.md) |
 | [Bare-Necessity Strip-Down Plan](wiki/plans/strip-down.md) | published | Plan to strip both mod repos to the minimum needed to remain valid Forge mods, and replace git history clean. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/plans/strip-down.md) |
 
 ## reference
@@ -73,6 +74,7 @@
 |---|---|---|---|
 | [_Diagrams](wiki/reference/diagrams/_diagrams.md) | verified | Landing page for every Mermaid diagram in this wiki -- one consolidated category (Reference), no per-mod split. Each diagram page has a matching large-font standalone HTML render linked from here, in html/. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/_diagrams.md) |
 | [Border Module Shape](wiki/reference/diagrams/border-module-shape.md) | verified | High-level module map of Border: BordersBundle's sibling fixtures, BordersFixture's four facets, the BorderAPI facade, and the three consumer surfaces (commands, client rendering, server rules/triggers). | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/border-module-shape.md) |
+| [Bundle Lifecycle](wiki/reference/diagrams/bundle-lifecycle.md) | verified | How a SatchelBundle moves CONSTRUCTED -> CREATED -> HYDRATED -> LOADED -> ACTIVE (and on to DESTROYING/DESTROYED), and which of Jig/Coupler/Engine/Bundle drives each step. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/bundle-lifecycle.md) |
 | [Satchel: Forge Event to ScopeEvent](wiki/reference/diagrams/satchel-forge-to-scopeevent.md) | verified | High-level block diagram of Satchel's own pipeline: how a raw Forge event (LevelEvent, PlayerEvent, TickEvent) becomes a ScopeEvent.Loaded/Tick/Unloaded that module EventHandlers subscribe to. | [Edit](editmd:///C:/_local/mcRepos/backhaul/wiki/reference/diagrams/satchel-forge-to-scopeevent.md) |
 
 ## satchel

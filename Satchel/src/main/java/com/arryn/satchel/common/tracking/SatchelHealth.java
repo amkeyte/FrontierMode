@@ -23,14 +23,10 @@ import com.arryn.satchel.common.newconfig.newnew.MobJigConfig;
 import com.arryn.satchel.common.newconfig.newnew.PlayerJigConfig;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayDeque;
@@ -73,57 +69,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * something JUnit-without-Forge fundamentally can't: a live entity resolution path. See this
  * class's own log entry on SAT_039 for the full reasoning and that trade-off spelled out.
  *
- * <p><b>The canary.</b> {@code MobTrackingModule}'s old {@code SERVER}-only {@code MobJigConfig}
- * becomes {@code BOTH} here -- the actual fix under test, and RM_SAT_022 ("Roger") is what makes
- * it correct. Until Roger lands, a client-scoped canary WILL be torn down every reconcile cycle
- * (the exact latent bug RM_SAT_022's own text documents) and this module WILL crash the client
- * loudly and repeatably. <b>That's this module doing its job, not a bug in it</b> -- it is the
- * automated proof the gap SAT_039 was opened to close actually exists, until it doesn't.
- *
- * <p>The canary is a vanilla {@code Bat}, referenced only via {@link EntityType#BAT} and handled
- * as a plain {@link Mob} everywhere in this class -- deliberately never imported or type-named as
- * the concrete {@code net.minecraft.world.entity.animal.Bat} class. That's not just defensive:
- * swapping the canary species later (behavioral reasons -- flight, despawn edge cases, whatever
- * "problematic" turns out to mean) becomes a one-line change to {@link #CANARY_TYPE} rather than a
- * type change scattered across every method that touches it.
- *
- * <p>Mechanism, no new raw Forge touch points (everything rides {@code ScopeEvent}, same as every
- * other tracking module):
- * <ol>
- *   <li>A {@code LevelJigConfig} registered {@code BOTH} (mirrors Border's own precedent for a
- *   client-ticking {@code LevelJig} config -- see Jig & Scope Runtime's registration-and-
- *   compilation section) is this module's always-on coordinator, since it gets a real
- *   {@code ScopeEvent.Tick} on both sides independent of whether anything is scoped under
- *   {@code MobJig} yet -- {@code MobJig} itself has no such side-agnostic entry point to hang
- *   this on.</li>
- *   <li><b>Server-side</b>, on the overworld {@code LevelJig} scope loading: find-or-spawn one
- *   tagged, harmless {@code Bat} ({@code setNoAi}/{@code setInvulnerable}/
- *   {@code setPersistenceRequired}, deliberately never killable or wandering off) near world
- *   spawn, then register it the normal way via {@link #watch}. Proves the pre-existing
- *   {@code SERVER}-applicability path still works exactly as {@code MobTrackingModule} already
- *   did -- this module doesn't touch that half's correctness, only its address.</li>
- *   <li><b>Client-side</b>, throttled on the coordinator's own tick: scan for the same tagged bat
- *   by custom name and call {@link MobScope#getFor} on it directly -- the documented fast-path
- *   attachment -- to get a client-side {@code MobScope} onto {@code MobJig}'s machinery without
- *   going through interest registration at all. RM_SAT_022 ("Roger") has since made a
- *   client-side interest-driven path real too (via {@code ForgeEgress}/{@code
- *   ClientForgeEgress}), but this canary still uses the {@code getFor} fast path deliberately --
- *   immediate attachment at spawn time, not waiting on the poll's ~20-tick cadence.</li>
- *   <li><b>The check itself</b> lives in this module's own {@code MOB_JIG} unload handler: a
- *   {@code MobScope} whose backing {@link Mob#isRemoved()} is still {@code false} at teardown time
- *   has been torn down for a reason other than the two legitimate ones (chunk unload, genuine
- *   removal) MobJig's reason-agnostic contract allows -- both of those set {@code isRemoved()}
- *   true by construction. That's a direct violation of the done bar RM_SAT_022 has to meet, not
- *   an inference from log lines.</li>
- * </ol>
- *
- * <p><b>Known limitation, stated rather than solved here:</b> entity tracking to a given client
- * requires that client's player be within tracking range of the canary, not merely that its chunk
- * is server-loaded. Standing near world spawn while connected is what actually exercises the
- * client-side half -- this module can't force that from server-side alone without adding a second
- * mechanism (forced chunk-loading does not imply per-player entity tracking). Worth automating
- * later; not blocking for this pass, since the whole point right now is proving the gap exists at
- * all, by hand once, on a real client.
+ * <p><b>MobJig's canary was removed [SAT_050].</b> SAT_039 originally paired {@code MobJig}'s
+ * violation check with an always-on synthetic subject -- a vanilla {@code Bat}, tagged and
+ * spawned/discovered via a {@code BOTH}-applicability {@code LevelJig} coordinator -- so the
+ * CLIENT/BOTH gap had a guaranteed-present entity to exercise it continuously on both sides
+ * without waiting on real gameplay. That mechanism was pulled after it produced a
+ * {@code NoSuchFieldError: BAT} class-load crash on at least one dev machine (a JVM linkage
+ * failure resolving {@code EntityType.BAT} -- distinct from, and unrelated to, this module's own
+ * deliberate {@code IllegalStateException} violation-check crashes described below). {@code
+ * MobJig}'s {@code BOTH} widening and {@link #onMobScopeUnloaded}'s violation check are otherwise
+ * unchanged and still fire for any real {@code MobScope} that reaches teardown while its backing
+ * mob is present -- there's simply no longer a synthetic entity guaranteeing that path gets
+ * exercised on every run; coverage now depends on real gameplay putting a mob under
+ * {@code MobJig} (FrontierMode/Border's own consumers, manually {@link #watch}ed mobs, etc.).
  *
  * <p><b>Known limitation, LevelJig:</b> the violation check only runs server-side, using {@code
  * MinecraftServer#getLevel} to ask whether the dimension is still actively registered. There's no
@@ -143,29 +101,6 @@ public final class SatchelHealth {
 
     private SatchelHealth() {
     }
-
-    // =================================================================
-    // Coordinator: BOTH-applicability LevelJig, always ticks on both
-    // sides regardless of whether anything is scoped under MobJig yet.
-    // =================================================================
-
-    public static final BundleKey<SatchelBundle> COORDINATOR_BUNDLE =
-            new BundleKey<>(
-                    "satchelhealth:coordinator_bundle",
-                    SatchelBundle.class
-            );
-
-    public static final FixtureKey<TrackerFixture> COORDINATOR_TRACKER =
-            new FixtureKey<>(
-                    "satchelhealth:coordinator_fixture",
-                    TrackerFixture.class
-            );
-
-    public static final JigKey<LevelJig> COORDINATOR_JIG =
-            new JigKey<>(
-                    "satchelhealth:coordinator_jig",
-                    LevelJig.class
-            );
 
     // =================================================================
     // MobJig health check -- relocated from MobTrackingModule verbatim
@@ -272,31 +207,6 @@ public final class SatchelHealth {
     }
 
     // =================================================================
-    // Canary
-    // =================================================================
-
-    /**
-     * The canary's entity type, referenced only through {@link EntityType} -- nothing in this
-     * class imports or type-names the concrete vanilla entity class. See the class docs' note on
-     * why; this is the one line to change if the species itself ever needs to change.
-     */
-    private static final EntityType<? extends Mob> CANARY_TYPE = EntityType.BAT;
-
-    /** Custom-name marker the client-side scan matches on -- see class docs' mechanism list. */
-    private static final String CANARY_NAME = "SatchelHealthCanary";
-
-    /**
-     * Search radius around the level's real shared spawn point (see {@link #anchorPos}), both
-     * for server find-or-spawn and client discovery. Sized to comfortably cover vanilla's default
-     * {@code spawnRadius} gamerule (10 blocks) -- a fresh player can legitimately land anywhere
-     * within that ring around the shared spawn point, not exactly on top of it.
-     */
-    private static final double CANARY_SEARCH_RADIUS = 16.0;
-
-    private static final int CLIENT_SCAN_EVERY_N_TICKS = 100; // ~5s at 20 TPS, matches the
-    // throttle cadence every other tracking module already uses for its own log/scan output.
-
-    // =================================================================
     // Registration
     // =================================================================
 
@@ -306,49 +216,9 @@ public final class SatchelHealth {
                         + "[BOTH], TrackingModule [now BOTH], PlayerTrackingModule [SERVER])"
         );
 
-        registerCoordinator();
         registerMobHealthCheck();
         registerLevelHealthCheck();
         registerPlayerHealthCheck();
-    }
-
-    private static void registerCoordinator() {
-        var coordinatorFixture =
-                new JigBundles.FixtureDecl<TrackerFixture>(
-                        COORDINATOR_TRACKER,
-                        TrackerFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
-
-        var coordinatorBundleDecl =
-                new JigBundles.BundleDecl<LevelScope, SatchelBundle>(
-                        COORDINATOR_BUNDLE,
-                        (LevelScope scope) -> new SatchelBundle(scope, COORDINATOR_BUNDLE),
-                        List.of(coordinatorFixture)
-                );
-
-        JigBundles.Schema<LevelScope> bundles =
-                new JigBundles.Schema<>(List.of(coordinatorBundleDecl));
-
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        .on(ScopeEvent.Tick.class, SatchelHealth::onCoordinatorTick)
-                        .build();
-
-        LevelJigConfig config = new LevelJigConfig(COORDINATOR_JIG);
-
-        config.bundles().schema(bundles);
-
-        // BOTH -- the coordinator has to tick on the client too; that's the whole reason it
-        // exists rather than piggybacking on MOB_JIG directly (MobJig has no tick source
-        // independent of already having a scope -- see class docs, mechanism item 1).
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
-                .eventHandlers(eventHandlers);
-
-        Satchel.registerJigConfig(config);
     }
 
     private static void registerMobHealthCheck() {
@@ -478,116 +348,6 @@ public final class SatchelHealth {
     }
 
     // =================================================================
-    // Coordinator handlers -- canary spawn (server) / discovery (client)
-    // =================================================================
-
-    private static void onCoordinatorTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-        Objects.requireNonNull(info, "info");
-
-        // Shared-bus caveat, same reasoning every tracking module's handlers already carry:
-        // ScopeEvent.Tick fires for every jig scoped to whatever just ticked, not just this one.
-        if (!COORDINATOR_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        LevelScope scope = (LevelScope) info.scope();
-        Level level = scope.level();
-
-        if (!level.dimension().equals(Level.OVERWORLD)) {
-            return;
-        }
-
-        LogicalSide side = Satchel.require().side();
-
-        if (side == LogicalSide.SERVER) {
-            if (level instanceof ServerLevel serverLevel) {
-                findOrSpawnCanary(serverLevel);
-            }
-            return;
-        }
-
-        if (side == LogicalSide.CLIENT) {
-            // Throttled -- a real per-tick scan every tick would be wasted work; this only needs
-            // to notice the canary once it's in tracking range, not every 1/20th of a second.
-            scanForCanaryOnClient(level);
-        }
-    }
-
-    private static final Map<Level, Integer> clientScanCounters = new ConcurrentHashMap<>();
-
-    private static boolean isCanary(Mob mob) {
-        return mob.getType() == CANARY_TYPE
-                && mob.getCustomName() != null
-                && CANARY_NAME.equals(mob.getCustomName().getString());
-    }
-
-    private static void scanForCanaryOnClient(Level level) {
-        int count = clientScanCounters.merge(level, 1, Integer::sum);
-        if (count % CLIENT_SCAN_EVERY_N_TICKS != 0) {
-            return;
-        }
-
-        AABB box = searchBoxAround(level);
-        List<Mob> found = level.getEntitiesOfClass(Mob.class, box, SatchelHealth::isCanary);
-
-        for (Mob canary : found) {
-            // MobScope.getFor's own contract: idempotent (via JigInfo.hasScope), safe to call
-            // every time this scan finds the canary, scoped or not.
-            MobScope.getFor(canary);
-        }
-    }
-
-    private static void findOrSpawnCanary(ServerLevel level) {
-        AABB box = searchBoxAround(level);
-        List<Mob> existing = level.getEntitiesOfClass(Mob.class, box, SatchelHealth::isCanary);
-
-        Mob canary;
-        if (!existing.isEmpty()) {
-            canary = existing.get(0);
-        } else {
-            var spawnPos = anchorPos(level);
-            canary = CANARY_TYPE.create(level);
-            Objects.requireNonNull(canary, "CANARY_TYPE.create(level) returned null");
-            canary.setPos(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-            canary.setCustomName(Component.literal(CANARY_NAME));
-            canary.setCustomNameVisible(false);
-            canary.setInvulnerable(true);
-            canary.setNoAi(true);
-            canary.setSilent(true);
-            canary.setPersistenceRequired();
-            level.addFreshEntity(canary);
-            OUT.info("[SatchelHealth] Canary spawned at " + spawnPos
-                    + " in " + level.dimension().location());
-        }
-
-        watch(level, canary.getUUID());
-    }
-
-    private static BlockPos anchorPos(Level level) {
-        // The level's actual shared spawn point, not a guessed/hardcoded coordinate -- a fixed
-        // (0, -60, 0) was tried first and turned out to sit nowhere near this world's real spawn
-        // (observed ~130 blocks off, both horizontally and vertically, on a real run), which
-        // meant a player logging in near spawn -- the normal case -- never got within the
-        // canary's search radius or client tracking range at all. Level#getSharedSpawnPos() is
-        // available on both ServerLevel and the client's Level (synced from the server), so this
-        // resolves consistently on both sides without needing a side-specific lookup. Not
-        // force-loaded by this module either way (see class docs' "known limitation"); a
-        // dev/test server that keeps spawn chunks loaded keeps this canary tickable, one that
-        // doesn't will simply not run this check until a player is nearby, which is a
-        // degraded-coverage state worth noticing, not a crash.
-        return level.getSharedSpawnPos();
-    }
-
-    private static AABB searchBoxAround(Level level) {
-        var pos = anchorPos(level);
-        return new AABB(
-                pos.getX() - CANARY_SEARCH_RADIUS, pos.getY() - CANARY_SEARCH_RADIUS, pos.getZ() - CANARY_SEARCH_RADIUS,
-                pos.getX() + CANARY_SEARCH_RADIUS, pos.getY() + CANARY_SEARCH_RADIUS, pos.getZ() + CANARY_SEARCH_RADIUS
-        );
-    }
-
-    // =================================================================
     // MOB_JIG handlers -- relocated MobTrackingModule logic, plus the
     // one new thing this ticket exists to add: onMobScopeUnloaded's
     // violation check.
@@ -625,7 +385,8 @@ public final class SatchelHealth {
      * -- both set {@code isRemoved()} true by construction; see Jig & Scope Runtime's MobJig
      * section and {@link com.arryn.satchel.common.jig.mob.MobJig#reconcile}'s own docs). That is
      * exactly the shape of the latent client-side bug RM_SAT_022 documents and exists to fix --
-     * until it lands, this fires on the very first client-side canary teardown.
+     * until it lands, this fires on the first real {@code MobScope} teardown that hits the gap
+     * (see class docs -- no longer guaranteed by a dedicated canary; see SAT_050).
      */
     private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
         ScopeInfo info = event.info();
