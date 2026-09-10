@@ -1,6 +1,7 @@
 package com.arryn.satchel.server.jig.guts;
 
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -10,8 +11,8 @@ import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.newconfig.JigBundles;
-import com.arryn.satchel.common.newconfig.newnew.*;
+import com.arryn.satchel.common.jig.config.JigBundles;
+import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
 import com.arryn.satchel.common.persistence.ParcelEgressSink;
 import com.arryn.satchel.common.persistence.SavedDataEgressSink;
@@ -291,28 +292,27 @@ public final class ScopeEngine_Server implements ScopeEngine {
             BundleKey<B> key,
             B bundle
     ) {
-        boolean hydratedBefore = bundle.isHydrated();
+        // SAT_053: whether we even ATTEMPT persistence is gated on the bundle's own declared
+        // requirement, not a jig-level policy flag -- a bundle that never claims
+        // Capability.PERSISTENCE has nothing to wait on here at all, it promotes on the spot.
+        // This is the literal SAT_049 fix: under the old jig-level-only check, such a bundle
+        // never left CREATED because hydration was the sole promotion path and it was gated on
+        // a capability the bundle never asked for. (resolveServerLevel() below separately
+        // checks whether the JIG allows persistence at all -- a bundle requiring it against a
+        // jig that doesn't allow it is a real error, not a skip.)
+        if ((bundle.required() & Capability.PERSISTENCE.bit()) != 0) {
+            ServerLevel level = resolveServerLevel(info, CapableOf.PERSISTENCE);
 
-        // resolveServerLevel only returns null when persistence isn't required for this
-        // jig -- the required-but-broken case always throws instead of returning null
-        // (SAT_013). A null here means "nothing to hydrate," not an error.
-        ServerLevel level =
-                resolveServerLevel(info, CapableOf.PERSISTENCE);
-
-        if (level != null) {
             Optional<SavedDataHydrationSource> source =
                     SavedDataHydrationSource.forBundle(level, key);
 
             // bundle.hydrateFrom(...), not a raw FixtureHydrator call -- FixtureHydrator
-            // explicitly documents itself as performing no lifecycle transitions, so calling it
-            // directly (the previous code here) meant no server bundle, ever, with or without
-            // real saved data, transitioned past CREATED. hydrateFrom() does the CREATED ->
-            // HYDRATED transition and sets isHydrated(), which is what lets the check below
-            // actually fire bundle.onLoaded(). When no saved data exists yet (first-ever
-            // creation -- the common case for a fresh world), still hydrate from an explicitly
-            // empty source rather than skipping entirely: the bundle still needs to reach
-            // ACTIVE, since saveAll()/onJigTick() both require LOADED/ACTIVE, and "nothing to
-            // load" is a normal state, not a reason to leave the bundle stuck. See SAT_027.
+            // explicitly documents itself as performing no lifecycle transitions. When no saved
+            // data exists yet (first-ever creation -- the common case for a fresh world), still
+            // hydrate from an explicitly empty source rather than skipping entirely: the bundle
+            // still needs to reach ACTIVE, since saveAll()/onJigTick() both require
+            // LOADED/ACTIVE, and "nothing to load" is a normal state, not a reason to leave the
+            // bundle stuck. See SAT_027.
             bundle.hydrateFrom(
                     source.isPresent()
                             ? source.get()
@@ -320,7 +320,13 @@ public final class ScopeEngine_Server implements ScopeEngine {
             );
         }
 
-        if (!hydratedBefore && bundle.isHydrated()) {
+        // Whatever this bundle required (persistence, or nothing at all) is now satisfied --
+        // promote it exactly once. hydrateBundle() only ever runs once per bundle (called from
+        // create()), so the CREATED check below is just a defensive guard, not a polling loop;
+        // the async/polled version of this check (for capabilities that can't be satisfied
+        // synchronously, e.g. networking) is deliberately not built yet -- see SAT_053's open
+        // questions.
+        if (bundle.lifeCycleState() == LifecycleState.CREATED) {
             bundle.onLoaded();
             Satchel.require().bundleLifecycle()
                     .signalBundleLoaded(info, bundle);
@@ -345,14 +351,14 @@ public final class ScopeEngine_Server implements ScopeEngine {
     ) {
         if (!bundle.isDirty()) return;
 
-        // Same null-means-skip contract as hydrateBundle() (SAT_013) -- nothing to
-        // flush to if persistence isn't required for this jig.
-        ServerLevel level =
-                resolveServerLevel(info, CapableOf.PERSISTENCE);
-
-        if (level == null) {
+        // SAT_053: same bundle-level gate as hydrateBundle() -- nothing to flush to if this
+        // bundle never declared Capability.PERSISTENCE in the first place. resolveServerLevel()
+        // below separately enforces that the jig allows it.
+        if ((bundle.required() & Capability.PERSISTENCE.bit()) == 0) {
             return;
         }
+
+        ServerLevel level = resolveServerLevel(info, CapableOf.PERSISTENCE);
 
         SavedDataEgressSink
                 .forBundle(level, key)
@@ -423,25 +429,31 @@ public final class ScopeEngine_Server implements ScopeEngine {
         Objects.requireNonNull(info, "info");
         requireConfig();
 
-        // Deliberately info.policies(), not this.policies(): this engine is a single per-side
-        // singleton shared by every jig (LogicalFoundation.installConfigs() calls
-        // engine.installJigConfig(config) once per jig, on the same shared instance, via
-        // JigConfigCompiler.instantiateCoupler -- each call plainly overwrites the engine's own
-        // binding/execution/policies/bundles fields, so this.policies() reflects whichever jig
-        // was installed *last* in that loop, not the jig actually asking here. info (the
-        // ScopeInfo for the specific scope being hydrated/flushed) carries its own correctly
-        // per-jig-scoped policies, installed once by JigInfo.addScope() and never touched again
-        // -- that's the one that must be consulted. See SAT_023.
+        // SAT_053 (revised 2026-09-10, project owner direction): whether this capability is
+        // NEEDED at all is the caller's question, answered by bundle.required() (a per-bundle-
+        // author declaration) before this method is ever invoked -- see hydrateBundle() /
+        // flushIfDirty(). What THIS method checks is a different, jig-level question: does this
+        // jig even declare the capability allowed/supported at all? Jig offers its own capable
+        // policies; bundle handles its own requirements -- a bundle asking for something its own
+        // jig doesn't allow is a real wiring mistake between the bundle author and the jig
+        // author, and it crashes here, loudly, at the moment it's discovered, rather than
+        // silently skipping (the old null-return contract this replaced) or silently working
+        // around it.
         JigPolicies.Capabilities caps = info.policies().capabilities();
 
-        boolean required = switch (requirement) {
-            case PERSISTENCE -> caps.requiresPersistence();
-            case NETWORKING -> caps.requiresNetworking();
-            case CLOCK -> caps.requiresClock();
+        boolean jigAllows = switch (requirement) {
+            case PERSISTENCE -> caps.allowsPersistence();
+            case NETWORKING -> caps.allowsNetworking();
+            case CLOCK -> caps.allowsClock();
         };
 
-        if (!required) {
-            return null; // capability not required → skip
+        if (!jigAllows) {
+            throw new SatchelException.AccessFailed(
+                    "Bundle requires capability " + requirement + ", but its jig (" +
+                            info.debugName() + ") does not declare that capability allowed -- " +
+                            "add it via JigPolicies.Capabilities, or the bundle shouldn't be " +
+                            "declaring this requirement."
+            );
         }
 
         Level level = info.referenceLevel();

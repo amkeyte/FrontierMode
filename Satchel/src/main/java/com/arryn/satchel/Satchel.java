@@ -4,8 +4,8 @@ import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.*;
-import com.arryn.satchel.common.newconfig.newnew.JigConfig;
-import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
+import com.arryn.satchel.common.jig.config.JigConfig;
+import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.EnumMap;

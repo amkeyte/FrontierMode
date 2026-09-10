@@ -12,8 +12,8 @@ import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.net.ParcelInbox;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
-import com.arryn.satchel.common.newconfig.JigBundles;
-import com.arryn.satchel.common.newconfig.newnew.*;
+import com.arryn.satchel.common.jig.config.JigBundles;
+import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.util.out.OUT;
 
 import java.util.*;

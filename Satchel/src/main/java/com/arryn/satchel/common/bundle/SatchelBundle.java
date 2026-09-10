@@ -179,21 +179,20 @@ public class SatchelBundle {
     }
 
     /**
-     * Transitions CREATED -> HYDRATED and applies {@code source} to every existing fixture, then
-     * marks this bundle hydrated. Shared by both hydration entry points: client parcel
-     * application ({@link #hydrateAll}, source is always NBT) and server SavedData ingress
-     * (ScopeEngine_Server.hydrateBundle, source may be real saved data OR an explicitly empty
-     * source when nothing has ever been persisted yet -- either way, the bundle must leave
-     * CREATED to ever reach ACTIVE, since saveAll()/onJigTick() both require it). Before this
-     * method existed, ScopeEngine_Server.hydrateBundle() called FixtureHydrator directly, which
-     * by its own doc "performs no lifecycle transitions" -- so no server bundle, with or without
-     * existing data, ever actually left CREATED. See SAT_027.
+     * Applies {@code source} to every existing fixture and marks this bundle hydrated, without
+     * itself performing any lifecycle transition -- promotion to LOADED/ACTIVE is the caller's
+     * job (see {@link #onLoaded}), driven by whatever capability axes the bundle actually
+     * declares via {@link #required()}. Only callable in CREATED, and only meaningful once: a
+     * bundle whose {@link #required()} doesn't include {@link Capability#PERSISTENCE} should
+     * never call this at all and can be promoted straight from CREATED. Shared by both hydration
+     * entry points: client parcel application ({@link #hydrateAll}, source is always NBT) and
+     * server SavedData ingress (ScopeEngine_Server.hydrateBundle, source may be real saved data
+     * OR an explicitly empty source when nothing has ever been persisted yet). Before HYDRATED
+     * was removed from the state machine (SAT_053), this method's own transition was what a
+     * bundle needing neither persistence nor networking could never reach -- see SAT_049.
      */
     public final void hydrateFrom(FixtureHydrationSource source) {
-        lifecycle.transition(
-                LifecycleState.CREATED,
-                LifecycleState.HYDRATED
-        );
+        lifecycle.require(LifecycleState.CREATED);
 
         new FixtureHydrator(this, source).hydrateExisting();
         hydrated = true;
@@ -239,7 +238,7 @@ public class SatchelBundle {
 
     public void onLoaded() {
         lifecycle.transition(
-                LifecycleState.HYDRATED,
+                LifecycleState.CREATED,
                 LifecycleState.LOADED
         );
 
@@ -285,7 +284,6 @@ public class SatchelBundle {
     public final void markDirty() {
         lifecycle.requireAny(EnumSet.of(
                 LifecycleState.CREATED,
-                LifecycleState.HYDRATED,
                 LifecycleState.LOADED,
                 LifecycleState.ACTIVE
         ));
@@ -339,6 +337,17 @@ public class SatchelBundle {
     // ---------------------------------------------------------------------
     // Debug
     // ---------------------------------------------------------------------
+
+    /**
+     * Bitmask (see {@link Capability}) of the capability axes this bundle actually needs
+     * satisfied before it can be promoted out of CREATED. Declared by the bundle author --
+     * override per subclass. Defaults to {@link Capability#NONE}: a bundle that declares no
+     * requirements is promoted the moment it's created, with no hydration/network wait at all.
+     * See SAT_053 / SAT_049.
+     */
+    public int required() {
+        return Capability.NONE;
+    }
 
     public final boolean isHydrated() {
         return hydrated;

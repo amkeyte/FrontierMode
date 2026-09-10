@@ -4,6 +4,7 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -25,6 +26,17 @@ public final class BossBundle extends SatchelBundle {
             BundleKey<BossBundle> key
     ) {
         super(scope, key);
+    }
+
+    /**
+     * SAT_053: BossFixture is the sole durable record of boss identity and must survive a
+     * restart (see BossModule.registerBossJig's capabilities/persistence policy). This bundle
+     * declares the matching requirement itself; the engine now gates promotion on this, not on
+     * the jig-level policy alone.
+     */
+    @Override
+    public int required() {
+        return Capability.PERSISTENCE.bit();
     }
 
     public Level level() {

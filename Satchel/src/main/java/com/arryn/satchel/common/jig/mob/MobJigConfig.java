@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.mob;
 
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
@@ -49,9 +49,11 @@ public class MobJigConfig extends JigConfig<MobScope, Mob> {
         p.binding.uuidDeterminer = MobScope::resolveUUID;
         // No referenceLevel default, same gap PlayerJigConfig leaves open and for the same
         // reason -- a MobScope has no single Level it's intrinsically tied to independent of
-        // which entity it wraps. A consumer whose bundle declares
-        // requiresPersistence/requiresNetworking/requiresClock must supply its own
-        // referenceLevelResolver via .binding().referenceLevel(...).
+        // which entity it wraps. A consumer whose bundle declares Capability.PERSISTENCE/
+        // NETWORKING/CLOCK in its own required() (SAT_053) must ALSO set this jig's
+        // capabilities().allowsPersistence()/allowsNetworking()/allowsClock() accordingly (the
+        // engine throws if the bundle asks for something this jig doesn't allow), and must
+        // supply its own referenceLevelResolver via .binding().referenceLevel(...).
 
         // -------------------------------------------------
         // Execution

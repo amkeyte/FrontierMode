@@ -20,7 +20,7 @@ public final class PlayerResolver {
     /**
      * Resolves a {@link PlayerScope} from a raw Forge source object. Unlike
      * {@code LevelResolver.resolveScope}, there is no readiness-gated defer window here:
-     * {@link com.arryn.satchel.common.newconfig.newnew.PlayerJigConfig} defaults
+     * {@link com.arryn.satchel.common.jig.player.PlayerJigConfig} defaults
      * {@code sideApplicability} to {@code SERVER}, and {@code Satchel.isReady()} is trivially true
      * on the server once a foundation is installed (see {@code LogicalFoundation.isReady()}) --
      * there is no server-side equivalent of the client's "world-identity token hasn't arrived yet"

@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.common.fixture.BordersFixture;
 import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
+import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
@@ -25,6 +26,17 @@ public final class BordersBundle extends SatchelBundle {
             BundleKey<BordersBundle> key
     ) {
         super(scope, key);
+    }
+
+    /**
+     * SAT_053: Border state must survive a restart (see BorderModule's LevelJigConfig --
+     * capabilities/persistence policy declared there), so this bundle declares the matching
+     * requirement itself; the engine now gates promotion on this, not on the jig-level policy
+     * alone.
+     */
+    @Override
+    public int required() {
+        return Capability.PERSISTENCE.bit();
     }
 
     public Optional<NavigatorFixture> navigator() {

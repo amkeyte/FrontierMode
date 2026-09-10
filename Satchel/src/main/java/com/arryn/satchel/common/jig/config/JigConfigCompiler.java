@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.JigKey;

@@ -6,8 +6,8 @@ import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.client.lifecycle.ClientForgeEgress;
-import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
-import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
+import com.arryn.satchel.common.jig.config.CompiledJigConfig;
+import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;

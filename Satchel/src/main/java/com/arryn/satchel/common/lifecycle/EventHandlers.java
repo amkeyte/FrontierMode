@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig;
+package com.arryn.satchel.common.lifecycle;
 
 import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 

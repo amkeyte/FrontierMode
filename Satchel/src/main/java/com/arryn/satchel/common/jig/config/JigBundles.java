@@ -1,11 +1,10 @@
-package com.arryn.satchel.common.newconfig;
+package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
-import com.arryn.satchel.common.newconfig.newnew.JigPolicies;
 
 import java.util.List;
 import java.util.Objects;

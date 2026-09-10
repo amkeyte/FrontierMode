@@ -1,6 +1,6 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.config;
 
-import com.arryn.satchel.common.newconfig.EventHandlers;
+import com.arryn.satchel.common.lifecycle.EventHandlers;
 
 /**
  * Execution and lifecycle participation configuration for a Jig.
