@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.SatchelJig;

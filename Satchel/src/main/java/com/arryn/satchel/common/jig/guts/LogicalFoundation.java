@@ -3,9 +3,9 @@ package com.arryn.satchel.common.jig.guts;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.lifecycle.*;
-import com.arryn.satchel.common.newconfig.EventHandlers;
-import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
-import com.arryn.satchel.common.newconfig.newnew.JigConfigCompiler;
+import com.arryn.satchel.common.lifecycle.EventHandlers;
+import com.arryn.satchel.common.jig.config.CompiledJigConfig;
+import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -87,7 +87,7 @@ public final class LogicalFoundation {
     /**
      * RM_SAT_013: boot-time half of the silent-inertness health-check. Catches the FRO_018 shape
      * at the source instead of waiting for a human to notice gameplay isn't syncing or
-     * persisting: a jig that requires the persistence or networking capability but never enables
+     * persisting: a jig that allows the persistence or networking capability but never enables
      * execution-pulse participation ticks fine (if tick is on) but never flushes or syncs
      * anything -- {@code ScopeEngine_Server.flushIfDirty()}/{@code scheduleSync()} and
      * {@code ScopeEngine_Client.applyIncomingParcels()} only ever run from inside
@@ -99,12 +99,12 @@ public final class LogicalFoundation {
      */
     private void checkExecutionPulseHealth(JigKey<?> key, CompiledJigConfig cfg) {
         var caps = cfg.policies().capabilities();
-        boolean needsFlushOrSync = caps.requiresPersistence() || caps.requiresNetworking();
+        boolean allowsFlushOrSync = caps.allowsPersistence() || caps.allowsNetworking();
         boolean executionPulseOn = cfg.execution().lifecycle().participatesInExecutionPulse();
 
-        if (needsFlushOrSync && !executionPulseOn) {
+        if (allowsFlushOrSync && !executionPulseOn) {
             OUT.warn(
-                    "[health-check] Jig " + key + " requires persistence and/or networking but "
+                    "[health-check] Jig " + key + " allows persistence and/or networking but "
                             + "does not participate in the execution pulse -- it will tick (if "
                             + "tick is enabled) but never flush or sync anything. Same silent-"
                             + "inertness shape as FRO_018. Fix: call "

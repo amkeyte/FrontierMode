@@ -155,7 +155,7 @@ public final class BorderModule {
         config.policies().capabilities(
                 new JigPolicies.Capabilities(true, false, false));
 
-        // capabilities().requiresPersistence=true is cross-checked by JigConfigValidator
+        // capabilities().allowsPersistence=true is cross-checked by JigConfigValidator
         // against this policy's own persistent flag -- declaring the capability alone is
         // not enough; without this call JigConfigValidator.validateCapabilities rejects the
         // config at foundation boot (on both sides, since this config is BOTH-applicability)

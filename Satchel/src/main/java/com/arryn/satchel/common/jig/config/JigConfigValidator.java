@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.identity.JigKey;
 
@@ -191,7 +191,7 @@ public final class JigConfigValidator {
 
         // ---- Clock requirement ---------------------------------
 
-        if (caps.requiresClock()
+        if (caps.allowsClock()
                 && !lifecycle.participatesInTick()
                 && !lifecycle.participatesInExecutionPulse()) {
 
@@ -203,7 +203,7 @@ public final class JigConfigValidator {
 
         // ---- Persistence requirement ----------------------------
 
-        if (caps.requiresPersistence()) {
+        if (caps.allowsPersistence()) {
 
             if (!p.policies.persistence.persistent()) {
                 throw new IllegalStateException(
@@ -222,7 +222,7 @@ public final class JigConfigValidator {
 
         // ---- Networking requirement -----------------------------
 
-        if (caps.requiresNetworking()) {
+        if (caps.allowsNetworking()) {
 
 //            if (!p.policies.sync.networkingEnabled()) { //TODO compile hack
 //                throw new IllegalStateException(

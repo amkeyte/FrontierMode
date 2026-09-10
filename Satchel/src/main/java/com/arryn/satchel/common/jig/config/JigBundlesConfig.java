@@ -1,7 +1,6 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.jig.guts.SatchelScope;
-import com.arryn.satchel.common.newconfig.JigBundles;
 
 /**
  * Bundle schema configuration for a Jig.

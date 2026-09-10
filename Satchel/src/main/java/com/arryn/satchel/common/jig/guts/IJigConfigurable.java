@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.guts;
 
 public interface IJigConfigurable {
     void installJigConfig(CompiledJigConfig config);

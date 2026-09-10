@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig;
+package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;

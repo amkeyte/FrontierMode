@@ -2,9 +2,8 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.newconfig.JigBundles;
-import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
-import com.arryn.satchel.common.newconfig.newnew.IJigConfigurable;
+import com.arryn.satchel.common.jig.config.JigBundles;
+import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 
 import java.util.Optional;
 

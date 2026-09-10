@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.config;
 
 public final class JigPolicies {
 
@@ -156,10 +156,21 @@ public final class JigPolicies {
         }
     }
 
+    /**
+     * SAT_053 (revised 2026-09-10): what THIS JIG declares supported/allowed, not what any
+     * particular bundle needs -- that's {@link com.arryn.satchel.common.bundle.SatchelBundle
+     * #required()}, a separate, bundle-author-owned declaration. A bundle whose {@code
+     * required()} claims a capability this jig doesn't allow here is a real wiring mistake
+     * between the bundle author and the jig author; the engine throws rather than silently
+     * skipping (see ScopeEngine_Server#resolveServerLevel). Field names deliberately read as
+     * "allows", not "requires" -- the old names described the wrong owner and were the root of
+     * the conflation SAT_053 exists to fix (a bundle needing neither capability used to depend
+     * on this exact record being true before it could ever leave CREATED).
+     */
     public record Capabilities(
-            boolean requiresPersistence,
-            boolean requiresNetworking,
-            boolean requiresClock
+            boolean allowsPersistence,
+            boolean allowsNetworking,
+            boolean allowsClock
     ) {
         public static Capabilities defaults() {
             return new Capabilities(false, false, false);

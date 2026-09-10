@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.newconfig.newnew.*;
+import com.arryn.satchel.common.jig.config.*;
 
 import java.util.Collection;
 import java.util.Map;

@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.newconfig.newnew;
+package com.arryn.satchel.common.jig.player;
 
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
@@ -52,11 +52,14 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
         // No referenceLevel default, deliberately -- unlike LevelScope, a PlayerScope has no
         // single Level it's intrinsically tied to (that's precisely why this jig kind exists
         // instead of hosting this state on BordersBundle -- see RM_SAT_020's design log). A
-        // consumer whose bundle declares requiresPersistence/requiresNetworking/requiresClock
-        // must supply its own referenceLevelResolver (e.g. scope -> scope.player().serverLevel())
-        // via .binding().referenceLevel(...) -- left unset here, the same "no default, consumer's
-        // job" gap LevelJigConfig had for referenceLevel before SAT_023 added one, except here
-        // there's no single correct default to fall back to, so this isn't a bug to fix later.
+        // consumer whose bundle declares Capability.PERSISTENCE/NETWORKING/CLOCK in its own
+        // required() (SAT_053) must ALSO set this jig's capabilities().allowsPersistence()/
+        // allowsNetworking()/allowsClock() accordingly (the engine throws if the bundle asks for
+        // something this jig doesn't allow), and must supply its own referenceLevelResolver
+        // (e.g. scope -> scope.player().serverLevel()) via .binding().referenceLevel(...) -- left
+        // unset here, the same "no default, consumer's job" gap LevelJigConfig had for
+        // referenceLevel before SAT_023 added one, except here there's no single correct default
+        // to fall back to, so this isn't a bug to fix later.
 
         // -------------------------------------------------
         // Execution

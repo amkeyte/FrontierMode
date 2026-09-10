@@ -1,6 +1,6 @@
 package com.arryn.satchel.common.jig.guts;
 
-import com.arryn.satchel.common.newconfig.newnew.*;
+import com.arryn.satchel.common.jig.config.*;
 import net.minecraft.world.level.Level;
 
 import java.time.Instant;

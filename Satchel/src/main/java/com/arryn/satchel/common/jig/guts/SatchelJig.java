@@ -4,8 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.newconfig.newnew.CompiledJigConfig;
-import com.arryn.satchel.common.newconfig.newnew.IJigConfigurable;
+import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 
 import java.util.Optional;
 import java.util.UUID;

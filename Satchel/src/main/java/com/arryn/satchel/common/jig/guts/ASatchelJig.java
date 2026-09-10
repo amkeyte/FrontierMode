@@ -4,7 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.newconfig.newnew.*;
+import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.throttle.TickThrottler;
 
