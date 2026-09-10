@@ -54,6 +54,6 @@ public abstract class JigBundlesConfig<S extends SatchelScope> {
          * Bundle schema exposed by this jig.
          * Required.
          */
-        JigBundles.Schema<S> schema;
+        public JigBundles.Schema<S> schema;
     }
 }

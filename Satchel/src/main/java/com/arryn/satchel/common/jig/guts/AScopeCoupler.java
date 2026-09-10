@@ -9,6 +9,21 @@ import com.arryn.satchel.common.util.out.OUT;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Default {@link ScopeCoupler} implementation every real coupler ({@code
+ * LevelScopeCoupler}, {@code MobScopeCoupler}, {@code PlayerScopeCoupler}) extends. Wires
+ * the mechanical plumbing -- engine binding, config installation, readiness gating around
+ * {@link #get}/{@link #ask}/{@link #getOrCreate}, lifecycle forwarding from the engine --
+ * and gives every before/after hook a permissive no-op default so a new coupler compiles
+ * and works correctly with zero overrides.
+ *
+ * <p>
+ * That permissiveness is also this class's current reality, not just its fallback: as of
+ * SAT_053's audit (2026-09-10), every hook below is still running its default in every
+ * real coupler in either repo. Overriding one of them is how a future coupler would add
+ * real scope-readiness logic (see {@link ScopeCoupler}'s class javadoc for the motivating
+ * examples) -- nothing about this class makes that harder than it looks.
+ */
 public abstract class AScopeCoupler implements ScopeCoupler {
 
     private ScopeEngine engine;
@@ -169,7 +184,9 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     // ---------------------------------------------------------------------
-    // Hooks (default permissive)
+    // Hooks (default permissive) -- override any of these to give this coupler real
+    // scope-readiness logic. Every one is currently unoverridden in both repos (SAT_053,
+    // 2026-09-10); see ScopeCoupler's class javadoc for what a real override looks like.
     // ---------------------------------------------------------------------
 
     @Override public void beforeTick(ScopeInfo info) {}

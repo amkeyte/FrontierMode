@@ -90,16 +90,16 @@ public abstract class JigConfig<S extends SatchelScope, SRC> {
          * Category preset nodes
          * -------------------------- */
 
-        final JigBindingConfig.Presets<S, SRC> binding =
+        public final JigBindingConfig.Presets<S, SRC> binding =
                 new JigBindingConfig.Presets<>();
 
-        final JigBundlesConfig.Presets<S> bundles =
+        public final JigBundlesConfig.Presets<S> bundles =
                 new JigBundlesConfig.Presets<>();
 
-        final JigPoliciesConfig.Presets policies =
+        public final JigPoliciesConfig.Presets policies =
                 new JigPoliciesConfig.Presets();
 
-        final JigExecutionConfig.Presets execution =
+        public final JigExecutionConfig.Presets execution =
                 new JigExecutionConfig.Presets();
     }
 }

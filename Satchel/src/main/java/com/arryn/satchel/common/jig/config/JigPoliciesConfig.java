@@ -120,41 +120,41 @@ public abstract class JigPoliciesConfig {
         /**
          * Whether this jig is enabled at all.
          */
-        boolean enabled = true;
+        public boolean enabled = true;
 
         /**
          * Which logical side(s) this jig applies to.
          */
-        JigPolicies.SideApplicability sideApplicability;
+        public JigPolicies.SideApplicability sideApplicability;
 
         /**
          * Readiness policy (when a scope is considered usable).
          */
-        JigPolicies.Readiness readiness;
+        public JigPolicies.Readiness readiness;
 
         /**
          * Synchronization policy.
          */
-        JigPolicies.Sync sync;
+        public JigPolicies.Sync sync;
 
         /**
          * Persistence policy.
          */
-        JigPolicies.Persistence persistence;
+        public JigPolicies.Persistence persistence;
 
         /**
          * Error handling policy.
          */
-        JigPolicies.Errors errors;
+        public JigPolicies.Errors errors;
 
         /**
          * Diagnostic / logging policy.
          */
-        JigPolicies.Diagnostics diagnostics;
+        public JigPolicies.Diagnostics diagnostics;
 
         /**
          * Declared capabilities (clock, networking, persistence, etc.).
          */
-        JigPolicies.Capabilities capabilities;
+        public JigPolicies.Capabilities capabilities;
     }
 }
