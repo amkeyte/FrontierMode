@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.jig.player;
 
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
 import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerResolver;

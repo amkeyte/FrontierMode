@@ -1,10 +1,13 @@
 package com.arryn.satchel.common.jig.mob;
 
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
+import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.jig.mob.MobScopeCoupler;
+import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import net.minecraft.world.entity.Mob;
 
 /**

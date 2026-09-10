@@ -16,6 +16,23 @@ import net.minecraft.nbt.CompoundTag;
 import java.util.*;
 import java.util.function.Supplier;
 
+/**
+ * Per-scope, per-key persisted state container -- the "Bundle" touch point named in
+ * SAT_053's ownership split. Owns its own {@link LifecycleState} state machine and fans
+ * every lifecycle event out to its fixtures ({@link #onCreated}/{@link #onLoaded}/
+ * {@link #onJigTick}/{@link #onDestroyed} below); it does not know or care *why* it's
+ * being promoted through that state machine at any given moment -- that decision belongs
+ * entirely to the engine, driven by whatever this bundle declares via {@link #required()}.
+ *
+ * <p>
+ * Extend this directly to add bundle-specific fixtures and state; override the lifecycle
+ * hooks to run bundle-level setup/teardown once per phase -- each hook already fans the
+ * same event out to every attached {@link SatchelFixture}, so call {@code super} first if
+ * you override one, the same way every existing override in the tree does. Declare
+ * {@link #required()} if this bundle actually needs persistence and/or networking to be
+ * usable; the default ({@link Capability#NONE}) promotes straight to ACTIVE with no wait
+ * at all (see SAT_053/SAT_049).
+ */
 public class SatchelBundle {
 
     // ---------------------------------------------------------------------
@@ -220,6 +237,12 @@ public class SatchelBundle {
     // Lifecycle hooks (backend-controlled)
     // ---------------------------------------------------------------------
 
+    /**
+     * Fired once, immediately after construction: transitions CONSTRUCTED -> CREATED,
+     * then fans {@code onCreated()} out to every attached fixture. Override to run
+     * bundle-level one-time setup -- call {@code super.onCreated()} first so the
+     * transition and fixture fan-out still happen.
+     */
     public void onCreated() {
         lifecycle.transition(
                 LifecycleState.CONSTRUCTED,
@@ -236,6 +259,15 @@ public class SatchelBundle {
         }
     }
 
+    /**
+     * Fired once this bundle's declared {@link #required()} capabilities are satisfied
+     * (immediately, if it declares none): transitions CREATED -> LOADED, fans {@code
+     * onLoaded()} out to every fixture -- this is what flips each fixture's own {@code
+     * isReady()} to true, see {@link SatchelFixture} -- then transitions LOADED -> ACTIVE.
+     * Override to run bundle-level setup that depends on hydrated fixture data being in
+     * place -- call {@code super.onLoaded()} first, the same way every existing override
+     * in the tree does.
+     */
     public void onLoaded() {
         lifecycle.transition(
                 LifecycleState.CREATED,
@@ -251,6 +283,12 @@ public class SatchelBundle {
                 LifecycleState.ACTIVE);
     }
 
+    /**
+     * Fired once per jig tick while this bundle is ACTIVE (requires ACTIVE, throws
+     * otherwise): fans {@code onJigTick()} out to every attached fixture. Override to run
+     * bundle-level per-tick logic -- call {@code super.onJigTick()} first so fixtures
+     * still tick.
+     */
     public void onJigTick() {
         lifecycle.require(LifecycleState.ACTIVE);
 
@@ -259,6 +297,12 @@ public class SatchelBundle {
         }
     }
 
+    /**
+     * Fired once, when this bundle is being torn down: forces DESTROYING, fans {@code
+     * onRemoved()} out to every attached fixture, then forces DESTROYED. Override to run
+     * bundle-level teardown -- call {@code super.onDestroyed()} first so fixtures still
+     * get their {@code onRemoved()}.
+     */
     public void onDestroyed() {
         if (lifecycle.isTerminal()) {
             throw new IllegalStateException("Bundle already destroyed");

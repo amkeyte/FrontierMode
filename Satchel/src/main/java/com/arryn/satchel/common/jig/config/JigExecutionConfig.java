@@ -95,21 +95,21 @@ public abstract class JigExecutionConfig {
         /**
          * Declares which lifecycle phases this jig participates in.
          */
-        JigPolicies.Lifecycle lifecycle;
+        public JigPolicies.Lifecycle lifecycle;
 
         /**
          * Execution priority relative to other jigs.
          */
-        JigPolicies.ExecutionPriority executionPriority;
+        public JigPolicies.ExecutionPriority executionPriority;
 
         /**
          * Tick ordering constraints.
          */
-        JigPolicies.TickOrder tickOrder;
+        public JigPolicies.TickOrder tickOrder;
 
         /**
          * Finalized lifecycle handlers (optional).
          */
-        EventHandlers eventHandlers;
+        public EventHandlers eventHandlers;
     }
 }
