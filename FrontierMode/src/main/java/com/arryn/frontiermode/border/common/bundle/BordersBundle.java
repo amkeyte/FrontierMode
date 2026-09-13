@@ -26,7 +26,7 @@ public final class BordersBundle extends SatchelBundle {
             BundleKey<BordersBundle> key
     ) {
         super(scope, key);
-    }
+
 
     /**
      * SAT_053: Border state must survive a restart (see BorderModule's LevelJigConfig --

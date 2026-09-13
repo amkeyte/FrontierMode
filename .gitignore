@@ -80,3 +80,4 @@ backhaul/
 # Scrapyard
 # --------------------
 Scrapyard/assets/
+.aider*

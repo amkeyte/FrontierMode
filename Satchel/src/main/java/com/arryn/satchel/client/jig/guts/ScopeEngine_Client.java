@@ -1,6 +1,7 @@
 package com.arryn.satchel.client.jig.guts;
 
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -175,6 +176,22 @@ public final class ScopeEngine_Client implements ScopeEngine {
         bundle.onCreated();
         bundlesFor(info).put(key, bundle);
 
+        // SAT_053, open question 3 resolved 2026-09-13: on the client, PERSISTENCE and
+        // NETWORKING collapse to the same operational question, because a client bundle has no
+        // local read path at all -- "needs persistence" and "needs networking" both cash out
+        // here to "needs a parcel." A bundle declaring neither has nothing to wait on and
+        // promotes on the spot, the client-side mirror of ScopeEngine_Server.hydrateBundle()'s
+        // own zero-capability fast path (and the literal SAT_049 fix, now applied to the side
+        // that never got it). A bundle declaring either capability stays in CREATED here and
+        // gets promoted later by applyIncomingParcels() below, when its first real parcel
+        // actually lands -- onLoaded() still means "fields hold real values" for a networked
+        // bundle, same as today; this is option (a) from SAT_053's open questions, not (b)'s
+        // eventually-consistent-mirror alternative.
+        if (bundle.required() == Capability.NONE) {
+            bundle.onLoaded();
+            Satchel.require().bundleLifecycle().signalBundleLoaded(info, bundle);
+        }
+
         return bundle;
     }
 
@@ -275,14 +292,16 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
         for (BundleKey<?> key : List.copyOf(map.keySet())) {
             SatchelBundle bundle = map.get(key);
-            // Same guard ScopeEngine_Server.onJigTick() already has. A freshly `create()`d client
-            // bundle sits in CREATED, not ACTIVE, until a server parcel arrives and
-            // applyIncomingParcels() drives it through hydrateAll -> onLoaded -> ACTIVE -- that's
-            // gated entirely on network sync timing, not on a jig tick. Without this check,
-            // onJigTick() unconditionally called bundle.onJigTick(), which hard-requires ACTIVE
-            // and throws otherwise -- crashed the render thread on the very next client tick
-            // after any bundle was created via the getOrCreate() fallback, before its first
-            // parcel had a chance to arrive. See SAT_025.
+            // Same guard ScopeEngine_Server.onJigTick() already has. A freshly `create()`d
+            // client bundle promotes straight to ACTIVE in create() if it declares no
+            // capabilities (SAT_053); one that declares persistence and/or networking still sits
+            // in CREATED until a server parcel arrives and applyIncomingParcels() drives it
+            // through hydrateAll -> onLoaded -> ACTIVE, gated entirely on network sync timing,
+            // not on a jig tick. Without this check, onJigTick() unconditionally called
+            // bundle.onJigTick(), which hard-requires ACTIVE and throws otherwise -- crashed the
+            // render thread on the very next client tick after any such bundle was created via
+            // the getOrCreate() fallback, before its first parcel had a chance to arrive. See
+            // SAT_025.
             if (bundle == null || bundle.lifeCycleState() != LifecycleState.ACTIVE) continue;
 
             bundle.onJigTick();
