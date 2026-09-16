@@ -184,7 +184,7 @@ public final class SatchelHealth {
     // (and MobInterestSupplier's own signature) can honestly accept either side's Level. Callers
     // that only ever pass a ServerLevel (MobTrackCommands, all server-only chat commands) keep
     // compiling unchanged -- a ServerLevel is still legal wherever a Level is asked for.
-    private static final Map<Level, Set<UUID>> INTERESTS = new ConcurrentHashMap<>();
+    static final Map<Level, Set<UUID>> INTERESTS = new ConcurrentHashMap<>();
 
     /**
      * Registers manual interest in {@code uuid} within {@code level} -- unchanged from
@@ -460,7 +460,7 @@ public final class SatchelHealth {
     // the server thread, and the only drain point (pumpPendingHealthChecks, called from
     // ServerForgeIngress's own execution-pulse tick hook) also runs on the server thread.
     // =================================================================
-    private static final Deque<Runnable> PENDING_HEALTH_CHECKS = new ArrayDeque<>();
+    static final Deque<Runnable> PENDING_HEALTH_CHECKS = new ArrayDeque<>();
 
     /**
      * Called once per server tick by {@code ServerForgeIngress#onExecutionPulse}. Drains and

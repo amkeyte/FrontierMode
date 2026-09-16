@@ -3,6 +3,9 @@ package com.arryn.satchel.common.tracking;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 
+import java.util.function.LongConsumer;
+import java.util.function.LongSupplier;
+
 public final class TrackerFixture extends SatchelFixture {
 
     private long loads;
@@ -11,7 +14,12 @@ public final class TrackerFixture extends SatchelFixture {
     private long internalTicks;
 
 
-    public TrackerFixture(){}
+    public TrackerFixture() {
+        registerLong("loads", () -> loads, val -> loads = val);
+        registerLong("unloads", () -> unloads, val -> unloads = val);
+        registerLong("externalTicks", () -> externalTicks, val -> externalTicks = val);
+        registerLong("internalTicks", () -> internalTicks, val -> internalTicks = val);
+    }
 
     public void countLoaded() {
         loads++;
