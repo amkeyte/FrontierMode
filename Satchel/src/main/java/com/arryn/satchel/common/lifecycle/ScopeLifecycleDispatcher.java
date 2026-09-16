@@ -13,7 +13,7 @@ import java.util.Objects;
  * <ul>
  *   <li>Discover scopes</li>
  *   <li>Decide readiness</li>
- *   <li>Invoke requireJig execution</li>
+ *   <li>Invoke jig execution</li>
  * </ul>
  *
  * <p>
@@ -32,15 +32,15 @@ public final class ScopeLifecycleDispatcher {
     }
 
     /* =============================================================
-     * Lifecycle transitions (per requireJig + scopeInfo)
+     * Lifecycle transitions (per jig + scopeInfo)
      * ========================================================== */
 
     /**
-     * Promote a scopeInfo to LOADED for a specific requireJig.
+     * Promote a scopeInfo to LOADED for a specific jig.
      *
      * <p>
      * Must only be called after readiness has been accepted
-     * by the requireJig's coupler.
+     * by the jig's coupler.
      */
     public void signalScopeLoaded(ScopeInfo info) {
         Objects.requireNonNull(info, "info");
@@ -74,7 +74,7 @@ public final class ScopeLifecycleDispatcher {
     }
 
     /**
-     * Begin unloading a scopeInfo for a specific requireJig.
+     * Begin unloading a scopeInfo for a specific jig.
      */
     public void signalScopeUnloaded(ScopeInfo info) {
         Objects.requireNonNull(info, "info");

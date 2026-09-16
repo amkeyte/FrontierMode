@@ -11,6 +11,22 @@ import com.arryn.satchel.common.util.throttle.TickThrottler;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Concrete base every real {@link SatchelJig} implementation extends -- {@code LevelJig},
+ * {@code PlayerJig}, and {@code MobJig} all extend this directly rather than implementing
+ * {@link SatchelJig} from scratch. Owns lifecycle dispatch ({@link #handleExecutionPulse},
+ * {@link #onTick}, {@link #onLoad}, {@link #onUnload}) and delegates bundle access
+ * ({@link #get}/{@link #ask}/{@link #getOrCreate}) to this jig's own {@link ScopeCoupler},
+ * obtained via {@link #coupler()}.
+ *
+ * <p>
+ * {@link #handleExecutionPulse} is where the real phase branching lives: a {@code NEW}
+ * scope attempts readiness convergence ({@link #tryMarkScopeReady}) and, once accepted,
+ * calls {@link #onLoad}; a {@code LOADED} scope runs {@link ScopeCoupler#onExecutionPulse}
+ * if {@code participatesInExecutionPulse()} is set (off by default -- a jig needing
+ * persistence flush or client sync must opt in independently of tick participation, since
+ * both ride this pulse, not {@link #onTick}).
+ */
 public abstract class ASatchelJig<S extends SatchelScope>
         implements SatchelJig<S> {
 

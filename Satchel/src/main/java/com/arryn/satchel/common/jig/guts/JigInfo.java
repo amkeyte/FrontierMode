@@ -9,6 +9,20 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Runtime record for one installed jig -- pairs a {@link JigKey}, a {@link SatchelJig}
+ * instance, and a {@link ScopeCoupler}, and owns the {@code Map<SatchelScope, ScopeInfo>}
+ * of every scope this jig currently tracks. One {@code JigInfo} exists per compiled {@link
+ * CompiledJigConfig}, created by {@code LogicalFoundation.installConfigs} during foundation
+ * boot -- a {@code sideApplicability = BOTH} config produces two independent {@code
+ * JigInfo}s, one per side's own foundation boot, not one shared instance.
+ *
+ * <p>
+ * A {@code JigInfo} can own many {@link ScopeInfo}s (one {@code LevelJig} tracks one per
+ * loaded dimension); a {@link ScopeInfo} belongs to exactly one {@code JigInfo}, installed
+ * as its back-reference by {@link #addScope} right after construction -- the only place a
+ * {@link ScopeInfo} is ever created.
+ */
 public final class JigInfo implements IJigConfigurable {
 
     public final JigKey<?> key;
@@ -56,6 +70,14 @@ public final class JigInfo implements IJigConfigurable {
         return scopeInfos.containsKey(scope);
     }
 
+    /**
+     * Constructs and registers a new {@link ScopeInfo} for {@code scope} under this jig,
+     * installing both this jig's compiled config and the {@link ScopeInfo}'s back-reference
+     * to this {@code JigInfo}. Throws {@code SatchelException.Generic} if a {@link ScopeInfo}
+     * already exists for this scope under this jig -- callers that only want to introduce a
+     * scope once should check {@link #hasScope} first, since this method itself is not
+     * idempotent.
+     */
     public ScopeInfo addScope(SatchelScope scope, Object source) {
         Objects.requireNonNull(scope, "scope");
         requireConfig();
@@ -81,6 +103,11 @@ public final class JigInfo implements IJigConfigurable {
     // CONFIG (live reference only)
     // =============================================================
 
+    /**
+     * Evicts the {@link ScopeInfo} for {@code scope} from this jig's tracking map. Throws
+     * {@code SatchelException.Generic} if no {@link ScopeInfo} was registered for this scope
+     * under this jig.
+     */
     public void removeScope(SatchelScope scope) {
         ScopeInfo removed = scopeInfos.remove(scope);
         if (removed == null) {
@@ -161,6 +188,14 @@ public final class JigInfo implements IJigConfigurable {
         return bundles;
     }
 
+    /**
+     * Resolves {@code source} into a {@link SatchelScope} via this jig's own {@code
+     * scopeResolver}, returning {@code Optional.empty()} -- not a throw -- for every "not
+     * applicable" case: a null source, a source whose type doesn't match this jig's declared
+     * {@code sourceType}, or a resolver that itself returns null for this source. A resolved
+     * scope's type is validated against this jig's {@code scopeType} before returning, the
+     * same check {@link #addScope} applies.
+     */
     public Optional<SatchelScope> resolveScope(Object source) {
         requireConfig();
 

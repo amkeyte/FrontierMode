@@ -5,11 +5,26 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.fml.LogicalSide;
 
 /**
- * Base exception for requireJig-related access failures.
+ * Base exception for jig-related access failures.
+ *
  * <p>
- * This hierarchy distinguishes between:
- * - AccessDenied: the operation is not permitted
- * - AccessFailed: the operation was permitted but could not complete
+ * Nine subclasses, one per failure shape: {@link AccessDenied} (an operation isn't
+ * permitted -- policy/lifecycle/sidedness), {@link AccessFailed} (an operation was
+ * permitted but failed on an underlying error -- IO, persistence, corruption), {@link
+ * BundleNotFound} (a bundle hasn't been created yet for a scope -- the one subtype that's
+ * routinely caught as expected control flow, see its own constructors), {@link
+ * ScopeNotReady} (a known scope hasn't converged to {@code LOADED} yet), {@link
+ * ScopeNotFound} (no {@code ScopeInfo} exists for the requested scope), {@link JigNotFound}
+ * (no matching jig exists for the requested key), {@link Generic} (a catch-all for a
+ * failure that doesn't fit any of the above), {@link NotReady} (code touched
+ * Satchel-dependent state before {@code Satchel.isReady()} for the calling side -- see its
+ * own doc for how this differs from {@link ScopeNotReady}), and {@link BadLogicalSide} (a
+ * thread claimed the wrong {@link LogicalSide}).
+ *
+ * <p>
+ * Every subtype logs unconditionally at construction (see the two-constructor pattern
+ * below) except {@link BundleNotFound}, the one subtype that's genuinely routine, not an
+ * error -- see the silent-variant constructor's own doc for why.
  */
 public abstract class SatchelException extends RuntimeException {
 
@@ -66,7 +81,7 @@ public abstract class SatchelException extends RuntimeException {
 
     /**
      * Thrown when an operation is not permitted due to
-     * lifecycle state, logical side, or requireJig policy.
+     * lifecycle state, logical side, or jig policy.
      * <p>
      * This indicates a programmer or integration error.
      */
@@ -163,7 +178,7 @@ public abstract class SatchelException extends RuntimeException {
 
     public static final class JigNotFound extends SatchelException {
         private static final String PREAMBLE =
-                "No Jig scopeInfo was found: ";
+                "No jig was found: ";
 
         public JigNotFound(String message) {
             super(PREAMBLE + message);
