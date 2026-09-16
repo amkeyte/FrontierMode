@@ -218,6 +218,10 @@ public final class ScopeEngine_Server implements ScopeEngine {
 
     @Override
     public void onExecutionPulse(ScopeInfo info) {
+        onExecutionPulse(info, false);
+    }
+
+    private void onExecutionPulse(ScopeInfo info, boolean terminal) {
         if (info == null) return;
 
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
@@ -231,7 +235,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
             bundle.healthCheckPulse();
 
             if (bundle.isDirty()) {
-                flushIfDirty(info, key, bundle);
+                flushIfDirty(info, key, bundle, terminal);
             }
         }
     }
@@ -258,7 +262,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
         if (info == null) return;
 
         // Terminal maintenance flush
-        onExecutionPulse(info);
+        onExecutionPulse(info, true);
 
         // RM_SAT_014, part 2: must read the map *before* evicting it below, then evict
         // regardless of whether it had anything in it. Previously this method called
@@ -306,18 +310,39 @@ public final class ScopeEngine_Server implements ScopeEngine {
             Optional<SavedDataHydrationSource> source =
                     SavedDataHydrationSource.forBundle(level, key);
 
-            // bundle.hydrateFrom(...), not a raw FixtureHydrator call -- FixtureHydrator
-            // explicitly documents itself as performing no lifecycle transitions. When no saved
-            // data exists yet (first-ever creation -- the common case for a fresh world), still
-            // hydrate from an explicitly empty source rather than skipping entirely: the bundle
-            // still needs to reach ACTIVE, since saveAll()/onJigTick() both require
-            // LOADED/ACTIVE, and "nothing to load" is a normal state, not a reason to leave the
-            // bundle stuck. See SAT_027.
-            bundle.hydrateFrom(
-                    source.isPresent()
-                            ? source.get()
-                            : new NbtFixtureHydrationSource(new CompoundTag())
-            );
+            if (source.isPresent()) {
+                bundle.hydrateFrom(source.get());
+            } else {
+                // No saved data yet (first-ever creation -- the common case for a fresh world).
+                // IGNORE/WARN still hydrate from an explicitly empty source rather than leaving
+                // the bundle stuck: it still needs to reach ACTIVE, since saveAll()/onJigTick()
+                // both require LOADED/ACTIVE, and "nothing to load" is a normal state on its own
+                // (see SAT_027) -- missingPolicy() only changes whether that's silent, logged, or
+                // (ERROR) rejected outright instead of papered over. Not a raw FixtureHydrator
+                // call -- that class explicitly documents itself as performing no lifecycle
+                // transitions; bundle.hydrateFrom(...) is the real entry point (see SAT_061).
+                NbtFixtureHydrationSource fallback = new NbtFixtureHydrationSource(new CompoundTag());
+
+                JigPolicies.MissingDataPolicy policy = info.policies().persistence().missingPolicy();
+
+                switch (policy) {
+                    case IGNORE:
+                        bundle.hydrateFrom(fallback);
+                        break;
+                    case WARN:
+                        OUT.warn(
+                                "Missing persistence data for bundle " + key.name
+                                        + " in scope " + info.debugName()
+                        );
+                        bundle.hydrateFrom(fallback);
+                        break;
+                    case ERROR:
+                        throw new SatchelException.AccessFailed(
+                                "Missing persistence data for bundle " + key.name
+                                        + " in scope " + info.debugName()
+                        );
+                }
+            }
         }
 
         // Whatever this bundle required (persistence, or nothing at all) is now satisfied --
@@ -347,7 +372,8 @@ public final class ScopeEngine_Server implements ScopeEngine {
     private void flushIfDirty(
             ScopeInfo info,
             BundleKey<?> key,
-            SatchelBundle bundle
+            SatchelBundle bundle,
+            boolean terminal
     ) {
         if (!bundle.isDirty()) return;
 
@@ -356,6 +382,21 @@ public final class ScopeEngine_Server implements ScopeEngine {
         // below separately enforces that the jig allows it.
         if ((bundle.required() & Capability.PERSISTENCE.bit()) == 0) {
             return;
+        }
+
+        JigPolicies.FlushPolicy flushOn = info.policies().persistence().flushOn();
+
+        switch (flushOn) {
+            case NONE:
+                return;
+            case UNLOAD:
+                if (!terminal) {
+                    return;
+                }
+                break;
+            case EXECUTION_PULSE:
+                // Fall through to flush
+                break;
         }
 
         ServerLevel level = resolveServerLevel(info, CapableOf.PERSISTENCE);

@@ -75,6 +75,12 @@ public final class SatchelNetwork {
     ) {
         Satchel.requireServer();
 
+        // A jig that doesn't allow networking (JigPolicies.Capabilities.allowsNetworking()) never
+        // sends -- silent no-op, not an error. See SAT_062.
+        if (!info.policies().capabilities().allowsNetworking()) {
+            return;
+        }
+
         // info.scopeAs() is an unchecked cast to whatever the call site infers -- the actual
         // runtime scope object is a LevelScope (wrapping a Level), never a ServerLevel itself.
         // ServerLevel level = info.scopeAs() compiled fine (erasure) and threw ClassCastException
