@@ -7,11 +7,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * RM_SAT_020 rebuild. Not a resurrection of the old {@code PlayerResolver} -- that version
- * (package {@code com.arryn.satchel.common.requireJig.player}) predates both the jig/requireJig
- * rename and the current {@code SatchelScope}/{@code ScopeCoupler} shape; kept only as a sketch
- * of intent (see that node's log). Mirrors {@link com.arryn.satchel.common.jig.level.LevelResolver}'s
- * shape.
+ * RM_SAT_020 rebuild. Not a resurrection of the old {@code PlayerResolver} sketch -- that
+ * version predates the current {@code SatchelScope}/{@code ScopeCoupler} shape and is kept
+ * only as a sketch of intent (see that node's log), not a real prior implementation this one
+ * continues. Mirrors {@link com.arryn.satchel.common.jig.level.LevelResolver}'s shape.
  */
 public final class PlayerResolver {
 

@@ -70,7 +70,7 @@ public final class ClientForgeIngress {
         LogicalFoundation foundation = Satchel.require();
 
         // Introduce the LEVEL as a source.
-        // Each requireJig independently decides whether it recognizes this source.
+        // Each jig independently decides whether it recognizes this source.
         foundation.introduceSource(level);
     }
 

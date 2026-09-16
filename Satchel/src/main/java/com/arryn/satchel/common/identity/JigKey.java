@@ -34,7 +34,7 @@ public final class JigKey<J extends SatchelJig<? extends SatchelScope>>
         if (keyType != jigType) {
             throw new IllegalStateException(
                     "JigKey type mismatch: key=" + keyType.getName() +
-                            ", requireJig=" + jigType.getName()
+                            ", jig=" + jigType.getName()
             );
         }
     }

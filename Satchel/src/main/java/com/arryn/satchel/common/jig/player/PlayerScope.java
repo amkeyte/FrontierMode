@@ -12,9 +12,8 @@ import java.util.UUID;
 
 /**
  * SatchelScope representing a logged-in player. RM_SAT_020 rebuild -- see
- * {@link PlayerResolver} for why this doesn't resurrect the old, pre-rename
- * {@code common.requireJig.player.PlayerScope}. Mirrors
- * {@link com.arryn.satchel.common.jig.level.LevelScope}'s shape.
+ * {@link PlayerResolver} for why this doesn't resurrect the old {@code PlayerScope}
+ * sketch. Mirrors {@link com.arryn.satchel.common.jig.level.LevelScope}'s shape.
  *
  * <p>
  * Holds a {@link ServerPlayer} directly, not the abstract {@code Player} the old sketch used --

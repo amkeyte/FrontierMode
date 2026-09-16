@@ -42,7 +42,7 @@ import java.util.UUID;
  *   <li>Advance scopeInfo lifecycle state</li>
  *   <li>Perform readiness checks</li>
  *   <li>Emit Satchel lifecycle events</li>
- *   <li>Infer requireJig participation</li>
+ *   <li>Infer jig participation</li>
  * </ul>
  */
 @Mod.EventBusSubscriber(
@@ -97,7 +97,7 @@ public final class ServerForgeIngress {
         WorldIdentityContext.bindServerToken(worldToken);
 
         // Introduce the LEVEL as a source.
-        // Each requireJig independently decides whether it recognizes this source.
+        // Each jig independently decides whether it recognizes this source.
         foundation.introduceSource(level);
     }
 
