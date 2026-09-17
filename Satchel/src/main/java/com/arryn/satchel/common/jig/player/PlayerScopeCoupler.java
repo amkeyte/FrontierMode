@@ -7,7 +7,7 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
  * Policy boundary for player-scoped bundles. RM_SAT_020 rebuild, mirrors
  * {@link com.arryn.satchel.common.jig.level.LevelScopeCoupler}'s shape exactly: no extra
  * readiness gating beyond the scope existing. Unlike {@code LevelScope}, a {@link PlayerScope} is
- * only ever constructed for an already-logged-in {@code ServerPlayer} (see
+ * only ever constructed for an already-logged-in player, either side (see
  * {@link PlayerResolver#resolveScope}), so there's no analogous "world-identity token not arrived
  * yet" deferral window to gate on here.
  */

@@ -7,6 +7,7 @@ import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
@@ -18,7 +19,9 @@ import net.minecraftforge.fml.common.Mod;
 import java.util.UUID;
 
 /**
- * Forge ingress for client-side scopeInfo discovery.
+ * Forge ingress for client-side scopeInfo discovery -- {@code Level} sources (every jig kind
+ * whose config opts into {@code BOTH}) and, since SAT_063, {@code Player} sources for {@code
+ * PlayerJig} consumers that do the same.
  * <p>
  * Mirrors server ingress but:
  * - tolerant of "no jigs installed / no jigs recognize this source"
@@ -101,6 +104,43 @@ public final class ClientForgeIngress {
         // over from before.
         WorldIdentityContext.clearClientToken();
         lastAnnouncedWorldToken = null;
+    }
+
+    /* =============================================================
+     * Scope discovery — PLAYER (client, SAT_063)
+     * ========================================================== */
+
+    // Two separate @SubscribeEvent methods listen to LoggingIn/LoggingOut for two different
+    // concerns (this section for PlayerJig scope discovery, onLoggingOut above for
+    // world-identity token clearing) -- mirrors ServerForgeIngress's own "one clearly-named
+    // place per concern" split between onPlayerScopeDiscover and onPlayerLoggedIn.
+
+    @SubscribeEvent
+    public static void onPlayerScopeDiscover(ClientPlayerNetworkEvent.LoggingIn e) {
+        LocalPlayer player = e.getPlayer();
+        if (player == null) return;
+
+        BOOTER.bindFoundation();
+        ensureInstalled();
+
+        LogicalFoundation foundation = Satchel.require();
+
+        // No readiness defer window needed here -- see PlayerResolver.resolveScope's own doc
+        // for why player-identity resolution doesn't depend on the world-identity token the way
+        // LevelScope's does.
+        foundation.introduceSource(player);
+    }
+
+    @SubscribeEvent
+    public static void onPlayerScopeUnload(ClientPlayerNetworkEvent.LoggingOut e) {
+        // @Nullable on this specific event -- may be null when creating a new integrated server
+        // (singleplayer) or connecting to a multiplayer server, per the event's own doc.
+        LocalPlayer player = e.getPlayer();
+        if (player == null) return;
+
+        BOOTER.bindFoundation();
+
+        Satchel.require().tryRemoveSource(player);
     }
 
     /* =============================================================

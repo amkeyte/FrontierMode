@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.player.PlayerScope;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -101,6 +102,39 @@ public final class SatchelNetwork {
         );
     }
 
+
+    /**
+     * {@link PlayerScope} counterpart to {@link #send(ScopeInfo, Object)} above -- that method is
+     * {@link LevelScope}-only by its own doc comment; this is the "future scope type needs
+     * different distribution logic entirely" case it already anticipated. Modeled directly on
+     * {@link #sendToken(ServerPlayer, UUID)}'s own {@link PacketDistributor#PLAYER} pattern
+     * (SAT_063) -- per-player, not per-dimension, since a {@link PlayerScope}'s audience is
+     * exactly one connection, not everyone in some dimension.
+     */
+    public static void sendToPlayer(
+            ScopeInfo info,
+            Object packet
+    ) {
+        Satchel.requireServer();
+
+        // Same silent-no-op-on-disallowed shape as send() above -- see SAT_062.
+        if (!info.policies().capabilities().allowsNetworking()) {
+            return;
+        }
+
+        // info.scopeAs() erases to whatever the call site infers -- the real runtime scope is a
+        // PlayerScope, and PlayerScope.player() returns the abstract Player (SAT_063 widened it
+        // for real client-side PlayerJig existence). Safe to cast to ServerPlayer here
+        // specifically: Satchel.requireServer() above already guarantees this method only ever
+        // runs server-side, where the backing Player is always genuinely a ServerPlayer.
+        PlayerScope playerScope = info.scopeAs();
+        ServerPlayer player = (ServerPlayer) playerScope.player();
+
+        CHANNEL.send(
+                PacketDistributor.PLAYER.with(() -> player),
+                packet
+        );
+    }
 
     /**
      * RM_SAT_019 — push the world-identity token to one player.

@@ -117,6 +117,23 @@ public abstract class JigBindingConfig<S extends SatchelScope, SRC> {
         return this;
     }
 
+    /**
+     * Sets the resolver {@code ScopeEngine_Server.resolveServerLevel} uses to find the {@code
+     * ServerLevel} a persistence/networking/clock capability needs (see {@code
+     * ScopeInfo#referenceLevel()}). Only ever consulted server-side. Was previously settable only
+     * from inside a {@code JigConfig} subclass's own {@code createPresets()} (see {@code
+     * LevelJigConfig}'s {@code LevelScope::level} default) -- no fluent setter existed for an
+     * external caller (a consumer whose jig config, like {@code PlayerJigConfig}, has no single
+     * correct default) to supply its own. Added alongside {@code referenceLevel}'s other fluent
+     * mutators once a real consumer needed exactly that (SAT_063).
+     */
+    public JigBindingConfig<S, SRC> referenceLevel(
+            Function<S, Level> resolver
+    ) {
+        presets().referenceLevel = resolver;
+        return this;
+    }
+
     /* =============================================================
      * Preset access
      * ========================================================== */
