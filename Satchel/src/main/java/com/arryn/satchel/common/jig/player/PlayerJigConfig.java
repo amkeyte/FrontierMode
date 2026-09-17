@@ -7,18 +7,20 @@ import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerResolver;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.jig.player.PlayerScopeCoupler;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * RM_SAT_020: the config-side half of the {@code PlayerJig} rebuild, mirroring
- * {@link LevelJigConfig}'s four-category-lens shape exactly. No real consumer registers this yet
- * -- {@code RM_FRO_006} (per-player border evaluation) is the first one planned, and will
- * instantiate a {@code PlayerJigConfig}, attach its own bundle schema and event handlers (the
- * same two per-module calls {@code TrackingModule.init()}/{@code BorderModule.init()} make against
- * a {@code LevelJigConfig}), and call {@code Satchel.registerJigConfig(config)}. Until then this
- * class compiles and is directly constructable, but nothing in either repo instantiates it.
+ * {@link LevelJigConfig}'s four-category-lens shape exactly. Real consumers: FrontierMode's
+ * {@code BorderModule} (per-player border evaluation) and Satchel's own {@code
+ * PlayerHealthCheck}. Source type widened from {@code ServerPlayer} to the abstract {@link
+ * Player} by SAT_063 -- see {@link PlayerScope}'s own class doc for why; {@code
+ * sideApplicability} still defaults to {@code SERVER} below, same as {@link LevelJigConfig}'s
+ * own default, for the same reason: a consumer opts into {@code BOTH} explicitly when it
+ * actually wants the client-side path (see {@code PlayerHealthCheck.register()} for the first
+ * real consumer doing exactly that).
  */
-public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
+public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
 
     private final Binding binding = new Binding();
     private final Bundles bundles = new Bundles();
@@ -30,9 +32,9 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
     }
 
     @Override
-    protected Presets<PlayerScope, ServerPlayer> createPresets() {
+    protected Presets<PlayerScope, Player> createPresets() {
 
-        Presets<PlayerScope, ServerPlayer> p = new Presets<>();
+        Presets<PlayerScope, Player> p = new Presets<>();
 
         // -------------------------------------------------
         // Binding (identity-level)
@@ -40,13 +42,11 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
         p.binding.jigType = PlayerJig.class; // REQUIRED -- must be set by author
         p.binding.couplerClass = PlayerScopeCoupler.class; // REQUIRED -- must be set by author
         p.binding.scopeType = PlayerScope.class;
-        p.binding.sourceType = ServerPlayer.class;
-        // Server-only by default -- unlike LevelJigConfig's SERVER default, which Border
-        // overrides to BOTH for its own client-rendering needs, every real PlayerJig consumer
-        // named so far (RM_FRO_006) is server-authoritative, matching Border's own rule-
-        // evaluation split (see the Border wiki page's "Runtime wiring" section). A future
-        // client-side consumer can still override this the same way Border overrides
-        // LevelJigConfig's default.
+        p.binding.sourceType = Player.class;
+        // SERVER by default, same as LevelJigConfig's own default -- a consumer that actually
+        // wants the client-side path (SAT_063 made that real) opts into BOTH explicitly, the
+        // same way Border overrides LevelJigConfig's own SERVER default for its own
+        // client-rendering needs.
         p.binding.sideApplicability = JigPolicies.SideApplicability.SERVER;
         p.binding.scopeResolver = PlayerResolver::resolveScope;
         p.binding.uuidDeterminer = PlayerResolver::determineUUID;
@@ -56,11 +56,13 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
         // consumer whose bundle declares Capability.PERSISTENCE/NETWORKING/CLOCK in its own
         // required() (SAT_053) must ALSO set this jig's capabilities().allowsPersistence()/
         // allowsNetworking()/allowsClock() accordingly (the engine throws if the bundle asks for
-        // something this jig doesn't allow), and must supply its own referenceLevelResolver
-        // (e.g. scope -> scope.player().serverLevel()) via .binding().referenceLevel(...) -- left
-        // unset here, the same "no default, consumer's job" gap LevelJigConfig had for
-        // referenceLevel before SAT_023 added one, except here there's no single correct default
-        // to fall back to, so this isn't a bug to fix later.
+        // something this jig doesn't allow), and must supply its own referenceLevelResolver via
+        // .binding().referenceLevel(...) -- left unset here, the same "no default, consumer's
+        // job" gap LevelJigConfig had for referenceLevel before SAT_023 added one, except here
+        // there's no single correct default to fall back to, so this isn't a bug to fix later.
+        // referenceLevelResolver is only ever consulted server-side (ScopeEngine_Server), so a
+        // consumer's own resolver can safely cast down, e.g.
+        // scope -> ((ServerPlayer) scope.player()).serverLevel().
 
         // -------------------------------------------------
         // Execution
@@ -89,7 +91,7 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
     }
 
     @Override
-    public JigBindingConfig<PlayerScope, ServerPlayer> binding() {
+    public JigBindingConfig<PlayerScope, Player> binding() {
         return binding;
     }
 
@@ -109,10 +111,10 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, ServerPlayer> {
     }
 
     private final class Binding
-            extends JigBindingConfig<PlayerScope, ServerPlayer> {
+            extends JigBindingConfig<PlayerScope, Player> {
 
         @Override
-        protected Presets<PlayerScope, ServerPlayer> presets() {
+        protected Presets<PlayerScope, Player> presets() {
             return PlayerJigConfig.this.presets().binding;
         }
     }

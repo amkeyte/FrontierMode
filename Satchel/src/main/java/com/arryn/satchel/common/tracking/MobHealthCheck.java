@@ -89,6 +89,16 @@ final class MobHealthCheck {
         // gap provable rather than just declared.
         config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
 
+        // Required for PERSISTENCE below to actually work, not optional -- same gap and same
+        // fix as PlayerHealthCheck's own (SAT_063's log has the full story): confirmed live,
+        // ScopeEngine_Server.resolveServerLevel() throws AccessFailed when info.referenceLevel()
+        // is null, and MobJigConfig sets no default (see its own doc comment -- this was already
+        // a known, named gap, just not actually closed here until this crash). Mob#level()
+        // already returns the general Level type, no cast needed here -- resolveServerLevel()
+        // itself does the instanceof ServerLevel check downstream, same as it does for every
+        // other jig kind's resolver.
+        config.binding().referenceLevel(scope -> scope.mob().level());
+
         config.bundles().schema(bundles);
 
         config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));

@@ -212,6 +212,22 @@ public final class JigConfigValidator {
                 );
             }
 
+            // Catches at boot what would otherwise only surface as a live AccessFailed crash
+            // the moment a bundle actually claiming Capability.PERSISTENCE gets created --
+            // ScopeEngine_Server.resolveServerLevel() throws if ScopeInfo.referenceLevel() is
+            // null, and that only happens if binding().referenceLevel(...) was never called.
+            // Confirmed the hard way (a real server crash, not a hypothetical) before this
+            // check existed -- see SAT_060/SAT_063's logs.
+            if (p.binding.referenceLevel == null) {
+                throw new IllegalStateException(
+                        "Jig " + key +
+                                " allows persistence but declares no referenceLevel resolver -- " +
+                                "any bundle that actually claims Capability.PERSISTENCE will " +
+                                "throw AccessFailed the moment it's created, not now. Set one " +
+                                "via .binding().referenceLevel(...)."
+                );
+            }
+
 //            if (p.policies.ephemeralScopes) { //TODO compile hack
 //                throw new IllegalStateException(
 //                        "Jig " + key +

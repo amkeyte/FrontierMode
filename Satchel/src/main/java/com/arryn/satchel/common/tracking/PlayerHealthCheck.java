@@ -74,15 +74,34 @@ final class PlayerHealthCheck {
                         .on(ScopeEvent.Tick.class, PlayerHealthCheck::onPlayerScopeTick)
                         .build();
 
-        // PlayerJigConfig already pins sideApplicability(SERVER) as its own default -- left
-        // untouched here, deliberately: PlayerScope wraps a ServerPlayer directly and has no
-        // client-side existence to widen into (see PlayerScope's own class docs), unlike
-        // MobJig/LevelJig which both had a real CLIENT/BOTH gap to close.
         PlayerJigConfig config = new PlayerJigConfig(PLAYER_JIG);
+
+        // Was SERVER (PlayerJigConfig's own default, left untouched until SAT_063 built real
+        // client-side PlayerJig existence). BOTH is what makes that path provable rather than
+        // just declared -- same reasoning MobHealthCheck/LevelHealthCheck already give for their
+        // own BOTH widening.
+        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
+
+        // Required for PERSISTENCE below to actually work, not optional -- ScopeEngine_Server
+        // .resolveServerLevel() throws AccessFailed if info.referenceLevel() is null, and
+        // PlayerJigConfig sets no default (unlike LevelJigConfig's LevelScope::level -- a
+        // PlayerScope has no single Level it's intrinsically tied to, see PlayerJigConfig's own
+        // doc). Only ever consulted server-side (ScopeEngine_Client never calls
+        // resolveServerLevel), so the cast is safe regardless of this jig's own BOTH
+        // sideApplicability above.
+        config.binding().referenceLevel(
+                scope -> ((ServerPlayer) scope.player()).serverLevel()
+        );
 
         config.bundles().schema(bundles);
 
-        config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));
+        // NETWORKING (SAT_063): SatchelNetwork.sendToPlayer() now gives PlayerScope-scoped
+        // bundles a real distribution path, and JigConfigValidator's BOTH-applicability
+        // requirement for allowsNetworking() is already satisfied by this jig's own binding
+        // above. Without this, the client-side bundle would stay in CREATED forever -- see
+        // ScopeEngine_Client.create()'s own doc (SAT_053): any declared capability means
+        // "needs a parcel" client-side, and nothing sends one without this flag.
+        config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
         config.policies().persistence(
                 new JigPolicies.Persistence(
                         true,
@@ -110,12 +129,25 @@ final class PlayerHealthCheck {
         tracker.countLoaded();
 
         PlayerScope scope = (PlayerScope) info.scope();
-        // Downgraded to .debug, same "silent on pass" reasoning as the MobJig handlers.
-        OUT.debug(
-                "[PlayerTracking] LOADED player=" + scope.player().getGameProfile().getName()
-                        + " scope=" + scope.debugName()
-                        + " dim=" + scope.player().serverLevel().dimension().location()
-        );
+        // BOTH-applicability (SAT_063): scope.player() is a ServerPlayer server-side, a
+        // LocalPlayer client-side -- branch rather than cast unconditionally, mirroring
+        // LevelHealthCheck's own instanceof ServerLevel pattern. dimension() is only meaningful
+        // via the server-side accessor (serverLevel()); the client-side line skips it rather
+        // than reach for Minecraft.getInstance().level, which isn't this scope's own concern.
+        if (scope.player() instanceof ServerPlayer serverPlayer) {
+            OUT.debug(
+                    "[PlayerTracking] LOADED player=" + serverPlayer.getGameProfile().getName()
+                            + " scope=" + scope.debugName()
+                            + " side=SERVER"
+                            + " dim=" + serverPlayer.serverLevel().dimension().location()
+            );
+        } else {
+            OUT.debug(
+                    "[PlayerTracking] LOADED player=" + scope.player().getGameProfile().getName()
+                            + " scope=" + scope.debugName()
+                            + " side=CLIENT"
+            );
+        }
     }
 
     /**
@@ -128,6 +160,13 @@ final class PlayerHealthCheck {
      * {@code PlayerChangedDimensionEvent}, which {@code ServerForgeIngress}'s own comment already
      * flags as deliberately NOT hooked to this -- an easy mistake for someone to reintroduce later
      * without this check in place).
+     *
+     * <p><b>Server-side only</b> (SAT_063 made this BOTH-applicability, but this specific check
+     * stays server-only, same "known limitation" shape as {@link
+     * LevelHealthCheck#onLevelScopeUnloaded}'s own check) -- there is no client-side equivalent
+     * of "is this player still in the server's online-player list" to check; a client-side
+     * teardown just tears down, uncontested, same as any ordinary scope unload elsewhere in
+     * Satchel.
      *
      * <p><b>Deferred via {@link SatchelHealth#PENDING_HEALTH_CHECKS}</b>, same reasoning as {@link
      * LevelHealthCheck#onLevelScopeUnloaded}: a same-instant check would false-positive on every
@@ -160,7 +199,12 @@ final class PlayerHealthCheck {
                         + " scope=" + scope.debugName()
         );
 
-        ServerPlayer player = scope.player();
+        // BOTH-applicability (SAT_063): the deferred violation check below only makes sense
+        // server-side -- see this method's own doc. A client-side teardown skips it entirely.
+        if (!(scope.player() instanceof ServerPlayer player)) {
+            return;
+        }
+
         var server = player.getServer();
 
         if (server != null) {
