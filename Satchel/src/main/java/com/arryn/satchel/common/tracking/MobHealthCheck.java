@@ -22,6 +22,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
@@ -262,15 +263,26 @@ final class MobHealthCheck {
             return;
         }
 
-        if (!CANARY_CHECK_THROTTLE.allow()) {
-            return;
-        }
-
         if (!(info.scope() instanceof LevelScope levelScope)) {
             return;
         }
 
         if (!(levelScope.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        // Pinned to the Overworld -- the only dimension guaranteed to have a keep-loaded spawn
+        // region with nobody in it. A canary spawned in the Nether/End (no player, no force-load
+        // ticket) can go chunk-unresolvable between MobJig.reconcile() polls without ever being
+        // isRemoved(), which reads as a false teardown violation rather than an unsuitable spawn
+        // site. SatchelHealth as a whole assumes Overworld context for now; per-dimension coverage
+        // is a future refactor, not attempted here. Checked before the throttle below so a
+        // non-Overworld tick doesn't consume the throttle window.
+        if (!serverLevel.dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+
+        if (!CANARY_CHECK_THROTTLE.allow()) {
             return;
         }
 

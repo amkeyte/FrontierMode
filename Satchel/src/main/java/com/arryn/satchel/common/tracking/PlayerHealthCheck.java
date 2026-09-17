@@ -187,17 +187,23 @@ final class PlayerHealthCheck {
         var jig = info.jigInfo().jig;
         PlayerScope scope = (PlayerScope) info.scope();
 
+        // Tracker fixture included in the log line, mirroring LevelHealthCheck's own UNLOADED
+        // pattern -- internalTicks > 0 here is the direct, log-visible signal that this scope's
+        // bundle actually reached ACTIVE and ticked (ScopeEngine_Client.onJigTick() gates on
+        // ACTIVE), the thing SAT_063's networking wiring was specifically built to make happen
+        // client-side.
         jig.ask(info.scope(), PLAYER_BUNDLE)
                 .flatMap(b -> b.get(PLAYER_TRACKER))
-                .ifPresent(TrackerFixture::countUnloaded);
+                .ifPresent(f -> {
+                    f.countUnloaded();
+                    OUT.debug(
+                            "[PlayerTracking] UNLOADED player=" + scope.player().getGameProfile().getName()
+                                    + " scope=" + scope.debugName()
+                                    + " " + f
+                    );
+                });
 
         playerTickCounters.remove(scope.uuid());
-
-        // Downgraded to .debug alongside the matching LOADED line above -- same reasoning.
-        OUT.debug(
-                "[PlayerTracking] UNLOADED player=" + scope.player().getGameProfile().getName()
-                        + " scope=" + scope.debugName()
-        );
 
         // BOTH-applicability (SAT_063): the deferred violation check below only makes sense
         // server-side -- see this method's own doc. A client-side teardown skips it entirely.
