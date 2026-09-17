@@ -16,6 +16,6 @@ public final class LevelTrackerBundle extends SatchelBundle {
 
     @Override
     public int required() {
-        return Capability.PERSISTENCE.bit();
+        return Capability.PERSISTENCE.bit() | Capability.NETWORKING.bit();
     }
 }
