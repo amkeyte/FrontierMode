@@ -1,0 +1,317 @@
+package com.arryn.satchel.common.tracking;
+
+import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.identity.BundleKey;
+import com.arryn.satchel.common.identity.FixtureKey;
+import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
+import com.arryn.satchel.common.jig.mob.MobJig;
+import com.arryn.satchel.common.jig.mob.MobScope;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.lifecycle.EventHandlers;
+import com.arryn.satchel.common.jig.config.JigBundles;
+import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.mob.MobJigConfig;
+import com.arryn.satchel.common.util.Ids;
+import com.arryn.satchel.common.util.out.OUT;
+import com.arryn.satchel.common.util.throttle.TickThrottler;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ambient.Bat;
+import net.minecraftforge.fml.LogicalSide;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * MobJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
+ * init/watch/pending-check machinery this registers into. Relocated from the single
+ * SatchelHealth.java (SAT_060) once that file grew too large to keep editing as one piece --
+ * same IDs, same behavior as before the split, not a rewrite.
+ */
+final class MobHealthCheck {
+
+    private MobHealthCheck() {}
+
+    public static final BundleKey<MobTrackerBundle> MOB_BUNDLE =
+            new BundleKey<>(
+                    "satchelmobtracker:mob_tracker_bundle",
+                    MobTrackerBundle.class
+            );
+
+    public static final FixtureKey<TrackerFixture> MOB_TRACKER =
+            new FixtureKey<>(
+                    "satchelmobtracker:mob_tracker_fixture",
+                    TrackerFixture.class
+            );
+
+    public static final JigKey<MobJig> MOB_JIG =
+            new JigKey<>(
+                    "satchelmobtracker:mob_tracker_jig",
+                    MobJig.class
+            );
+
+    static void register() {
+        var trackerFixture =
+                new JigBundles.FixtureDecl<TrackerFixture>(
+                        MOB_TRACKER,
+                        TrackerFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+
+        var trackingBundle =
+                new JigBundles.BundleDecl<MobScope, MobTrackerBundle>(
+                        MOB_BUNDLE,
+                        (MobScope scope) -> new MobTrackerBundle(scope, MOB_BUNDLE),
+                        List.of(trackerFixture)
+                );
+
+        JigBundles.Schema<MobScope> bundles =
+                new JigBundles.Schema<>(List.of(trackingBundle));
+
+        EventHandlers eventHandlers =
+                EventHandlers.builder()
+                        .on(ScopeEvent.Loaded.class, MobHealthCheck::onMobScopeLoaded)
+                        .on(ScopeEvent.Unloaded.class, MobHealthCheck::onMobScopeUnloaded)
+                        .on(ScopeEvent.Tick.class, MobHealthCheck::onMobScopeTick)
+                        .build();
+
+        MobJigConfig config = new MobJigConfig(MOB_JIG);
+
+        // Was SERVER (MobTrackingModule's original call). BOTH is what makes MobJig's CLIENT/BOTH
+        // gap provable rather than just declared.
+        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
+
+        config.bundles().schema(bundles);
+
+        config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));
+        config.policies().persistence(
+                new JigPolicies.Persistence(
+                        true,
+                        JigPolicies.FlushPolicy.EXECUTION_PULSE,
+                        JigPolicies.MissingDataPolicy.WARN));
+
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
+                .eventHandlers(eventHandlers);
+
+        MobInterestRegistry.register(MOB_JIG, () -> SatchelHealth.INTERESTS);
+
+        Satchel.registerJigConfig(config);
+    }
+
+    private static void onMobScopeLoaded(ScopeEvent.Loaded event) {
+        ScopeInfo info = event.info();
+        Objects.requireNonNull(info, "info");
+
+        if (!MOB_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        var jig = info.jigInfo().jig;
+        var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
+        var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
+        tracker.countLoaded();
+
+        MobScope scope = (MobScope) info.scope();
+        OUT.debug(
+                "[SatchelHealth] LOADED mob=" + scope.mob().getType()
+                        + " scope=" + scope.debugName()
+                        + " side=" + Satchel.require().side()
+                        + " dim=" + scope.mob().level().dimension().location()
+        );
+    }
+
+    /**
+     * A {@link MobScope} that reaches teardown with its backing {@link Mob#isRemoved()} still
+     * {@code false} has been torn down for a reason other than the two MobJig's reason-agnostic
+     * contract allows (chunk unload, genuine removal -- both set {@code isRemoved()} true by
+     * construction). That is exactly the shape of the latent client-side bug RM_SAT_022
+     * documents and exists to fix.
+     */
+    private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
+        ScopeInfo info = event.info();
+
+        if (!MOB_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        var jig = info.jigInfo().jig;
+        MobScope scope = (MobScope) info.scope();
+        Mob mob = scope.mob();
+        LogicalSide side = Satchel.require().side();
+
+        jig.ask(info.scope(), MOB_BUNDLE)
+                .flatMap(b -> b.get(MOB_TRACKER))
+                .ifPresent(TrackerFixture::countUnloaded);
+
+        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side);
+
+        if (!mob.isRemoved()) {
+            String message = "[SatchelHealth] VIOLATION: MobScope torn down on side=" + side
+                    + " while its backing mob is still present (isRemoved()=false). "
+                    + "mob=" + mob.getType() + " uuid=" + Ids.shortId(scope.uuid())
+                    + " -- this is the RM_SAT_022 latent teardown bug (or a new regression of the "
+                    + "same shape) caught live. See SAT_039 / RM_SAT_022 before treating this as "
+                    + "a surprise.";
+            OUT.error(message);
+            throw new IllegalStateException(message);
+        }
+
+        // Checkpoint, not routine noise -- specifically the canary's own teardown, not every
+        // ambient mob real gameplay happens to put under tracking (those stay .debug above,
+        // same as load -- a busy server can tear down many ordinary tracked mobs per minute).
+        if (scope.uuid().equals(canaryUuid)) {
+            OUT.info(
+                    "[SatchelHealth] MobJig canary teardown check passed: side=" + side
+                            + " uuid=" + Ids.shortId(scope.uuid())
+            );
+        }
+    }
+
+    private static final Map<UUID, Integer> tickCounters = new ConcurrentHashMap<>();
+    private static final int MOB_TICK_LOG_EVERY_N_TICKS = 100;
+
+    private static void onMobScopeTick(ScopeEvent.Tick event) {
+        ScopeInfo info = event.info();
+
+        if (!MOB_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        var jig = info.jigInfo().jig;
+        MobScope scope = (MobScope) info.scope();
+
+        jig.ask(info.scope(), MOB_BUNDLE)
+                .flatMap(b -> b.get(MOB_TRACKER))
+                .ifPresent(f -> {
+                    f.countExternalTick();
+
+                    int count = tickCounters.merge(scope.uuid(), 1, Integer::sum);
+                    if (count % MOB_TICK_LOG_EVERY_N_TICKS == 0) {
+                        // Commented out for now (2026-08-29 playtest): still reaching the dev
+                        // console at forge.logging.console.level=debug even after the .debug
+                        // downgrade, and OUT funnels all call sites through one shared logger
+                        // (see OUT.java), so there's no per-class filter to reach for yet.
+                        // Re-enable (or replace with a real per-class filter) once that's built.
+                        // OUT.debug(
+                        //         "[SatchelHealth] TICK mob=" + scope.mob().getType()
+                        //                 + " scope=" + scope.debugName()
+                        //                 + " side=" + Satchel.require().side()
+                        // );
+                    }
+                });
+    }
+
+    // =================================================================
+    // Canary -- SAT_060 rebuild. SAT_039's original canary was removed by SAT_050 after a
+    // NoSuchFieldError: BAT class-load crash, traced to EntityType.BAT being referenced from an
+    // eagerly-evaluated static final field (evaluated at class-init the instant any static
+    // member of this class was touched, regardless of whether canary logic ever ran). Fixed
+    // here by never assigning the entity type to a static field at all -- see
+    // canaryEntityType()'s own doc.
+    // =================================================================
+
+    private static final TickThrottler CANARY_CHECK_THROTTLE =
+            new TickThrottler(200, new TickThrottler.AutoClock());
+    private static volatile UUID canaryUuid;
+
+    /**
+     * Ensures a live canary mob exists under {@code MOB_JIG}, so its CLIENT/BOTH poll path has
+     * a guaranteed-present subject to exercise continuously rather than depending on real
+     * gameplay putting a mob under tracking.
+     *
+     * <p>
+     * Piggybacks on {@link LevelHealthCheck}'s own {@code LEVEL_JIG} tick, not {@code MOB_JIG}'s
+     * -- {@code MOB_JIG} has zero scopes whenever no canary currently exists, so it can never
+     * wake itself up to spawn one, while {@code LEVEL_JIG} always has a scope for every loaded
+     * level, giving this a reliable clock to ride. Subscribed alongside {@link
+     * LevelHealthCheck}'s own handlers on the shared event bus (see {@link
+     * LevelHealthCheck#register()}), so this guards against {@code LEVEL_JIG}, not {@code
+     * MOB_JIG} -- the usual jig-key guard, just checking a different jig than the rest of this
+     * file's handlers do.
+     *
+     * <p>
+     * Once spawned, the canary needs no further scanning/rediscovery logic of its own:
+     * registering its UUID via {@link SatchelHealth#watch} feeds {@code MOB_JIG}'s own
+     * interest-driven poll ({@code MobInterestRegistry}), which already resolves interested
+     * UUIDs through {@code ForgeEgress} on both sides independently -- that poll, not anything
+     * specific to this method, is what actually proves the CLIENT/BOTH path.
+     */
+    static void maintainCanary(ScopeEvent.Tick event) {
+        ScopeInfo info = event.info();
+
+        if (!LevelHealthCheck.LEVEL_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        if (!CANARY_CHECK_THROTTLE.allow()) {
+            return;
+        }
+
+        if (!(info.scope() instanceof LevelScope levelScope)) {
+            return;
+        }
+
+        if (!(levelScope.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        UUID existing = canaryUuid;
+        if (existing != null
+                && Satchel.require().egress().getEntity(serverLevel, existing).isPresent()) {
+            return;
+        }
+
+        Mob canary = spawnCanary(serverLevel);
+        if (canary == null) {
+            return;
+        }
+
+        canaryUuid = canary.getUUID();
+        SatchelHealth.watch(serverLevel, canaryUuid);
+        MobScope.getFor(canary);
+
+        OUT.info(
+                "[SatchelHealth] Canary spawned: " + canary.getType()
+                        + " uuid=" + Ids.shortId(canaryUuid)
+                        + " dim=" + serverLevel.dimension().location()
+        );
+    }
+
+    private static Mob spawnCanary(ServerLevel level) {
+        Mob mob = canaryEntityType().create(level);
+        if (mob == null) {
+            return null;
+        }
+
+        BlockPos pos = level.getSharedSpawnPos();
+        mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0.0F, 0.0F);
+        mob.setPersistenceRequired();
+
+        if (!level.addFreshEntity(mob)) {
+            return null;
+        }
+
+        return mob;
+    }
+
+    /**
+     * Deliberately a method, not a {@code static final} field -- this is the actual fix for
+     * SAT_050's {@code NoSuchFieldError: BAT} crash. A method body isn't evaluated until called;
+     * {@link EntityType#BAT} is only ever touched from inside {@link #spawnCanary}'s own call to
+     * this method, itself only reached once {@link #maintainCanary} has already decided a
+     * canary needs spawning -- never at class-load time, regardless of whether any static
+     * member of this class has been touched.
+     */
+    private static EntityType<Bat> canaryEntityType() {
+        return EntityType.BAT;
+    }
+}

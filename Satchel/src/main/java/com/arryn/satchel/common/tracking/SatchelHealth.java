@@ -1,52 +1,29 @@
 package com.arryn.satchel.common.tracking;
 
-import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.bundle.SatchelBundle;
-import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.identity.FixtureKey;
-import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.level.LevelJig;
-import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
-import com.arryn.satchel.common.jig.mob.MobJig;
-import com.arryn.satchel.common.jig.mob.MobScope;
-import com.arryn.satchel.common.jig.player.PlayerJig;
-import com.arryn.satchel.common.jig.player.PlayerScope;
-import com.arryn.satchel.common.lifecycle.ScopeEvent;
-import com.arryn.satchel.common.lifecycle.EventHandlers;
-import com.arryn.satchel.common.jig.config.JigBundles;
-import com.arryn.satchel.common.jig.config.JigPolicies;
-import com.arryn.satchel.common.jig.level.LevelJigConfig;
-import com.arryn.satchel.common.jig.mob.MobJigConfig;
-import com.arryn.satchel.common.jig.player.PlayerJigConfig;
-import com.arryn.satchel.common.util.Ids;
+import com.arryn.satchel.common.config.SatchelConfig;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * SAT_039/SAT_040 -- the permanent home for every run-monitoring / self-verification module
- * Satchel owns, not a single-purpose test. Absorbs {@code MobTrackingModule}, {@code
- * TrackingModule} (LevelJig), and {@code PlayerTrackingModule} (PlayerJig) wholesale (same
- * registered bundle/fixture/jig key IDs each already used, same public surfaces -- this is a
- * relocation, not a second copy) and adds each jig kind its own violation check: an automatic,
- * silent-on-pass, loud-on-fail regression backstop proving that kind's teardown only ever happens
- * for a reason its own contract actually allows. SAT_039 built {@code MobJig}'s (a CLIENT/BOTH
- * gap nothing in either repo had ever exercised, see SAT_039's audit and RM_SAT_022's log);
- * SAT_040 (this pass) adds {@code LevelJig} and {@code PlayerJig}'s.
+ * SAT_039/SAT_040/SAT_060 -- the permanent home for every run-monitoring / self-verification
+ * module Satchel owns, not a single-purpose test: an automatic, silent-on-pass, loud-on-fail
+ * regression backstop proving each jig kind's teardown only ever happens for a reason its own
+ * contract actually allows. Split by jig kind across four files (SAT_060, once this file grew
+ * too large to safely edit as one piece) -- {@link MobHealthCheck}, {@link LevelHealthCheck},
+ * and {@link PlayerHealthCheck} each own one jig kind's keys, registration, and event handlers;
+ * this file holds only what's genuinely shared across all three and what code outside this
+ * package actually calls: {@link #init()}, the {@link #watch}/{@link #unwatch}/{@link
+ * #currentInterests} surface {@code MobTrackCommands} uses, and the {@link
+ * #PENDING_HEALTH_CHECKS}/{@link #pumpPendingHealthChecks()} deferred-check queue {@code
+ * LevelHealthCheck}/{@code PlayerHealthCheck} enqueue onto and {@code ServerForgeIngress} drains.
+ * Same package, same conceptual "one home" as before the split -- just not one literal file.
  *
  * <p><b>MobJig, LevelJig, and PlayerJig are not the same shape underneath, and their checks
  * aren't copy-pasted from one another.</b> MobJig's teardown is <i>inferred</i> -- a poll-driven
@@ -57,30 +34,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * real Forge event each ({@code LevelEvent.Unload}, {@code PlayerLoggedOutEvent}), never inferred.
  * So their violation checks aren't "is the backing thing still there" (Mob's shape) but "did
  * teardown get triggered while the backing thing is still demonstrably live" -- catching a future
- * regression that calls {@code tryRemoveSource} from the wrong place (see
- * {@link #onLevelScopeUnloaded} and {@link #onPlayerScopeUnloaded} for each kind's own reasoning).
+ * regression that calls {@code tryRemoveSource} from the wrong place. See each file's own
+ * violation-check javadoc for the reasoning specific to that jig kind.
  *
  * <p><b>Shape: a live-run monitor, not a build-time (JUnit/GameTest) test.</b> Project owner's
  * explicit call: what's wanted is a permanent, in-repo "SatchelHealth" module that proves a
  * major service each jig kind provides hasn't broken, checked every time someone actually runs a
  * client/server, not gated behind {@code gradle test}. That trades CI-style gating (nothing stops
  * a broken commit from landing unnoticed if nobody runs the client that session) for reaching
- * something JUnit-without-Forge fundamentally can't: a live entity resolution path. See this
- * class's own log entry on SAT_039 for the full reasoning and that trade-off spelled out.
- *
- * <p><b>MobJig's canary was removed [SAT_050].</b> SAT_039 originally paired {@code MobJig}'s
- * violation check with an always-on synthetic subject -- a vanilla {@code Bat}, tagged and
- * spawned/discovered via a {@code BOTH}-applicability {@code LevelJig} coordinator -- so the
- * CLIENT/BOTH gap had a guaranteed-present entity to exercise it continuously on both sides
- * without waiting on real gameplay. That mechanism was pulled after it produced a
- * {@code NoSuchFieldError: BAT} class-load crash on at least one dev machine (a JVM linkage
- * failure resolving {@code EntityType.BAT} -- distinct from, and unrelated to, this module's own
- * deliberate {@code IllegalStateException} violation-check crashes described below). {@code
- * MobJig}'s {@code BOTH} widening and {@link #onMobScopeUnloaded}'s violation check are otherwise
- * unchanged and still fire for any real {@code MobScope} that reaches teardown while its backing
- * mob is present -- there's simply no longer a synthetic entity guaranteeing that path gets
- * exercised on every run; coverage now depends on real gameplay putting a mob under
- * {@code MobJig} (FrontierMode/Border's own consumers, manually {@link #watch}ed mobs, etc.).
+ * something JUnit-without-Forge fundamentally can't: a live entity resolution path.
  *
  * <p><b>Known limitation, LevelJig:</b> the violation check only runs server-side, using {@code
  * MinecraftServer#getLevel} to ask whether the dimension is still actively registered. There's no
@@ -88,96 +50,21 @@ import java.util.concurrent.ConcurrentHashMap;
  * Minecraft.getInstance().level}, and per this project's Forge Integration & Sidedness Contract,
  * {@code ClientForgeIngress} is the only class meant to touch client-engine state directly; adding
  * that reference here would break that boundary for a check whose value hasn't been weighed
- * against the cost. {@code LevelJig}'s config is still widened to {@code BOTH} (see {@link
- * #registerLevelHealthCheck}), so the client-side load/tick/unload path is genuinely exercised --
- * an exception anywhere in it still crashes loudly -- just not this specific violation check.
+ * against the cost. {@code LevelJig}'s config is still widened to {@code BOTH}, so the client-side
+ * load/tick/unload path is genuinely exercised -- an exception anywhere in it still crashes loudly
+ * -- just not this specific violation check.
  *
- * <p><b>Crash is unconditional for now, by explicit project-owner instruction</b> -- no
- * dev/production gate exists yet to make this safe to ship live. That gate is deliberately left
- * as follow-up scope, not built speculatively against a deployment shape nobody has specified.
+ * <p><b>Crash is unconditional whenever this module is enabled at all</b> -- see {@link
+ * SatchelConfig#HEALTH_ENABLED} (SAT_060) for the real switch: {@code false} means {@link
+ * #init()} registers none of the three jig configs, so no tracker bundle, no violation check,
+ * and no synthetic exercise of any kind runs at all. Intended for a release/production profile,
+ * or whenever this module's synthetic activity is unwanted -- there is no finer-grained
+ * per-check gate, on purpose; this is an all-or-nothing switch.
  */
 public final class SatchelHealth {
 
     private SatchelHealth() {
     }
-
-    // =================================================================
-    // MobJig health check -- relocated from MobTrackingModule verbatim
-    // (same IDs, same watch/unwatch/currentInterests surface), with
-    // sideApplicability widened SERVER -> BOTH. That widening is the
-    // entire point of this ticket's MobJig slice.
-    // =================================================================
-
-    public static final BundleKey<SatchelBundle> MOB_BUNDLE =
-            new BundleKey<>(
-                    "satchelmobtracker:mob_tracker_bundle",
-                    SatchelBundle.class
-            );
-
-    public static final FixtureKey<TrackerFixture> MOB_TRACKER =
-            new FixtureKey<>(
-                    "satchelmobtracker:mob_tracker_fixture",
-                    TrackerFixture.class
-            );
-
-    public static final JigKey<MobJig> MOB_JIG =
-            new JigKey<>(
-                    "satchelmobtracker:mob_tracker_jig",
-                    MobJig.class
-            );
-
-    // =================================================================
-    // LevelJig health check -- relocated from TrackingModule verbatim
-    // (same IDs, same debug-level LOADED/UNLOADED/TICK logging), with
-    // sideApplicability widened SERVER -> BOTH (SAT_040). New here: a
-    // server-side violation check on teardown -- see
-    // onLevelScopeUnloaded's own docs for why it's server-only.
-    // =================================================================
-
-    public static final BundleKey<SatchelBundle> LEVEL_BUNDLE =
-            new BundleKey<>(
-                    "satcheltracker:tracker_bundle",
-                    SatchelBundle.class
-            );
-
-    public static final FixtureKey<TrackerFixture> LEVEL_TRACKER =
-            new FixtureKey<>(
-                    "satcheltracker:tracker_fixture",
-                    TrackerFixture.class
-            );
-
-    public static final JigKey<LevelJig> LEVEL_JIG =
-            new JigKey<>(
-                    "satcheltracker:tracker_jig",
-                    LevelJig.class
-            );
-
-    // =================================================================
-    // PlayerJig health check -- relocated from PlayerTrackingModule
-    // verbatim (same IDs, same info-level LOADED/UNLOADED/TICK
-    // logging). Stays SERVER -- PlayerScope wraps a ServerPlayer
-    // directly and has no client-side existence to widen into (see
-    // PlayerScope's own class docs). New here: a violation check on
-    // teardown -- see onPlayerScopeUnloaded's own docs.
-    // =================================================================
-
-    public static final BundleKey<SatchelBundle> PLAYER_BUNDLE =
-            new BundleKey<>(
-                    "satcheltracker:player_tracker_bundle",
-                    SatchelBundle.class
-            );
-
-    public static final FixtureKey<TrackerFixture> PLAYER_TRACKER =
-            new FixtureKey<>(
-                    "satcheltracker:player_tracker_fixture",
-                    TrackerFixture.class
-            );
-
-    public static final JigKey<PlayerJig> PLAYER_JIG =
-            new JigKey<>(
-                    "satcheltracker:player_tracker_jig",
-                    PlayerJig.class
-            );
 
     // RM_SAT_022 ("Roger"): widened from Map<ServerLevel, Set<UUID>> to Map<Level, Set<UUID>> --
     // MobJig's poll now resolves through ForgeEgress, not a ServerLevel cast, so this registry
@@ -210,255 +97,28 @@ public final class SatchelHealth {
     // =================================================================
 
     public static void init() {
+        if (!SatchelConfig.HEALTH_ENABLED.get()) {
+            OUT.info("SatchelHealth disabled via config (healthEnabled=false) -- not registering.");
+            return;
+        }
+
         OUT.info(
-                "SatchelHealth Initializing (SAT_039/SAT_040 -- absorbs MobTrackingModule "
-                        + "[BOTH], TrackingModule [now BOTH], PlayerTrackingModule [SERVER])"
+                "SatchelHealth Initializing (SAT_039/SAT_040/SAT_060 -- MobJig [BOTH], LevelJig "
+                        + "[BOTH], PlayerJig [SERVER])"
         );
 
-        registerMobHealthCheck();
-        registerLevelHealthCheck();
-        registerPlayerHealthCheck();
-    }
-
-    private static void registerMobHealthCheck() {
-        var trackerFixture =
-                new JigBundles.FixtureDecl<TrackerFixture>(
-                        MOB_TRACKER,
-                        TrackerFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
-
-        var trackingBundle =
-                new JigBundles.BundleDecl<MobScope, SatchelBundle>(
-                        MOB_BUNDLE,
-                        (MobScope scope) -> new SatchelBundle(scope, MOB_BUNDLE),
-                        List.of(trackerFixture)
-                );
-
-        JigBundles.Schema<MobScope> bundles =
-                new JigBundles.Schema<>(List.of(trackingBundle));
-
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        .on(ScopeEvent.Loaded.class, SatchelHealth::onMobScopeLoaded)
-                        .on(ScopeEvent.Unloaded.class, SatchelHealth::onMobScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, SatchelHealth::onMobScopeTick)
-                        .build();
-
-        MobJigConfig config = new MobJigConfig(MOB_JIG);
-
-        // Was SERVER (MobTrackingModule's original call). BOTH is this ticket's actual change --
-        // see class docs. Everything downstream of this one line is what makes that change
-        // provable rather than just declared.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-
-        config.bundles().schema(bundles);
-
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
-                .eventHandlers(eventHandlers);
-
-        MobInterestRegistry.register(MOB_JIG, () -> INTERESTS);
-
-        Satchel.registerJigConfig(config);
-    }
-
-    private static void registerLevelHealthCheck() {
-        var trackerFixture =
-                new JigBundles.FixtureDecl<TrackerFixture>(
-                        LEVEL_TRACKER,
-                        TrackerFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
-
-        var trackingBundle =
-                new JigBundles.BundleDecl<LevelScope, SatchelBundle>(
-                        LEVEL_BUNDLE,
-                        (LevelScope scope) -> new SatchelBundle(scope, LEVEL_BUNDLE),
-                        List.of(trackerFixture)
-                );
-
-        JigBundles.Schema<LevelScope> bundles =
-                new JigBundles.Schema<>(List.of(trackingBundle));
-
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        .on(ScopeEvent.Loaded.class, SatchelHealth::onLevelScopeLoaded)
-                        .on(ScopeEvent.Unloaded.class, SatchelHealth::onLevelScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, SatchelHealth::onLevelScopeTick)
-                        .build();
-
-        LevelJigConfig config = new LevelJigConfig(LEVEL_JIG);
-
-        // Was SERVER (TrackingModule's original call, LevelJigConfig's own default). BOTH is
-        // SAT_040's change here, same treatment SAT_039 gave MobJig and for the same reason: a
-        // server/client pair running only Satchel (no FrontierMode, no Border) should still be
-        // able to prove LevelJig's client-side lifecycle path works, rather than depending on
-        // Border to be the only thing that's ever exercised it.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-
-        config.bundles().schema(bundles);
-
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
-                .eventHandlers(eventHandlers);
-
-        Satchel.registerJigConfig(config);
-    }
-
-    private static void registerPlayerHealthCheck() {
-        var trackerFixture =
-                new JigBundles.FixtureDecl<TrackerFixture>(
-                        PLAYER_TRACKER,
-                        TrackerFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
-
-        var trackingBundle =
-                new JigBundles.BundleDecl<PlayerScope, SatchelBundle>(
-                        PLAYER_BUNDLE,
-                        (PlayerScope scope) -> new SatchelBundle(scope, PLAYER_BUNDLE),
-                        List.of(trackerFixture)
-                );
-
-        JigBundles.Schema<PlayerScope> bundles =
-                new JigBundles.Schema<>(List.of(trackingBundle));
-
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        .on(ScopeEvent.Loaded.class, SatchelHealth::onPlayerScopeLoaded)
-                        .on(ScopeEvent.Unloaded.class, SatchelHealth::onPlayerScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, SatchelHealth::onPlayerScopeTick)
-                        .build();
-
-        // PlayerJigConfig already pins sideApplicability(SERVER) as its own default -- left
-        // untouched here, deliberately: PlayerScope wraps a ServerPlayer directly and has no
-        // client-side existence to widen into (see PlayerScope's own class docs), unlike
-        // MobJig/LevelJig which both had a real CLIENT/BOTH gap to close.
-        PlayerJigConfig config = new PlayerJigConfig(PLAYER_JIG);
-
-        config.bundles().schema(bundles);
-
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
-                .eventHandlers(eventHandlers);
-
-        Satchel.registerJigConfig(config);
+        MobHealthCheck.register();
+        LevelHealthCheck.register();
+        PlayerHealthCheck.register();
     }
 
     // =================================================================
-    // MOB_JIG handlers -- relocated MobTrackingModule logic, plus the
-    // one new thing this ticket exists to add: onMobScopeUnloaded's
-    // violation check.
-    // =================================================================
-
-    private static void onMobScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
-        Objects.requireNonNull(info, "info");
-
-        if (!MOB_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
-        var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
-        tracker.countLoaded();
-
-        MobScope scope = (MobScope) info.scope();
-        // Downgraded to .debug -- SAT_039's own "silent on pass" principle: an ordinary mob
-        // scope load is not an event worth INFO-level noise on every ambient mob in the world,
-        // every few seconds. Still fully visible in debug.log.
-        OUT.debug(
-                "[SatchelHealth] LOADED mob=" + scope.mob().getType()
-                        + " scope=" + scope.debugName()
-                        + " side=" + Satchel.require().side()
-                        + " dim=" + scope.mob().level().dimension().location()
-        );
-    }
-
-    /**
-     * The check this whole ticket exists to build. A {@link MobScope} that reaches teardown with
-     * its backing {@link Mob#isRemoved()} still {@code false} has been torn down for a reason
-     * other than the two MobJig's reason-agnostic contract allows (chunk unload, genuine removal
-     * -- both set {@code isRemoved()} true by construction; see Jig & Scope Runtime's MobJig
-     * section and {@link com.arryn.satchel.common.jig.mob.MobJig#reconcile}'s own docs). That is
-     * exactly the shape of the latent client-side bug RM_SAT_022 documents and exists to fix --
-     * until it lands, this fires on the first real {@code MobScope} teardown that hits the gap
-     * (see class docs -- no longer guaranteed by a dedicated canary; see SAT_050).
-     */
-    private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
-
-        if (!MOB_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        MobScope scope = (MobScope) info.scope();
-        Mob mob = scope.mob();
-        LogicalSide side = Satchel.require().side();
-
-        jig.ask(info.scope(), MOB_BUNDLE)
-                .flatMap(b -> b.get(MOB_TRACKER))
-                .ifPresent(TrackerFixture::countUnloaded);
-
-        // Downgraded to .debug alongside the matching LOADED line above -- same reasoning.
-        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side);
-
-        if (!mob.isRemoved()) {
-            String message = "[SatchelHealth] VIOLATION: MobScope torn down on side=" + side
-                    + " while its backing mob is still present (isRemoved()=false). "
-                    + "mob=" + mob.getType() + " uuid=" + Ids.shortId(scope.uuid())
-                    + " -- this is the RM_SAT_022 latent teardown bug (or a new regression of the "
-                    + "same shape) caught live. See SAT_039 / RM_SAT_022 before treating this as "
-                    + "a surprise.";
-            OUT.error(message);
-            throw new IllegalStateException(message);
-        }
-    }
-
-    private static final Map<UUID, Integer> tickCounters = new ConcurrentHashMap<>();
-    private static final int MOB_TICK_LOG_EVERY_N_TICKS = 100;
-
-    private static void onMobScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-
-        if (!MOB_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        MobScope scope = (MobScope) info.scope();
-
-        jig.ask(info.scope(), MOB_BUNDLE)
-                .flatMap(b -> b.get(MOB_TRACKER))
-                .ifPresent(f -> {
-                    f.countExternalTick();
-
-                    int count = tickCounters.merge(scope.uuid(), 1, Integer::sum);
-                    if (count % MOB_TICK_LOG_EVERY_N_TICKS == 0) {
-                        // Commented out for now (2026-08-29 playtest): still reaching the dev
-                        // console at forge.logging.console.level=debug even after the .debug
-                        // downgrade, and OUT funnels all call sites through one shared logger
-                        // (see OUT.java), so there's no per-class filter to reach for yet.
-                        // Re-enable (or replace with a real per-class filter) once that's built.
-                        // OUT.debug(
-                        //         "[SatchelHealth] TICK mob=" + scope.mob().getType()
-                        //                 + " scope=" + scope.debugName()
-                        //                 + " side=" + Satchel.require().side()
-                        // );
-                    }
-                });
-    }
-
-    // =================================================================
-    // SAT_040's genuinely-deferred health-check queue (second attempt, 2026-08-24). Used by
-    // both onLevelScopeUnloaded and onPlayerScopeUnloaded below -- see either method's own docs
-    // for why this exists and why the first attempt (server.execute(...)) didn't work. Plain
-    // ArrayDeque, not a concurrent collection: every enqueue happens from a Forge event fired on
-    // the server thread, and the only drain point (pumpPendingHealthChecks, called from
-    // ServerForgeIngress's own execution-pulse tick hook) also runs on the server thread.
+    // Deferred violation checks -- LevelHealthCheck/PlayerHealthCheck enqueue onto this from
+    // their own onXScopeUnloaded handlers; drained once per real server tick from
+    // ServerForgeIngress#onExecutionPulse, a genuinely later call chain than the one that
+    // queued each check. Plain ArrayDeque, not a concurrent collection: every enqueue happens
+    // from a Forge event fired on the server thread, and the only drain point
+    // (pumpPendingHealthChecks) also runs on the server thread.
     // =================================================================
     static final Deque<Runnable> PENDING_HEALTH_CHECKS = new ArrayDeque<>();
 
@@ -473,237 +133,5 @@ public final class SatchelHealth {
         while ((check = PENDING_HEALTH_CHECKS.poll()) != null) {
             check.run();
         }
-    }
-
-    // =================================================================
-    // LEVEL_JIG handlers -- relocated TrackingModule logic (unchanged:
-    // still DEBUG-level, still logs "[Tracking] ..."), plus SAT_040's
-    // new addition: onLevelScopeUnloaded's violation check.
-    // =================================================================
-
-    private static void onLevelScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
-        Objects.requireNonNull(info, "info");
-
-        // Shared-bus caveat, same reasoning every tracking module's handlers already carry.
-        if (!LEVEL_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        var bundle = jig.getOrCreate(info.scope(), LEVEL_BUNDLE);
-        var tracker = bundle.getOrCreateFixture(LEVEL_TRACKER, TrackerFixture::new);
-        tracker.countLoaded();
-
-        OUT.debug("[Tracking] LOADED " + info.debugName() + " " + tracker);
-    }
-
-    /**
-     * SAT_040's addition. Unlike {@link #onMobScopeUnloaded}, {@code LevelJig} teardown isn't
-     * <i>inferred</i> from a poll -- {@code ServerForgeIngress#onLevelUnload} is the only place
-     * that calls {@code tryRemoveSource(level)}, and it only runs from a real {@code
-     * LevelEvent.Unload}. So the violation this check catches isn't "is the dimension actually
-     * gone" (trivially true given how teardown is wired today) but "did teardown get triggered
-     * for a dimension that's still the server's actively-registered instance for that key" --
-     * exactly what a future regression that calls {@code tryRemoveSource} from the wrong place
-     * (a stray extra hook, a stale-reference bug like RM_SAT_014's) would produce. Server-side
-     * only -- see this class's own docs for why there's no client-side equivalent yet.
-     *
-     * <p><b>Second attempt at deferral, 2026-08-24 -- the first ({@code server.execute(...)})
-     * didn't actually defer anything.</b> {@code BlockableEventLoop#execute} runs its task
-     * INLINE when called from the thread that already owns the loop -- and this whole call
-     * chain ({@code MinecraftServer.stopServer()} -> {@code LevelEvent.Unload} -> this handler)
-     * always runs on the server thread, so the "deferred" check fired synchronously, same as the
-     * very first (undeferred) version, and false-positived the same way. This version instead
-     * queues the check onto {@link #PENDING_HEALTH_CHECKS}, drained once per server tick from a
-     * genuinely later call chain ({@code ServerForgeIngress#onExecutionPulse}, the next tick's
-     * execution pulse) -- not from inside the same synchronous unwind that queued it. On final
-     * process shutdown specifically, the tick loop has already stopped before {@code
-     * stopServer()} fires this event, so the queue is never pumped again and the check is
-     * silently abandoned rather than firing wrongly -- correct behavior, not a gap: nothing is
-     * left running to observe a stale registration once the whole server is going away anyway.
-     */
-    private static void onLevelScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
-
-        if (!LEVEL_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        LevelScope scope = (LevelScope) info.scope();
-
-        jig.ask(info.scope(), LEVEL_BUNDLE)
-                .flatMap(b -> b.get(LEVEL_TRACKER))
-                .ifPresent(f -> {
-                    f.countUnloaded();
-                    OUT.debug("[Tracking] UNLOADED " + info.debugName() + " " + f);
-                });
-
-        Level level = scope.level();
-        if (level instanceof ServerLevel serverLevel) {
-            var server = serverLevel.getServer();
-            var dimension = serverLevel.dimension();
-
-            PENDING_HEALTH_CHECKS.add(() -> {
-                boolean stillRegistered = server.getLevel(dimension) == serverLevel;
-
-                if (stillRegistered) {
-                    String message = "[SatchelHealth] VIOLATION: LevelScope torn down for "
-                            + "dimension=" + dimension.location() + " and it is STILL the "
-                            + "server's actively-registered level instance for that dimension "
-                            + "key one tick later. Teardown should only ever follow a real "
-                            + "LevelEvent.Unload for this exact level (see "
-                            + "ServerForgeIngress#onLevelUnload) -- something called "
-                            + "tryRemoveSource for a level that never actually unloaded.";
-                    OUT.error(message);
-                    throw new IllegalStateException(message);
-                }
-            });
-        }
-    }
-
-    private static void onLevelScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-
-        if (!LEVEL_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-
-        jig.ask(info.scope(), LEVEL_BUNDLE)
-                .flatMap(b -> b.get(LEVEL_TRACKER))
-                .ifPresent(TrackerFixture::countExternalTick);
-    }
-
-    // =================================================================
-    // PLAYER_JIG handlers -- relocated PlayerTrackingModule logic
-    // (unchanged: still INFO-level, still logs "[PlayerTracking] ..."),
-    // plus SAT_040's new addition: onPlayerScopeUnloaded's violation
-    // check.
-    // =================================================================
-
-    private static void onPlayerScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
-        Objects.requireNonNull(info, "info");
-
-        if (!PLAYER_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        var bundle = jig.getOrCreate(info.scope(), PLAYER_BUNDLE);
-        var tracker = bundle.getOrCreateFixture(PLAYER_TRACKER, TrackerFixture::new);
-        tracker.countLoaded();
-
-        PlayerScope scope = (PlayerScope) info.scope();
-        // Downgraded to .debug, same "silent on pass" reasoning as the MobJig handlers above.
-        OUT.debug(
-                "[PlayerTracking] LOADED player=" + scope.player().getGameProfile().getName()
-                        + " scope=" + scope.debugName()
-                        + " dim=" + scope.player().serverLevel().dimension().location()
-        );
-    }
-
-    /**
-     * SAT_040's addition, same reasoning as {@link #onLevelScopeUnloaded}: {@code PlayerJig}
-     * teardown is authoritative, not inferred -- {@code ServerForgeIngress#onPlayerScopeUnload}
-     * is the only place that calls {@code tryRemoveSource(player)}, and it only runs from a real
-     * {@code PlayerLoggedOutEvent}. The violation this check catches is teardown firing while the
-     * player is still in the server's own online-player list -- exactly what would happen if a
-     * future regression wired {@code tryRemoveSource} to something else that isn't a real logout
-     * (e.g. {@code PlayerChangedDimensionEvent}, which {@code ServerForgeIngress}'s own comment
-     * already flags as deliberately NOT hooked to this -- an easy mistake for someone to
-     * reintroduce later without this check in place).
-     *
-     * <p><b>Second attempt at deferral, 2026-08-24 -- see {@link #onLevelScopeUnloaded}'s docs
-     * for why the first ({@code server.execute(...)}) didn't actually defer anything.</b> This
-     * version queues the check onto {@link #PENDING_HEALTH_CHECKS} instead, drained once per
-     * server tick from a genuinely later call chain. For an ordinary logout, {@code
-     * PlayerList#remove} finishes removing the player from its own lists well before the next
-     * tick's execution pulse runs, so the queued check now actually observes the post-removal
-     * state. On full shutdown, the tick loop has already stopped before the remaining players
-     * get kicked, so the queue never gets pumped again and the check is silently abandoned --
-     * correct here too, for the same reason as the level check.
-     */
-    private static void onPlayerScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
-
-        if (!PLAYER_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        PlayerScope scope = (PlayerScope) info.scope();
-
-        jig.ask(info.scope(), PLAYER_BUNDLE)
-                .flatMap(b -> b.get(PLAYER_TRACKER))
-                .ifPresent(TrackerFixture::countUnloaded);
-
-        playerTickCounters.remove(scope.uuid());
-
-        // Downgraded to .debug alongside the matching LOADED line above -- same reasoning.
-        OUT.debug(
-                "[PlayerTracking] UNLOADED player=" + scope.player().getGameProfile().getName()
-                        + " scope=" + scope.debugName()
-        );
-
-        ServerPlayer player = scope.player();
-        var server = player.getServer();
-
-        if (server != null) {
-            UUID playerUuid = player.getUUID();
-            String playerName = player.getGameProfile().getName();
-
-            PENDING_HEALTH_CHECKS.add(() -> {
-                boolean stillOnline = server.getPlayerList().getPlayer(playerUuid) != null;
-
-                if (stillOnline) {
-                    String message = "[SatchelHealth] VIOLATION: PlayerScope torn down for "
-                            + "player=" + playerName + " and they are STILL present in the "
-                            + "server's online player list one tick later. Teardown should "
-                            + "only ever follow a real PlayerLoggedOutEvent (see "
-                            + "ServerForgeIngress#onPlayerScopeUnload) -- something called "
-                            + "tryRemoveSource for a player who never actually logged out.";
-                    OUT.error(message);
-                    throw new IllegalStateException(message);
-                }
-            });
-        }
-    }
-
-    // Per-scope tick counter, keyed by scope UUID, purely for throttling this debug tool's own
-    // log output -- relocated from PlayerTrackingModule unchanged. Named distinctly from MobJig's
-    // own tickCounters above (both classes' state now lives in this one file).
-    private static final Map<UUID, Integer> playerTickCounters = new ConcurrentHashMap<>();
-    private static final int PLAYER_TICK_LOG_EVERY_N_TICKS = 100; // ~5s at 20 TPS
-
-    private static void onPlayerScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-
-        if (!PLAYER_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        var jig = info.jigInfo().jig;
-        PlayerScope scope = (PlayerScope) info.scope();
-
-        jig.ask(info.scope(), PLAYER_BUNDLE)
-                .flatMap(b -> b.get(PLAYER_TRACKER))
-                .ifPresent(f -> {
-                    f.countExternalTick();
-
-                    int count = playerTickCounters.merge(scope.uuid(), 1, Integer::sum);
-                    if (count % PLAYER_TICK_LOG_EVERY_N_TICKS == 0) {
-                        // Commented out for now (2026-08-29 playtest) -- same reasoning as the
-                        // mob TICK log above; see that comment.
-                        // OUT.debug(
-                        //         "[PlayerTracking] TICK player=" + scope.player().getGameProfile().getName()
-                        //                 + " scope=" + scope.debugName()
-                        //                 + " dim=" + scope.player().serverLevel().dimension().location()
-                        // );
-                    }
-                });
     }
 }
