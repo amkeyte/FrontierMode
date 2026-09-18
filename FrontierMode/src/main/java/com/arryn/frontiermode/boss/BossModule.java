@@ -140,7 +140,7 @@ public final class BossModule {
         config.policies().persistence(
                 new JigPolicies.Persistence(
                         true,
-                        JigPolicies.FlushPolicy.UNLOAD,
+                        JigPolicies.FlushPolicy.EXECUTION_PULSE,
                         JigPolicies.MissingDataPolicy.WARN));
         // withExecutionPulse(true) is required alongside withTick(true) -- persistence flush only
         // runs from inside onExecutionPulse.

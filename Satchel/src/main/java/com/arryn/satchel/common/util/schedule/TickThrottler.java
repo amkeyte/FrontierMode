@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.util.throttle;
+package com.arryn.satchel.common.util.schedule;
 
 import java.util.Objects;
 import java.util.function.LongSupplier;
@@ -15,62 +15,24 @@ import java.util.function.LongSupplier;
  * source capable of tracking elapsed changes from one state to another
  * are valid. examples are actual time comparisons, number of times
  * the throttler is polled, number of passes through a loop.
+ *
+ * <p>See {@link TickDelay} for the one-shot sibling -- same construction/polling shape, fires
+ * at most once instead of on a recurring cadence.
  */
 public final class TickThrottler {
-    /**
-     *
-     */
-    public static class NullClock implements ThrottleClockSource {
-        @Override
-        public long elapsed() {
-            return 0;
-        }
-        private long getZero() {return 0;}
-
-        @Override
-        public LongSupplier elapsedSupplier() {
-            return this::getZero;
-        }
-    }
-    public interface TickableClockSource extends ThrottleClockSource {
-        void tick();
-    }
-
-    /**
-     * ticks every time the throttler is polled.
-     */
-    public static class AutoClock implements TickableClockSource {
-        private long elapsed = 0L;
-
-        @Override
-        public long elapsed() {
-            return elapsed;
-        }
-
-        @Override
-        public LongSupplier elapsedSupplier() {
-            return this::elapsed; // <-- FIX
-        }
-
-        @Override
-        public void tick(){
-            elapsed++;
-        }
-    }
 
     private final long interval;
     private final LongSupplier timeSource;
-    private  final ThrottleClockSource clockSource;
+    private final SchedulerClock clockSource;
 
     private long lastTick = Long.MIN_VALUE;
-
 
     /**
      * @param intervalTicks minimum ticks between allows
      * @param timeSource    supplier of current game time
      */
     public TickThrottler(long intervalTicks, LongSupplier timeSource) {
-        Objects.requireNonNull(timeSource,"timeSource");
+        Objects.requireNonNull(timeSource, "timeSource");
 
         if (intervalTicks <= 0) {
             throw new IllegalArgumentException("intervalTicks must be > 0");
@@ -79,11 +41,12 @@ public final class TickThrottler {
         this.clockSource = null;
         this.timeSource = timeSource;
     }
-   /**
+
+    /**
      * @param intervalTicks minimum ticks between allows
      */
-    public TickThrottler(long intervalTicks, ThrottleClockSource clockSource) {
-        Objects.requireNonNull(clockSource,"clockSource");
+    public TickThrottler(long intervalTicks, SchedulerClock clockSource) {
+        Objects.requireNonNull(clockSource, "clockSource");
 
         if (intervalTicks <= 0) {
             throw new IllegalArgumentException("intervalTicks must be > 0");
@@ -92,6 +55,7 @@ public final class TickThrottler {
         this.clockSource = clockSource;
         this.timeSource = clockSource.elapsedSupplier();
     }
+
     /**
      * Returns true when (currentElapsed - lastAllowedElapsed) >= interval.
      * The clock source defines what "elapsed" means.
@@ -100,15 +64,12 @@ public final class TickThrottler {
 
         long thisTick = timeSource.getAsLong();
 
-        if(clockSource!= null
-            && clockSource instanceof AutoClock tickable){
+        if (clockSource instanceof SchedulerClock.AutoClock tickable) {
             tickable.tick();
         }
 
-
         if (lastTick == Long.MIN_VALUE) {
             lastTick = thisTick;
-            //hitCount++;
             return true;
         }
 
@@ -120,11 +81,10 @@ public final class TickThrottler {
         // Advance in whole intervals to avoid drift
         long steps = elapsed / interval;
         lastTick += steps * interval;
-        //hitCount++;
         return true;
     }
 
-    public boolean disAllow(){
+    public boolean disAllow() {
         return !allow();
     }
 
@@ -133,10 +93,7 @@ public final class TickThrottler {
      */
     public void reset() {
         lastTick = Long.MIN_VALUE;
-        //hitCount = 0;
     }
-
-
 
     public long interval() {
         return interval;

@@ -4,7 +4,7 @@ import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import net.minecraft.nbt.CompoundTag;
 
 import java.util.LinkedHashMap;
@@ -55,12 +55,12 @@ public abstract class SatchelFixture {
         OUT.TRACE().registerCaller(
                 this,
                 "isReady",
-                new TickThrottler.AutoClock(),
+                new SchedulerClock.AutoClock(),
                 1000L);
         OUT.TRACE().registerCaller(
                 this,
                 "isnotready",
-                new TickThrottler.AutoClock(),
+                new SchedulerClock.AutoClock(),
                 1000L);
     }
 

@@ -6,7 +6,7 @@ import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -71,7 +71,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
     public ASatchelJig() {
         OUT.TRACE().registerCaller(
                 this,
-                new TickThrottler.AutoClock(),
+                new SchedulerClock.AutoClock(),
                 200L,
                 "tryMarkScopeReady",
                 "handleScopeTick");

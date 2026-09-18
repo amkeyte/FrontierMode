@@ -1,12 +1,12 @@
-package com.arryn.satchel.server.util.throttle;
+package com.arryn.satchel.server.util.schedule;
 
-import com.arryn.satchel.common.util.throttle.ThrottleClockSource;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import net.minecraft.server.MinecraftServer;
 
 import java.util.function.LongSupplier;
 
 
-public class ServerWorldTimeClockSource implements ThrottleClockSource {
+public class ServerWorldTimeClockSource implements SchedulerClock {
 
     private final MinecraftServer server;
 

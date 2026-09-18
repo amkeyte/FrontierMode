@@ -204,6 +204,10 @@ public final class ScopeEngine_Server implements ScopeEngine {
 
         // Sync & lifecycle hooks
         bundle.attachSyncDelegate(this::scheduleSync);
+        // SAT_068: info/key bound in now since they don't change for this bundle's lifetime --
+        // forceWriteToDisk() stays a zero-arg call for module code that only ever holds the
+        // bundle reference, never a ScopeInfo.
+        bundle.attachFlushDelegate(() -> forceFlushToDisk(info, key, bundle));
         bundle.onCreated();
 
         // Hydrate state-only
@@ -406,6 +410,53 @@ public final class ScopeEngine_Server implements ScopeEngine {
                 .store(bundle.saveAll());
 
         bundle.clearDirty();
+    }
+
+    /**
+     * SAT_068: the delegate behind {@link SatchelBundle#forceWriteToDisk()}. Diagnosed live:
+     * {@code EXECUTION_PULSE}'s own {@link #flushIfDirty} only refreshes {@link BundleSavedData}'s
+     * in-memory snapshot and marks vanilla's own dirty flag -- actual disk durability was still
+     * entirely bounded by Minecraft's own autosave cycle (default ~5 min) or a clean shutdown, so
+     * a crash inside that window still lost a "significant event" mutation (a boss kill, e.g.)
+     * FRO_101's flushOn wiring alone couldn't have closed. This is a distinct, explicit,
+     * caller-invoked path -- unlike {@link #flushIfDirty}, it ignores {@code flushOn} entirely
+     * (including {@code NONE}) and isn't gated on {@link SatchelBundle#isDirty()}: the caller's
+     * whole point is "this is durable right now," not "only if something already thinks it's
+     * stale."
+     *
+     * <p>Unlike the automatic path, a missing {@code Capability.PERSISTENCE} declaration here
+     * throws rather than silently skipping -- calling this on a bundle that was never going to be
+     * written to disk at all is a caller wiring mistake, the same "crash loudly, don't paper over
+     * it" precedent {@link #resolveServerLevel} already sets for a jig/bundle capability mismatch.
+     */
+    private void forceFlushToDisk(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle) {
+        if ((bundle.required() & Capability.PERSISTENCE.bit()) == 0) {
+            throw new SatchelException.AccessFailed(
+                    "forceWriteToDisk() called on bundle " + bundle.debugName()
+                            + ", which does not declare Capability.PERSISTENCE -- nothing to "
+                            + "flush. Either this bundle needs PERSISTENCE, or this call is "
+                            + "wrong for it."
+            );
+        }
+
+        ServerLevel level = resolveServerLevel(info, CapableOf.PERSISTENCE);
+
+        SavedDataEgressSink
+                .forBundle(level, key)
+                .store(bundle.saveAll());
+
+        bundle.clearDirty();
+
+        // store() above only refreshes the in-memory BundleSavedData snapshot and marks vanilla's
+        // own SavedData dirty -- the same half EXECUTION_PULSE already did. This call is the
+        // actual fix: DimensionDataStorage#save() synchronously writes every currently-dirty
+        // SavedData for this level to disk right now, the same real, vanilla-native call
+        // autosave and a clean shutdown both already use -- confirmed via the mapped MC jar
+        // (DimensionDataStorage.save() -> SavedData.save(File), gated on isDirty() internally),
+        // not assumed. Deliberately level-wide, not single-record: any other bundle that happens
+        // to be dirty at this exact moment gets the same durability for free, which is a feature
+        // here, not scope creep -- one real disk write, not N.
+        level.getDataStorage().save();
     }
 
     private void scheduleSync(

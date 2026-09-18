@@ -72,6 +72,8 @@ public class SatchelBundle {
     private int syncIntervalTicks = DEFAULT_SYNC_INTERVAL_TICKS;
     private int syncCounter;
 
+    private BundleFlushDelegate flushDelegate;
+
     private int ticksNotActive;
     private boolean inertnessWarned;
 
@@ -350,6 +352,31 @@ public class SatchelBundle {
 
         syncCounter = 0;
         syncDelegate.sync(info, key, this);
+    }
+
+    public final void attachFlushDelegate(BundleFlushDelegate delegate) {
+        this.flushDelegate = delegate;
+    }
+
+    /**
+     * SAT_068: forces this bundle's current state to disk immediately, bypassing whatever
+     * {@code FlushPolicy} cadence it's otherwise governed by (including {@code NONE}) --
+     * for a caller that considers this bundle's current state too important to leave to the
+     * next automatic flush or Minecraft's own autosave cycle (a boss defeat, say). Not
+     * gated on {@link #isDirty()}: always re-serializes and writes the bundle's current state,
+     * since the caller's whole point is "make sure what's here right now is durable," not
+     * "only if something happens to think it's stale."
+     *
+     * <p>No-op if never attached -- true client-side only, mirroring {@link #pulseSync}'s own
+     * null-delegate handling (no persistence engine exists to flush to). Server-side, the
+     * delegate is always attached at creation regardless of what this bundle declares; calling
+     * this on a bundle that never declared {@link Capability#PERSISTENCE} is a caller mistake,
+     * not a quiet no-op, and the attached delegate throws for that case rather than silently
+     * doing nothing.
+     */
+    public final void forceWriteToDisk() {
+        if (flushDelegate == null) return;
+        flushDelegate.flush();
     }
 
     /**

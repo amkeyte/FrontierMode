@@ -16,7 +16,8 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
+import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -231,7 +232,7 @@ final class MobHealthCheck {
     // =================================================================
 
     private static final TickThrottler CANARY_CHECK_THROTTLE =
-            new TickThrottler(200, new TickThrottler.AutoClock());
+            new TickThrottler(200, new SchedulerClock.AutoClock());
     private static volatile UUID canaryUuid;
 
     /**

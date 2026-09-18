@@ -1,8 +1,8 @@
-package test.arryn.satchel.util.throttle;
+package test.arryn.satchel.util.schedule;
 
 import com.arryn.satchel.common.util.out.Tracer;
-import com.arryn.satchel.common.util.throttle.ThrottleClockSource;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
+import com.arryn.satchel.common.util.schedule.TickThrottler;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -33,7 +33,7 @@ class TickThrottlerTest {
 
     @Test
     void interval_must_be_positive_clockSource() {
-        TickThrottler.NullClock clock = new TickThrottler.NullClock();
+        SchedulerClock.NullClock clock = new SchedulerClock.NullClock();
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -50,7 +50,7 @@ class TickThrottlerTest {
 
         assertThrows(
                 NullPointerException.class,
-                () -> new TickThrottler(5, (ThrottleClockSource) null)
+                () -> new TickThrottler(5, (SchedulerClock) null)
         );
     }
 
@@ -144,8 +144,8 @@ class TickThrottlerTest {
 
     @Test
     void autoClock_advances_elapsed_by_one_per_poll() {
-        TickThrottler.AutoClock clock =
-                new TickThrottler.AutoClock();
+        SchedulerClock.AutoClock clock =
+                new SchedulerClock.AutoClock();
 
         TickThrottler throttler =
                 new TickThrottler(3, clock);
@@ -165,8 +165,8 @@ class TickThrottlerTest {
 
     @Test
     void nullClock_allows_once_then_never_again() {
-        TickThrottler.NullClock clock =
-                new TickThrottler.NullClock();
+        SchedulerClock.NullClock clock =
+                new SchedulerClock.NullClock();
 
         TickThrottler throttler =
                 new TickThrottler(1, clock);
