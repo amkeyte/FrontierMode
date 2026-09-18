@@ -9,7 +9,8 @@ import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
+import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -43,7 +44,7 @@ import java.util.UUID;
  * the precedent for this hook), so no separate {@code EventHandlers} wiring is needed in
  * {@code BorderModule.init()} the way {@code Rendering} need for
  * {@link BordersFixture}'s own tick-driven neighbors. Reuses
- * {@code com.arryn.satchel.common.util.throttle.TickThrottler} for pacing, per that page's
+ * {@code com.arryn.satchel.common.util.schedule.TickThrottler} for pacing, per that page's
  * "Reused, not reinvented" section -- the same class {@link SatchelFixture}'s own trace-log
  * rate-limiting already uses, general-purpose rather than log-specific.
  */
@@ -79,10 +80,10 @@ public final class BorderPregenFixture extends SatchelFixture {
 
     private final List<BorderPregenRecord> jobs = new ArrayList<>();
     private final TickThrottler throttler =
-            new TickThrottler(BorderRules.ACTIVE.pregenThrottleIntervalTicks(), new TickThrottler.AutoClock());
+            new TickThrottler(BorderRules.ACTIVE.pregenThrottleIntervalTicks(), new SchedulerClock.AutoClock());
 
     private final TickThrottler stallCheckThrottler =
-            new TickThrottler(STALL_CHECK_INTERVAL_TICKS, new TickThrottler.AutoClock());
+            new TickThrottler(STALL_CHECK_INTERVAL_TICKS, new SchedulerClock.AutoClock());
 
     // Wall-clock start times for the "how long did this take" log line below -- deliberately not
     // persisted (just a log nicety, not state anything reads back): a job resumed after a server

@@ -52,6 +52,10 @@ final class BossJigHandlers {
         BossBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
+        // FRO_108: fires any delayed force-flush a defeat cascade scheduled -- see
+        // boss.md's "Cascade durability".
+        fixture.pollForceFlush();
+
         fixture.SPAWN.finalizeUnpositioned(level);
         fixture.SPAWN.materializeUnresolved(level, uuid -> BossInterests.add(level, uuid));
         reconcilePathAgainstBossRecords(level, fixture);
@@ -164,6 +168,10 @@ final class BossJigHandlers {
         if (!fixture.CRUD.markDefeated(bossId.get())) {
             return;
         }
+
+        // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
+        // gating below stops growth right here -- see boss.md's "Cascade durability".
+        fixture.scheduleForceFlush();
 
         // On-path gate: a hand-placed off-path boss never triggers growth. An on-path boss only
         // triggers growth once it's the last living sibling on that border.

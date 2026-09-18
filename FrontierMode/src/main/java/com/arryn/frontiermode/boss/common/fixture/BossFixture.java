@@ -1,9 +1,12 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
+import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -77,6 +80,12 @@ public final class BossFixture extends SatchelFixture {
     // record (see boss.md#boss-less-path-layers-and-attach). Separate from `bosses` above since
     // these ids have no BossRecord at all yet.
     private final Set<UUID> pendingAttach = new HashSet<>();
+
+    // FRO_108: transient (not persisted) -- BossFixture already owns one instance per level, so
+    // this is automatically scoped correctly with no map/key needed. null means nothing pending.
+    // See boss.md's "Cascade durability" section for the full design this implements.
+    private static final long FORCE_FLUSH_DELAY_TICKS = 20;
+    private TickDelay pendingForceFlush;
 
     public BossFixture() {
         registerCustom(
@@ -471,6 +480,45 @@ public final class BossFixture extends SatchelFixture {
             markDirty();
         }
         return removed;
+    }
+
+    // ------------------------------------------------------------------
+    // FRO_108: force-flush scheduling -- see boss.md#cascade-durability-schedule-one-delayed-flush-poll-it-from-the-existing-tick-handler
+    // ------------------------------------------------------------------
+
+    /**
+     * Schedules a single delayed {@code forceWriteToDisk()} call, or coalesces into one already
+     * pending on this level. Called right after {@code CRUD.markDefeated(bossId)} returns
+     * {@code true} in both cascade sites ({@code BossJigHandlers.onMobDied},
+     * {@code BossAPI.forceDefeat}) -- unconditionally, regardless of whether cascade gating lets
+     * growth proceed afterward, since the defeat mark itself is already a real mutation worth
+     * protecting. By the time the delay elapses, every bundle this defeat mutated (this one, and
+     * {@code BordersBundle} if growth ran) will have already had its own automatic
+     * {@code EXECUTION_PULSE} refresh run -- so the single {@code forceWriteToDisk()} call
+     * {@link #pollForceFlush} eventually fires genuinely catches every sibling, via the existing
+     * level-wide {@code save()} side effect.
+     */
+    public void scheduleForceFlush() {
+        if (pendingForceFlush == null) {
+            pendingForceFlush = new TickDelay(FORCE_FLUSH_DELAY_TICKS, new SchedulerClock.AutoClock());
+        } else {
+            // A flush from an earlier, still-pending defeat on this level -- coalesce two
+            // near-simultaneous defeats into one eventual write instead of two.
+            pendingForceFlush.reset();
+        }
+    }
+
+    /**
+     * Polled from {@code BossJigHandlers.onTick}, which already runs every real tick per level --
+     * no new tick source needed. Fires the pending delayed flush once its delay elapses, then
+     * clears it back to {@code null} rather than leaving it in its fired state, so a later defeat
+     * starts a genuinely fresh delay instead of inheriting a used-up one.
+     */
+    public void pollForceFlush() {
+        if (pendingForceFlush != null && pendingForceFlush.allow()) {
+            this.<SatchelBundle>getBundle().forceWriteToDisk();
+            pendingForceFlush = null;
+        }
     }
 }
 

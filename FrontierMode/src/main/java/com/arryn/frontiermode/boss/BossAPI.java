@@ -344,6 +344,10 @@ public final class BossAPI {
                     Optional.empty(), false);
         }
 
+        // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
+        // gating below stops growth right here -- see boss.md's "Cascade durability".
+        fixture.scheduleForceFlush();
+
         // FRO_083 (boss.md "Cascade gating: on-path, and last one standing"), mirrors the
         // identical check BossModule.onLivingDeath() runs right after its own markDefeated() --
         // see that method's own comment for the full reasoning. The defeat mutation above already

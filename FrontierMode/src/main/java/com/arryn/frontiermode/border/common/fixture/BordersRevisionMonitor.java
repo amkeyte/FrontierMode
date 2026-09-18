@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.world.level.Level;
 
 import java.util.HashMap;
