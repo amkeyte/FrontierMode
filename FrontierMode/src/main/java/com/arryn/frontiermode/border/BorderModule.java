@@ -160,13 +160,12 @@ public final class BorderModule {
         // not enough; without this call JigConfigValidator.validateCapabilities rejects the
         // config at foundation boot (on both sides, since this config is BOTH-applicability)
         // with "requires persistence but persistence policy is not persistent" before any
-        // level ever loads. flushOn/missingPolicy aren't consumed by anything yet (grepped:
-        // no reader exists), but set to real values rather than defaults so the policy
-        // reads as intentional, not a leftover default.
+        // level ever loads. EXECUTION_PULSE flushes on every dirty pulse rather than only at
+        // scope teardown -- see FRO_101.
         config.policies().persistence(
                 new JigPolicies.Persistence(
                         true,
-                        JigPolicies.FlushPolicy.UNLOAD,
+                        JigPolicies.FlushPolicy.EXECUTION_PULSE,
                         JigPolicies.MissingDataPolicy.WARN));
 
         // JigPolicies.Lifecycle.defaults() is (load=true, unload=true, tick=false,
@@ -278,7 +277,7 @@ public final class BorderModule {
 
         var jig = (PlayerJig) info.jigInfo().jig;
         PlayerScope scope = (PlayerScope) info.scope();
-        ServerPlayer player = scope.player();
+        ServerPlayer player = (ServerPlayer) scope.player();
 
         BorderPlayerBundle bundle = jig.getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE);
         BorderPlayerStatusFixture fixture =

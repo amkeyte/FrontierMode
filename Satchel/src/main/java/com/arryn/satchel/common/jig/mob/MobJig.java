@@ -8,7 +8,8 @@ import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.throttle.TickThrottler;
+import com.arryn.satchel.common.util.schedule.SchedulerClock;
+import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -36,7 +37,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
     // instance exists per compiled JigConfig (per JigKey), so this throttle is naturally scoped
     // per-consumer, never shared/global.
     private final TickThrottler throttler =
-            new TickThrottler(20, new TickThrottler.AutoClock());
+            new TickThrottler(20, new SchedulerClock.AutoClock());
 
     public MobJig() {
     }

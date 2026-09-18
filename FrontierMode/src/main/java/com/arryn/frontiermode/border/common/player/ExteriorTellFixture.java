@@ -80,7 +80,7 @@ public final class ExteriorTellFixture extends SatchelFixture {
         tickCounter = 0;
 
         PlayerScope playerScope = (PlayerScope) scope();
-        ServerPlayer player = playerScope.player();
+        ServerPlayer player = (ServerPlayer) playerScope.player();
         ServerLevel level = player.serverLevel();
 
         // RM_FRO_037 fix (2026-09-08, per project owner playtest): gate PER ANIMAL against its
