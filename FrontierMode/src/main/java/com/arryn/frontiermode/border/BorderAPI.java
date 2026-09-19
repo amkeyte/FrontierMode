@@ -378,6 +378,26 @@ public final class BorderAPI {
     }
 
     /**
+     * RM_FRO_038 ("Martha," Feral): raw distance past the nearest point on the Frontier's
+     * boundary at an arbitrary position -- {@code min} over every {@link Border} in this level's
+     * list of {@link MATH#distanceOutside(BlockPos, BlockPos, int)}, per
+     * wiki/frontiermode/architecture/exterior.md#the-distance-to-frontier-query. {@code 0} means
+     * {@code pos} isn't in the Exterior at all (inside or on at least one Border), matching
+     * {@code distanceOutside}'s own zero-inside convention. Not resolvable yet, or no Borders
+     * established, both degrade to {@code 0} rather than throwing -- same "standby, don't crash"
+     * discipline as every other query on this class. {@code BorderModule.onMobSpawnFinalize} used
+     * to compute this inline per spawn (Sick Wildlife's own density hook); this is that same
+     * reduction, promoted to a real accessor so Feral's own consumer isn't a second copy of it.
+     */
+    public static int frontierDistanceAt(Level level, BlockPos pos) {
+        List<Border> borders = CRUD(level).map(BordersCrudFacet::all).orElseGet(List::of);
+        return borders.stream()
+                .mapToInt(b -> MATH.distanceOutside(pos, b.center(), b.radius()))
+                .min()
+                .orElse(0);
+    }
+
+    /**
      * RM_FRO_028 ("Diane"): {@code false} whenever the fixture itself isn't resolvable yet
      * <em>or</em> {@code borderId}'s own job hasn't completed (or was never started) -- both
      * collapse to the same boolean here, matching {@code BorderPregenFixture.isReadyFor}'s own

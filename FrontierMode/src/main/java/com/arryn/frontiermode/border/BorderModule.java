@@ -394,7 +394,11 @@ public final class BorderModule {
     // RM_FRO_037 ("Brenda"): Sick Wildlife's density half -- a Border-side MobSpawnEvent
     // .FinalizeSpawn hook, mirroring BossGuardiansFixture's own hook shape but simpler (no
     // player, no boss, no curve -- just "is this passive mob's spawn position in the Exterior").
-    // Registered from FrontierMode.onMobSpawnFinalize alongside the existing Boss delegate.
+    // Registered from FrontierMode.onMobSpawnFinalize alongside the existing Boss/Feral delegates
+    // -- Feral (RM_FRO_038 "Martha") used to share this one method too, but was pulled out into
+    // its own com.arryn.frontiermode.feral module (containment for a feature branch expected to
+    // grow a lot -- see FeralModule's own doc) rather than growing this method into a two-concern
+    // dispatcher.
     //
     // Per project-owner direction (FRO_099 planning): NOT a slow continuous climb the way
     // severity above is -- pronounced right at the Frontier edge, flattening to a flat multiplier
@@ -411,20 +415,13 @@ public final class BorderModule {
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
         if (!(mob instanceof Animal)) {
             // Density scaling only concerns Sick Wildlife's passive mobs -- everything else
-            // (hostiles, the mob that just triggered Guardian Mobs' own handler) is untouched.
-            return;
-        }
-
-        List<Border> borders = BorderAPI.CRUD(level).map(BordersCrudFacet::all).orElseGet(List::of);
-        if (borders.isEmpty()) {
+            // (hostiles, the mob that just triggered Guardian Mobs'/Feral's own handlers) is
+            // untouched.
             return;
         }
 
         BlockPos spawnPos = mob.blockPosition();
-        int frontierDistance = borders.stream()
-                .mapToInt(b -> BorderAPI.MATH.distanceOutside(spawnPos, b.center(), b.radius()))
-                .min()
-                .orElse(0);
+        int frontierDistance = BorderAPI.frontierDistanceAt(level, spawnPos);
         if (frontierDistance <= 0) {
             return;
         }
