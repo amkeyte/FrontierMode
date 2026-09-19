@@ -17,6 +17,8 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -222,6 +224,21 @@ public final class FrontierMode {
     @SubscribeEvent
     public void onLevelTick(TickEvent.LevelTickEvent event) {
         FeralModule.onLevelTick(event);
+    }
+
+    // ------------------------------------------------------------
+    // RM_FRO_038 ("Martha"): no free loot from a Feral mob, however it dies -- see
+    // FeralModule.onLivingDrops's own doc for why both drop paths are closed rather than trying
+    // to distinguish a combat kill from the FRO_111 re-entry kill.
+    // ------------------------------------------------------------
+    @SubscribeEvent
+    public void onLivingDrops(LivingDropsEvent event) {
+        FeralModule.onLivingDrops(event);
+    }
+
+    @SubscribeEvent
+    public void onLivingExperienceDrop(LivingExperienceDropEvent event) {
+        FeralModule.onLivingExperienceDrop(event);
     }
 
 }

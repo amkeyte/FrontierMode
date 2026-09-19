@@ -1,22 +1,21 @@
 package com.arryn.frontiermode.feral.server.rules;
 
 /**
- * Tunables for Feral (RM_FRO_038 "Martha") -- see {@code FeralLogic.spawnChance}/{@code intensity}.
- * Placeholder baselines, not playtest-tuned, same "safe baseline, replace later" convention every
- * other rules/constants class in this codebase follows (e.g. {@code PlayerRules},
+ * Tunables for Feral (RM_FRO_038 "Martha") -- see {@code FeralLogic.intensity}. Placeholder
+ * baselines, not playtest-tuned, same "safe baseline, replace later" convention every other
+ * rules/constants class in this codebase follows (e.g. {@code PlayerRules},
  * {@code DefaultBossRules}).
  */
 public final class FeralRules {
 
     private FeralRules() {}
 
-    /** Distance (blocks) at which Feral's own spawn chance is already ~63% of the way to its max. */
-    public static final double SPAWN_FALLOFF_DISTANCE = 20.0;
-
-    /** Spawn-roll chance Feral's own chance curve saturates toward far past the Frontier edge. */
-    public static final double SPAWN_MAX_CHANCE = 0.5;
-
-    /** Ferality intensity = frontierDistance * this -- uncapped, unlike the spawn chance above. */
+    /**
+     * Ferality intensity = frontierDistance * this -- uncapped. (Every hostile outside the
+     * Frontier is Feral unconditionally, per the 2026-09-18 design ruling -- there is no longer a
+     * conversion-chance constant here to bound; this only scales how twisted/dangerous a Feral
+     * mob is once it exists.)
+     */
     public static final double INTENSITY_SCALE = 0.05;
 
     /** Stat-scaling factor per unit of intensity -- same shape as Guardian's own health-scale constant. */
@@ -26,8 +25,8 @@ public final class FeralRules {
     // Density boost -- an extra hostile companion near a hostile that already spawned in the
     // Exterior, same "approximation of a true spawn-rate multiplier" shape Sick Wildlife's own
     // density boost uses (FrontierMode can't retroactively multiply spawn attempts, only piggyback
-    // on ones that already happened). Independent of the Feral-conversion roll above -- this fires
-    // for any hostile in the Exterior, not just ones that became Feral.
+    // on ones that already happened). Placeholder pending the distance-scaled mob-count redesign
+    // this is meant to become (see FRO_110's own log) -- still a flat saturating multiplier today.
     // ------------------------------------------------------------------
 
     /** Distance (blocks) at which the density boost is already ~63% of the way to its max. */

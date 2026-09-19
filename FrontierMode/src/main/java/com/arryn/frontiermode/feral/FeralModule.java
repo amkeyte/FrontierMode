@@ -17,6 +17,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
@@ -31,6 +32,8 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.Event;
 
@@ -95,12 +98,19 @@ public final class FeralModule {
      * Cosmetic-only tell on already-spawned Feral mobs -- poison particles / hurt sounds, mirroring
      * {@code ExteriorTellFixture}'s own Sick Wildlife tell shape exactly (same two-independent-
      * rolls dispatch, same particle/sound placeholders), just searching for {@code feral}-teamed
-     * {@link Monster}s instead of {@link net.minecraft.world.entity.animal.Animal}s and gating per
-     * mob's actual team membership rather than recomputing frontier-distance (a Feral mob is
-     * already, permanently, tagged the moment it spawns -- see {@link #tagFeral} -- so there's
-     * nothing to recompute here). Never touches health/combat, same "harmless, no real stakes"
-     * precedent Sick Wildlife established -- this only marks a Feral mob as visibly afflicted, the
-     * same way sick wildlife already is.
+     * hostiles instead of {@link net.minecraft.world.entity.animal.Animal}s and gating per mob's
+     * actual team membership rather than recomputing frontier-distance (a Feral mob is already,
+     * permanently, tagged the moment it spawns -- see {@link #tagFeral} -- so there's nothing to
+     * recompute here). Never touches health/combat, same "harmless, no real stakes" precedent Sick
+     * Wildlife established -- this only marks a Feral mob as visibly afflicted, the same way sick
+     * wildlife already is.
+     *
+     * <p>Searches {@link Mob} (not {@link Monster}) filtered to {@link MobCategory#MONSTER} --
+     * same category test {@link #onSpawnPlacementCheck}/{@link #onMobSpawnFinalize} use, not a
+     * class-hierarchy check. {@code Slime}/{@code MagmaCube} are real {@code MobCategory.MONSTER}
+     * hostiles that don't extend {@code Monster} (a genuine vanilla quirk) -- an
+     * {@code instanceof Monster} search would silently skip them here too, the same gap that kept
+     * them from ever being tagged in the first place.
      *
      * <p>Cadence-gated on {@code player.tickCount}, same modulo shape
      * {@code BorderModule.applySicknessEffects} already uses, rather than a per-player counter
@@ -120,18 +130,29 @@ public final class FeralModule {
 
         ServerLevel level = player.serverLevel();
         AABB searchArea = new AABB(player.blockPosition()).inflate(FeralRules.TELL_RADIUS);
-        List<Monster> nearby = level.getEntitiesOfClass(Monster.class, searchArea);
+        List<Mob> nearby = level.getEntitiesOfClass(Mob.class, searchArea,
+                m -> m.getType().getCategory() == MobCategory.MONSTER);
 
-        for (Monster monster : nearby) {
-            Team team = monster.getTeam();
+        int feralCount = 0;
+        for (Mob mob : nearby) {
+            Team team = mob.getTeam();
             if (team == null || !"feral".equals(team.getName())) {
                 continue;
             }
-            rollFeralTell(player, level, monster);
+            feralCount++;
+            rollFeralTell(player, level, mob);
+        }
+
+        // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): tells "this hook never sees a
+        // feral-teamed mob nearby" apart from "it sees one but the roll/dispatch is broken." Safe
+        // to delete once confirmed.
+        if (!nearby.isEmpty()) {
+            OUT.info("[Feral] onPlayerTick player=" + player.getGameProfile().getName()
+                    + " nearbyMonsters=" + nearby.size() + " feralTeamed=" + feralCount);
         }
     }
 
-    private static void rollFeralTell(ServerPlayer player, ServerLevel level, Monster monster) {
+    private static void rollFeralTell(ServerPlayer player, ServerLevel level, Mob monster) {
         Vec3 pos = monster.position();
 
         // Two independent rolls, same shape ExteriorTellFixture/BossTellFixture already use --
@@ -187,29 +208,44 @@ public final class FeralModule {
     }
 
     /**
-     * Resolves {@code feral}-team membership live off each {@link Monster} currently in
-     * {@code level}, per this fixture-free module's own "no persisted tracking" precedent -- not a
-     * list Feral itself maintains. Kills (not a silent {@code discard()}) any match whose own
-     * current position has re-entered the Frontier, per the project owner's own wording ("must
-     * die on re-entry") -- {@link net.minecraft.world.entity.LivingEntity#kill()} runs the same
-     * death handling (drops, XP, death message) an ordinary combat death would, so this reads as
-     * "the Frontier killed it," not "it vanished."
+     * Resolves {@code feral}-team membership live off every {@link Mob} currently in
+     * {@code level} whose type is a real {@link MobCategory#MONSTER} hostile -- not an
+     * {@code instanceof Monster} check, same reasoning as {@link #onPlayerTick}'s own search --
+     * per this fixture-free module's own "no persisted tracking" precedent, not a list Feral
+     * itself maintains. Kills (not a silent {@code discard()}) any match whose own current
+     * position has re-entered the Frontier, per the project owner's own wording ("must die on
+     * re-entry") -- {@link net.minecraft.world.entity.LivingEntity#kill()} runs the same death
+     * handling (drops, XP, death message) an ordinary combat death would, so this reads as "the
+     * Frontier killed it," not "it vanished."
      */
     private static void sweepReentry(ServerLevel level) {
+        int feralCount = 0;
+        int killedCount = 0;
         for (Entity entity : level.getAllEntities()) {
-            if (!(entity instanceof Monster monster)) {
+            if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
                 continue;
             }
             Team team = monster.getTeam();
             if (team == null || !"feral".equals(team.getName())) {
                 continue;
             }
+            feralCount++;
+
             if (BorderAPI.frontierDistanceAt(level, monster.blockPosition()) > 0) {
                 // Still in the Exterior -- not re-entered, leave it alone.
                 continue;
             }
 
             monster.kill();
+            killedCount++;
+        }
+
+        // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): tells "this sweep never finds a
+        // feral-teamed mob at all" apart from "it finds them but the frontierDistance/kill call
+        // itself is broken." Safe to delete once confirmed.
+        if (feralCount > 0) {
+            OUT.info("[Feral] sweepReentry level=" + level.dimension().location()
+                    + " feralTeamed=" + feralCount + " killed=" + killedCount);
         }
     }
 
@@ -242,17 +278,53 @@ public final class FeralModule {
     }
 
     /**
-     * Rolls a chance, bounded by {@link FeralLogic#spawnChance}, that {@code mob} (an ordinary
-     * hostile already about to spawn) becomes Feral; on a hit, tags it in place per
-     * {@link #tagFeral(Mob, int, ServerLevel)}/{@link #applyStatScaling(Mob, double)} rather than
-     * replacing or summoning anything -- same "a miss leaves vanilla unmodified" discipline as
-     * Guardian Mobs and Sick Wildlife's own hooks. "Standby, don't crash": Border state not
-     * resolvable yet, the spawning mob isn't a hostile {@link Monster}, or
-     * {@code frontierDistance <= 0} (not in the Exterior), is a silent no-op. Never cancels the
-     * spawn either way.
+     * Permanent design change, per project owner direction: no exploiting a Feral mob for free
+     * loot. Both drop paths are closed, not just the obvious one -- the {@link #onLevelTick}
+     * re-entry kill is the actual exploit vector ("lure it across the border, let the sweep
+     * kill it, no risk taken"), but a legitimate combat kill drops through the exact same vanilla
+     * death path ({@code LivingEntity#die}), so gating on cause-of-death would need to
+     * distinguish the two -- simpler and unambiguous to make a Feral mob drop nothing at all,
+     * however it dies. Gated on {@code feral}-team membership (not a fixture/list -- same "no
+     * persisted tracking" precedent everywhere else in this module), so this only ever touches
+     * mobs Feral itself tagged; ordinary hostiles, Boss, and Guardian Mobs are unaffected.
+     */
+    public static void onLivingDrops(LivingDropsEvent event) {
+        if (isFeral(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** XP counts as "free loot" too, per the same ruling {@link #onLivingDrops} follows. */
+    public static void onLivingExperienceDrop(LivingExperienceDropEvent event) {
+        if (isFeral(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    private static boolean isFeral(LivingEntity entity) {
+        Team team = entity.getTeam();
+        return team != null && "feral".equals(team.getName());
+    }
+
+    /**
+     * Design ruling (project owner, 2026-09-18): outside the Frontier, ordinary (non-Feral)
+     * hostiles shouldn't exist at all -- every real hostile spawning in the Exterior is Feral,
+     * unconditionally. Supersedes the earlier bounded, distance-saturating roll
+     * ({@code FeralLogic.spawnChance}, removed) -- what scales with distance is meant to be raw
+     * mob count/density, not a per-mob conversion chance; density scaling itself is tracked
+     * separately (not built yet, see FRO_110's own log) and stays out of this method's job.
+     *
+     * <p>Gated on {@link MobCategory#MONSTER} (not {@code instanceof Monster}) -- playtest found
+     * {@code Slime}/{@code MagmaCube} never converting, a real vanilla quirk: both are genuine
+     * {@code MobCategory.MONSTER} hostiles that don't extend the {@code Monster} class. Matches
+     * {@link #onSpawnPlacementCheck}'s own test, which already used the category correctly.
+     *
+     * <p>"Standby, don't crash": Border state not resolvable yet, the spawning mob isn't a
+     * {@code MobCategory.MONSTER} hostile, or {@code frontierDistance <= 0} (not in the Exterior),
+     * is a silent no-op. Never cancels the spawn either way.
      */
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
-        if (!(mob instanceof Monster)) {
+        if (mob.getType().getCategory() != MobCategory.MONSTER) {
             return;
         }
 
@@ -262,16 +334,9 @@ public final class FeralModule {
             return;
         }
 
-        // Density boost -- independent of the Feral-conversion roll below; fires for any hostile
-        // in the Exterior, tagged or not. See spawnDensityCompanion's own doc.
+        // Density boost -- an extra companion spawn, independent of (and in addition to) the
+        // unconditional tagging below. See spawnDensityCompanion's own doc.
         rollDensityCompanion(mob, level, spawnPos, frontierDistance);
-
-        double chance = FeralLogic.spawnChance(
-                frontierDistance, FeralRules.SPAWN_FALLOFF_DISTANCE, FeralRules.SPAWN_MAX_CHANCE);
-        if (RNG.nextDouble() >= chance) {
-            // Miss -- vanilla spawn proceeds unmodified, no retry.
-            return;
-        }
 
         double intensity = FeralLogic.intensity(frontierDistance, FeralRules.INTENSITY_SCALE);
         tagFeral(mob, frontierDistance, level);
@@ -294,16 +359,20 @@ public final class FeralModule {
             return;
         }
 
-        spawnDensityCompanion(mob, level, spawnPos);
+        spawnDensityCompanion(mob, level, spawnPos, frontierDistance);
     }
 
     /**
      * Spawns one extra copy of {@code mob}'s own type near {@code spawnPos} -- mirrors
      * {@code BorderModule.spawnDensityCompanion} exactly. Calls {@link Mob#finalizeSpawn} directly
      * (not through Forge's event bus again) so this never re-enters {@link #onMobSpawnFinalize}
-     * for the companion it creates.
+     * for the companion it creates -- which means it also never picks up Feral's own tagging
+     * on its own, so this method tags it explicitly, same {@code frontierDistance} as the
+     * original (they spawn at essentially the same position). Playtest found roughly half of all
+     * ordinary hostiles going untagged -- exactly this companion, created outside the tagging
+     * path by design, now closed per the "every hostile outside is Feral" ruling above.
      */
-    private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
+    private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos, int frontierDistance) {
         Entity created = mob.getType().create(level);
         if (!(created instanceof Mob companion)) {
             return;
@@ -319,7 +388,12 @@ public final class FeralModule {
 
         if (!level.addFreshEntity(companion)) {
             OUT.warn("[Feral] spawnDensityCompanion(): addFreshEntity failed for " + mob.getType() + " near " + nearPos);
+            return;
         }
+
+        double intensity = FeralLogic.intensity(frontierDistance, FeralRules.INTENSITY_SCALE);
+        tagFeral(companion, frontierDistance, level);
+        applyStatScaling(companion, intensity);
     }
 
     /**
@@ -340,6 +414,12 @@ public final class FeralModule {
         EffectsAPI.assignToTeam(mob, scoreboard, team);
 
         mob.setGlowingTag(true);
+
+        // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): confirms the team assignment
+        // actually stuck -- reads getTeam() back immediately rather than trusting assignToTeam
+        // didn't silently no-op/throw. Safe to delete once confirmed.
+        OUT.info("[Feral] tagFeral(): tagged " + mob.getType() + " uuid=" + mob.getStringUUID()
+                + " readBackTeam=" + mob.getTeam());
     }
 
     /**
