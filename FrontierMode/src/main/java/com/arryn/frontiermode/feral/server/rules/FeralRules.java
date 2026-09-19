@@ -22,18 +22,32 @@ public final class FeralRules {
     public static final double HEALTH_SCALE = 1.0;
 
     // ------------------------------------------------------------------
-    // Density boost -- an extra hostile companion near a hostile that already spawned in the
-    // Exterior, same "approximation of a true spawn-rate multiplier" shape Sick Wildlife's own
-    // density boost uses (FrontierMode can't retroactively multiply spawn attempts, only piggyback
-    // on ones that already happened). Placeholder pending the distance-scaled mob-count redesign
-    // this is meant to become (see FRO_110's own log) -- still a flat saturating multiplier today.
+    // Density -- extra hostile companions near a hostile that already spawned in the Exterior,
+    // same "approximation of a true spawn-rate multiplier" shape Sick Wildlife's own density
+    // boost uses (FrontierMode can't retroactively multiply spawn attempts, only piggyback on ones
+    // that already happened). Design ruling (2026-09-18): scales with raw distance, uncapped --
+    // see FeralLogic.expectedDensityCount, which replaced the earlier flat saturating multiplier.
     // ------------------------------------------------------------------
 
-    /** Distance (blocks) at which the density boost is already ~63% of the way to its max. */
-    public static final double DENSITY_FALLOFF_DISTANCE = 15.0;
+    /**
+     * Expected extra companions = frontierDistance * this -- uncapped, same shape as
+     * INTENSITY_SCALE. Design target (project owner, 2026-09-19): player movement should be
+     * unmanageable within 100 blocks of the border, deliberately without touching the minimum
+     * spawn radius -- density alone has to carry that. At 0.08, the expectation reaches
+     * DENSITY_MAX_PER_EVENT (8) at exactly 100 blocks out, so "unmanageable by 100" is where the
+     * ramp and the safety valve meet by construction, not a coincidence to re-tune separately.
+     * Roughly 4x the original 0.02 baseline.
+     */
+    public static final double DENSITY_COUNT_SCALE = 0.08;
 
-    /** Flat multiplier the density boost saturates toward far past the Frontier edge. */
-    public static final double DENSITY_MAX_MULTIPLIER = 2.0;
+    /**
+     * Safety valve, not a design cap: bounds how many companions one single spawn event can ever
+     * create in one go, so an extreme distance can't turn one spawn into a lag spike. Tied to
+     * DENSITY_COUNT_SCALE above -- this is also the intended full-density value at the 100-block
+     * design target, not just an arbitrary ceiling. See this project's own "how many mobs before
+     * lag" discussion, deferred rather than measured, per project owner's own call.
+     */
+    public static final int DENSITY_MAX_PER_EVENT = 8;
 
     // ------------------------------------------------------------------
     // Cosmetic tell -- poison particles / hurt sounds on already-spawned Feral mobs, mirroring

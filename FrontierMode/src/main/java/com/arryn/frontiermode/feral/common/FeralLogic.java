@@ -7,14 +7,12 @@ package com.arryn.frontiermode.feral.common;
  *
  * <p>Every hostile spawning outside the Frontier is Feral, unconditionally (design ruling,
  * 2026-09-18 -- superseded the earlier bounded, distance-saturating conversion roll this class
- * used to also hold). What's left here scales with distance without a ceiling: {@link #intensity},
- * per wiki/frontiermode/design/exterior.md#feral's "no bucketed tiers picked from a table, just
- * steadily more twisted and more dangerous the farther out" -- the same shape
- * {@code FrontierSicknessLogic.severityTarget} uses for Frontier Sickness's own severity.
- *
- * <p>{@link #densityMultiplier} is the one function here that still saturates rather than
- * climbing without bound -- placeholder pending the distance-scaled mob-count redesign FRO_110's
- * own log tracks, not yet built.
+ * used to also hold), and density (how many) now climbs the same uncapped way severity (how
+ * dangerous) already does -- per wiki/frontiermode/design/exterior.md#feral's "no bucketed tiers
+ * picked from a table, just steadily more twisted and more dangerous the farther out." Both
+ * {@link #intensity} and {@link #expectedDensityCount} are the same plain linear-in-distance
+ * shape {@code FrontierSicknessLogic.severityTarget} uses -- deliberately not
+ * {@code wildlifeDensityMultiplier}'s flattening curve, which is the wrong shape for either one.
  *
  * <p>Formulas here are explicitly "safe baseline, replace later" placeholders, per the design
  * page's own framing -- nothing here is tuned against real playtest feedback yet.
@@ -35,17 +33,20 @@ public final class FeralLogic {
     }
 
     /**
-     * Density-boost multiplier for a hostile spawning {@code frontierDistance} blocks past the
-     * Frontier -- same saturating shape as {@code FrontierSicknessLogic.wildlifeDensityMultiplier}
-     * (Sick Wildlife's own precedent), just Feral's own falloff/max constants. {@code 1.0} at the
-     * edge itself (no boost), rising toward {@code maxMultiplier} and flattening well before any
-     * real distance -- not the uncapped shape {@link #intensity} is.
+     * Expected number of extra hostiles spawning alongside one that already spawned
+     * {@code frontierDistance} blocks past the Frontier -- design ruling (2026-09-18): density
+     * scales with raw distance, not a per-mob conversion chance (that's what {@link #intensity}
+     * already covers). Plain linear, uncapped -- same shape as {@link #intensity}, not
+     * {@code FrontierSicknessLogic.wildlifeDensityMultiplier}'s flattening one, which this
+     * replaces as Feral's own density mechanism. This is a real-valued <em>expectation</em>, not
+     * an integer count -- the caller turns it into an actual spawn count (a whole part spawned
+     * unconditionally, a fractional remainder rolled once), the standard way to get an unbiased
+     * integer count out of a continuous expected value.
      */
-    public static double densityMultiplier(int frontierDistance, double falloffDistance, double maxMultiplier) {
-        if (frontierDistance <= 0 || falloffDistance <= 0.0) {
-            return 1.0;
+    public static double expectedDensityCount(int frontierDistance, double countScale) {
+        if (frontierDistance <= 0) {
+            return 0.0;
         }
-        double rise = 1.0 - Math.exp(-frontierDistance / falloffDistance);
-        return 1.0 + (maxMultiplier - 1.0) * rise;
+        return frontierDistance * countScale;
     }
 }

@@ -2,6 +2,7 @@ package com.arryn.frontiermode.border.server.commands;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -358,6 +359,15 @@ public final class BorderCommands {
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 200))
                                 .executes(ctx -> BorderCommandHandler.spawnTestAnimals(
                                         ctx, IntegerArgumentType.getInteger(ctx, "count")))
+                        )
+                )
+                // Project owner request (2026-09-18): "/border debug sickness <true|false>" --
+                // toggles whether Frontier Sickness's own debuff (BorderModule.applySicknessEffects)
+                // applies at all. Same simple global-flag shape as Boss's own "/boss debug glow".
+                .then(Commands.literal("sickness")
+                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                .executes(ctx -> BorderCommandHandler.setSicknessEnabled(
+                                        ctx, BoolArgumentType.getBool(ctx, "value")))
                         )
                 );
     }

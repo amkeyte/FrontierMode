@@ -61,6 +61,22 @@ public final class BorderModule {
     // BossTellFixture.RNG/BossGuardiansFixture.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
 
+    // Debug toggle, project owner request (2026-09-18): "/border debug sickness <true|false>" --
+    // same simple global-flag shape WorldBordersRenderer.visible already uses for the border-ring
+    // toggle, just server-side. No retroactive-apply concern the way Boss's own glow toggle needs:
+    // applySicknessEffects() re-evaluates every refresh interval already, so gating it here just
+    // stops future (re)application -- whatever's already granted keeps running down on its own
+    // vanilla duration, same "no instant clear" precedent that method's own doc already follows.
+    private static boolean sicknessEnabled = true;
+
+    public static void setSicknessEnabled(boolean value) {
+        sicknessEnabled = value;
+    }
+
+    public static boolean isSicknessEnabled() {
+        return sicknessEnabled;
+    }
+
 
     public static void init() {
         OUT.info("FrontierMode - Border Module Initiating.");
@@ -352,6 +368,9 @@ public final class BorderModule {
     }
 
     private static void applySicknessEffects(ServerPlayer player, double severity) {
+        if (!sicknessEnabled) {
+            return;
+        }
         if (severity < PlayerRules.SICKNESS_TIER_1_WEAKNESS) {
             // Below every tier -- nothing to (re)apply. Whatever was already granted keeps
             // running down on its own vanilla duration; no explicit removal needed or wanted,

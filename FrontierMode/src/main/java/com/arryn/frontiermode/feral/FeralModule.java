@@ -32,6 +32,7 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
@@ -58,15 +59,18 @@ import java.util.Map;
  * files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
  * is cheaper than untangling it from Border's own files later.
  *
- * <p>No persisted state, no {@code JigConfig}, no fixture/bundle -- purely event-driven off four
+ * <p>No persisted state, no {@code JigConfig}, no fixture/bundle -- purely event-driven off six
  * Forge events, each registered from its own {@code FrontierMode} delegate alongside the
- * Boss/Border ones already on that shared touch point: {@code MobSpawnEvent.FinalizeSpawn} (tag a
- * hostile that already vanilla-spawned), {@code MobSpawnEvent.SpawnPlacementCheck} (force-allow a
- * hostile spawn attempt the Exterior's own light level would otherwise have blocked -- see
- * {@link #onSpawnPlacementCheck}), {@code TickEvent.PlayerTickEvent} (the cosmetic tell on
- * already-spawned Feral mobs -- see {@link #onPlayerTick}), and {@code TickEvent.LevelTickEvent}
- * (FRO_111: kills a Feral mob that wandered back inside the Frontier -- see
- * {@link #onLevelTick}). Both tick hooks are Feral's own, not Border's
+ * Boss/Border ones already on that shared touch point: {@code EntityJoinLevelEvent} (the actual
+ * tagging authority -- see {@link #onEntityJoinLevel} for why this replaced tagging from
+ * {@code MobSpawnEvent.FinalizeSpawn}), {@code MobSpawnEvent.FinalizeSpawn} (density-boost roll
+ * only now -- see {@link #onMobSpawnFinalize}), {@code MobSpawnEvent.SpawnPlacementCheck}
+ * (force-allow a hostile spawn attempt the Exterior's own light level would otherwise have
+ * blocked -- see {@link #onSpawnPlacementCheck}), {@code TickEvent.PlayerTickEvent} (the cosmetic
+ * tell on already-spawned Feral mobs -- see {@link #onPlayerTick}), {@code TickEvent.LevelTickEvent}
+ * (FRO_111: kills a Feral mob that wandered back inside the Frontier -- see {@link #onLevelTick}),
+ * and {@code LivingDropsEvent}/{@code LivingExperienceDropEvent} (no free loot -- see
+ * {@link #onLivingDrops}). Both tick hooks are Feral's own, not Border's
  * {@code BorderModule.onPlayerScopeTick} -- Feral depends on Border, never the reverse (same
  * discipline Boss/Border already keep), so it can't ride a hook Border would have to call into it
  * from. {@link #init()} exists only for the same "Module Initiating" bootstrap-logging consistency
@@ -307,21 +311,10 @@ public final class FeralModule {
     }
 
     /**
-     * Design ruling (project owner, 2026-09-18): outside the Frontier, ordinary (non-Feral)
-     * hostiles shouldn't exist at all -- every real hostile spawning in the Exterior is Feral,
-     * unconditionally. Supersedes the earlier bounded, distance-saturating roll
-     * ({@code FeralLogic.spawnChance}, removed) -- what scales with distance is meant to be raw
-     * mob count/density, not a per-mob conversion chance; density scaling itself is tracked
-     * separately (not built yet, see FRO_110's own log) and stays out of this method's job.
-     *
-     * <p>Gated on {@link MobCategory#MONSTER} (not {@code instanceof Monster}) -- playtest found
-     * {@code Slime}/{@code MagmaCube} never converting, a real vanilla quirk: both are genuine
-     * {@code MobCategory.MONSTER} hostiles that don't extend the {@code Monster} class. Matches
-     * {@link #onSpawnPlacementCheck}'s own test, which already used the category correctly.
-     *
-     * <p>"Standby, don't crash": Border state not resolvable yet, the spawning mob isn't a
-     * {@code MobCategory.MONSTER} hostile, or {@code frontierDistance <= 0} (not in the Exterior),
-     * is a silent no-op. Never cancels the spawn either way.
+     * Density boost only, now -- see {@link #onEntityJoinLevel} for the actual tagging authority.
+     * "Standby, don't crash": the spawning mob isn't a {@code MobCategory.MONSTER} hostile, or
+     * {@code frontierDistance <= 0} (not in the Exterior), is a silent no-op. Never cancels the
+     * spawn either way.
      */
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
         if (mob.getType().getCategory() != MobCategory.MONSTER) {
@@ -334,9 +327,58 @@ public final class FeralModule {
             return;
         }
 
-        // Density boost -- an extra companion spawn, independent of (and in addition to) the
-        // unconditional tagging below. See spawnDensityCompanion's own doc.
         rollDensityCompanion(mob, level, spawnPos, frontierDistance);
+    }
+
+    /**
+     * Design ruling (project owner, 2026-09-18): outside the Frontier, ordinary (non-Feral)
+     * hostiles shouldn't exist at all -- every real hostile in the Exterior is Feral,
+     * unconditionally. Supersedes the earlier bounded, distance-saturating roll
+     * ({@code FeralLogic.spawnChance}, removed) -- what scales with distance is meant to be raw
+     * mob count/density, not a per-mob conversion chance; density scaling itself is tracked
+     * separately (not built yet, see FRO_110's own log) and stays out of this method's job.
+     *
+     * <p><b>Deliberately not done from {@link #onMobSpawnFinalize} anymore.</b> Playtest found
+     * split-off Slime/MagmaCube children still dropping loot even after the category fix --
+     * vanilla only drops slimeballs from the smallest slime size; larger ones just split into
+     * smaller slimes on death instead. That split-spawn is a special vanilla mechanic, not a
+     * natural spawn, and almost certainly never reaches {@code MobSpawnEvent.FinalizeSpawn} at
+     * all (per that event's own doc, it's injected by a transformer at specific vanilla call
+     * sites, not universally wherever {@code Mob#finalizeSpawn} happens to be called) -- the same
+     * reason this module's own {@code spawnDensityCompanion} deliberately avoids the event bus.
+     * {@link EntityJoinLevelEvent} is the general fix: it fires whenever anything joins a level
+     * <em>however it was created</em> ({@code Level#addFreshEntity}, per its own doc), so it
+     * catches split children, this module's own density companions, and any future mechanic that
+     * bypasses the normal spawn-event pipeline the same way, with one rule instead of chasing
+     * each bypass individually.
+     *
+     * <p>Gated on {@link MobCategory#MONSTER} (not {@code instanceof Monster}) -- the same
+     * category test {@link #onSpawnPlacementCheck}/{@link #onMobSpawnFinalize} use, needed
+     * separately here since {@code Slime}/{@code MagmaCube} don't extend {@code Monster}.
+     * Idempotent via {@link #isFeral}: skips anything already tagged (e.g. by a prior call to
+     * this same method for the identical entity, since {@code EntityJoinLevelEvent} can fire more
+     * than once for edge cases like a dimension change) rather than re-tagging and re-logging.
+     * {@code loadedFromDisk()} excludes chunk-load rehydration -- this only tags genuinely new
+     * joins, not every already-tagged-or-not entity a chunk reload brings back.
+     */
+    public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
+        if (event.loadedFromDisk()) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
+            return;
+        }
+        if (isFeral(mob)) {
+            return;
+        }
+        if (!(event.getLevel() instanceof ServerLevel level)) {
+            return;
+        }
+
+        int frontierDistance = BorderAPI.frontierDistanceAt(level, mob.blockPosition());
+        if (frontierDistance <= 0) {
+            return;
+        }
 
         double intensity = FeralLogic.intensity(frontierDistance, FeralRules.INTENSITY_SCALE);
         tagFeral(mob, frontierDistance, level);
@@ -344,35 +386,48 @@ public final class FeralModule {
     }
 
     /**
-     * Permanent design change, per project owner direction: hostiles should show up more often in
-     * the Exterior. {@code MobSpawnEvent.FinalizeSpawn} fires per already-decided spawn attempt
-     * rather than controlling how many attempts vanilla makes, so this is an approximation of a
-     * true spawn-rate multiplier -- same acknowledged limitation, same mechanism, as Sick
-     * Wildlife's own density boost (see {@code BorderModule.spawnDensityCompanion}), just gated on
-     * a hostile in the Exterior instead of a passive animal.
+     * Design ruling (project owner, 2026-09-18): density scales with raw distance, uncapped --
+     * "steadily more," not a flat multiplier that flattens out. {@code MobSpawnEvent.FinalizeSpawn}
+     * fires per already-decided spawn attempt rather than controlling how many attempts vanilla
+     * makes, so this is still an approximation of a true spawn-rate multiplier -- same acknowledged
+     * limitation as Sick Wildlife's own density boost -- just no longer bounded to "at most one
+     * extra."
+     *
+     * <p>{@link FeralLogic#expectedDensityCount} returns a real-valued expectation, not a count --
+     * turned into an actual integer the standard unbiased way: the whole part spawns
+     * unconditionally, the fractional remainder is one more independent roll. E.g. an expectation
+     * of 2.7 always spawns 2 companions and has a 70% chance of a 3rd, averaging 2.7 over many
+     * events. Clamped to {@link FeralRules#DENSITY_MAX_PER_EVENT} -- a safety valve against an
+     * extreme distance turning one spawn into a lag spike, not a design cap (see that constant's
+     * own doc).
      */
     private static void rollDensityCompanion(Mob mob, ServerLevel level, BlockPos spawnPos, int frontierDistance) {
-        double multiplier = FeralLogic.densityMultiplier(
-                frontierDistance, FeralRules.DENSITY_FALLOFF_DISTANCE, FeralRules.DENSITY_MAX_MULTIPLIER);
-        double extraSpawnChance = multiplier - 1.0;
-        if (extraSpawnChance <= 0.0 || RNG.nextDouble() >= extraSpawnChance) {
+        double expected = FeralLogic.expectedDensityCount(frontierDistance, FeralRules.DENSITY_COUNT_SCALE);
+        if (expected <= 0.0) {
             return;
         }
 
-        spawnDensityCompanion(mob, level, spawnPos, frontierDistance);
+        int guaranteed = (int) Math.floor(expected);
+        double fractional = expected - guaranteed;
+        int count = Math.min(guaranteed, FeralRules.DENSITY_MAX_PER_EVENT);
+        if (count < FeralRules.DENSITY_MAX_PER_EVENT && RNG.nextDouble() < fractional) {
+            count++;
+        }
+
+        for (int i = 0; i < count; i++) {
+            spawnDensityCompanion(mob, level, spawnPos);
+        }
     }
 
     /**
      * Spawns one extra copy of {@code mob}'s own type near {@code spawnPos} -- mirrors
      * {@code BorderModule.spawnDensityCompanion} exactly. Calls {@link Mob#finalizeSpawn} directly
      * (not through Forge's event bus again) so this never re-enters {@link #onMobSpawnFinalize}
-     * for the companion it creates -- which means it also never picks up Feral's own tagging
-     * on its own, so this method tags it explicitly, same {@code frontierDistance} as the
-     * original (they spawn at essentially the same position). Playtest found roughly half of all
-     * ordinary hostiles going untagged -- exactly this companion, created outside the tagging
-     * path by design, now closed per the "every hostile outside is Feral" ruling above.
+     * for the companion it creates -- but {@link #onEntityJoinLevel} still catches it via
+     * {@code level.addFreshEntity} below and tags it there, so no explicit tag call is needed
+     * here anymore.
      */
-    private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos, int frontierDistance) {
+    private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
         Entity created = mob.getType().create(level);
         if (!(created instanceof Mob companion)) {
             return;
@@ -388,12 +443,7 @@ public final class FeralModule {
 
         if (!level.addFreshEntity(companion)) {
             OUT.warn("[Feral] spawnDensityCompanion(): addFreshEntity failed for " + mob.getType() + " near " + nearPos);
-            return;
         }
-
-        double intensity = FeralLogic.intensity(frontierDistance, FeralRules.INTENSITY_SCALE);
-        tagFeral(companion, frontierDistance, level);
-        applyStatScaling(companion, intensity);
     }
 
     /**
