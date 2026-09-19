@@ -352,7 +352,7 @@ public final class BorderModule {
     }
 
     private static void applySicknessEffects(ServerPlayer player, double severity) {
-        if (severity < PlayerRules.SICKNESS_TIER_1_NAUSEA) {
+        if (severity < PlayerRules.SICKNESS_TIER_1_WEAKNESS) {
             // Below every tier -- nothing to (re)apply. Whatever was already granted keeps
             // running down on its own vanilla duration; no explicit removal needed or wanted,
             // per the design's "runs down... after its own short randomized delay," not an
@@ -370,23 +370,24 @@ public final class BorderModule {
         int duration = PlayerRules.SICKNESS_EFFECT_BASE_DURATION_TICKS
                 + RNG.nextInt(PlayerRules.SICKNESS_EFFECT_JITTER_TICKS + 1);
 
-        // Illustrative, non-binding sketch per wiki/frontiermode/design/exterior.md#the-players-affliction
-        // -- additive tiers (a higher tier keeps every lower tier's effects too). Amplifier 0
-        // throughout; real tuning (including whether severity should scale amplifier, not just
-        // which effects apply) is explicitly a playtest question, not decided here.
-        player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, duration, 0, false, true));
+        // Reordered per project owner direction (2026-09-18): weakness is now the earliest tell
+        // instead of nausea, and nausea moved to the last tier instead of being first. Additive
+        // tiers (a higher tier keeps every lower tier's effects too). Amplifier 0 throughout; real
+        // tuning (including whether severity should scale amplifier, not just which effects
+        // apply) is explicitly a playtest question, not decided here.
+        player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, 0, false, true));
 
-        if (severity >= PlayerRules.SICKNESS_TIER_2_WEAKNESS_FATIGUE) {
-            player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, 0, false, true));
+        if (severity >= PlayerRules.SICKNESS_TIER_2_FATIGUE) {
             player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, duration, 0, false, true));
         }
         if (severity >= PlayerRules.SICKNESS_TIER_3_HUNGER_SLOWNESS) {
             player.addEffect(new MobEffectInstance(MobEffects.HUNGER, duration, 0, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, duration, 0, false, true));
         }
-        if (severity >= PlayerRules.SICKNESS_TIER_4_BLINDNESS_DAMAGE) {
+        if (severity >= PlayerRules.SICKNESS_TIER_4_BLINDNESS_DAMAGE_NAUSEA) {
             player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, duration, 0, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.HARM, 1, 0, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, duration, 0, false, true));
         }
     }
 

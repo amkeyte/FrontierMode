@@ -33,15 +33,16 @@ public final class PlayerRules {
     // ------------------------------------------------------------------
     // Effect tiers -- illustrative, non-binding sketch from
     // wiki/frontiermode/design/exterior.md#frontier-sickness, turned into concrete severity
-    // breakpoints. Each tier is additive (a higher tier keeps every lower tier's effects too),
-    // matching that page's own "nausea shows up first... weakness and mining fatigue follow...
-    // hunger drain and slowness... and past that, blindness and direct damage" progression.
+    // breakpoints. Each tier is additive (a higher tier keeps every lower tier's effects too).
+    // Reordered from that page's own original sketch (project owner, 2026-09-18): weakness now
+    // shows up first instead of nausea, and nausea moved to the last tier alongside blindness/
+    // damage instead of being the earliest sign something's wrong.
     // ------------------------------------------------------------------
 
-    public static final double SICKNESS_TIER_1_NAUSEA = 10.0;
-    public static final double SICKNESS_TIER_2_WEAKNESS_FATIGUE = 30.0;
+    public static final double SICKNESS_TIER_1_WEAKNESS = 10.0;
+    public static final double SICKNESS_TIER_2_FATIGUE = 30.0;
     public static final double SICKNESS_TIER_3_HUNGER_SLOWNESS = 60.0;
-    public static final double SICKNESS_TIER_4_BLINDNESS_DAMAGE = 100.0;
+    public static final double SICKNESS_TIER_4_BLINDNESS_DAMAGE_NAUSEA = 100.0;
 
     /**
      * How often (in ticks) an active tier's effects get refreshed on the afflicted player.
