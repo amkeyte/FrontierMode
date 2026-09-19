@@ -8,6 +8,7 @@ import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.effects.EffectsMod;
+import com.arryn.frontiermode.feral.FeralModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
@@ -15,6 +16,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -132,6 +134,12 @@ public final class FrontierMode {
         // FRO_089: cross-cutting particle/sound dispatch module. No fixture/init-order
         // dependency on Border or Boss -- both now route their effects through it.
         EffectsMod.init();
+
+        // RM_FRO_038 ("Martha"): Feral mobs. No fixture/init-order dependency on Border/Boss
+        // either -- reads BorderAPI/EffectsAPI at spawn time, same as Guardian Mobs reads them
+        // from inside Boss's own module. Kept as its own module deliberately -- see FeralModule's
+        // own doc.
+        FeralModule.init();
     }
 
     // ------------------------------------------------------------
@@ -162,17 +170,20 @@ public final class FrontierMode {
         BorderModule.onRegisterCommands(event);
         // FRO_057 (RM_FRO_022, "Joyce"): registers /boss alongside /border.
         BossModule.onRegisterCommands(event);
+        // RM_FRO_038 ("Martha"): registers /feral alongside /border and /boss.
+        FeralModule.onRegisterCommands(event);
     }
 
     // ------------------------------------------------------------
-    // RM_FRO_029 ("Gloria") / RM_FRO_037 ("Brenda"): the mod's one raw
+    // RM_FRO_029 ("Gloria") / RM_FRO_037 ("Brenda") / RM_FRO_038 ("Martha"): the mod's one raw
     // MobSpawnEvent.FinalizeSpawn touch point. Same shape as onRegisterCommands above -- this
     // stays the single real Forge-subscription class, delegating immediately, by name, to each
     // module rather than holding any decision logic itself. Guardian Mobs (Boss-side, guardian
-    // conversion on hostiles near a boss) and Sick Wildlife's density boost (Border-side, extra
-    // spawns on passive mobs in the Exterior) are independent concerns on the same event --
-    // both get a look, neither cancels the spawn either way, so calling both in sequence is
-    // safe and needs no coordination between them.
+    // conversion on hostiles near a boss), Sick Wildlife's density boost (Border-side, extra
+    // spawns on passive mobs in the Exterior), and Feral (its own module, hostile conversion in
+    // the Exterior) are independent concerns on the same event -- all three get a look, none
+    // cancels the spawn either way, so calling them in sequence is safe and needs no
+    // coordination between them.
     // ------------------------------------------------------------
     @SubscribeEvent
     public void onMobSpawnFinalize(MobSpawnEvent.FinalizeSpawn event) {
@@ -180,7 +191,28 @@ public final class FrontierMode {
 
         if (event.getLevel() instanceof ServerLevel level) {
             BorderModule.onMobSpawnFinalize(event.getEntity(), level);
+            FeralModule.onMobSpawnFinalize(event.getEntity(), level);
         }
+    }
+
+    // ------------------------------------------------------------
+    // RM_FRO_038 ("Martha"): fires earlier than FinalizeSpawn above -- before a mob attempts to
+    // spawn at all, where vanilla's own light-level gate lives. Same single-subscription-class
+    // shape as every other @SubscribeEvent on this file.
+    // ------------------------------------------------------------
+    @SubscribeEvent
+    public void onSpawnPlacementCheck(MobSpawnEvent.SpawnPlacementCheck event) {
+        FeralModule.onSpawnPlacementCheck(event);
+    }
+
+    // ------------------------------------------------------------
+    // RM_FRO_038 ("Martha"): Feral's own cosmetic tell on already-spawned mobs. Feral's own tick
+    // hook, not Border's -- see FeralModule's own class doc for why it can't ride
+    // BorderModule.onPlayerScopeTick instead.
+    // ------------------------------------------------------------
+    @SubscribeEvent
+    public void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        FeralModule.onPlayerTick(event);
     }
 
 }
