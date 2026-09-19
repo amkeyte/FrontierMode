@@ -6,6 +6,7 @@ import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.server.commands.FeralCommands;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
 import com.arryn.satchel.common.util.out.OUT;
+import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -21,6 +22,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -32,7 +34,9 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.Event;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Entry point for Feral (RM_FRO_038 "Martha") -- corrupted, distance-scaling hostile mobs native
@@ -51,17 +55,19 @@ import java.util.List;
  * files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
  * is cheaper than untangling it from Border's own files later.
  *
- * <p>No persisted state, no {@code JigConfig}, no fixture/bundle -- purely event-driven off three
+ * <p>No persisted state, no {@code JigConfig}, no fixture/bundle -- purely event-driven off four
  * Forge events, each registered from its own {@code FrontierMode} delegate alongside the
  * Boss/Border ones already on that shared touch point: {@code MobSpawnEvent.FinalizeSpawn} (tag a
  * hostile that already vanilla-spawned), {@code MobSpawnEvent.SpawnPlacementCheck} (force-allow a
  * hostile spawn attempt the Exterior's own light level would otherwise have blocked -- see
- * {@link #onSpawnPlacementCheck}), and {@code TickEvent.PlayerTickEvent} (the cosmetic tell on
- * already-spawned Feral mobs -- see {@link #onPlayerTick}). The tick hook is Feral's own, not
- * Border's {@code BorderModule.onPlayerScopeTick} -- Feral depends on Border, never the reverse
- * (same discipline Boss/Border already keep), so it can't ride a hook Border would have to call
- * into it from. {@link #init()} exists only for the same "Module Initiating" bootstrap-logging
- * consistency every other module follows -- there's nothing else to initialize.
+ * {@link #onSpawnPlacementCheck}), {@code TickEvent.PlayerTickEvent} (the cosmetic tell on
+ * already-spawned Feral mobs -- see {@link #onPlayerTick}), and {@code TickEvent.LevelTickEvent}
+ * (FRO_111: kills a Feral mob that wandered back inside the Frontier -- see
+ * {@link #onLevelTick}). Both tick hooks are Feral's own, not Border's
+ * {@code BorderModule.onPlayerScopeTick} -- Feral depends on Border, never the reverse (same
+ * discipline Boss/Border already keep), so it can't ride a hook Border would have to call into it
+ * from. {@link #init()} exists only for the same "Module Initiating" bootstrap-logging consistency
+ * every other module follows -- there's nothing else to initialize.
  */
 public final class FeralModule {
 
@@ -71,6 +77,11 @@ public final class FeralModule {
     // Shared, not-persisted RNG -- same static-field shape BossTellFixture.RNG/
     // BossGuardiansFixture.RNG/BorderModule.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
+
+    // FRO_111: per-level cadence gate for the re-entry sweep, same TickThrottler(intervalTicks,
+    // level::getGameTime)-keyed-by-object-identity shape BordersRevisionMonitor already
+    // establishes for "throttle this recurring check independently per level."
+    private static final Map<Level, TickThrottler> REENTRY_SWEEP_THROTTLERS = new HashMap<>();
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
@@ -140,6 +151,65 @@ public final class FeralModule {
                     level, pos.x, pos.y, pos.z,
                     SoundEvents.GENERIC_HURT, SoundSource.HOSTILE,
                     0.4f, 1.4f + RNG.nextFloat() * 0.3f);
+        }
+    }
+
+    /**
+     * FRO_111 (project owner ruling, routed via Architect): a Feral mob that wanders back inside
+     * the Frontier must not survive -- ordinary hostiles, Boss, and Guardian Mobs are unaffected
+     * and stay exactly as designed. Sick Wildlife's own "cured by walking back in" precedent (it
+     * just stops registering a positive {@code frontierDistance} and is left alone, no code
+     * needed) doesn't transfer: Sick Wildlife is harmless, but a Feral mob is stat-scaled and
+     * permanently tagged, so surviving re-entry would let accumulated intensity follow it into the
+     * player's own claimed land.
+     *
+     * <p>Deliberately level-wide, not bounded to {@link #onPlayerTick}'s
+     * {@code FeralRules.TELL_RADIUS} -- the guarantee has to hold everywhere a Feral mob might
+     * wander back to, not just wherever a player happens to be standing. Cadence-gated per level
+     * via {@link #REENTRY_SWEEP_THROTTLERS} rather than every tick -- this doesn't need to be
+     * instant, only reliable.
+     */
+    public static void onLevelTick(TickEvent.LevelTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        if (!(event.level instanceof ServerLevel level)) {
+            return;
+        }
+
+        TickThrottler throttler = REENTRY_SWEEP_THROTTLERS.computeIfAbsent(
+                level, l -> new TickThrottler(FeralRules.REENTRY_SWEEP_INTERVAL_TICKS, level::getGameTime));
+        if (!throttler.allow()) {
+            return;
+        }
+
+        sweepReentry(level);
+    }
+
+    /**
+     * Resolves {@code feral}-team membership live off each {@link Monster} currently in
+     * {@code level}, per this fixture-free module's own "no persisted tracking" precedent -- not a
+     * list Feral itself maintains. Kills (not a silent {@code discard()}) any match whose own
+     * current position has re-entered the Frontier, per the project owner's own wording ("must
+     * die on re-entry") -- {@link net.minecraft.world.entity.LivingEntity#kill()} runs the same
+     * death handling (drops, XP, death message) an ordinary combat death would, so this reads as
+     * "the Frontier killed it," not "it vanished."
+     */
+    private static void sweepReentry(ServerLevel level) {
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof Monster monster)) {
+                continue;
+            }
+            Team team = monster.getTeam();
+            if (team == null || !"feral".equals(team.getName())) {
+                continue;
+            }
+            if (BorderAPI.frontierDistanceAt(level, monster.blockPosition()) > 0) {
+                // Still in the Exterior -- not re-entered, leave it alone.
+                continue;
+            }
+
+            monster.kill();
         }
     }
 

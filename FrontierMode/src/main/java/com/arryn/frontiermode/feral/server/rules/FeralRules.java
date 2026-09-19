@@ -52,4 +52,13 @@ public final class FeralRules {
     /** Independent per-mob roll chance (per tell interval) for the particle and the sound. */
     public static final double TELL_PARTICLE_CHANCE = 0.5;
     public static final double TELL_SOUND_CHANCE = 0.15;
+
+    // ------------------------------------------------------------------
+    // Re-entry kill (FRO_111) -- a Feral mob that wanders back inside the Frontier must not
+    // survive. Level-wide, not player-radius-bound like the cosmetic tell above -- the guarantee
+    // has to hold everywhere a Feral mob might wander back to.
+    // ------------------------------------------------------------------
+
+    /** How often (ticks) each level is swept for feral-team mobs that re-entered the Frontier. */
+    public static final int REENTRY_SWEEP_INTERVAL_TICKS = 40;
 }
