@@ -215,4 +215,13 @@ public final class FrontierMode {
         FeralModule.onPlayerTick(event);
     }
 
+    // ------------------------------------------------------------
+    // FRO_111 ("Martha"): kills a Feral mob that wandered back inside the Frontier. Level-wide,
+    // not player-radius-bound like onPlayerTick above -- see FeralModule.onLevelTick's own doc.
+    // ------------------------------------------------------------
+    @SubscribeEvent
+    public void onLevelTick(TickEvent.LevelTickEvent event) {
+        FeralModule.onLevelTick(event);
+    }
+
 }
