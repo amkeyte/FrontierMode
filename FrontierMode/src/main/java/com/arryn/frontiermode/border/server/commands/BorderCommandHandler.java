@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.border.server.commands;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
@@ -368,6 +369,25 @@ public final class BorderCommandHandler {
         );
 
         return borders.size();
+    }
+
+    // ------------------------------------------------------------------
+    // DEBUG SICKNESS -- project owner request (2026-09-18). Global debug state (not per-player),
+    // same "/boss debug glow" shape -- no retroactive-apply concern here though: unlike glow (a
+    // synced entity flag set once), sickness is re-evaluated every refresh interval already, so
+    // toggling BorderModule.sicknessEnabled just changes what the very next refresh does.
+    // ------------------------------------------------------------------
+    public static int setSicknessEnabled(CommandContext<CommandSourceStack> ctx, boolean value) {
+        BorderModule.setSicknessEnabled(value);
+
+        ctx.getSource().sendSuccess(
+                () -> msg("[Border][Debug] Frontier Sickness " + (value ? "enabled" : "disabled")
+                        + ". Already-granted effects on players still outside will keep running "
+                        + "down on their own vanilla duration rather than being cleared instantly."),
+                false
+        );
+
+        return 1;
     }
 
     // ------------------------------------------------------------------
