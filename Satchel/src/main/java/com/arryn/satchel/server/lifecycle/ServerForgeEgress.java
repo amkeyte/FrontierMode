@@ -1,9 +1,12 @@
 package com.arryn.satchel.server.lifecycle;
 
 import com.arryn.satchel.common.jig.guts.ForgeEgress;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -25,5 +28,20 @@ public final class ServerForgeEgress implements ForgeEgress {
             return Optional.empty();
         }
         return Optional.ofNullable(serverLevel.getEntity(uuid));
+    }
+
+    /**
+     * SAT_071: reaches the online-player list directly via {@link ServerLifecycleHooks} --
+     * verified real against the mapped MC jar, not assumed -- rather than through any specific
+     * {@link ServerLevel}, since a player's current dimension is exactly the thing a caller
+     * resolving fresh every call doesn't have cached anywhere to ask.
+     */
+    @Override
+    public Optional<Player> getPlayer(UUID uuid) {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(server.getPlayerList().getPlayer(uuid));
     }
 }

@@ -32,11 +32,12 @@ public final class BordersBundle extends SatchelBundle {
      * SAT_053: Border state must survive a restart (see BorderModule's LevelJigConfig --
      * capabilities/persistence policy declared there), so this bundle declares the matching
      * requirement itself; the engine now gates promotion on this, not on the jig-level policy
-     * alone.
+     * alone. NETWORKING added (FRO_115): without it the client-side bundle never receives a
+     * parcel and stays stuck CREATED, so cachedBorders is always empty and rings never render.
      */
     @Override
     public int required() {
-        return Capability.PERSISTENCE.bit();
+        return Capability.PERSISTENCE.bit() | Capability.NETWORKING.bit();
     }
 
     public Optional<NavigatorFixture> navigator() {
