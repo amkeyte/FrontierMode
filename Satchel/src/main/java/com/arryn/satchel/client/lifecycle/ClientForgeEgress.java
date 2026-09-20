@@ -1,8 +1,10 @@
 package com.arryn.satchel.client.lifecycle;
 
 import com.arryn.satchel.common.jig.guts.ForgeEgress;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
@@ -37,6 +39,19 @@ public final class ClientForgeEgress implements ForgeEgress {
             if (entity.getUUID().equals(uuid)) {
                 return Optional.of(entity);
             }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * SAT_071: trivial client-side -- there is only ever one local player (SAT_063's own
+     * reasoning), so this is a UUID check against it rather than a search.
+     */
+    @Override
+    public Optional<Player> getPlayer(UUID uuid) {
+        Player local = Minecraft.getInstance().player;
+        if (local != null && local.getUUID().equals(uuid)) {
+            return Optional.of(local);
         }
         return Optional.empty();
     }

@@ -167,9 +167,11 @@ public final class BorderModule {
 
         // Borders persist across restarts -- ScopeEngine_Server's hydrate/flush path
         // requires this capability declared, or it throws AccessFailed the first time
-        // a border loads.
+        // a border loads. Networking allowed too (FRO_115) -- without it the client-side
+        // BordersBundle never receives a parcel and stays stuck CREATED, so border rings
+        // never render regardless of what the debug toggle is set to.
         config.policies().capabilities(
-                new JigPolicies.Capabilities(true, false, false));
+                new JigPolicies.Capabilities(true, true, false));
 
         // capabilities().allowsPersistence=true is cross-checked by JigConfigValidator
         // against this policy's own persistent flag -- declaring the capability alone is

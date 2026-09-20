@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.jig.guts;
 
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
@@ -27,4 +28,17 @@ import java.util.UUID;
 public interface ForgeEgress {
 
     Optional<Entity> getEntity(Level level, UUID uuid);
+
+    /**
+     * SAT_071: a second, deliberately level-independent lookup -- {@link #getEntity} needs the
+     * caller to already know which {@link Level} to look in, which doesn't fit a player: unlike
+     * a tracked mob, a player can be in any dimension at any moment, and the caller (e.g.
+     * {@code PlayerScope}) has no cached reference left to ask "which level are you in right now"
+     * once this is the only resolution path -- that's the whole point. Server-side, this reaches
+     * the online-player list directly (global, not per-level); client-side, it's a UUID check
+     * against the one local player. Not folded into {@link #getEntity}'s own signature: a
+     * {@code null}/sentinel {@code Level} for "search everywhere" would be a worse interface than
+     * a second, honestly-named method.
+     */
+    Optional<Player> getPlayer(UUID uuid);
 }
