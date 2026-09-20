@@ -14,6 +14,10 @@ import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
+import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
+import com.arryn.frontiermode.structure.common.CairnFixture;
+import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
@@ -170,6 +174,50 @@ public final class FrontierKeys {
             );
 
 
+    // FRO_118: BossTellModule's own PlayerJig-scoped bundle -- not BorderPlayerBundle (a
+    // different concern), per
+    // wiki/frontiermode/architecture/special-compass.md#playerscope-fixture-live-refresh-not-the-pickup-block.
+    // See BossTellModule.init() for the schema/config wiring.
+
+    public static final BundleKey<CompassPlayerBundle> COMPASS_PLAYER_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:compass_player_bundle",
+                    CompassPlayerBundle.class
+            );
+
+    public static final FixtureKey<CompassPlayerFixture> COMPASS_PLAYER =
+            new FixtureKey<>(
+                    "frontiermode:compass_player_fixture",
+                    CompassPlayerFixture.class
+            );
+
+    public static final JigKey<PlayerJig> COMPASS_PLAYER_JIG =
+            new JigKey<>(
+                    "frontiermode:compass_player_jig",
+                    PlayerJig.class
+            );
+
+    // FRO_120 (Cairn, RM_FRO_039 "Helen"): StructureModule's own third home -- not BossBundle,
+    // not BossTellModule's bundle. See BossTellModule.init()-equivalent (StructureModule.init())
+    // for the schema/config wiring and wiki/frontiermode/architecture/cairn.md for the design.
+
+    public static final BundleKey<StructureBundle> STRUCTURE_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:structure_bundle",
+                    StructureBundle.class
+            );
+
+    public static final FixtureKey<CairnFixture> CAIRN =
+            new FixtureKey<>(
+                    "frontiermode:cairn_fixture",
+                    CairnFixture.class
+            );
+
+    public static final JigKey<LevelJig> STRUCTURE_JIG =
+            new JigKey<>(
+                    "frontiermode:structure_jig",
+                    LevelJig.class
+            );
 
     private FrontierKeys() {}
 }

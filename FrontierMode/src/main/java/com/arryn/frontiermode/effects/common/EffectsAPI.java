@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -53,6 +54,24 @@ public final class EffectsAPI {
     ) {
         player.serverLevel().sendParticles(
                 player, particle, false, x, y, z, count, xOffset, yOffset, zOffset, speed);
+    }
+
+    /**
+     * FRO_120 (Cairn): area particle broadcast, the particle-side counterpart to
+     * {@link #broadcastSound} below -- every nearby tracking player gets it, per
+     * {@code ServerLevel.sendParticles}'s own no-target overload, rather than
+     * {@link #sendParticleToPlayer}'s single-viewer shape. First real consumer: Cairn's own pulse
+     * bee-line, which several players standing near the same Cairn should all see at once.
+     */
+    public static void broadcastParticle(
+            ServerLevel level,
+            ParticleOptions particle,
+            double x, double y, double z,
+            int count,
+            double xOffset, double yOffset, double zOffset,
+            double speed
+    ) {
+        level.sendParticles(particle, x, y, z, count, xOffset, yOffset, zOffset, speed);
     }
 
     /**

@@ -5,6 +5,10 @@ import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
+import com.arryn.satchel.common.lifecycle.BlockBreakSignal;
+import com.arryn.satchel.common.lifecycle.ItemPickupSignal;
+import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
+import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
@@ -16,7 +20,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -34,6 +42,9 @@ import java.util.UUID;
  *   <li>Introduce host sources to Satchel</li>
  *   <li>Drive execution pulses</li>
  *   <li>Post {@link MobDied} when a registered mob dies (SAT_044)</li>
+ *   <li>Post {@link ItemPickupSignal}/{@link BlockBreakSignal}/{@link LivingDropsSignal}/
+ *   {@link LivingExperienceDropSignal} for item pickup, block break, and death drops
+ *   (SAT_072)</li>
  * </ul>
  *
  * <p>
@@ -226,6 +237,104 @@ public final class ServerForgeIngress {
 
         OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
+    }
+
+    /* =============================================================
+     * Item pickup signal — ItemPickupSignal (SAT_072)
+     * ========================================================== */
+
+    /**
+     * Posts {@link ItemPickupSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
+     * before a pickup completes, so a subscriber can veto it. No {@code isClientSide} guard
+     * needed: {@link EntityItemPickupEvent} is only ever fired from {@code ItemEntity.playerTouch}
+     * behind that class's own server-side check, so this handler never sees a client-side firing.
+     *
+     * <p>
+     * No interest-registry gate, unlike {@link #onLivingDeath}: nothing here proposes narrowing by
+     * item/player up front, so every pickup posts, and each subscriber checks its own relevance —
+     * the same discipline {@link MobDied} established, cheap regardless since {@code
+     * SatchelEventBus.post()} is a no-op when nothing's subscribed.
+     */
+    @SubscribeEvent
+    public static void onItemPickup(EntityItemPickupEvent e) {
+        if (!Satchel.isReady()) {
+            OUT.debug("[ItemPickupSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new ItemPickupSignal(e));
+    }
+
+    /* =============================================================
+     * Block break signal — BlockBreakSignal (SAT_072)
+     * ========================================================== */
+
+    /**
+     * Posts {@link BlockBreakSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
+     * synchronously, off the real {@link BlockEvent.BreakEvent} — not queued or tick-delayed, so a
+     * consumer reacting to it (Cairn's capstone explosion) reads as an immediate reaction to the
+     * player's own break.
+     */
+    @SubscribeEvent
+    public static void onBlockBreak(BlockEvent.BreakEvent e) {
+        if (!(e.getLevel() instanceof ServerLevel level)) return;
+
+        if (!Satchel.isReady()) {
+            OUT.debug("[BlockBreakSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new BlockBreakSignal(level, e));
+    }
+
+    /* =============================================================
+     * Living drops signal — LivingDropsSignal (SAT_072)
+     * ========================================================== */
+
+    /**
+     * Posts {@link LivingDropsSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
+     * before a dying entity's drops are spawned into the world, so a subscriber can veto them
+     * entirely or mutate the drop list directly.
+     *
+     * <p>
+     * No {@code isClientSide} guard needed: {@link LivingDropsEvent} is only ever posted from
+     * inside {@code LivingEntity.dropAllDeathLoot}, itself only reached from {@code die()}'s own
+     * {@code level instanceof ServerLevel} branch -- unlike {@link LivingDeathEvent}, which fires
+     * unconditionally at the top of {@code die()} and needs the explicit guard {@link
+     * #onLivingDeath} has.
+     */
+    @SubscribeEvent
+    public static void onLivingDrops(LivingDropsEvent e) {
+        if (!Satchel.isReady()) {
+            OUT.debug("[LivingDropsSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new LivingDropsSignal(e));
+    }
+
+    /* =============================================================
+     * Living experience drop signal — LivingExperienceDropSignal (SAT_072)
+     * ========================================================== */
+
+    /**
+     * Posts {@link LivingExperienceDropSignal} to
+     * {@link com.arryn.satchel.common.lifecycle.SatchelEventBus} before a dying entity's
+     * experience orb is awarded, so a subscriber can veto it entirely.
+     *
+     * <p>
+     * No {@code isClientSide} guard needed, same reasoning as {@link #onLivingDrops}: {@link
+     * LivingExperienceDropEvent} is only ever posted from inside {@code
+     * LivingEntity.dropExperience}'s own {@code level instanceof ServerLevel} check.
+     */
+    @SubscribeEvent
+    public static void onLivingExperienceDrop(LivingExperienceDropEvent e) {
+        if (!Satchel.isReady()) {
+            OUT.debug("[LivingExperienceDropSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new LivingExperienceDropSignal(e));
     }
 
     /* =================================ss============================

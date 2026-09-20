@@ -7,8 +7,10 @@ import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeI
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
+import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.feral.FeralModule;
+import com.arryn.frontiermode.structure.StructureModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
@@ -114,6 +116,16 @@ public final class FrontierMode {
         // Register custom sound events with Forge
         SOUND_EVENTS.register(modBus);
 
+        // FRO_118: BossTellModule.ITEMS lives on that module, not here (project owner's call --
+        // see BossTellModule's own class doc), but a DeferredRegister still needs the mod bus
+        // instance to register onto, which only exists in this constructor.
+        BossTellModule.ITEMS.register(modBus);
+
+        // FRO_120: same reasoning as BossTellModule.ITEMS above -- StructureModule.BLOCKS lives
+        // on that module, only registered here because the mod bus instance is only available
+        // in this constructor.
+        StructureModule.BLOCKS.register(modBus);
+
         // Register configuration
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
@@ -133,6 +145,19 @@ public final class FrontierMode {
         // Boss record) is BossModule's own ScopeEvent.Loaded handler now, registered from inside
         // this same init() call -- see BossModule.onBordersScopeLoaded's own doc.
         BossModule.init();
+
+        // FRO_118 (RM_FRO_033, "Marilyn"): Admin Compass + shared core. No fixture/init-order
+        // dependency on Border or Boss's own module init -- it reaches BossAPI/BorderAPI from
+        // outside, the same one-directional relationship Feral has with both (see
+        // BossTellModule's own class doc). Placed after BossModule.init() only for bootstrap-log
+        // ordering, not because anything here requires it.
+        BossTellModule.init();
+
+        // FRO_120 (RM_FRO_039, "Helen"): Cairn's own third home. Reads BossAPI/BorderAPI from
+        // outside, no fixture/init-order dependency on Border's or Boss's own module init --
+        // registers into BossPositionListeners at its own init() instead (see StructureModule's
+        // class doc).
+        StructureModule.init();
 
         // FRO_089: cross-cutting particle/sound dispatch module. No fixture/init-order
         // dependency on Border or Boss -- both now route their effects through it.
@@ -173,6 +198,10 @@ public final class FrontierMode {
         BorderModule.onRegisterCommands(event);
         // FRO_057 (RM_FRO_022, "Joyce"): registers /boss alongside /border.
         BossModule.onRegisterCommands(event);
+        // FRO_118: merges /boss debug compass into the /boss -> debug node BossModule just
+        // registered above -- order matters for readability only, not correctness (Brigadier's
+        // own addChild merge doesn't care which registration runs first).
+        BossTellModule.onRegisterCommands(event);
         // RM_FRO_038 ("Martha"): registers /feral alongside /border and /boss.
         FeralModule.onRegisterCommands(event);
     }

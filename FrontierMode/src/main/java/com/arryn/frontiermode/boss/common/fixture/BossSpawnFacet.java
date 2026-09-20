@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
+import com.arryn.frontiermode.boss.BossPositionListeners;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
@@ -53,6 +54,14 @@ public final class BossSpawnFacet {
                     + record.layer() + ") position finalized at " + chosen.getX() + ", "
                     + chosen.getY() + ", " + chosen.getZ() + " -- home border " + Ids.shortId(border.id())
                     + ". Will materialize once that chunk is loaded.");
+
+            // FRO_120 (Cairn): "the moment a qualifying boss's own position commits" is exactly
+            // this point, per cairn.md's "Data model" section -- fire the listener registry with
+            // the now-positioned record (fixture.CRUD.finalizePosition already committed it, so
+            // this re-read reflects the real, final state) rather than the stale pre-finalize
+            // copy still held in this loop's own `record` variable.
+            fixture.CRUD.get(record.bossId()).ifPresent(updated ->
+                    BossPositionListeners.fire(level, updated));
         }
     }
 

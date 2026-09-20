@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "powered=false": { "model": "frontiermode:block/cairn_cap" },
+    "powered=true": { "model": "frontiermode:block/cairn_cap" }
+  }
+}

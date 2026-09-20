@@ -204,6 +204,36 @@ public final class DefaultBossRules implements BossRules {
         return 0.0;
     }
 
+    // FRO_120 (Cairn): safe-baseline flatness floor for footprintSuitable() below -- a tuning
+    // number, not part of the shared BossRules contract (flatnessScore's own continuous score is
+    // the contract; where to draw a boolean pass/fail line on it is this implementation's call,
+    // same as every other threshold in this class).
+    private static final double FOOTPRINT_MIN_FLATNESS = 0.5;
+
+    @Override
+    public boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
+        int half = size / 2;
+        for (int dx = -half; dx <= half; dx++) {
+            for (int dz = -half; dz <= half; dz++) {
+                BlockPos column = center.offset(dx, 0, dz);
+                BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
+
+                if (hazardScore(level, ground) >= 1.0) {
+                    return false;
+                }
+                if (flatnessScore(level, ground) < FOOTPRINT_MIN_FLATNESS) {
+                    return false;
+                }
+                for (int dy = 1; dy <= clearance; dy++) {
+                    if (!level.getBlockState(ground.above(dy)).isAir()) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     @Override
     public Optional<Mob> materialize(Level level, BlockPos position, int layer) {
         // Border Pregeneration: position was already validated (flatness/hazard-scored) against
