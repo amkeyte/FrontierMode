@@ -18,6 +18,7 @@ import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
@@ -137,6 +138,55 @@ public final class BossAPI {
      * "standby, don't crash" discipline as {@link #bosses(Level)}, mirroring {@link #bossTells}
      * exactly. Used by {@code BossModule.onMobSpawnFinalize}.
      */
+    /**
+     * FRO_120 (Cairn): public query surface boss.md's own "Aliveness checking and despawn"
+     * section describes but never actually built until now -- gates Cairn's own pulse (alive:
+     * point at {@code lastKnownBossPos}; dead: a fresh random sphere point, per cairn.md's "The
+     * pulse" section). {@code false} for a record that doesn't exist or isn't resolvable yet, the
+     * same "standby, don't crash" default every other {@code BossAPI} boolean/{@code Optional}
+     * query in this class uses.
+     */
+    public static boolean isBossAlive(Level level, UUID bossId) {
+        return bosses(level)
+                .flatMap(fixture -> fixture.CRUD.get(bossId))
+                .map(BossRecord::alive)
+                .orElse(false);
+    }
+
+    /**
+     * FRO_118: the live-position resolver shared by the Admin Compass path and (later) Resonance,
+     * and reused as-is by Cairn's own {@code lastKnownBossPos} pulse (FRO_120) -- one resolver, not
+     * two, per special-compass.md's "Live position resolution" section. Reads {@code bossId}'s
+     * actual materialized mob position via {@code ForgeEgress.getEntity} if the entity is
+     * currently loaded, falling back to the record's own (possibly unfinalized) {@link
+     * BossRecord#position()} otherwise -- the same "standby, don't crash" degrade every other
+     * cross-module Boss query in this codebase uses. {@code Optional.empty()} only when the
+     * record itself doesn't exist or the level's Boss data isn't resolvable yet; an unmaterialized
+     * or unpositioned record still returns whatever {@code position()} holds (nullable, so this
+     * still filters it through {@code Optional.ofNullable}).
+     */
+    public static Optional<BlockPos> resolveLivePosition(Level level, UUID bossId) {
+        Optional<BossFixture> fixtureOpt = bosses(level);
+        if (fixtureOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<BossRecord> recordOpt = fixtureOpt.get().CRUD.get(bossId);
+        if (recordOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        BossRecord record = recordOpt.get();
+
+        if (record.materialized()) {
+            Optional<net.minecraft.world.entity.Entity> entityOpt =
+                    Satchel.require().egress().getEntity(level, record.bossEntityId());
+            if (entityOpt.isPresent()) {
+                return Optional.of(entityOpt.get().blockPosition());
+            }
+        }
+
+        return Optional.ofNullable(record.position());
+    }
+
     public static Optional<BossGuardiansFixture> guardians(Level level) {
         if (!Satchel.isReady()) {
             OUT.debug("[BossAPI] guardians(): Satchel not ready yet -> Optional.empty level="

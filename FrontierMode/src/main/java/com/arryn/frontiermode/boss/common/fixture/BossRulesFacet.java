@@ -61,6 +61,15 @@ public final class BossRulesFacet {
     }
 
     /**
+     * FRO_120 (Cairn): the shared footprint-mode terrain check, reached via
+     * {@code BossAPI.RULES(Level)} from outside the {@code boss} package -- see
+     * {@link BossRules#footprintSuitable(Level, BlockPos, int, int)}.
+     */
+    public boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
+        return RULES.footprintSuitable(level, center, size, clearance);
+    }
+
+    /**
      * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}.
      */
     public int tellTickInterval() {

@@ -46,6 +46,27 @@ public interface BossRules {
     double hazardScore(Level level, BlockPos candidate);
 
     /**
+     * FRO_120 (Cairn): footprint-mode terrain-suitability check over a {@code size × size} area
+     * centered on {@code center}, reusing the identical {@link #flatnessScore}/{@link
+     * #hazardScore} logic {@link #choosePosition} already scores a single column with -- one
+     * shared rule across point-mode and footprint-mode, not two independently hand-rolled
+     * versions that could drift apart. See
+     * wiki/frontiermode/architecture/boss.md#spawn-algorithm-a-pluggable-strategy-mirroring-borderrules
+     * and wiki/frontiermode/architecture/cairn.md#placement.
+     *
+     * <p>Unlike {@link #choosePosition}'s "score several candidates, pick the best" shape, this
+     * is a plain boolean pass/fail for one candidate -- Cairn's own placement (the first
+     * consumer) resamples a fresh candidate on failure rather than scoring several at once, per
+     * cairn.md's own "a dev stand-in for now" framing.
+     *
+     * @param clearance required vertical clearance above each column's resolved ground, in
+     *                  blocks -- one shared number across every footprint consumer (5, per
+     *                  boss.md's own spec, sized to cover both a boss mob's standing room and
+     *                  Cairn's 3-tall pillar plus a spare block above the cap).
+     */
+    boolean footprintSuitable(Level level, BlockPos center, int size, int clearance);
+
+    /**
      * Materialization -- called only once the caller (BOSS_JIG's own tick) has already confirmed
      * {@code Level.isLoaded(position)}. {@code position} is already validated, real terrain by
      * this point (chosen and scored by {@link #choosePosition} above) -- no in-place Y-resolution
