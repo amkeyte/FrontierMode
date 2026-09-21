@@ -1,5 +1,6 @@
 package com.arryn.frontiermode;
 
+import com.arryn.frontiermode.admin.AdminToolsModule;
 import com.arryn.frontiermode.border.BorderModule;
 import net.minecraft.server.level.ServerLevel;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
@@ -120,11 +121,16 @@ public final class FrontierMode {
         // see BossTellModule's own class doc), but a DeferredRegister still needs the mod bus
         // instance to register onto, which only exists in this constructor.
         BossTellModule.ITEMS.register(modBus);
+        // FRO_121: same reasoning as ITEMS above.
+        BossTellModule.ENCHANTMENTS.register(modBus);
 
         // FRO_120: same reasoning as BossTellModule.ITEMS above -- StructureModule.BLOCKS lives
         // on that module, only registered here because the mod bus instance is only available
         // in this constructor.
         StructureModule.BLOCKS.register(modBus);
+
+        // Admin tools: same reasoning as BossTellModule.ENCHANTMENTS above.
+        AdminToolsModule.ENCHANTMENTS.register(modBus);
 
         // Register configuration
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
@@ -158,6 +164,9 @@ public final class FrontierMode {
         // registers into BossPositionListeners at its own init() instead (see StructureModule's
         // class doc).
         StructureModule.init();
+
+        // Admin tools -- no fixture/init-order dependency on anything else.
+        AdminToolsModule.init();
 
         // FRO_089: cross-cutting particle/sound dispatch module. No fixture/init-order
         // dependency on Border or Boss -- both now route their effects through it.
@@ -202,8 +211,13 @@ public final class FrontierMode {
         // registered above -- order matters for readability only, not correctness (Brigadier's
         // own addChild merge doesn't care which registration runs first).
         BossTellModule.onRegisterCommands(event);
+        // FRO_120: merges /boss structure debug goto into the same /boss root, same Brigadier
+        // merge behavior.
+        StructureModule.onRegisterCommands(event);
         // RM_FRO_038 ("Martha"): registers /feral alongside /border and /boss.
         FeralModule.onRegisterCommands(event);
+        // Admin tools: registers /admin as its own, separate root -- not merged into /boss.
+        AdminToolsModule.onRegisterCommands(event);
     }
 
     // ------------------------------------------------------------

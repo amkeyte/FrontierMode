@@ -13,6 +13,7 @@ import com.arryn.frontiermode.structure.common.CairnCapBlock;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnRecord;
 import com.arryn.frontiermode.structure.common.StructureBundle;
+import com.arryn.frontiermode.structure.server.commands.StructureCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
@@ -34,6 +35,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -69,6 +71,17 @@ public final class StructureModule {
     private static final int FOOTPRINT_CLEARANCE = 5; // shared number, per boss.md's own spec
     private static final int DEAD_SPHERE_RADIUS = 100;
 
+    // Capstone explosion power. Playtest found 1.0F effectively harmless -- Level.explode()'s
+    // entity-damage/knockback pass only touches entities within (power * 2) blocks of the
+    // center, so at 1.0F only something standing almost exactly on top of the cap felt anything
+    // at all; ExplosionInteraction.NONE (block-damage-free) doesn't affect that pass, only
+    // whether blocks themselves get destroyed. 2.0F widens the hit radius to 4 blocks and scales
+    // up damage/knockback with it -- still well under a Creeper's 3.0F or TNT's 4.0F. Damage
+    // scales sharply with this value and further with distance/armor, so "a heart and some
+    // knockback" at typical break range is a playtest estimate, not a guarantee -- tune further
+    // if it still reads as too weak (or too strong) in practice.
+    private static final float CAPSTONE_EXPLOSION_POWER = 2.0F;
+
     private static final RandomSource RNG = RandomSource.create();
 
     // ------------------------------------------------------------
@@ -88,6 +101,10 @@ public final class StructureModule {
         OUT.info("FrontierMode - StructureModule Initiating.");
         registerStructureJig();
         BossPositionListeners.register(StructureModule::onBossPositioned);
+    }
+
+    public static void onRegisterCommands(RegisterCommandsEvent event) {
+        StructureCommands.register(event.getDispatcher());
     }
 
     // ------------------------------------------------------------
@@ -161,7 +178,9 @@ public final class StructureModule {
                 fixture.createIfAbsent(record.bossId(), record.position()));
     }
 
-    private static Optional<CairnFixture> cairnFixture(Level level) {
+    /** Public for {@code StructureCommands} -- same "standby, don't crash" resolver as
+     * {@code BossAPI.bosses(Level)}. */
+    public static Optional<CairnFixture> cairnFixture(Level level) {
         if (!Satchel.isReady()) {
             return Optional.empty();
         }
@@ -254,11 +273,26 @@ public final class StructureModule {
                 + ground.getY() + ", " + ground.getZ());
     }
 
+    /**
+     * Bug fix (playtest): this used to only place the pad's own floor blocks, never clear the
+     * air above them. Every pad cell is built at the <em>center</em> candidate's resolved
+     * ground height, but {@code footprintSuitable}'s own flatness tolerance allows real height
+     * variation across the 3x3 area -- so on uneven terrain, a non-center cell's original,
+     * taller ground can leave solid leftover blocks sitting right above the new pad surface.
+     * That's exactly what a debug-teleported player standing on an edge cell suffocated in.
+     * Matches the precedent {@code BossTellFixture.placePlatform} (Environmental Tells' own 3x3
+     * platform) already established for the identical reason -- clear air above every cell, not
+     * just the one the pillar sits on.
+     */
     private static void buildStructure(Level level, BlockPos ground) {
         int half = PAD_SIZE / 2;
         for (int dx = -half; dx <= half; dx++) {
             for (int dz = -half; dz <= half; dz++) {
-                level.setBlock(ground.offset(dx, 0, dz), Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
+                BlockPos cell = ground.offset(dx, 0, dz);
+                level.setBlock(cell, Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
+                for (int dy = 1; dy <= FOOTPRINT_CLEARANCE; dy++) {
+                    level.setBlock(cell.above(dy), Blocks.AIR.defaultBlockState(), 2);
+                }
             }
         }
         level.setBlock(ground.above(1), Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
@@ -387,8 +421,10 @@ public final class StructureModule {
             return;
         }
 
-        // Weak, block-damage-free -- punishes the break without griefing anything around it.
+        // Block-damage-free (ExplosionInteraction.NONE) -- punishes the break without griefing
+        // anything around it. See CAPSTONE_EXPLOSION_POWER's own doc for the damage/knockback
+        // tuning this power value controls.
         level.explode(null, signal.pos().getX() + 0.5, signal.pos().getY() + 0.5,
-                signal.pos().getZ() + 0.5, 1.0F, Level.ExplosionInteraction.NONE);
+                signal.pos().getZ() + 0.5, CAPSTONE_EXPLOSION_POWER, Level.ExplosionInteraction.NONE);
     }
 }

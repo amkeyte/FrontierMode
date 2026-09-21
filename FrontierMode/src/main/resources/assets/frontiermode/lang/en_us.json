@@ -1,4 +1,8 @@
 {
+  "item.frontiermode.amethyst_compass": "Amethyst Compass",
+  "enchantment.frontiermode.intuition": "Intuition",
+  "enchantment.frontiermode.resonance": "Resonance",
+  "enchantment.frontiermode.death_touch": "Death Touch",
   "subtitles.frontiermode.entry_cue": "Frontier crossed",
   "subtitles.frontiermode.boss_tell_1": "Distant presence",
   "subtitles.frontiermode.boss_tell_2": "Distant presence",

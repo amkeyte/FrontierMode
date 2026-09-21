@@ -9,7 +9,8 @@ import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-//import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -79,12 +80,32 @@ public final class BossSpawnFacet {
             fixture.RULES.materialize(level, xz, record.layer()).ifPresent(mob -> {
                 fixture.CRUD.materialize(record.bossId(), mob.getUUID());
                 onMaterialized.accept(mob.getUUID());
+                announceSpawn(level, record.layer());
                 if (MobScope.getFor(mob).isEmpty()) {
                     OUT.warn("[Boss] materializeUnresolved(): MobScope.getFor rejected a mob just"
                             + " spawned (bossId=" + Ids.shortId(record.bossId()) + ") -- presence poll will"
                             + " still pick it up once ready.");
                 }
             });
+        }
+    }
+
+    /**
+     * Chat-log broadcast for a real (tick-driven) materialization -- not the location itself,
+     * just that one now exists, so this doesn't touch boss.md's client-secrecy policy on
+     * position (see {@code BOSS_JIG}'s own "Module wiring" section). Deliberately not called
+     * from {@link #forceMaterialize} -- that's an admin/debug action (a player command), and
+     * broadcasting chat for every admin test-materialize would be noise, the same "no free
+     * reward without a real trigger" reasoning already applied elsewhere in this codebase (e.g.
+     * placeholder defeat loot skipping the {@code forceDefeat} admin path).
+     */
+    private static void announceSpawn(Level level, int layer) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        Component message = Component.literal("[Boss] A new boss has emerged (Layer " + layer + ").");
+        for (var player : serverLevel.players()) {
+            player.sendSystemMessage(message);
         }
     }
 

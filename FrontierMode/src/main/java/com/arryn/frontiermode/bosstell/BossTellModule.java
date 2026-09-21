@@ -6,6 +6,8 @@ import com.arryn.frontiermode.bosstell.common.AmethystCompassItem;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
+import com.arryn.frontiermode.bosstell.common.IntuitionEnchantment;
+import com.arryn.frontiermode.bosstell.common.ResonanceEnchantment;
 import com.arryn.frontiermode.bosstell.server.commands.BossTellCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
@@ -20,6 +22,7 @@ import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -61,6 +64,19 @@ public final class BossTellModule {
     public static final RegistryObject<net.minecraft.world.item.Item> AMETHYST_COMPASS =
             ITEMS.register("amethyst_compass",
                     () -> new AmethystCompassItem(new net.minecraft.world.item.Item.Properties()));
+
+    // FRO_121: same reasoning as ITEMS above -- confirmed against real Forge 1.20.1-47.4.10
+    // sources that ForgeRegistries.ENCHANTMENTS is a plain IForgeRegistry<Enchantment>, no
+    // Keys-based DeferredRegister overload needed (unlike some other registries this version
+    // moved onto Keys for).
+    public static final DeferredRegister<Enchantment> ENCHANTMENTS =
+            DeferredRegister.create(ForgeRegistries.ENCHANTMENTS, FrontierMode.MODID);
+
+    public static final RegistryObject<Enchantment> INTUITION =
+            ENCHANTMENTS.register("intuition", IntuitionEnchantment::new);
+
+    public static final RegistryObject<Enchantment> RESONANCE =
+            ENCHANTMENTS.register("resonance", ResonanceEnchantment::new);
 
     public static void init() {
         OUT.info("FrontierMode - BossTellModule Initiating.");

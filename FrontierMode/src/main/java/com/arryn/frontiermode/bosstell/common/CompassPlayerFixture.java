@@ -46,8 +46,14 @@ public final class CompassPlayerFixture extends SatchelFixture {
     }
 
     private void refreshIfAttuned(ItemStack stack, ServerPlayer player) {
-        if (stack.getItem() instanceof AmethystCompassItem && CompassAttunement.isAttuned(stack)) {
-            AmethystCompassItem.refreshTarget(stack, player.level());
+        // Bug fix (playtest, same class of bug as AmethystCompassItem.refreshOrRelock's own
+        // fix): this used to also gate on CompassAttunement.isAttuned(stack) here, before ever
+        // calling refreshOrRelock -- so a fresh, never-attuned compass carrying a real
+        // Intuition/Resonance enchant never reached the method that would have noticed the
+        // enchant at all. refreshOrRelock already knows how to tell "nothing to do" from "an
+        // enchant that needs a first lock" -- this caller shouldn't re-decide that upfront.
+        if (stack.getItem() instanceof AmethystCompassItem) {
+            AmethystCompassItem.refreshOrRelock(stack, player.serverLevel(), player);
         }
     }
 }
