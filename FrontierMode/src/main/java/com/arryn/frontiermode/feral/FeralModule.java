@@ -24,6 +24,7 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
@@ -189,6 +190,11 @@ public final class FeralModule {
      * permanently tagged, so surviving re-entry would let accumulated intensity follow it into the
      * player's own claimed land.
      *
+     * <p>As of this same sweep, also clears any Feral mob too far from every player to matter --
+     * see {@link #sweepFeralCleanup}'s own doc for why (project owner report, 2026-09-20: the
+     * density-driven swarm hits vanilla's own local mob cap after its first burst and then never
+     * recovers).
+     *
      * <p>Deliberately level-wide, not bounded to {@link #onPlayerTick}'s
      * {@code FeralRules.TELL_RADIUS} -- the guarantee has to hold everywhere a Feral mob might
      * wander back to, not just wherever a player happens to be standing. Cadence-gated per level
@@ -209,7 +215,7 @@ public final class FeralModule {
             return;
         }
 
-        sweepReentry(level);
+        sweepFeralCleanup(level);
     }
 
     /**
@@ -217,15 +223,27 @@ public final class FeralModule {
      * {@code level} whose type is a real {@link MobCategory#MONSTER} hostile -- not an
      * {@code instanceof Monster} check, same reasoning as {@link #onPlayerTick}'s own search --
      * per this fixture-free module's own "no persisted tracking" precedent, not a list Feral
-     * itself maintains. Kills (not a silent {@code discard()}) any match whose own current
-     * position has re-entered the Frontier, per the project owner's own wording ("must die on
-     * re-entry") -- {@link net.minecraft.world.entity.LivingEntity#kill()} runs the same death
-     * handling (drops, XP, death message) an ordinary combat death would, so this reads as "the
-     * Frontier killed it," not "it vanished."
+     * itself maintains. One pass, two independent cleanup checks per mob found:
+     *
+     * <ol>
+     *   <li><b>Re-entered the Frontier:</b> kills it (not a silent {@code discard()}), per the
+     *       project owner's own wording ("must die on re-entry") -- {@code LivingEntity#kill()}
+     *       runs the same death handling (drops, XP, death message) an ordinary combat death
+     *       would, so this reads as "the Frontier killed it," not "it vanished."
+     *   <li><b>Still in the Exterior, but too far from every player</b> ({@code
+     *       FeralRules.DESPAWN_RADIUS}): silently {@code discard()}s it instead -- no death
+     *       event, no message, matching vanilla's own silent distant-mob despawn precedent this
+     *       is deliberately mirroring. This is what actually frees the mob-cap slot the density
+     *       mechanic ({@code rollDensityCompanion}) needs in order to keep piggybacking on real
+     *       spawn attempts near the player -- without it, the initial border-crossing burst
+     *       saturates the cap and nothing new ever spawns again nearby, per the project owner's
+     *       own report.
+     * </ol>
      */
-    private static void sweepReentry(ServerLevel level) {
+    private static void sweepFeralCleanup(ServerLevel level) {
         int feralCount = 0;
         int killedCount = 0;
+        int despawnedCount = 0;
         for (Entity entity : level.getAllEntities()) {
             if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
                 continue;
@@ -236,21 +254,26 @@ public final class FeralModule {
             }
             feralCount++;
 
-            if (BorderAPI.frontierDistanceAt(level, monster.blockPosition()) > 0) {
-                // Still in the Exterior -- not re-entered, leave it alone.
+            if (BorderAPI.frontierDistanceAt(level, monster.blockPosition()) <= 0) {
+                killFeralAndCleanupSplit(level, monster);
+                killedCount++;
                 continue;
             }
 
-            killFeralAndCleanupSplit(level, monster);
-            killedCount++;
+            Player nearest = level.getNearestPlayer(monster, -1.0);
+            if (nearest != null && monster.distanceTo(nearest) > FeralRules.DESPAWN_RADIUS) {
+                monster.discard();
+                despawnedCount++;
+            }
         }
 
         // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): tells "this sweep never finds a
-        // feral-teamed mob at all" apart from "it finds them but the frontierDistance/kill call
-        // itself is broken." Safe to delete once confirmed.
+        // feral-teamed mob at all" apart from "it finds them but the cleanup logic itself is
+        // broken." Safe to delete once confirmed.
         if (feralCount > 0) {
-            OUT.info("[Feral] sweepReentry level=" + level.dimension().location()
-                    + " feralTeamed=" + feralCount + " killed=" + killedCount);
+            OUT.info("[Feral] sweepFeralCleanup level=" + level.dimension().location()
+                    + " feralTeamed=" + feralCount + " killed=" + killedCount
+                    + " despawned=" + despawnedCount);
         }
     }
 
@@ -269,7 +292,7 @@ public final class FeralModule {
      *
      * <p>{@code discard()}, not another {@code kill()} -- {@code kill()} was the project owner's
      * own deliberate choice for the <em>original</em> Feral mob (a real death, so it reads as
-     * "the Frontier killed it," see {@link #sweepReentry}'s own doc) -- but the split children
+     * "the Frontier killed it," see {@link #sweepFeralCleanup}'s own doc) -- but the split children
      * were never really alive as their own encounter; discarding them silently (no death event,
      * no re-triggering this same split check on a already-{@code isDeadOrDying()}-false entity)
      * is the correct "this never really happened" cleanup for an artifact of the parent's own

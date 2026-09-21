@@ -74,4 +74,24 @@ public final class FeralRules {
 
     /** How often (ticks) each level is swept for feral-team mobs that re-entered the Frontier. */
     public static final int REENTRY_SWEEP_INTERVAL_TICKS = 40;
+
+    // ------------------------------------------------------------------
+    // Distant despawn -- project owner report (2026-09-20): crossing a border spawns a real
+    // swarm via the density mechanic, but it only ever fires once -- the initial burst saturates
+    // vanilla's own local mob cap, so NaturalSpawner stops attempting new spawns near the player
+    // at all, and rollDensityCompanion has nothing left to piggyback on (it can only react to a
+    // real spawn attempt, never create one itself -- same limitation FeralRules' own density
+    // section already documents). Meanwhile the mobs from that first burst keep wandering off
+    // and just sit there occupying cap slots indefinitely, doing nothing "the basic idea is to
+    // swarm the player" actually needs. Same sweep cadence as re-entry (shares the same pass,
+    // see FeralModule.sweepFeralCleanup) -- clearing anything too far from every player frees
+    // those slots so the swarm can keep replenishing near whoever's actually there.
+    // ------------------------------------------------------------------
+
+    /**
+     * Distance (blocks) from the nearest player beyond which a Feral mob is cleared, freeing its
+     * mob-cap slot. "Safe baseline, replace later" -- the project owner's own suggested number,
+     * not derived from anything besides "far enough to not matter to anyone."
+     */
+    public static final double DESPAWN_RADIUS = 50.0;
 }

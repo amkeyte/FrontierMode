@@ -12,10 +12,13 @@ import net.minecraft.world.item.enchantment.Enchantment;
  * {@code AmethystCompassItem}/{@code CompassPlayerFixture}'s own throttled refresh, keyed off
  * {@code EnchantmentHelper.getItemEnchantmentLevel} -- this class is configuration only.
  *
- * <p>Cost curve copied from vanilla's {@code FishingSpeedEnchantment} ("Lure") -- the closest
- * real parallel per the ticket's own instruction (multi-level, non-combat, comparable rarity):
- * same {@code getMaxLevel()=3} and {@code getMinCost(level) = 15 + (level-1)*9} formula, a
- * playtest-adjustable starting point, not a final balance decision.
+ * <p>Cost curve originally copied from vanilla's {@code FishingSpeedEnchantment} ("Lure") --
+ * the closest real parallel per the ticket's own instruction (multi-level, non-combat,
+ * comparable rarity). Lowered for dev-test purposes (project owner request, 2026-09-20): Lure's
+ * own {@code 15 + (level-1)*9} floor needs real bookshelf coverage to reach reliably (the base
+ * enchanting-table roll caps around 8 at zero bookshelf power), which was slowing down testing.
+ * {@code 1 + (level-1)*5} is trivially reachable regardless of bookshelf setup -- a dev-test
+ * convenience, not a final balance decision; revisit before this ships for real play.
  */
 public class IntuitionEnchantment extends Enchantment {
 
@@ -31,7 +34,7 @@ public class IntuitionEnchantment extends Enchantment {
 
     @Override
     public int getMinCost(int level) {
-        return 15 + (level - 1) * 9;
+        return 1 + (level - 1) * 5;
     }
 
     @Override
