@@ -19,12 +19,14 @@ import net.minecraft.world.item.CompassItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentCategory;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -79,14 +81,20 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * Default {@code Item.getEnchantmentValue()} is 0, which starves the enchanting table's own
-     * offer algorithm (scales directly off this "enchantability" rating plus bookshelf count) --
-     * matches {@code BookItem}'s own value of 1, a modest but functional baseline, not a
-     * balance-final number.
+     * Playtest: "Limited Enchantability" at the table, even with lapis present. Traced the real
+     * math (`EnchantmentHelper.selectEnchantment`): the roll's bonus term is
+     * {@code 1 + rng.nextInt(getEnchantmentValue()/4 + 1) * 2}, so the earlier value of 1
+     * (copied from {@code BookItem}, matching its own default) makes {@code nextInt(1)} always
+     * return 0 -- a flat, RNG-proof {@code +1} bonus, never more. Raised to 10 (a diamond-tool-
+     * tier value) so it actually contributes a real, variable bonus (roughly +1 to +5) instead
+     * of being functionally inert. This alone won't guarantee reaching Intuition's own cost
+     * floor (15, copied from vanilla's Lure) on a table with few or no bookshelves, though --
+     * the base roll before any bonus caps around 8 at zero bookshelf power, the same real
+     * constraint vanilla's own Lure has on an unshelved table.
      */
     @Override
     public int getEnchantmentValue() {
-        return 1;
+        return 10;
     }
 
     // CompassAttunement.lockedEnchantLevel()'s own encoding -- 0 = no enchant, 1-3 = Intuition
@@ -148,6 +156,8 @@ public class AmethystCompassItem extends CompassItem {
             return;
         }
 
+        enforceSingleEnchant(stack);
+
         int intuitionLevel = EnchantmentHelper.getItemEnchantmentLevel(BossTellModule.INTUITION.get(), stack);
         int resonanceLevel = EnchantmentHelper.getItemEnchantmentLevel(BossTellModule.RESONANCE.get(), stack);
         // Mutually exclusive by checkCompatibility(); Resonance wins if somehow both are present.
@@ -179,6 +189,63 @@ public class AmethystCompassItem extends CompassItem {
         }
         // Tier 1 (bedrock pad, code 0 but frozen via useOn) and Intuition (1-3) never refresh
         // further once locked -- that's the whole point of "frozen."
+    }
+
+    /**
+     * Playtest report: enchantments duplicating on one compass. Checked the real
+     * {@code ItemStack.enchant(Enchantment, int)} -- it unconditionally {@code ListTag.add()}s a
+     * new NBT entry with no check for an existing one of the same enchantment, so calling it
+     * twice for the same enchantment (at any level) leaves both entries in the list, and the
+     * tooltip renders all of them. Vanilla's own anvil combine path is <em>not</em> the source
+     * of this -- checked {@code AnvilMenu.createResult()} directly: it merges into a
+     * {@code Map<Enchantment, Integer>} first (which can't hold two entries for the same key by
+     * construction) and applies it via {@code EnchantmentHelper.setEnchantments}, which rebuilds
+     * the whole tag fresh rather than appending. The duplicate is coming from somewhere else --
+     * creative mode's own enchantment-editing screen, or hand-authored `/give` NBT, are the
+     * likely candidates, neither of which goes through the anvil's own safe path.
+     *
+     * <p>Rather than chase every possible entry point, this compass enforces its own
+     * single-enchantment invariant on every throttled refresh, regardless of how a duplicate
+     * got there: keeps exactly one (Resonance over Intuition, matching {@link #refreshOrRelock}'s
+     * own precedence; the higher level if somehow more than one of the same kind is present) and
+     * rewrites the tag via {@code EnchantmentHelper.setEnchantments} -- the same safe,
+     * whole-tag-replace call the anvil itself uses, not another {@code enchant()} append.
+     *
+     * <p><b>Bug in this method's own first version, found via playtest screenshot:</b> it
+     * bailed early whenever {@code EnchantmentHelper.getEnchantments(stack).size() <= 1} --
+     * but that method builds a {@code Map}, and {@code Map.put()} silently collapses two raw
+     * NBT entries for the <em>same</em> enchantment (e.g. "Intuition II" appearing twice) down
+     * to one key. So a same-enchantment duplicate never tripped the size check at all, and the
+     * underlying list -- which the tooltip renders directly, duplicates included -- was never
+     * touched. Fix: rewrite unconditionally whenever anything is present, not just when the
+     * *map's* size looks wrong; {@code setEnchantments} rebuilding the whole tag fresh is what
+     * actually clears a same-key duplicate, regardless of what the map's own size suggested.
+     */
+    private static void enforceSingleEnchant(ItemStack stack) {
+        Map<Enchantment, Integer> current = EnchantmentHelper.getEnchantments(stack);
+        if (current.isEmpty()) {
+            return;
+        }
+
+        Enchantment keep = null;
+        int keepLevel = 0;
+        for (Map.Entry<Enchantment, Integer> entry : current.entrySet()) {
+            if (entry.getKey() == BossTellModule.RESONANCE.get()) {
+                keep = entry.getKey();
+                keepLevel = entry.getValue();
+                break;
+            }
+        }
+        if (keep == null) {
+            for (Map.Entry<Enchantment, Integer> entry : current.entrySet()) {
+                if (entry.getValue() > keepLevel) {
+                    keep = entry.getKey();
+                    keepLevel = entry.getValue();
+                }
+            }
+        }
+
+        EnchantmentHelper.setEnchantments(keep == null ? Map.of() : Map.of(keep, keepLevel), stack);
     }
 
     /**

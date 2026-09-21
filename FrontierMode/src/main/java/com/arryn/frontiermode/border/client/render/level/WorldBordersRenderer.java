@@ -20,9 +20,10 @@ public final class WorldBordersRenderer {
     // a deliberate player choice, not a data-readiness check. Driven by a client-only command
     // (Rendering.onRegisterClientCommands registers "/border debug rings <true|false>") since
     // visibility of a purely client-side render pass has no server-side meaning at all -- nothing
-    // here needs a network packet. Defaults to visible (true), matching this renderer's behavior
-    // before the toggle existed.
-    private static boolean visible = true;
+    // here needs a network packet. Defaulted to visible (true) when the toggle was first added;
+    // project owner request (2026-09-20) flipped the default to off -- rings are debug visual
+    // clutter for ordinary play, opt-in via the same command rather than opt-out.
+    private static boolean visible = false;
 
     public static void setVisible(boolean value) {
         visible = value;
