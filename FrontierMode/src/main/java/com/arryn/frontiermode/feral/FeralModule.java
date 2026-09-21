@@ -23,6 +23,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
@@ -240,7 +241,7 @@ public final class FeralModule {
                 continue;
             }
 
-            monster.kill();
+            killFeralAndCleanupSplit(level, monster);
             killedCount++;
         }
 
@@ -250,6 +251,43 @@ public final class FeralModule {
         if (feralCount > 0) {
             OUT.info("[Feral] sweepReentry level=" + level.dimension().location()
                     + " feralTeamed=" + feralCount + " killed=" + killedCount);
+        }
+    }
+
+    /**
+     * Playtest found a Feral Slime/MagmaCube surviving re-entry in every practical sense that
+     * matters, despite {@code kill()} succeeding: checked against real 1.20.1-47.4.10 sources --
+     * {@code Slime.remove(RemovalReason)} spawns 2-4 same-typed, smaller children whenever
+     * {@code getSize() > 1} and {@code isDeadOrDying()} is true, entirely independent of the
+     * {@code LivingDropsEvent}/{@code LivingExperienceDropEvent} cancellation {@link
+     * #onLivingDrops}/{@link #onLivingExperienceDrop} already apply -- that cancels loot, not
+     * the split itself. {@code MagmaCube extends Slime} in vanilla, so this check and cleanup
+     * cover both. The children spawn inside {@code remove()}'s own call, synchronously, before
+     * {@code kill()} returns here -- so by the time this method's own {@code kill()} call
+     * returns, any split children already exist in the level and can be found and removed in
+     * the same tick, closing the same "must not survive re-entry" gap for them too.
+     *
+     * <p>{@code discard()}, not another {@code kill()} -- {@code kill()} was the project owner's
+     * own deliberate choice for the <em>original</em> Feral mob (a real death, so it reads as
+     * "the Frontier killed it," see {@link #sweepReentry}'s own doc) -- but the split children
+     * were never really alive as their own encounter; discarding them silently (no death event,
+     * no re-triggering this same split check on a already-{@code isDeadOrDying()}-false entity)
+     * is the correct "this never really happened" cleanup for an artifact of the parent's own
+     * death mechanic, not a second kill needing its own narrative.
+     */
+    private static void killFeralAndCleanupSplit(ServerLevel level, Mob monster) {
+        BlockPos pos = monster.blockPosition();
+        boolean splits = monster instanceof Slime;
+
+        monster.kill();
+
+        if (!splits) {
+            return;
+        }
+        for (Slime child : level.getEntitiesOfClass(Slime.class, new AABB(pos).inflate(2.0))) {
+            if (child.getType() == monster.getType()) {
+                child.discard();
+            }
         }
     }
 

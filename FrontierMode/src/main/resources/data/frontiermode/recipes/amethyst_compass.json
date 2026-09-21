@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "#": {
+      "item": "minecraft:iron_ingot"
+    },
+    "X": {
+      "item": "minecraft:amethyst_shard"
+    }
+  },
+  "pattern": [
+    " # ",
+    "#X#",
+    " # "
+  ],
+  "result": {
+    "item": "frontiermode:amethyst_compass"
+  },
+  "show_notification": true
+}

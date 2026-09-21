@@ -139,6 +139,34 @@ public final class BossAPI {
      * exactly. Used by {@code BossModule.onMobSpawnFinalize}.
      */
     /**
+     * FRO_121 (Intuition/Resonance): resolves the boss identity at the level's current
+     * {@code BordersPathFacet} tip -- "Intuition/Resonance resolve 'the current Path Tip'
+     * exactly once, at lock time, to get a boss identity" per special-compass.md's "One shared
+     * core" section. A border can carry more than one boss (themed multi-mob encounters share
+     * one {@code borderId}, per boss.md's cascade-gating notes); this returns any one alive
+     * match rather than picking among several, since the design doesn't distinguish them here.
+     * {@code Optional.empty()} if the level has no path yet, no tip, or the tip border has no
+     * living boss record.
+     */
+    public static Optional<UUID> pathTipBossId(Level level) {
+        Optional<BossFixture> fixtureOpt = bosses(level);
+        if (fixtureOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        Optional<UUID> tipBorderIdOpt = BorderAPI.PATH(level).flatMap(path -> path.tip()).map(Border::id);
+        if (tipBorderIdOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        UUID tipBorderId = tipBorderIdOpt.get();
+
+        return fixtureOpt.get().all().stream()
+                .filter(BossRecord::alive)
+                .filter(r -> r.borderId().equals(Optional.of(tipBorderId)))
+                .map(BossRecord::bossId)
+                .findFirst();
+    }
+
+    /**
      * FRO_120 (Cairn): public query surface boss.md's own "Aliveness checking and despawn"
      * section describes but never actually built until now -- gates Cairn's own pulse (alive:
      * point at {@code lastKnownBossPos}; dead: a fresh random sphere point, per cairn.md's "The
