@@ -219,5 +219,32 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
+    // FRO_146: Feral's own tick source, riding ScopeEvent.Tick instead of raw
+    // TickEvent.PlayerTickEvent/LevelTickEvent. No bundle/fixture -- Feral has no persisted state
+    // (see FeralModule's own class doc) -- these two keys exist purely to get a per-tick callback.
+    // See FeralModule.init() for the schema/config wiring.
+
+    public static final JigKey<PlayerJig> FERAL_PLAYER_JIG =
+            new JigKey<>(
+                    "frontiermode:feral_player_jig",
+                    PlayerJig.class
+            );
+
+    public static final JigKey<LevelJig> FERAL_LEVEL_JIG =
+            new JigKey<>(
+                    "frontiermode:feral_level_jig",
+                    LevelJig.class
+            );
+
+    // FRO_149: AdminToolsModule's own tick-free signal subscription point -- no bundle/fixture,
+    // same "exists purely to get a signal subscription point" shape as FERAL_PLAYER_JIG/
+    // FERAL_LEVEL_JIG (FRO_146). See AdminToolsModule.init() for the schema/config wiring.
+
+    public static final JigKey<LevelJig> ADMIN_TOOLS_JIG =
+            new JigKey<>(
+                    "frontiermode:admin_tools_jig",
+                    LevelJig.class
+            );
+
     private FrontierKeys() {}
 }

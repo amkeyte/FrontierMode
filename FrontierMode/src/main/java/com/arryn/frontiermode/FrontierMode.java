@@ -20,10 +20,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -275,40 +272,6 @@ public final class FrontierMode {
     @SubscribeEvent
     public void onSpawnPlacementCheck(MobSpawnEvent.SpawnPlacementCheck event) {
         FeralModule.onSpawnPlacementCheck(event);
-    }
-
-    // ------------------------------------------------------------
-    // RM_FRO_038 ("Martha"): Feral's own cosmetic tell on already-spawned mobs. Feral's own tick
-    // hook, not Border's -- see FeralModule's own class doc for why it can't ride
-    // BorderModule.onPlayerScopeTick instead.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        FeralModule.onPlayerTick(event);
-    }
-
-    // ------------------------------------------------------------
-    // FRO_111 ("Martha"): kills a Feral mob that wandered back inside the Frontier. Level-wide,
-    // not player-radius-bound like onPlayerTick above -- see FeralModule.onLevelTick's own doc.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onLevelTick(TickEvent.LevelTickEvent event) {
-        FeralModule.onLevelTick(event);
-    }
-
-    // ------------------------------------------------------------
-    // RM_FRO_038 ("Martha"): no free loot from a Feral mob, however it dies -- see
-    // FeralModule.onLivingDrops's own doc for why both drop paths are closed rather than trying
-    // to distinguish a combat kill from the FRO_111 re-entry kill.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onLivingDrops(LivingDropsEvent event) {
-        FeralModule.onLivingDrops(event);
-    }
-
-    @SubscribeEvent
-    public void onLivingExperienceDrop(LivingExperienceDropEvent event) {
-        FeralModule.onLivingExperienceDrop(event);
     }
 
     // ------------------------------------------------------------
