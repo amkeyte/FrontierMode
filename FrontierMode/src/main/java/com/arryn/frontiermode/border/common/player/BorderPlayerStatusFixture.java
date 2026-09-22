@@ -98,4 +98,28 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
     public BorderPlayerStatus status() {
         return current;
     }
+
+    /**
+     * FRO_133 (playtest root cause, 2026-09-22): {@code sicknessSeverity}'s target-and-catch-up
+     * climb carries forward from {@code current} tick to tick (see {@link #compute}'s own doc) --
+     * death and respawn never reset it on their own, so a player who died deep in the Exterior
+     * kept decaying down from whatever severity they died at, at {@code PlayerRules
+     * .SICKNESS_CLIMB_RATE}'s own slow per-tick rate, regardless of their new (possibly safe)
+     * respawn position -- re-triggering {@code BorderModule.applySicknessEffects} on every
+     * refresh interval until it organically decayed below tier 1, which can take well over ten
+     * seconds from a high starting severity. Clearing the active {@code MobEffectInstance}s on
+     * respawn did nothing to this separate, underlying numeric state, which is why the debuff
+     * kept reappearing after being cleared.
+     *
+     * <p>Clears {@code current} entirely rather than patching just the severity field -- the next
+     * real tick recomputes everything fresh anyway (this fixture's own "not persisted, live-
+     * recomputed" contract), and {@link BorderPlayerLogic#evaluate}'s own {@code previous == null}
+     * branch already treats that as "start severity at 0," so this is the minimal change that
+     * achieves the reset. A momentarily-null {@link #status()} between this call and the next
+     * real tick is the same transient state every caller of it already handles (see
+     * {@code BorderAPI.playerStatus}'s own "standby, don't crash" doc).
+     */
+    public void resetSicknessSeverity() {
+        current = null;
+    }
 }

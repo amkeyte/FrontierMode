@@ -45,6 +45,7 @@ import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.List;
 import java.util.Objects;
@@ -76,7 +77,6 @@ public final class BorderModule {
     public static boolean isSicknessEnabled() {
         return sicknessEnabled;
     }
-
 
     public static void init() {
         OUT.info("FrontierMode - Border Module Initiating.");
@@ -373,6 +373,7 @@ public final class BorderModule {
         if (!sicknessEnabled) {
             return;
         }
+
         if (severity < PlayerRules.SICKNESS_TIER_1_WEAKNESS) {
             // Below every tier -- nothing to (re)apply. Whatever was already granted keeps
             // running down on its own vanilla duration; no explicit removal needed or wanted,
@@ -409,6 +410,56 @@ public final class BorderModule {
             player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, duration, 0, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.HARM, 1, 0, false, true));
             player.addEffect(new MobEffectInstance(MobEffects.CONFUSION, duration, 0, false, true));
+        }
+    }
+
+    /**
+     * FRO_133 (project owner ask): Frontier Sickness's own lingering effects should clear on
+     * respawn, not persist through death. Checked against real vanilla sources first --
+     * {@code ServerPlayer#restoreFrom(ServerPlayer, boolean)}'s death-respawn branch
+     * ({@code keepEverything=false}) never copies {@code activeEffects} from the old player
+     * object to the new one, so vanilla already drops every active effect on an ordinary death.
+     * This handler exists anyway, as an explicit, defensive guarantee rather than relying on that
+     * implicit vanilla behavior holding forever -- and it's the actual fix for the case that
+     * really matters: a player whose respawn point is still inside the Exterior would otherwise
+     * have {@link #applySicknessEffects} re-grant the same effects within one
+     * {@code SICKNESS_EFFECT_REFRESH_INTERVAL_TICKS} window of respawning, reading as "never
+     * cleared" even though it technically was for an instant.
+     *
+     * <p>Only the five lingering effects {@link #applySicknessEffects} grants -- {@code HARM} is
+     * instantaneous (duration 1, already fully applied/consumed by the time this could ever run),
+     * nothing to remove. Removes unconditionally, independent of {@link #sicknessEnabled} or
+     * current severity -- a respawning player should never carry sickness debuffs forward,
+     * whatever their new status happens to compute to a tick later.
+     */
+    private static void clearSicknessEffectsOnRespawn(ServerPlayer player) {
+        player.removeEffect(MobEffects.WEAKNESS);
+        player.removeEffect(MobEffects.DIG_SLOWDOWN);
+        player.removeEffect(MobEffects.HUNGER);
+        player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+        player.removeEffect(MobEffects.BLINDNESS);
+        player.removeEffect(MobEffects.CONFUSION);
+    }
+
+    /**
+     * Delegate target for {@code FrontierMode}'s own {@code PlayerRespawnEvent} subscription --
+     * see {@link #clearSicknessEffectsOnRespawn}'s own doc for why this exists. Fires for every
+     * respawn cause (death or dimension change alike, per that event's own doc);
+     * clearing sickness effects unconditionally on a dimension change is harmless (a player
+     * changing dimensions was never mid-tier-4-Frontier-Sickness in a way worth preserving across
+     * that transition either).
+     *
+     * <p>Playtest follow-up (2026-09-22): "still had status effect after respawn, seems to be
+     * cleared then returns" -- a timed withholding window was tried first and rejected as a
+     * bandaid; the real fix is {@link BorderAPI#resetSicknessSeverity(ServerPlayer)}, which resets
+     * the actual stateful severity climb driving re-application, not just the symptom (the
+     * already-active effects). See that method's own doc, and
+     * {@link BorderPlayerStatusFixture#resetSicknessSeverity}'s, for the full root-cause trace.
+     */
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            clearSicknessEffectsOnRespawn(player);
+            BorderAPI.resetSicknessSeverity(player);
         }
     }
 

@@ -361,6 +361,44 @@ public final class BorderAPI {
     }
 
     /**
+     * FRO_133 (playtest root cause, 2026-09-22): resets {@code player}'s own Frontier Sickness
+     * severity climb back to 0 -- see {@link BorderPlayerStatusFixture#resetSicknessSeverity}'s
+     * own doc for why this is the real fix (death/respawn otherwise leave that stateful climb
+     * untouched, so it just keeps decaying from wherever it was at death, re-triggering the
+     * debuff regardless of the new respawn position). Same resolution chain as
+     * {@link #playerStatus(ServerPlayer)}, just reaching the mutable fixture instead of its
+     * read-only snapshot.
+     *
+     * <p>Best-effort, not exception-propagating like {@code playerStatus} above -- this runs from
+     * a respawn event handler, which must not fail the player's actual respawn over a transient
+     * Satchel resolution hiccup; a skipped reset here just means severity decays on its own
+     * slightly slower than a fully-clean reset would, not a broken respawn.
+     */
+    public static void resetSicknessSeverity(ServerPlayer player) {
+        if (!Satchel.isReady()) {
+            return;
+        }
+
+        PlayerScope scope = new PlayerScope(player);
+
+        var infoOpt = Satchel.require()
+                .tryScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
+
+        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+            return;
+        }
+
+        try {
+            playerJig().getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE)
+                    .status()
+                    .ifPresent(BorderPlayerStatusFixture::resetSicknessSeverity);
+        } catch (RuntimeException e) {
+            OUT.warn("[Border] resetSicknessSeverity(): failed for player "
+                    + player.getGameProfile().getName() + ": " + e);
+        }
+    }
+
+    /**
      * The border {@code player}'s live {@link BorderPlayerStatus} considers nearest, resolved
      * back to a real {@link Border} in their current level. Backs {@code @relevant} in
      * {@link com.arryn.frontiermode.border.server.commands.BorderSelector}. Empty whenever

@@ -289,13 +289,16 @@ public final class BossAPI {
      * record's border {@code pendingAttach} if it was still on-path. See
      * wiki/frontiermode/architecture/boss.md#despawn-and-record-removal.
      *
-     * <p>The despawn-live-entity step boss.md's own spec describes is a separate, still-open gap
-     * (see that page's "Known gaps" -- {@code remove()} on a materialized record currently leaves
-     * its live entity orphaned) -- unaffected by, and out of scope for, this change; this method
-     * doesn't newly introduce or fix that behavior, just centralizes the existing
-     * delete-and-report call {@code BossCommandHandler.delete} used to make directly against the
-     * fixture, so the new pendingAttach step has one call site to live on rather than being
-     * duplicated at every {@code /boss delete}-style caller.
+     * <p><b>FRO_061 (project owner ruling):</b> if the removed record was materialized, its live
+     * entity is despawned via {@code Satchel.require().egress().getEntity(...)} -- the same
+     * sanctioned live-entity surface {@link #resolveLivePosition} already uses, not a bare
+     * fixture-record edit. {@code discard()}, deliberately not {@code kill()}: deletion is an
+     * administrative removal ("get rid of this record"), not a "boss died" event, and
+     * {@code kill()} would run real death handling and could re-enter {@code BossJigHandlers
+     * .onMobDied}'s own defeat-detection listener -- growing a border and queuing a next boss for
+     * an admin cleanup action, which is exactly the cascade this ruling says must not happen. An
+     * unmaterialized record has no entity to despawn and behaves exactly as {@code remove()} did
+     * before this change.
      *
      * @return true if a record with this id existed and was removed; false otherwise (same
      *         contract as {@link BossFixture#remove(UUID)}/{@link BossCrudFacet#remove(UUID)}).
@@ -317,6 +320,12 @@ public final class BossAPI {
         if (!removed) {
             return false;
         }
+
+        // FRO_061: despawn the live entity, silently -- see this method's own doc for why
+        // discard() (not kill()) is the deliberate choice.
+        recordOpt.filter(BossRecord::materialized).ifPresent(record ->
+                Satchel.require().egress().getEntity(level, record.bossEntityId())
+                        .ifPresent(net.minecraft.world.entity.Entity::discard));
 
         // FRO_082: mark the removed record's border pendingAttach, same sanctioned wait-state a
         // boss-less pathGrow() produces -- but only if it actually had a borderId (a hand-placed
