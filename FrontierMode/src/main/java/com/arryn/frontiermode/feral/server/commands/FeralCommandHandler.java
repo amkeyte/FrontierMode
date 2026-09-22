@@ -1,5 +1,7 @@
 package com.arryn.frontiermode.feral.server.commands;
 
+import com.arryn.frontiermode.feral.FeralModule;
+
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -11,8 +13,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.ForgeEventFactory;
 
 /**
@@ -69,5 +73,40 @@ public final class FeralCommandHandler {
         );
 
         return spawned;
+    }
+
+    /**
+     * Backs {@code /feral debug glow} -- mirrors {@code BossCommandHandler.setGlow}'s shape
+     * (toggle + retroactive apply to already-tagged mobs) but doesn't need Boss's "can't look
+     * back up already-tagged Guardians" caveat: Feral has no fixture, but {@code sweepFeralCleanup}
+     * already establishes that resolving {@code feral}-team membership live off the scoreboard
+     * works fine as a lookup, so the same live scan retroactively updates every currently-loaded
+     * Feral mob on this level immediately, not just future ones.
+     */
+    public static int setGlow(CommandContext<CommandSourceStack> ctx, boolean value) {
+        ServerLevel level = ctx.getSource().getLevel();
+
+        FeralModule.setGlowEnabled(value);
+
+        int updated = 0;
+        for (var entity : level.getAllEntities()) {
+            if (!(entity instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
+                continue;
+            }
+            Team team = mob.getTeam();
+            if (team == null || !"feral".equals(team.getName())) {
+                continue;
+            }
+            mob.setGlowingTag(value);
+            updated++;
+        }
+
+        int finalUpdated = updated;
+        ctx.getSource().sendSuccess(
+                () -> Component.literal("[Feral][Debug] Glow set to " + value + ". Updated "
+                        + finalUpdated + " currently-loaded Feral mob(s) immediately."),
+                false
+        );
+        return 1;
     }
 }

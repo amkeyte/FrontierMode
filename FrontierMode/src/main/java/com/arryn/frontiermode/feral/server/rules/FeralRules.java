@@ -83,15 +83,63 @@ public final class FeralRules {
     // real spawn attempt, never create one itself -- same limitation FeralRules' own density
     // section already documents). Meanwhile the mobs from that first burst keep wandering off
     // and just sit there occupying cap slots indefinitely, doing nothing "the basic idea is to
-    // swarm the player" actually needs. Same sweep cadence as re-entry (shares the same pass,
-    // see FeralModule.sweepFeralCleanup) -- clearing anything too far from every player frees
-    // those slots so the swarm can keep replenishing near whoever's actually there.
+    // swarm the player" actually needs.
+    //
+    // FRO_128 (project owner refinement, 2026-09-21): the original instant-discard-at-50-blocks
+    // fix cleared distant mobs, but also left a large, useless pile of them sitting right at the
+    // border doing nothing but eating the vanilla hostile cap (70 total) -- a swarm that reads as
+    // pure eye candy rather than a threat, and crowds out room for real spawns once the player
+    // actually crosses. Rationale (project owner): keep a tight, close-in band of visible Feral
+    // mobs right at the border as a visual cue while the player's still deciding whether to
+    // cross, but clear anything that's drifted out of that immediate vicinity quickly, so the
+    // density mechanic has cap room to build the real "zombie apocalypse" swarm once the player
+    // is genuinely out in the wild rather than staying capped-out on stale eye candy. A shorter
+    // radius (10, not 50) plus a lingering timer (not instant) is the shape that serves both --
+    // instant-at-10 would make mobs flicker out from under a player standing right at the border;
+    // a short linger tolerates that without letting mobs pile up far away for long. Replaces the
+    // 50-block instant-discard approach entirely, not a second check alongside it -- see
+    // FeralModule.sweepFeralCleanup.
     // ------------------------------------------------------------------
 
     /**
-     * Distance (blocks) from the nearest player beyond which a Feral mob is cleared, freeing its
-     * mob-cap slot. "Safe baseline, replace later" -- the project owner's own suggested number,
-     * not derived from anything besides "far enough to not matter to anyone."
+     * Distance (blocks) from the nearest player beyond which a Feral mob starts its despawn
+     * timer (see {@link #DESPAWN_LINGER_TICKS}), freeing its mob-cap slot once the timer fires.
+     * "Safe baseline, replace later," like every other placeholder tunable in this class -- the
+     * project owner's own suggested number, chosen to keep only an immediate, close-in band of
+     * mobs alive as a visual cue rather than a wide static pile.
      */
-    public static final double DESPAWN_RADIUS = 50.0;
+    public static final double DESPAWN_RADIUS = 10.0;
+
+    /**
+     * How long (ticks) a Feral mob must stay continuously farther than {@link #DESPAWN_RADIUS}
+     * from every player before it's actually cleared -- a lingering window, not an instant cutoff,
+     * so a mob doesn't flicker out and back as a player's distance oscillates right around the
+     * threshold. Placeholder baseline (5s), not playtest-tuned.
+     */
+    public static final int DESPAWN_LINGER_TICKS = 100;
+
+    // ------------------------------------------------------------------
+    // Total population cap -- project owner rationale (2026-09-21): vanilla's own hostile mob
+    // cap is 70 per player/dimension, shared by every hostile in the level, not just Feral's own.
+    // Standing right at the border (not yet crossing) can build a static "wall" of Feral mobs via
+    // the density mechanic that DESPAWN_RADIUS/DESPAWN_LINGER_TICKS above won't touch -- they're
+    // well within DESPAWN_RADIUS of the player the whole time, so nothing ever times them out.
+    // Left unbounded, that wall can grow to consume most of the 70-cap on mobs that are pure eye
+    // candy (the visual "there's danger out there" cue), crowding out both ordinary in-border
+    // spawns and the density mechanic's own ability to keep piggybacking on new spawn attempts
+    // once the player actually crosses and needs the real "zombie apocalypse" swarm.
+    // ------------------------------------------------------------------
+
+    /**
+     * Ceiling on how many Feral-tagged mobs may be alive across a level at once, enforced only
+     * against {@code rollDensityCompanion}'s own extra-companion spawns -- deliberately not the
+     * tagging decision itself ({@code onEntityJoinLevel}), which stays unconditional per the
+     * 2026-09-18 design ruling ("every hostile outside the Frontier is Feral"). A natural spawn
+     * always gets tagged regardless of this cap; only the density mechanic's own contribution to
+     * total count is throttled once the cap is reached, since that's the actual growth driver
+     * behind the border-wall problem this constant exists for. Well under vanilla's 70-mob
+     * hostile cap so real spawn room always remains -- project owner's own suggested number, not
+     * derived from anything besides "well under 70."
+     */
+    public static final int MAX_ALIVE_FERAL = 40;
 }

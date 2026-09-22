@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,6 +59,7 @@ public final class BorderSelector {
                 case "coord" -> BorderSelectorResult.coord(parseBlockPos(reader));
                 case "all" -> BorderSelectorResult.all();
                 case "relevant" -> BorderSelectorResult.relevant();
+                case "nearest" -> BorderSelectorResult.nearest();
                 case "none" -> BorderSelectorResult.none();
                 default -> throw UNKNOWN_SELECTOR.createWithContext(reader);
             };
@@ -109,7 +111,33 @@ public final class BorderSelector {
             case INSIDE -> resolveInside(player);
             case COORD -> resolveCoord(level, sel.coord);
             case RELEVANT -> resolveRelevant(player);
+            case NEAREST -> resolveNearest(borders, player);
         };
+    }
+
+    /**
+     * FRO_131: literal nearest-by-raw-distance-to-center, mirroring {@code BossSelector
+     * .resolveNearest}'s shape exactly -- deliberately distinct from {@code @relevant}, which
+     * (per wiki/frontiermode/architecture/border-vocabulary.md's Relevance definition) sorts by
+     * Layer first and only tie-breaks on distance. No {@code materialized}-style filter needed
+     * the way Boss's own {@code @nearest} has one -- every {@code Border} already in the CRUD
+     * facet's list is real.
+     */
+    private static List<Border> resolveNearest(List<Border> borders, ServerPlayer player) {
+        double px = player.getX();
+        double py = player.getY();
+        double pz = player.getZ();
+
+        return borders.stream()
+                .min(Comparator.comparingDouble(b -> {
+                    BlockPos c = b.center();
+                    double dx = c.getX() - px;
+                    double dy = c.getY() - py;
+                    double dz = c.getZ() - pz;
+                    return dx * dx + dy * dy + dz * dz;
+                }))
+                .map(List::of)
+                .orElseGet(List::of);
     }
 
     private static List<Border> resolveIndex(List<Border> borders, int index) throws CommandSyntaxException {

@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.feral.server.commands;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 
@@ -35,6 +36,15 @@ public final class FeralCommands {
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 200))
                                 .executes(ctx -> FeralCommandHandler.spawnTestHostiles(
                                         ctx, IntegerArgumentType.getInteger(ctx, "count")))
+                        )
+                )
+                // FRO_135: /feral debug glow <true|false> -- toggles visibility of Feral's
+                // glowing tag, mirroring /boss debug glow's shape. Lives under /feral, not
+                // /border, same deliberate command-tree separation this class's own doc states.
+                .then(Commands.literal("glow")
+                        .then(Commands.argument("value", BoolArgumentType.bool())
+                                .executes(ctx -> FeralCommandHandler.setGlow(
+                                        ctx, BoolArgumentType.getBool(ctx, "value")))
                         )
                 );
     }

@@ -41,7 +41,7 @@ public final class BossCommands {
                         .then(attach())
                         .then(delete())
                         .then(mob())
-                        .then(transform())
+                        .then(defeat())
                         .then(debug())
         );
     }
@@ -184,19 +184,23 @@ public final class BossCommands {
     }
 
     // ------------------------------------------------------------
-    // TRANSFORM DEFEAT
+    // DEFEAT
     // ------------------------------------------------------------
 
-    private static ArgumentBuilder<CommandSourceStack, ?> transform() {
-        return Commands.literal("transform")
-                .then(Commands.literal("defeat")
-                        .then(Commands.argument("selector", BossSelectorArgumentType.selector())
-                                .executes(ctx -> applySelector(
-                                        ctx,
-                                        BossSelectorArgumentType.getSelector(ctx, "selector"),
-                                        BossCommandHandler::transformDefeat
-                                ))
-                        )
+    /**
+     * FRO_130 (project owner ask): shortened from {@code /boss transform defeat <selector>} --
+     * pure command-surface rename, no behavior change. Still forces
+     * {@code BossCommandHandler::transformDefeat}'s own defeat-detection cascade (border growth,
+     * etc.), same as a real in-game defeat.
+     */
+    private static ArgumentBuilder<CommandSourceStack, ?> defeat() {
+        return Commands.literal("defeat")
+                .then(Commands.argument("selector", BossSelectorArgumentType.selector())
+                        .executes(ctx -> applySelector(
+                                ctx,
+                                BossSelectorArgumentType.getSelector(ctx, "selector"),
+                                BossCommandHandler::transformDefeat
+                        ))
                 );
     }
 
@@ -208,9 +212,10 @@ public final class BossCommands {
         return Commands.literal("debug")
                 // Project owner request (2026-09-08): "/boss debug glow <true|false>" -- toggles
                 // whether Boss/Guardian tagging applies Entity#setGlowingTag, and immediately
-                // re-applies that value to every currently-materialized boss on this level (see
-                // BossCommandHandler.setGlow's own doc for why guardians can't be retroactively
-                // updated the same way).
+                // re-applies that value to every currently-loaded, alive boss (by record) and
+                // every currently-loaded guardian (by "guardian" scoreboard team, since Guardian
+                // Mobs have no fixture to look already-spawned entities back up in) -- see
+                // BossCommandHandler.setGlow's own doc.
                 .then(Commands.literal("glow")
                         .then(Commands.argument("value", BoolArgumentType.bool())
                                 .executes(ctx -> BossCommandHandler.setGlow(

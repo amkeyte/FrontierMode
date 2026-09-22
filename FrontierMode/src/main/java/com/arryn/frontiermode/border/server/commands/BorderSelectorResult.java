@@ -9,6 +9,7 @@ public final class BorderSelectorResult {
 
     public enum Mode {
         RELEVANT,
+        NEAREST,
         INDEX,
         INSIDE,
         COORD,
@@ -32,6 +33,10 @@ public final class BorderSelectorResult {
 
     public static BorderSelectorResult relevant() {
         return new BorderSelectorResult(Mode.RELEVANT, -1, null);
+    }
+
+    public static BorderSelectorResult nearest() {
+        return new BorderSelectorResult(Mode.NEAREST, -1, null);
     }
 
     public static BorderSelectorResult index(int idx) {
