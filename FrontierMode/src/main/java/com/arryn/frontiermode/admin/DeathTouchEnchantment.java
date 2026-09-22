@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.admin;
 
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.MobType;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentCategory;
 
@@ -32,5 +33,22 @@ public class DeathTouchEnchantment extends Enchantment {
     @Override
     public boolean isDiscoverable() {
         return false;
+    }
+
+    /**
+     * FRO_126: without this override, {@code Enchantment}'s base implementation returns 0, and
+     * Death Touch supplies no bonus toward {@code Player#attack()}'s own pre-{@code hurt()} check
+     * (raw {@code Attributes.ATTACK_DAMAGE} contribution {@code > 0} OR enchant bonus {@code > 0}).
+     * Deep enough into the Exterior, Frontier Sickness's Weakness effect floors the attribute
+     * contribution to 0 -- with no enchant bonus either, vanilla's check fails and
+     * {@code target.hurt()} (and so {@code LivingHurtEvent}, the actual kill mechanism in
+     * {@link AdminToolsModule.Listener#onLivingHurt}) never fires at all, silently no-op'ing the
+     * whole enchant. A flat, level/mob-type-independent bonus just needs to clear that gate --
+     * the real kill still happens entirely through {@code onLivingHurt}'s
+     * {@code Float.MAX_VALUE} override, never through this bonus actually landing as damage.
+     */
+    @Override
+    public float getDamageBonus(int level, MobType mobType) {
+        return 1.0F;
     }
 }

@@ -6,6 +6,7 @@ import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.server.commands.FeralCommands;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
 import com.arryn.satchel.common.util.out.OUT;
+import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -43,6 +44,7 @@ import net.minecraftforge.eventbus.api.Event;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Entry point for Feral (RM_FRO_038 "Martha") -- corrupted, distance-scaling hostile mobs native
@@ -91,6 +93,26 @@ public final class FeralModule {
     // level::getGameTime)-keyed-by-object-identity shape BordersRevisionMonitor already
     // establishes for "throttle this recurring check independently per level."
     private static final Map<Level, TickThrottler> REENTRY_SWEEP_THROTTLERS = new HashMap<>();
+
+    // FRO_128: per-mob lingering despawn timer, keyed by entity UUID -- started the first sweep a
+    // Feral mob is found farther than FeralRules.DESPAWN_RADIUS from every player, cleared if it
+    // comes back within range before the timer fires. Not persisted, same "in-memory only, a
+    // world reload just re-seeds it" precedent as REENTRY_SWEEP_THROTTLERS above -- losing a
+    // partially-elapsed timer on reload only delays a despawn, never blocks one. Entries are
+    // removed on every path a feral-teamed mob's life can end (see sweepFeralCleanup's re-entry
+    // branch, this method's own timer-fire branch, and onLivingDrops for an ordinary combat
+    // kill), so this only grows with mobs currently alive and still lingering near the despawn
+    // threshold, not with Feral's full lifetime population.
+    private static final Map<UUID, TickDelay> DESPAWN_TIMERS = new HashMap<>();
+
+    // FRO_135: debug toggle for Feral's glowing tag, same "plain static flag, not persisted"
+    // shape BorderModule.sicknessEnabled already establishes for this kind of playtest on/off
+    // switch. Defaults to true -- matches the always-on behavior tagFeral had before this ticket.
+    private static boolean glowEnabled = true;
+
+    public static void setGlowEnabled(boolean value) {
+        glowEnabled = value;
+    }
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
@@ -231,13 +253,18 @@ public final class FeralModule {
      *       runs the same death handling (drops, XP, death message) an ordinary combat death
      *       would, so this reads as "the Frontier killed it," not "it vanished."
      *   <li><b>Still in the Exterior, but too far from every player</b> ({@code
-     *       FeralRules.DESPAWN_RADIUS}): silently {@code discard()}s it instead -- no death
-     *       event, no message, matching vanilla's own silent distant-mob despawn precedent this
-     *       is deliberately mirroring. This is what actually frees the mob-cap slot the density
-     *       mechanic ({@code rollDensityCompanion}) needs in order to keep piggybacking on real
-     *       spawn attempts near the player -- without it, the initial border-crossing burst
-     *       saturates the cap and nothing new ever spawns again nearby, per the project owner's
-     *       own report.
+     *       FeralRules.DESPAWN_RADIUS}): starts (or continues) a lingering per-mob despawn timer
+     *       -- see {@link #DESPAWN_TIMERS} -- rather than an instant {@code discard()}. FRO_128
+     *       (project owner refinement): a tight radius keeps only an immediate, close-in band of
+     *       mobs alive as a visual cue at the border; the timer just tolerates a player's distance
+     *       briefly crossing that threshold without mobs flickering out from under them. Once the
+     *       timer actually fires, this is a silent {@code discard()} -- no death event, no
+     *       message, matching vanilla's own silent distant-mob despawn precedent -- freeing the
+     *       mob-cap slot the density mechanic ({@code rollDensityCompanion}) needs in order to
+     *       keep piggybacking on real spawn attempts near the player, per the project owner's own
+     *       report that the initial border-crossing burst otherwise saturates the cap and nothing
+     *       new ever spawns again nearby. A mob that comes back within range before its timer
+     *       fires has its entry cleared, same as never having left.
      * </ol>
      */
     private static void sweepFeralCleanup(ServerLevel level) {
@@ -256,13 +283,23 @@ public final class FeralModule {
 
             if (BorderAPI.frontierDistanceAt(level, monster.blockPosition()) <= 0) {
                 killFeralAndCleanupSplit(level, monster);
+                DESPAWN_TIMERS.remove(monster.getUUID());
                 killedCount++;
                 continue;
             }
 
             Player nearest = level.getNearestPlayer(monster, -1.0);
-            if (nearest != null && monster.distanceTo(nearest) > FeralRules.DESPAWN_RADIUS) {
+            boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.DESPAWN_RADIUS;
+            if (!farFromEveryPlayer) {
+                DESPAWN_TIMERS.remove(monster.getUUID());
+                continue;
+            }
+
+            TickDelay timer = DESPAWN_TIMERS.computeIfAbsent(monster.getUUID(),
+                    id -> new TickDelay(FeralRules.DESPAWN_LINGER_TICKS, level::getGameTime));
+            if (timer.allow()) {
                 monster.discard();
+                DESPAWN_TIMERS.remove(monster.getUUID());
                 despawnedCount++;
             }
         }
@@ -356,6 +393,11 @@ public final class FeralModule {
     public static void onLivingDrops(LivingDropsEvent event) {
         if (isFeral(event.getEntity())) {
             event.setCanceled(true);
+            // FRO_128: a legitimate combat kill is the one death path sweepFeralCleanup itself
+            // never sees (it's already removed from the level by the time the next sweep runs) --
+            // clear any lingering DESPAWN_TIMERS entry here so it doesn't outlive the mob it was
+            // tracking.
+            DESPAWN_TIMERS.remove(event.getEntity().getUUID());
         }
     }
 
@@ -429,6 +471,18 @@ public final class FeralModule {
         if (!(event.getEntity() instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
             return;
         }
+        if (mob instanceof Slime) {
+            // FRO_125 (project owner ruling, 2026-09-20): Slime/MagmaCube dropped from Feral
+            // eligibility entirely, rather than continuing to chase the vanilla split-on-death/
+            // mob-cap interaction their own size-reduction mechanic caused -- MagmaCube extends
+            // Slime in vanilla, so this one check covers both. The only place a mob "becomes"
+            // Feral is the tag call below, so excluding here is sufficient on its own; nothing
+            // downstream (onSpawnPlacementCheck's light bypass, onMobSpawnFinalize's density
+            // roll) needs its own matching exclusion -- both stay generic to every Exterior
+            // hostile, Slime/MagmaCube included, same as any other never-tagged mob passing
+            // through them.
+            return;
+        }
         if (isFeral(mob)) {
             return;
         }
@@ -475,9 +529,41 @@ public final class FeralModule {
             count++;
         }
 
+        // FRO_128 follow-up (project owner, 2026-09-21): clamp to remaining room under
+        // FeralRules.MAX_ALIVE_FERAL -- the density mechanic, not natural spawns/tagging, is what
+        // actually drives the "border wall eats the whole mob cap" problem, so this is the one
+        // place the cap needs enforcing. countAliveFeral() is a live scan, same "resolve live off
+        // the scoreboard, never a maintained count" precedent every other Feral check follows.
+        int room = FeralRules.MAX_ALIVE_FERAL - countAliveFeral(level);
+        if (room <= 0) {
+            return;
+        }
+        count = Math.min(count, room);
+
         for (int i = 0; i < count; i++) {
             spawnDensityCompanion(mob, level, spawnPos);
         }
+    }
+
+    /**
+     * Live count of every currently-loaded {@code feral}-teamed mob in {@code level} -- same
+     * resolve-live-off-the-scoreboard shape {@link #sweepFeralCleanup}/{@link #onPlayerTick}/
+     * {@code FeralCommandHandler.setGlow} already use, factored out here since
+     * {@link #rollDensityCompanion} needs just the count, not a cleanup or tag pass over the
+     * results.
+     */
+    private static int countAliveFeral(ServerLevel level) {
+        int count = 0;
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
+                continue;
+            }
+            Team team = monster.getTeam();
+            if (team != null && "feral".equals(team.getName())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
@@ -524,7 +610,10 @@ public final class FeralModule {
         PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, "feral", ChatFormatting.DARK_GREEN);
         EffectsAPI.assignToTeam(mob, scoreboard, team);
 
-        mob.setGlowingTag(true);
+        // FRO_135: reads the debug toggle instead of an unconditional true, so /feral debug glow
+        // affects newly-tagged mobs immediately; FeralCommandHandler.setGlow handles retroactively
+        // updating already-tagged ones.
+        mob.setGlowingTag(glowEnabled);
 
         // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): confirms the team assignment
         // actually stuck -- reads getTeam() back immediately rather than trusting assignToTeam

@@ -108,10 +108,21 @@ public final class BossSelector {
     }
 
     /**
-     * Nearest *materialized* boss to the command source, per the wiki page's "Selector scheme"
-     * table -- distance is measured against each record's own stored {@code position()}, not a
+     * FRO_132 (project owner ask): nearest *active* boss to the command source, not raw nearest
+     * -- distance is measured against each record's own stored {@code position()}, not a
      * live-entity search. Unlike {@code MobTrackCommands}' generic nearest-mob convention, we
      * already have the data set (every boss record); no reason to re-derive it from a world scan.
+     *
+     * <p>{@code BossRecord} has no dedicated "active" flag -- checked against the real data model
+     * (this class's own doc, {@code BossRecord}'s doc), the two fields that actually capture it
+     * are {@link BossRecord#materialized()} (a real entity has been placed for this record) and
+     * {@link BossRecord#alive()} (not yet defeated -- {@code false} once
+     * {@code BossModule.onLivingDeath}/{@code BossAPI.forceDefeat} runs, and the record stays in
+     * the fixture rather than being removed). "Active" is the conjunction of both: previously
+     * this filtered only {@code materialized()}, so a defeated-but-still-recorded boss could still
+     * win nearest -- the project owner's "usually the path tip" framing describes the common case
+     * this produces (the frontier path's own tip is ordinarily the one boss still alive), not a
+     * literal path lookup this selector needs to perform itself.
      */
     private static List<BossRecord> resolveNearest(List<BossRecord> all, ServerPlayer player) {
         double px = player.getX();
@@ -120,6 +131,7 @@ public final class BossSelector {
 
         return all.stream()
                 .filter(BossRecord::materialized)
+                .filter(BossRecord::alive)
                 .min(Comparator.comparingDouble(r -> {
                     var p = r.position();
                     double dx = p.getX() - px;

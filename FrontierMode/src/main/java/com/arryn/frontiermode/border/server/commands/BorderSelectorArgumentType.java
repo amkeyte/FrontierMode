@@ -35,6 +35,9 @@ public final class BorderSelectorArgumentType
         builder.suggest("@coord");
         builder.suggest("@all");
         builder.suggest("@relevant");
+        // FRO_131: @nearest was reported broken, but never existed in BorderSelector.parse() at
+        // all (confirmed against source) -- built fresh here, not a regression fix.
+        builder.suggest("@nearest");
         // RM_FRO_011: @none is a real mode BorderSelector.parse() accepts (resolves to an empty
         // list unconditionally) but never showed up in tab-complete -- the one selector mode
         // that never appeared here.

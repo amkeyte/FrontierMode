@@ -20,6 +20,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.scores.Team;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -434,11 +438,8 @@ public final class BossCommandHandler {
         // Retroactively apply to every currently-materialized, alive boss on this level -- glow
         // is a synced entity flag (Entity#setGlowingTag), set once at tag time and never
         // re-evaluated on its own, so without this a toggle would only visibly take effect for
-        // bosses materialized AFTER the command runs. Guardian Mobs can't get the same treatment:
-        // BossGuardiansFixture tags them once at spawn (a raw MobSpawnEvent.FinalizeSpawn
-        // listener) and keeps no record of which mobs it tagged afterward, so there's nothing
-        // here to look back up for them -- only future guardian spawns will reflect this value.
-        int updated = 0;
+        // bosses materialized AFTER the command runs.
+        int updatedBosses = 0;
         for (BossRecord record : fixture.all()) {
             if (!record.alive() || record.bossEntityId() == null) {
                 continue;
@@ -448,15 +449,35 @@ public final class BossCommandHandler {
                 continue; // not currently loaded -- picks up the current value next time it (re)materializes/reloads
             }
             entity.setGlowingTag(value);
-            updated++;
+            updatedBosses++;
         }
 
-        int finalUpdated = updated;
+        // Guardian Mobs have no fixture/record to look already-spawned entities back up in
+        // (BossGuardiansFixture tags them once at spawn, a raw MobSpawnEvent.FinalizeSpawn
+        // listener, and keeps no list afterward) -- but DefaultBossRules.tagGuardian does put
+        // every guardian on a shared "guardian" scoreboard team, so the same live-scan-by-team
+        // pattern FeralCommandHandler.setGlow uses for Feral (which has the identical "no
+        // fixture" shape) closes this gap without needing one: resolve membership live instead
+        // of needing a tracked list.
+        int updatedGuardians = 0;
+        for (Entity candidate : level.getAllEntities()) {
+            if (!(candidate instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
+                continue;
+            }
+            Team team = mob.getTeam();
+            if (team == null || !"guardian".equals(team.getName())) {
+                continue;
+            }
+            mob.setGlowingTag(value);
+            updatedGuardians++;
+        }
+
+        int finalUpdatedBosses = updatedBosses;
+        int finalUpdatedGuardians = updatedGuardians;
         ctx.getSource().sendSuccess(
-                () -> msg("[Boss][Debug] Glow set to " + value + ". Updated " + finalUpdated
-                        + " currently-loaded boss(es) immediately. Future Guardian Mobs will pick "
-                        + "this up when they spawn; already-spawned guardians can't be "
-                        + "retroactively updated (not tracked after spawn)."),
+                () -> msg("[Boss][Debug] Glow set to " + value + ". Updated " + finalUpdatedBosses
+                        + " currently-loaded boss(es) and " + finalUpdatedGuardians
+                        + " currently-loaded guardian(s) immediately."),
                 false
         );
         return 1;
