@@ -235,32 +235,33 @@ final class BossJigHandlers {
      * FRO_112: flat placeholder reward ahead of Boss Discovery's fuller, randomized,
      * difficulty-scaled loot table (Tier 2/3, still unclaimed) -- see boss.md's own "Placeholder
      * defeat loot" section. {@code record.layer() + 1} diamonds (0-indexed layer, so a layer-0
-     * kill still pays out 1), handed to the killing player if {@code event}'s own damage source
-     * resolves to one, dropped at the death location instead if their inventory is full. If the
-     * death has no attacking player at all (mob-on-mob, environmental, an admin's {@code /kill}),
-     * there's no one to hand it to -- skipped outright rather than dropping loot with no player
-     * responsible for it, matching this ticket's own "Lead Dev's call" on that edge case.
+     * kill still pays out 1). If the death has no attacking player at all (mob-on-mob,
+     * environmental, an admin's {@code /kill}), there's no one to reward -- skipped outright
+     * rather than dropping loot with no player responsible for it, matching this ticket's own
+     * "Lead Dev's call" on that edge case.
      *
-     * <p>Deliberately not called from {@code BossAPI.forceDefeat} (the {@code /boss transform
-     * defeat} admin path) -- per the standing rule that the two cascade sites don't share code,
-     * and per the same "no free loot without a real fight" reasoning FRO_110/111's own Feral drop
+     * <p>FRO_134 (project owner ask): a real item drop at the boss's death position, not a direct
+     * inventory insert -- previously inserted straight into the killing player's inventory,
+     * falling back to a drop only for whatever overflow didn't fit. Now always drops, same as any
+     * other mob's own death loot, so it reads as a real reward the player has to walk over and
+     * pick up rather than money silently appearing in their pockets.
+     *
+     * <p>Deliberately not called from {@code BossAPI.forceDefeat} (the {@code /boss defeat}
+     * admin path) -- per the standing rule that the two cascade sites don't share code, and per
+     * the same "no free loot without a real fight" reasoning FRO_110/111's own Feral drop
      * cancellation just settled: an admin command force-defeating bosses for diamonds is exactly
      * the kind of riskless exploit that shouldn't exist.
      */
     private static void grantDefeatLoot(BossRecord record, MobDied event, Mob mob, Level level) {
-        int diamonds = record.layer() + 1;
-
-        if (!(event.forgeEvent().getSource().getEntity() instanceof ServerPlayer player)) {
+        if (!(event.forgeEvent().getSource().getEntity() instanceof ServerPlayer)) {
             return;
         }
 
+        int diamonds = record.layer() + 1;
         ItemStack stack = new ItemStack(Items.DIAMOND, diamonds);
-        player.getInventory().add(stack);
-        if (!stack.isEmpty()) {
-            BlockPos deathLocation = mob.blockPosition();
-            Containers.dropItemStack(level, deathLocation.getX() + 0.5, deathLocation.getY() + 0.5,
-                    deathLocation.getZ() + 0.5, stack);
-        }
+        BlockPos deathLocation = mob.blockPosition();
+        Containers.dropItemStack(level, deathLocation.getX() + 0.5, deathLocation.getY() + 0.5,
+                deathLocation.getZ() + 0.5, stack);
     }
 
     private static void reconcilePathAgainstBossRecords(Level level, BossFixture fixture) {

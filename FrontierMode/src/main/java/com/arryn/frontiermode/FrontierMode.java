@@ -25,6 +25,7 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -319,6 +320,15 @@ public final class FrontierMode {
     @SubscribeEvent
     public void onEntityJoinLevel(EntityJoinLevelEvent event) {
         FeralModule.onEntityJoinLevel(event);
+    }
+
+    // ------------------------------------------------------------
+    // FRO_133: Frontier Sickness's own lingering effects should clear on respawn, not persist
+    // through death -- see BorderModule.onPlayerRespawn/clearSicknessEffectsOnRespawn's own docs.
+    // ------------------------------------------------------------
+    @SubscribeEvent
+    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        BorderModule.onPlayerRespawn(event);
     }
 
 }
