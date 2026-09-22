@@ -17,7 +17,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
@@ -33,6 +36,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
+import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -41,6 +45,7 @@ import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.Event;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,11 +72,14 @@ import java.util.UUID;
  * Forge events, each registered from its own {@code FrontierMode} delegate alongside the
  * Boss/Border ones already on that shared touch point: {@code EntityJoinLevelEvent} (the actual
  * tagging authority -- see {@link #onEntityJoinLevel} for why this replaced tagging from
- * {@code MobSpawnEvent.FinalizeSpawn}), {@code MobSpawnEvent.FinalizeSpawn} (density-boost roll
- * only now -- see {@link #onMobSpawnFinalize}), {@code MobSpawnEvent.SpawnPlacementCheck}
- * (force-allow a hostile spawn attempt the Exterior's own light level would otherwise have
- * blocked -- see {@link #onSpawnPlacementCheck}), {@code TickEvent.PlayerTickEvent} (the cosmetic
- * tell on already-spawned Feral mobs -- see {@link #onPlayerTick}), {@code TickEvent.LevelTickEvent}
+ * {@code MobSpawnEvent.FinalizeSpawn}), {@code MobSpawnEvent.FinalizeSpawn} (density-boost roll,
+ * currently disabled -- see {@link #onMobSpawnFinalize}/{@link #densityCompanionEnabled}),
+ * {@code MobSpawnEvent.SpawnPlacementCheck} (bypass the Exterior's own light-level gate as a
+ * visual-tell wall for a player who hasn't crossed yet, deny ambient spawns outright once they
+ * have -- see {@link #onSpawnPlacementCheck}),
+ * {@code TickEvent.PlayerTickEvent} (the cosmetic tell on already-spawned Feral mobs, and as of
+ * 2026-09-21 also {@link #maintainPackNearPlayer}'s own force-spawn maintenance -- see
+ * {@link #onPlayerTick}), {@code TickEvent.LevelTickEvent}
  * (FRO_111: kills a Feral mob that wandered back inside the Frontier -- see {@link #onLevelTick}),
  * and {@code LivingDropsEvent}/{@code LivingExperienceDropEvent} (no free loot -- see
  * {@link #onLivingDrops}). Both tick hooks are Feral's own, not Border's
@@ -105,6 +113,13 @@ public final class FeralModule {
     // threshold, not with Feral's full lifetime population.
     private static final Map<UUID, TickDelay> DESPAWN_TIMERS = new HashMap<>();
 
+    // Playtest feedback (2026-09-21, fifth pass): distinguishes a spawnPackMember-created mob
+    // from an ordinary natural Exterior spawn that onEntityJoinLevel tags feral the same way --
+    // see maintainPackNearPlayer/countAlivePackMembers for why that distinction matters now.
+    // Stored on the entity's own persistent data (Forge's per-entity NBT compound), not a static
+    // map -- survives exactly as long as the entity itself does, no separate cleanup needed.
+    private static final String PACK_MEMBER_TAG = "frontiermode_feral_pack";
+
     // FRO_135: debug toggle for Feral's glowing tag, same "plain static flag, not persisted"
     // shape BorderModule.sicknessEnabled already establishes for this kind of playtest on/off
     // switch. Defaults to true -- matches the always-on behavior tagFeral had before this ticket.
@@ -113,6 +128,22 @@ public final class FeralModule {
     public static void setGlowEnabled(boolean value) {
         glowEnabled = value;
     }
+
+    // Playtest feedback (2026-09-21): both the piggyback density mechanic (rollDensityCompanion,
+    // riding vanilla's own sparse natural spawn attempts) and the radius+linger despawn timer
+    // left the Exterior feeling thin and easy to just weave through -- "I need more mobs near me
+    // when I run the gauntlet." Turned off in favor of maintainPackNearPlayer's direct
+    // force-spawn-near-the-player approach below, same "plain static flag" shape as glowEnabled
+    // above, not a code deletion -- easy to flip back and compare if the new approach doesn't
+    // land either.
+    private static boolean densityCompanionEnabled = false;
+    private static boolean legacyDistanceDespawnEnabled = false;
+
+    // Playtest ask (2026-09-22): "we can mothball that logging" -- FRO_144 is confirmed working,
+    // so logPackDiagnostics's own per-second [Feral][Diag] line has served its purpose. Same
+    // "disabled, not deleted" shape as the two flags above -- a one-line flip to bring the
+    // diagnostic back if a future regression needs the same visibility again.
+    private static boolean diagnosticLoggingEnabled = false;
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
@@ -152,6 +183,11 @@ public final class FeralModule {
         if (!(event.player instanceof ServerPlayer player)) {
             return;
         }
+
+        // Own cadence, independent of the tell-interval gate below -- maintainPackNearPlayer's
+        // own doc covers why this rides onPlayerTick rather than a new Forge subscription.
+        maintainPackNearPlayer(player);
+
         if (player.tickCount % FeralRules.TELL_INTERVAL_TICKS != 0) {
             return;
         }
@@ -161,22 +197,12 @@ public final class FeralModule {
         List<Mob> nearby = level.getEntitiesOfClass(Mob.class, searchArea,
                 m -> m.getType().getCategory() == MobCategory.MONSTER);
 
-        int feralCount = 0;
         for (Mob mob : nearby) {
             Team team = mob.getTeam();
             if (team == null || !"feral".equals(team.getName())) {
                 continue;
             }
-            feralCount++;
             rollFeralTell(player, level, mob);
-        }
-
-        // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): tells "this hook never sees a
-        // feral-teamed mob nearby" apart from "it sees one but the roll/dispatch is broken." Safe
-        // to delete once confirmed.
-        if (!nearby.isEmpty()) {
-            OUT.info("[Feral] onPlayerTick player=" + player.getGameProfile().getName()
-                    + " nearbyMonsters=" + nearby.size() + " feralTeamed=" + feralCount);
         }
     }
 
@@ -200,6 +226,231 @@ public final class FeralModule {
                     level, pos.x, pos.y, pos.z,
                     SoundEvents.GENERIC_HURT, SoundSource.HOSTILE,
                     0.4f, 1.4f + RNG.nextFloat() * 0.3f);
+        }
+    }
+
+    /**
+     * Playtest feedback (2026-09-21): piggybacking on vanilla's own sparse natural spawn attempts
+     * (the disabled {@link #densityCompanionEnabled} path) left the Exterior feeling thin --
+     * "I just weave around them for about 200m before the sickness kills me." This replaces that
+     * indirection with a direct guarantee: while a player is in the Exterior, top up the Feral
+     * mobs actually near *them* specifically, rather than hoping natural spawns happen to land
+     * nearby. Rides {@link #onPlayerTick} rather than its own Forge subscription -- same
+     * "no new touch point needed" shape that method's cosmetic-tell call already established,
+     * just gated on {@link FeralRules#PACK_MAINTAIN_INTERVAL_TICKS} independently of the tell's
+     * own cadence.
+     *
+     * <p>Counts currently-alive Feral mobs within {@link FeralRules#PACK_MAINTAIN_RADIUS} of
+     * {@code player}; if under {@link FeralRules#PACK_TARGET_COUNT}, spawns the shortfall via
+     * {@link #spawnPackMember}, clamped to whatever room remains under
+     * {@link FeralRules#MAX_ALIVE_FERAL} the same way {@link #rollDensityCompanion} already
+     * respects that cap. A no-op outside the Exterior (mirrors every other Feral check's own
+     * {@code frontierDistance <= 0} guard) and while the cap has no room left.
+     *
+     * <p>Playtest feedback (2026-09-21, fourth pass): "got one pack... but I still passed them" --
+     * a plain radius around the player counted a pack the player had already run past just as
+     * "present" as one still ahead of them, so once a pack fell behind, its own stragglers kept
+     * satisfying {@code PACK_TARGET_COUNT} and blocked a fresh spawn ahead until they eventually
+     * drifted past {@link FeralRules#PACK_MAINTAIN_RADIUS} entirely -- a real gap, not just a
+     * distance to retune. {@link #isAheadOfPlayer} now filters the count to mobs actually ahead
+     * of the player's own look direction, so passed mobs stop counting toward the quota the
+     * moment they're behind, not whenever they finally fall far enough back.
+     *
+     * <p>Playtest feedback (fifth pass): "we are getting a lot of mobs from regular spawn algo as
+     * well, that's most of the cap" -- {@code onEntityJoinLevel} still unconditionally tags every
+     * natural Exterior spawn Feral (the standing 2026-09-18 design ruling, untouched by any of
+     * this), and that population was never capped at all before now -- only whichever mechanic
+     * was actively checking {@code MAX_ALIVE_FERAL} got throttled by it. Originally addressed by
+     * giving pack members their own dedicated {@link FeralRules#MAX_ALIVE_PACK_MEMBERS} budget
+     * via {@link #countAlivePackMembers} -- but this method also kept checking the shared
+     * {@code MAX_ALIVE_FERAL} total as a second, combined-population gate.
+     *
+     * <p>Playtest diagnostics (ninth pass, {@code logPackDiagnostics}): that second gate was
+     * still the actual problem. A sprinting player loads fresh chunks continuously, and every
+     * one gets instantly hostile-populated ({@code onSpawnPlacementCheck} force-allows regardless
+     * of light) -- ambient count blew past 40 and stayed there for most of a run, so {@code
+     * MAX_ALIVE_FERAL - countAliveFeral(level)} sat at or below 0 almost continuously, vetoing
+     * every pack spawn attempt despite {@code MAX_ALIVE_PACK_MEMBERS} having room to spare. Logs
+     * showed the exact signature: pack count bled out from 24 to 3 over one run as
+     * {@code frontierDistance} climbed, tracking ambient count exceeding 40, not anything about
+     * the pack itself. Dropped the shared check entirely -- room is now
+     * {@code MAX_ALIVE_PACK_MEMBERS} alone, so ambient spawns can never crowd the pack out again.
+     */
+    private static void maintainPackNearPlayer(ServerPlayer player) {
+        if (player.tickCount % FeralRules.PACK_MAINTAIN_INTERVAL_TICKS != 0) {
+            return;
+        }
+
+        ServerLevel level = player.serverLevel();
+        if (BorderAPI.frontierDistanceAt(level, player.blockPosition()) <= 0) {
+            return;
+        }
+
+        Vec3 playerPos = player.position();
+        float playerYaw = player.getYRot();
+        AABB maintainArea = new AABB(player.blockPosition()).inflate(FeralRules.PACK_MAINTAIN_RADIUS);
+        List<Mob> nearbyFeral = level.getEntitiesOfClass(Mob.class, maintainArea,
+                m -> isFeralMonster(m) && isAheadOfPlayer(m, playerPos, playerYaw));
+        if (nearbyFeral.size() >= FeralRules.PACK_TARGET_COUNT) {
+            return;
+        }
+
+        int room = FeralRules.MAX_ALIVE_PACK_MEMBERS - countAlivePackMembers(level);
+        if (room <= 0) {
+            return;
+        }
+
+        int toSpawn = Math.min(FeralRules.PACK_TARGET_COUNT - nearbyFeral.size(), room);
+        for (int i = 0; i < toSpawn; i++) {
+            spawnPackMember(player, level);
+        }
+    }
+
+    /**
+     * Playtest feedback (2026-09-21, eighth pass): "once I get past the first few spawns they
+     * seem to quit going in front of me" -- the original dot-product test only excluded a mob
+     * more than 90 degrees off the player's own facing, meaning anything within an entire
+     * forward hemisphere (including mobs almost directly to the player's left or right) still
+     * counted as "ahead" and kept satisfying {@link FeralRules#PACK_TARGET_COUNT}, even once the
+     * player's actual path forward was empty. Narrowed to the real spawn cone --
+     * {@link FeralRules#PACK_SPAWN_CONE_HALF_ANGLE_DEGREES} either side of the player's own yaw --
+     * so a mob has to still be in roughly the same direction pack members actually spawn in to
+     * count as "part of the pack," not just technically in front.
+     *
+     * <p>Yaw, not {@code getLookAngle()} -- a pure horizontal heading, immune to the pitch-driven
+     * shrinking a 3D look vector's {@code x}/{@code z} components would otherwise have when the
+     * player's looking down (e.g. picking a path over terrain while running).
+     */
+    private static boolean isAheadOfPlayer(Mob mob, Vec3 playerPos, float playerYaw) {
+        Vec3 toMob = mob.position().subtract(playerPos);
+        if (toMob.x == 0.0 && toMob.z == 0.0) {
+            return true;
+        }
+
+        double toMobAngle = Math.atan2(-toMob.x, toMob.z);
+        double yawRad = Math.toRadians(playerYaw);
+        double diff = normalizeAngleRad(toMobAngle - yawRad);
+        return Math.abs(diff) <= Math.toRadians(FeralRules.PACK_SPAWN_CONE_HALF_ANGLE_DEGREES);
+    }
+
+    /** Wraps a radian angle into {@code (-PI, PI]}, so comparing angles across the +/-180 seam works. */
+    private static double normalizeAngleRad(double angle) {
+        double twoPi = Math.PI * 2.0;
+        angle = angle % twoPi;
+        if (angle > Math.PI) {
+            angle -= twoPi;
+        } else if (angle < -Math.PI) {
+            angle += twoPi;
+        }
+        return angle;
+    }
+
+    private static boolean isFeralMonster(Mob mob) {
+        if (mob.getType().getCategory() != MobCategory.MONSTER) {
+            return false;
+        }
+        return isFeral(mob);
+    }
+
+    /**
+     * Force-spawns one hostile ahead of {@code player}, via the same real
+     * {@code ForgeEventFactory.onFinalizeSpawn} dispatch {@code FeralCommandHandler
+     * .spawnTestHostiles} already uses (unlike {@code /summon}, this still fires
+     * {@code MobSpawnEvent.FinalizeSpawn}, so it stays fully integrated with everything else on
+     * that touch point -- the Slime/MagmaCube blanket deny in {@code FrontierMode
+     * .onMobSpawnFinalize} and Guardian conversion both still apply normally, and
+     * {@link #onEntityJoinLevel} still catches and tags it Feral through the ordinary
+     * {@code EntityJoinLevelEvent} path, same as any other spawn). Zombie, matching that same
+     * debug command's own choice -- a deliberately simple placeholder, not tuned for variety yet.
+     *
+     * <p>Playtest feedback (2026-09-21, third pass): a plain radius around the player's own
+     * position meant the pack spawned in whatever direction they'd already left behind, since a
+     * sprinting player outpaces the maintenance cadence -- "I'm just moving faster than the
+     * spawning can keep up." Two changes address that together, not either alone:
+     *
+     * <ul>
+     *   <li>Position is sampled from a real cone in front of the player (eighth pass -- "are we
+     *       doing a wedge or more like a cone to the front?"), not a single fixed point: a random
+     *       bearing within {@link FeralRules#PACK_SPAWN_CONE_HALF_ANGLE_DEGREES} either side of
+     *       the player's own yaw, at a random distance between
+     *       {@link FeralRules#PACK_SPAWN_MIN_DISTANCE} and {@link FeralRules#PACK_SPAWN_MAX_DISTANCE}
+     *       -- mobs land somewhere in the player's actual path, not clustered at one exact spot.
+     *       Yaw-based, not {@code getLookAngle()} -- see {@link #isAheadOfPlayer}'s own doc for
+     *       why a pure heading is more robust than a pitch-sensitive 3D look vector here.
+     *   <li>{@link #applyPackSpeedBoost} gives the spawned mob a temporary
+     *       {@code MobEffects.MOVEMENT_SPEED} boost -- a plain zombie's walk speed can't keep pace
+     *       with a sprinting player at all, so even a perfectly-placed spawn falls behind within a
+     *       few seconds without this.
+     * </ul>
+     *
+     * <p>Position is still checked against {@code BorderAPI.frontierDistanceAt} and skipped if it
+     * resolves inside a border, same guard {@link #spawnDensityCompanion} added for its own
+     * widened spread.
+     */
+    private static void spawnPackMember(ServerPlayer player, ServerLevel level) {
+        double halfAngleRad = Math.toRadians(FeralRules.PACK_SPAWN_CONE_HALF_ANGLE_DEGREES);
+        double angle = Math.toRadians(player.getYRot()) + (RNG.nextDouble() * 2.0 - 1.0) * halfAngleRad;
+        double distance = FeralRules.PACK_SPAWN_MIN_DISTANCE
+                + RNG.nextDouble() * (FeralRules.PACK_SPAWN_MAX_DISTANCE - FeralRules.PACK_SPAWN_MIN_DISTANCE);
+
+        double targetX = player.getX() + (-Math.sin(angle)) * distance;
+        double targetZ = player.getZ() + Math.cos(angle) * distance;
+        BlockPos offset = BlockPos.containing(targetX, player.getY(), targetZ);
+        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, offset);
+
+        if (BorderAPI.frontierDistanceAt(level, ground) <= 0) {
+            return;
+        }
+
+        Mob mob = EntityType.ZOMBIE.create(level);
+        if (mob == null) {
+            return;
+        }
+
+        // Marked before it ever joins the level -- see PACK_MEMBER_TAG's own doc for why this
+        // distinction matters (countAlivePackMembers, MAX_ALIVE_PACK_MEMBERS).
+        mob.getPersistentData().putBoolean(PACK_MEMBER_TAG, true);
+
+        mob.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
+        ForgeEventFactory.onFinalizeSpawn(
+                mob, level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
+
+        if (!level.addFreshEntity(mob)) {
+            OUT.warn("[Feral] spawnPackMember(): addFreshEntity failed near " + player.getGameProfile().getName());
+            return;
+        }
+
+        applyPackSpeedBoost(mob);
+        applyPackFollowRange(mob);
+    }
+
+    /**
+     * See {@link #spawnPackMember}'s own doc for why this exists -- a plain zombie can't sustain
+     * a chase against a sprinting player. {@code ambient=false, visible=true}: the vanilla
+     * swirling particles are a deliberate tell that this specific mob is unnaturally fast, not
+     * hidden polish. Duration is generous ({@link FeralRules#PACK_SPEED_DURATION_TICKS}) rather
+     * than tied to actual engagement time, since there's no cheap signal for "has this mob
+     * stopped being relevant yet" -- {@link #despawnIfBeyondPackRadius} is what actually ends a
+     * mob's relevance, not this effect running out first.
+     */
+    private static void applyPackSpeedBoost(Mob mob) {
+        mob.addEffect(new MobEffectInstance(
+                MobEffects.MOVEMENT_SPEED, FeralRules.PACK_SPEED_DURATION_TICKS,
+                FeralRules.PACK_SPEED_AMPLIFIER, false, true));
+    }
+
+    /**
+     * Playtest ask (2026-09-22): wider aggro range. Vanilla's own {@code Attributes.FOLLOW_RANGE}
+     * default is meaningfully shorter than {@link FeralRules#PACK_SPAWN_MAX_DISTANCE} -- a pack
+     * member spawned at the far edge of the cone could land already outside its own vanilla
+     * target-acquisition range, sitting there doing nothing until the player closed most of that
+     * gap on their own. Raised to {@link FeralRules#PACK_FOLLOW_RANGE} so a pack member reliably
+     * notices and starts pursuing the moment it spawns, anywhere in the cone.
+     */
+    private static void applyPackFollowRange(Mob mob) {
+        var followRange = mob.getAttribute(Attributes.FOLLOW_RANGE);
+        if (followRange != null) {
+            followRange.setBaseValue(FeralRules.PACK_FOLLOW_RANGE);
         }
     }
 
@@ -231,6 +482,8 @@ public final class FeralModule {
             return;
         }
 
+        logPackDiagnostics(level);
+
         TickThrottler throttler = REENTRY_SWEEP_THROTTLERS.computeIfAbsent(
                 level, l -> new TickThrottler(FeralRules.REENTRY_SWEEP_INTERVAL_TICKS, level::getGameTime));
         if (!throttler.allow()) {
@@ -238,6 +491,84 @@ public final class FeralModule {
         }
 
         sweepFeralCleanup(level);
+    }
+
+    // Playtest ask (2026-09-22): "let's try running a logger that throttles to 1 second when a
+    // feral mob exists" -- eight rounds of blind tuning is enough; this replaces guessing with
+    // actually seeing what's happening. Own throttler, independent of REENTRY_SWEEP_THROTTLERS'
+    // 2s cadence (1s, per the ask).
+    private static final Map<Level, TickThrottler> DIAGNOSTIC_LOG_THROTTLERS = new HashMap<>();
+
+    /**
+     * Fires at most once a second per level, and only when at least one Feral mob exists (a
+     * quiet Frontier logs nothing). Beyond the three counts asked for (pack members, all Feral,
+     * all mobs), also logs, per player currently in the Exterior: whether they're sprinting,
+     * their {@code frontierDistance}, and the distance to their own nearest pack member --
+     * that last one is the one number that should directly answer "are pack members actually
+     * closing the gap or quietly losing ground despite the speed boost," which raw counts alone
+     * can't show. Also counts how many pack members currently have a live target
+     * ({@code Mob#getTarget()}) set to a player at all -- distinguishes "can't keep up" from
+     * "isn't even trying to chase," since FOLLOW_RANGE/speed only matter once a mob has actually
+     * decided to pursue.
+     */
+    private static void logPackDiagnostics(ServerLevel level) {
+        if (!diagnosticLoggingEnabled) {
+            return;
+        }
+
+        TickThrottler throttler = DIAGNOSTIC_LOG_THROTTLERS.computeIfAbsent(
+                level, l -> new TickThrottler(20, level::getGameTime));
+        if (!throttler.allow()) {
+            return;
+        }
+
+        int totalEntities = 0;
+        int totalMobs = 0;
+        int allFeral = 0;
+        int packMembersTargetingPlayer = 0;
+        List<Mob> packMembersFound = new ArrayList<>();
+        for (Entity entity : level.getAllEntities()) {
+            totalEntities++;
+            if (!(entity instanceof Mob mob)) {
+                continue;
+            }
+            totalMobs++;
+            if (!isFeral(mob)) {
+                continue;
+            }
+            allFeral++;
+            if (isPackMember(mob)) {
+                packMembersFound.add(mob);
+                if (mob.getTarget() instanceof Player) {
+                    packMembersTargetingPlayer++;
+                }
+            }
+        }
+
+        if (allFeral == 0) {
+            return;
+        }
+
+        StringBuilder perPlayer = new StringBuilder();
+        for (ServerPlayer player : level.players()) {
+            double nearestPackDist = Double.NaN;
+            for (Mob mob : packMembersFound) {
+                double d = mob.distanceTo(player);
+                if (Double.isNaN(nearestPackDist) || d < nearestPackDist) {
+                    nearestPackDist = d;
+                }
+            }
+            perPlayer.append(player.getGameProfile().getName())
+                    .append("[frontierDist=").append(BorderAPI.frontierDistanceAt(level, player.blockPosition()))
+                    .append(",sprinting=").append(player.isSprinting())
+                    .append(",nearestPack=")
+                    .append(Double.isNaN(nearestPackDist) ? "none" : String.format("%.1f", nearestPackDist))
+                    .append("] ");
+        }
+
+        OUT.info("[Feral][Diag] totalEntities=" + totalEntities + " totalMobs=" + totalMobs
+                + " allFeral=" + allFeral + " packMembers=" + packMembersFound.size()
+                + " packTargetingPlayer=" + packMembersTargetingPlayer + " | " + perPlayer);
     }
 
     /**
@@ -252,25 +583,15 @@ public final class FeralModule {
      *       project owner's own wording ("must die on re-entry") -- {@code LivingEntity#kill()}
      *       runs the same death handling (drops, XP, death message) an ordinary combat death
      *       would, so this reads as "the Frontier killed it," not "it vanished."
-     *   <li><b>Still in the Exterior, but too far from every player</b> ({@code
-     *       FeralRules.DESPAWN_RADIUS}): starts (or continues) a lingering per-mob despawn timer
-     *       -- see {@link #DESPAWN_TIMERS} -- rather than an instant {@code discard()}. FRO_128
-     *       (project owner refinement): a tight radius keeps only an immediate, close-in band of
-     *       mobs alive as a visual cue at the border; the timer just tolerates a player's distance
-     *       briefly crossing that threshold without mobs flickering out from under them. Once the
-     *       timer actually fires, this is a silent {@code discard()} -- no death event, no
-     *       message, matching vanilla's own silent distant-mob despawn precedent -- freeing the
-     *       mob-cap slot the density mechanic ({@code rollDensityCompanion}) needs in order to
-     *       keep piggybacking on real spawn attempts near the player, per the project owner's own
-     *       report that the initial border-crossing burst otherwise saturates the cap and nothing
-     *       new ever spawns again nearby. A mob that comes back within range before its timer
-     *       fires has its entry cleared, same as never having left.
+     *   <li><b>Still in the Exterior, but too far from every player:</b> dispatches to
+     *       {@link #despawnWithLegacyLinger} when {@link #legacyDistanceDespawnEnabled}, otherwise
+     *       to {@link #despawnIfBeyondPackRadius} for a {@link #isPackMember}-marked mob or
+     *       {@link #despawnIfBeyondAmbientRadius} for an ordinary natural spawn -- see those
+     *       methods' own docs for the actual behavior each one implements; this method doesn't
+     *       care which is active.
      * </ol>
      */
     private static void sweepFeralCleanup(ServerLevel level) {
-        int feralCount = 0;
-        int killedCount = 0;
-        int despawnedCount = 0;
         for (Entity entity : level.getAllEntities()) {
             if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
                 continue;
@@ -279,39 +600,105 @@ public final class FeralModule {
             if (team == null || !"feral".equals(team.getName())) {
                 continue;
             }
-            feralCount++;
 
             if (BorderAPI.frontierDistanceAt(level, monster.blockPosition()) <= 0) {
                 killFeralAndCleanupSplit(level, monster);
                 DESPAWN_TIMERS.remove(monster.getUUID());
-                killedCount++;
                 continue;
             }
 
-            Player nearest = level.getNearestPlayer(monster, -1.0);
-            boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.DESPAWN_RADIUS;
-            if (!farFromEveryPlayer) {
-                DESPAWN_TIMERS.remove(monster.getUUID());
-                continue;
-            }
-
-            TickDelay timer = DESPAWN_TIMERS.computeIfAbsent(monster.getUUID(),
-                    id -> new TickDelay(FeralRules.DESPAWN_LINGER_TICKS, level::getGameTime));
-            if (timer.allow()) {
-                monster.discard();
-                DESPAWN_TIMERS.remove(monster.getUUID());
-                despawnedCount++;
+            if (legacyDistanceDespawnEnabled) {
+                despawnWithLegacyLinger(level, monster);
+            } else if (isPackMember(monster)) {
+                despawnIfBeyondPackRadius(level, monster);
+            } else {
+                despawnIfBeyondAmbientRadius(level, monster);
             }
         }
+    }
 
-        // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): tells "this sweep never finds a
-        // feral-teamed mob at all" apart from "it finds them but the cleanup logic itself is
-        // broken." Safe to delete once confirmed.
-        if (feralCount > 0) {
-            OUT.info("[Feral] sweepFeralCleanup level=" + level.dimension().location()
-                    + " feralTeamed=" + feralCount + " killed=" + killedCount
-                    + " despawned=" + despawnedCount);
+    /**
+     * FRO_128's original approach -- a lingering {@link TickDelay} per mob, tolerating a brief
+     * crossing of {@link FeralRules#DESPAWN_RADIUS} without flickering. Disabled by default (see
+     * {@link #legacyDistanceDespawnEnabled}); kept intact rather than deleted so it's a one-flag
+     * flip to compare against {@link #despawnIfBeyondPackRadius} again later.
+     */
+    private static boolean despawnWithLegacyLinger(ServerLevel level, Mob monster) {
+        Player nearest = level.getNearestPlayer(monster, -1.0);
+        boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.DESPAWN_RADIUS;
+        if (!farFromEveryPlayer) {
+            DESPAWN_TIMERS.remove(monster.getUUID());
+            return false;
         }
+
+        TickDelay timer = DESPAWN_TIMERS.computeIfAbsent(monster.getUUID(),
+                id -> new TickDelay(FeralRules.DESPAWN_LINGER_TICKS, level::getGameTime));
+        if (!timer.allow()) {
+            return false;
+        }
+        monster.discard();
+        DESPAWN_TIMERS.remove(monster.getUUID());
+        return true;
+    }
+
+    /**
+     * Playtest feedback (2026-09-21): "force spawn the pack on my position, then delete them when
+     * I get too far from them" -- the despawn half of that ask, paired with
+     * {@link #maintainPackNearPlayer} on the spawn side. No linger, unlike
+     * {@link #despawnWithLegacyLinger}.
+     *
+     * <p>Playtest feedback (fifth pass): "hitting mob caps again" -- {@link #applyPackSpeedBoost}
+     * gives pack members enough speed to keep pace with a sprinting player even from behind, so a
+     * mob the player has already passed can trail them indefinitely without ever actually
+     * covering {@link FeralRules#PACK_DESPAWN_RADIUS} worth of raw distance -- it just never
+     * despawns, quietly eating {@link FeralRules#MAX_ALIVE_FERAL}'s budget until nothing new can
+     * spawn ahead. Direction-aware now, using the same {@link #isAheadOfPlayer} test
+     * {@link #maintainPackNearPlayer} already applies to counting: a mob still ahead gets the
+     * generous {@code PACK_DESPAWN_RADIUS} leash (a distant but real ambush shouldn't be destroyed
+     * just for not being reached yet), but a mob that's fallen behind only gets
+     * {@link FeralRules#PACK_BEHIND_DESPAWN_RADIUS} -- raw distance no longer matters once the
+     * player has moved past it; that's the actual signal it's done being relevant, not how far
+     * away it managed to stay.
+     */
+    private static boolean despawnIfBeyondPackRadius(ServerLevel level, Mob monster) {
+        Player nearest = level.getNearestPlayer(monster, -1.0);
+        if (nearest == null) {
+            monster.discard();
+            return true;
+        }
+
+        boolean ahead = isAheadOfPlayer(monster, nearest.position(), nearest.getYRot());
+        double radius = ahead ? FeralRules.PACK_DESPAWN_RADIUS : FeralRules.PACK_BEHIND_DESPAWN_RADIUS;
+        if (monster.distanceTo(nearest) <= radius) {
+            return false;
+        }
+        monster.discard();
+        return true;
+    }
+
+    /**
+     * Playtest feedback (2026-09-21, sixth pass): "still hitting cap... we should remove all
+     * feral mobs spawned outside a radius now, they are inconsequential" -- an ordinary natural
+     * Exterior spawn (not a {@link #isPackMember}-marked one) has no deliberate encounter behind
+     * it at all, so it doesn't earn {@link #despawnIfBeyondPackRadius}'s generous ahead-leash or
+     * its ahead/behind distinction -- either way, once it's farther than
+     * {@link FeralRules#AMBIENT_DESPAWN_RADIUS} from every player, it was never going to be
+     * encountered and is just sitting on {@link FeralRules#MAX_ALIVE_FERAL}'s shared budget for
+     * nothing. Flat distance check, no direction, no linger.
+     */
+    private static boolean despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
+        Player nearest = level.getNearestPlayer(monster, -1.0);
+        boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.AMBIENT_DESPAWN_RADIUS;
+        if (!farFromEveryPlayer) {
+            return false;
+        }
+        monster.discard();
+        return true;
+    }
+
+    /** See {@link #PACK_MEMBER_TAG}'s own doc. */
+    private static boolean isPackMember(Mob mob) {
+        return mob.getPersistentData().getBoolean(PACK_MEMBER_TAG);
     }
 
     /**
@@ -352,18 +739,39 @@ public final class FeralModule {
     }
 
     /**
-     * Permanent design change, per project owner direction: hostiles in the Exterior should be
-     * able to spawn regardless of light level -- the Exterior is meant to be dangerous everywhere
+     * Originally a permanent, unconditional design change (project owner direction): hostiles in
+     * the Exterior spawn regardless of light level, so the Exterior reads as dangerous everywhere
      * out there, not just in the dark. Fires from {@code SpawnPlacements#checkSpawnRules}, per
      * that event's own doc, "before a mob attempts to spawn" -- {@code MobSpawnEvent.FinalizeSpawn}
      * fires too late for this; light gating happens upstream of it, so a hostile blocked here never
-     * reaches {@link #onMobSpawnFinalize} at all. Only forces {@link Event.Result#ALLOW} for
-     * {@link MobCategory#MONSTER} entity types while {@code frontierDistance > 0} for the spawn
-     * position -- everywhere else (inside the Frontier, or any non-hostile category: animals,
-     * water creatures, ambient), this event is left at its default result, so vanilla's own spawn
-     * placement checks (light included) are completely unchanged. "Standby, don't crash":
-     * {@code getLevel()} not actually a real {@link ServerLevel} (e.g. a {@code WorldGenRegion}
-     * during chunk generation) or Border state not resolvable yet both fall through untouched.
+     * reaches {@link #onMobSpawnFinalize} at all.
+     *
+     * <p>Playtest ask (2026-09-22): "once they start outside the fence we don't need those mobs
+     * anymore" -- now conditional on the nearest player's own state, not just the spawn
+     * position's. Resolved per attempt: whoever's nearest to {@code event.getPos()}.
+     *
+     * <ul>
+     *   <li><b>That player hasn't crossed yet</b> ({@code frontierDistance <= 0} for <em>them</em>,
+     *       even though the spawn position itself is in the Exterior): unchanged from the
+     *       original behavior -- force {@link Event.Result#ALLOW}. This is the visual-tell wall,
+     *       visible from inside the Frontier, that lures/warns a player who hasn't committed to
+     *       crossing yet.
+     *   <li><b>That player has already crossed</b>: force {@link Event.Result#DENY} outright --
+     *       not a reversion to vanilla's own light-gated rules, a full stop. Once a player is
+     *       genuinely in the wild, {@link #maintainPackNearPlayer}'s deliberate pack is the real
+     *       threat; ambient chaff spawning around them no longer serves the visual-tell purpose
+     *       (they're already out there) and was the actual driver behind ambient population
+     *       ballooning toward vanilla's own hostile cap during a sprint.
+     * </ul>
+     *
+     * <p>Still scoped to {@link MobCategory#MONSTER} entity types with {@code frontierDistance >
+     * 0} for the spawn position -- everywhere else (inside the Frontier, or any non-hostile
+     * category: animals, water creatures, ambient), this event is left at its default result, so
+     * vanilla's own spawn placement checks are completely unchanged there. "Standby, don't
+     * crash": {@code getLevel()} not actually a real {@link ServerLevel} (e.g. a
+     * {@code WorldGenRegion} during chunk generation), Border state not resolvable yet, or no
+     * player found near the spawn position all fall through to the original ALLOW behavior rather
+     * than denying on an unresolvable state.
      */
     public static void onSpawnPlacementCheck(MobSpawnEvent.SpawnPlacementCheck event) {
         if (event.getEntityType().getCategory() != MobCategory.MONSTER) {
@@ -372,7 +780,14 @@ public final class FeralModule {
         if (!(event.getLevel() instanceof ServerLevel level)) {
             return;
         }
-        if (BorderAPI.frontierDistanceAt(level, event.getPos()) <= 0) {
+        BlockPos pos = event.getPos();
+        if (BorderAPI.frontierDistanceAt(level, pos) <= 0) {
+            return;
+        }
+
+        Player nearest = level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), -1.0, false);
+        if (nearest != null && BorderAPI.frontierDistanceAt(level, nearest.blockPosition()) > 0) {
+            event.setResult(Event.Result.DENY);
             return;
         }
 
@@ -417,9 +832,13 @@ public final class FeralModule {
      * Density boost only, now -- see {@link #onEntityJoinLevel} for the actual tagging authority.
      * "Standby, don't crash": the spawning mob isn't a {@code MobCategory.MONSTER} hostile, or
      * {@code frontierDistance <= 0} (not in the Exterior), is a silent no-op. Never cancels the
-     * spawn either way.
+     * spawn either way. Currently a no-op regardless, per {@link #densityCompanionEnabled} -- see
+     * that field's own doc.
      */
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
+        if (!densityCompanionEnabled) {
+            return;
+        }
         if (mob.getType().getCategory() != MobCategory.MONSTER) {
             return;
         }
@@ -567,12 +986,38 @@ public final class FeralModule {
     }
 
     /**
-     * Spawns one extra copy of {@code mob}'s own type near {@code spawnPos} -- mirrors
-     * {@code BorderModule.spawnDensityCompanion} exactly. Calls {@link Mob#finalizeSpawn} directly
-     * (not through Forge's event bus again) so this never re-enters {@link #onMobSpawnFinalize}
-     * for the companion it creates -- but {@link #onEntityJoinLevel} still catches it via
-     * {@code level.addFreshEntity} below and tags it there, so no explicit tag call is needed
-     * here anymore.
+     * Same live-scan shape as {@link #countAliveFeral}, but filtered to mobs
+     * {@link #spawnPackMember} itself created (see {@link #PACK_MEMBER_TAG}) -- a natural
+     * Exterior spawn is still {@code feral}-teamed the moment it joins, but was never a pack
+     * member, and {@link #maintainPackNearPlayer}'s own doc covers why that distinction has to be
+     * counted separately now.
+     */
+    private static int countAlivePackMembers(ServerLevel level) {
+        int count = 0;
+        for (Entity entity : level.getAllEntities()) {
+            if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
+                continue;
+            }
+            Team team = monster.getTeam();
+            if (team == null || !"feral".equals(team.getName())) {
+                continue;
+            }
+            if (isPackMember(monster)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Spawns one extra copy of {@code mob}'s own type near {@code spawnPos} -- previously mirrored
+     * {@code BorderModule.spawnDensityCompanion} exactly, including its hardcoded {@code ±3}
+     * spread; no longer does, per playtest feedback below, and {@code BorderModule}'s own copy
+     * (Sick Wildlife's density boost) wasn't touched -- that complaint was about the Feral swarm
+     * specifically. Calls {@link Mob#finalizeSpawn} directly (not through Forge's event bus again)
+     * so this never re-enters {@link #onMobSpawnFinalize} for the companion it creates -- but
+     * {@link #onEntityJoinLevel} still catches it via {@code level.addFreshEntity} below and tags
+     * it there, so no explicit tag call is needed here anymore.
      */
     private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
         Entity created = mob.getType().create(level);
@@ -580,10 +1025,24 @@ public final class FeralModule {
             return;
         }
 
-        int dx = RNG.nextInt(7) - 3;
-        int dz = RNG.nextInt(7) - 3;
+        // FRO_128 follow-up (playtest, 2026-09-21): a tight ±3 packed every companion into one
+        // dodge-able clump right on top of the original spawn -- widened via
+        // FeralRules.DENSITY_COMPANION_SPREAD_RADIUS so a dense event actually spreads across
+        // ground the player has to maneuver through.
+        int radius = FeralRules.DENSITY_COMPANION_SPREAD_RADIUS;
+        int dx = RNG.nextInt(radius * 2 + 1) - radius;
+        int dz = RNG.nextInt(radius * 2 + 1) - radius;
         BlockPos offset = nearPos.offset(dx, 0, dz);
         BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, offset);
+
+        // A ±3 spread never realistically crossed back over a border edge; ±24 (or whatever
+        // DENSITY_COMPANION_SPREAD_RADIUS is tuned to) can, especially against a border that
+        // hasn't grown large yet. Skip rather than place an extra, permanently-untagged hostile
+        // inside the player's own safe zone -- the entire point of the Frontier being safe from
+        // Feral in the first place (see this class's re-entry-kill doc).
+        if (BorderAPI.frontierDistanceAt(level, ground) <= 0) {
+            return;
+        }
 
         companion.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
         companion.finalizeSpawn(level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
@@ -614,12 +1073,6 @@ public final class FeralModule {
         // affects newly-tagged mobs immediately; FeralCommandHandler.setGlow handles retroactively
         // updating already-tagged ones.
         mob.setGlowingTag(glowEnabled);
-
-        // TEMP DIAGNOSTIC (2026-09-18, FRO_111 playtest report): confirms the team assignment
-        // actually stuck -- reads getTeam() back immediately rather than trusting assignToTeam
-        // didn't silently no-op/throw. Safe to delete once confirmed.
-        OUT.info("[Feral] tagFeral(): tagged " + mob.getType() + " uuid=" + mob.getStringUUID()
-                + " readBackTeam=" + mob.getTeam());
     }
 
     /**

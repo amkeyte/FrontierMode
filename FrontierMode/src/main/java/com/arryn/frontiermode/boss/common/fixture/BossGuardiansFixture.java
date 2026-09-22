@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
@@ -106,6 +107,17 @@ public final class BossGuardiansFixture extends SatchelFixture {
      * already-happening spawn, not a summon.
      */
     public void onMobSpawnFinalize(Mob mob, ServerLevel level) {
+        // Playtest report: fish/squid (WATER_AMBIENT/WATER_CREATURE) were getting guardianized --
+        // this method had no hostility filter at all before rolling a conversion. guardian-mobs.md
+        // itself frames this as gating "a hostile mob about to spawn," so this was always the
+        // intent, just never implemented. MobCategory.MONSTER, not instanceof Monster -- same
+        // reasoning FeralModule's own doc gives: Slime/MagmaCube are real MobCategory.MONSTER
+        // hostiles that don't extend Monster, and Guardian conversion should be able to reach them
+        // too, not silently skip them the way a class check would.
+        if (mob.getType().getCategory() != MobCategory.MONSTER) {
+            return;
+        }
+
         Satchel.requireServer();
         BossBundle bundle = getBundle();
         bundle.boss().ifPresent(bossFixture ->

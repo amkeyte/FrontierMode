@@ -17,6 +17,7 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
@@ -227,12 +228,36 @@ public final class FrontierMode {
     // module rather than holding any decision logic itself. Guardian Mobs (Boss-side, guardian
     // conversion on hostiles near a boss), Sick Wildlife's density boost (Border-side, extra
     // spawns on passive mobs in the Exterior), and Feral (its own module, hostile conversion in
-    // the Exterior) are independent concerns on the same event -- all three get a look, none
-    // cancels the spawn either way, so calling them in sequence is safe and needs no
-    // coordination between them.
+    // the Exterior) are independent concerns on the same event -- none of the three cancels the
+    // spawn, so calling them in sequence is safe and needs no coordination between them. The one
+    // exception is the Slime/MagmaCube blanket deny below, handled here directly (not delegated)
+    // since it's a precondition for all three, not a fourth peer concern.
     // ------------------------------------------------------------
     @SubscribeEvent
     public void onMobSpawnFinalize(MobSpawnEvent.FinalizeSpawn event) {
+        if (event.getEntity() instanceof Slime) {
+            // Project owner ruling (2026-09-21): Slime/MagmaCube removed from FrontierMode's
+            // world entirely, normal (inside the border) or Feral (outside) -- MagmaCube extends
+            // Slime in vanilla, so this one check covers both. Supersedes FRO_125's narrower
+            // scope (Feral-eligibility only): that fix stopped Slime/MagmaCube from ever getting
+            // *tagged* Feral, but didn't stop them spawning at all, and rollDensityCompanion
+            // doesn't check Feral-tag status before multiplying a spawn -- an untagged Exterior
+            // Slime still triggered the density mechanic and kept multiplying itself, which is
+            // what the playtest report ("still getting tons of slimes") was actually seeing.
+            // Denying the spawn here, before any module's own delegate below runs, is a single
+            // point of control that closes every downstream path at once -- Guardian conversion,
+            // Feral's density roll, and ordinary in-border natural spawning never see a Slime
+            // spawn to act on in the first place.
+            //
+            // setSpawnCancelled(true), not setResult/setCanceled -- FinalizeSpawn isn't
+            // @HasResult, and per its own doc, cancelling the *event* only blocks the
+            // Mob#finalizeSpawn call while still letting the entity spawn; setSpawnCancelled is
+            // the one call Forge itself actually enforces (ForgeInternalHandler) to stop the
+            // spawn outright.
+            event.setSpawnCancelled(true);
+            return;
+        }
+
         BossModule.onMobSpawnFinalize(event);
 
         if (event.getLevel() instanceof ServerLevel level) {
