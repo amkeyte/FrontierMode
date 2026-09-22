@@ -103,9 +103,13 @@ public class Rendering {
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (Satchel.foundation()
-                .filter(f -> f.side().isClient())
-                .isEmpty()) return;
+        // FRO_104: the manual client-side check that used to live here was redundant on two
+        // independent counts -- this class's own @Mod.EventBusSubscriber(value = Dist.CLIENT)
+        // keeps Forge from even registering this method on a dedicated server, and
+        // RenderLevelStageEvent itself never fires server-side regardless (per this class's own
+        // crash-fix comment above). Unlike onClientTick/onClientUnload below, this method is
+        // reached only through Forge's own Dist-gated @SubscribeEvent dispatch, never through a
+        // BOTH-applicability Satchel jig -- so removing this one doesn't carry the same risk.
 
         // Render border rings
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {

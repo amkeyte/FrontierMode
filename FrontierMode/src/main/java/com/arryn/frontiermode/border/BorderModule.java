@@ -301,21 +301,18 @@ public final class BorderModule {
         BorderPlayerStatusFixture fixture =
                 bundle.getOrCreateFixture(FrontierKeys.BORDER_PLAYER_STATUS, BorderPlayerStatusFixture::new);
 
-        // RM_FRO_037 ("Brenda") ROOT CAUSE FOUND: SatchelFixture.onJigTick() is never actually
-        // invoked by anything in this codebase -- Satchel's own TrackerFixture proves it
-        // (internalTicks stayed 0 across a 2708-tick play session that clearly ticked
-        // externally). BorderPlayerStatusFixture was never affected because it was never driven
-        // by onJigTick() in the first place -- accept() above is called directly, same manual
-        // pattern this line now also uses for ExteriorTellFixture. Filed SAT_049 against
-        // Satchel for the underlying dead dispatch path (also silently affects
-        // BorderPregenFixture -- zero "[BorderPregen]" log lines exist anywhere across this
-        // world's play history despite borders that need pregeneration existing). This call is
-        // the FrontierMode-side fix: drive the tick directly, the same way accept() already is,
-        // rather than trust a dispatch path that doesn't run.
-        ExteriorTellFixture tellFixture =
-                bundle.getOrCreateFixture(FrontierKeys.EXTERIOR_TELL, ExteriorTellFixture::new);
-        tellFixture.onJigTick();
-
+        // RM_FRO_037 ("Brenda"): BorderPlayerStatusFixture doesn't ride onJigTick() at all --
+        // accept() below is called directly, unaffected by anything in this comment's own
+        // history (kept for that context, not because the fixture above needs the dispatch fix).
+        //
+        // FRO_103 (2026-09-22): the manual ExteriorTellFixture.getOrCreateFixture()+onJigTick()
+        // call that used to live here is gone -- SAT_049 found SatchelFixture.onJigTick() was
+        // never actually invoked by the real per-fixture tick dispatch (bundles stuck at
+        // CREATED skipped it entirely); SAT_053 (done) fixed that engine bug, so
+        // ExteriorTellFixture's own onJigTick() override now fires through the real dispatch
+        // path on its own, the same way every other fixture's does. Needs a live playtest check
+        // (Sick Wildlife's particle/sound tell on nearby Exterior animals) to confirm the
+        // dispatch actually reaches it now that the manual call is gone.
         List<Border> borders =
                 BorderAPI.CRUD(player.serverLevel())
                         .map(BordersCrudFacet::all)

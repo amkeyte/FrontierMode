@@ -1,10 +1,23 @@
 package com.arryn.frontiermode.feral;
 
+import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.server.commands.FeralCommands;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
+import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.config.JigBundles;
+import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.level.LevelJigConfig;
+import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.player.PlayerJigConfig;
+import com.arryn.satchel.common.jig.player.PlayerScope;
+import com.arryn.satchel.common.lifecycle.EventHandlers;
+import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
+import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
@@ -38,10 +51,7 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.eventbus.api.Event;
 
@@ -49,6 +59,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -68,25 +79,37 @@ import java.util.UUID;
  * files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
  * is cheaper than untangling it from Border's own files later.
  *
- * <p>No persisted state, no {@code JigConfig}, no fixture/bundle -- purely event-driven off six
- * Forge events, each registered from its own {@code FrontierMode} delegate alongside the
- * Boss/Border ones already on that shared touch point: {@code EntityJoinLevelEvent} (the actual
- * tagging authority -- see {@link #onEntityJoinLevel} for why this replaced tagging from
- * {@code MobSpawnEvent.FinalizeSpawn}), {@code MobSpawnEvent.FinalizeSpawn} (density-boost roll,
- * currently disabled -- see {@link #onMobSpawnFinalize}/{@link #densityCompanionEnabled}),
- * {@code MobSpawnEvent.SpawnPlacementCheck} (bypass the Exterior's own light-level gate as a
+ * <p>No persisted state, no fixture/bundle -- event-driven off two raw Forge events, each
+ * registered from its own {@code FrontierMode} delegate alongside the Boss/Border ones already on
+ * that shared touch point: {@code EntityJoinLevelEvent} (the actual tagging authority -- see
+ * {@link #onEntityJoinLevel} for why this replaced tagging from {@code MobSpawnEvent.FinalizeSpawn}),
+ * and {@code MobSpawnEvent.SpawnPlacementCheck} (bypass the Exterior's own light-level gate as a
  * visual-tell wall for a player who hasn't crossed yet, deny ambient spawns outright once they
- * have -- see {@link #onSpawnPlacementCheck}),
- * {@code TickEvent.PlayerTickEvent} (the cosmetic tell on already-spawned Feral mobs, and as of
- * 2026-09-21 also {@link #maintainPackNearPlayer}'s own force-spawn maintenance -- see
- * {@link #onPlayerTick}), {@code TickEvent.LevelTickEvent}
- * (FRO_111: kills a Feral mob that wandered back inside the Frontier -- see {@link #onLevelTick}),
- * and {@code LivingDropsEvent}/{@code LivingExperienceDropEvent} (no free loot -- see
- * {@link #onLivingDrops}). Both tick hooks are Feral's own, not Border's
- * {@code BorderModule.onPlayerScopeTick} -- Feral depends on Border, never the reverse (same
- * discipline Boss/Border already keep), so it can't ride a hook Border would have to call into it
- * from. {@link #init()} exists only for the same "Module Initiating" bootstrap-logging consistency
- * every other module follows -- there's nothing else to initialize.
+ * have -- see {@link #onSpawnPlacementCheck}). {@code MobSpawnEvent.FinalizeSpawn} is still a raw
+ * touch point too (density-boost roll, currently disabled -- see {@link #onMobSpawnFinalize}/
+ * {@link #densityCompanionEnabled}), same shared-delegate shape as the other two.
+ *
+ * <p><b>Tick-driven work and the loot-veto rule both ride Satchel signals instead of raw
+ * Forge.</b> Tick-driven work uses its own two {@code JigConfig}s (FRO_146) --
+ * {@link FrontierKeys#FERAL_PLAYER_JIG}/{@link FrontierKeys#FERAL_LEVEL_JIG}, registered in
+ * {@link #init()} with an empty bundle schema (no fixture/bundle needed, same as the module as a
+ * whole -- these two keys exist purely to get a per-tick {@code ScopeEvent.Tick} callback).
+ * Feral's own keys, not Border's {@code BORDER_PLAYER_JIG}/{@code BORDERS_JIG} -- Feral depends on
+ * Border, never the reverse (same discipline Boss/Border already keep), so it doesn't ride a tick
+ * source another module owns. {@link #onPlayerScopeTick}/{@link #onLevelScopeTick} are the
+ * {@code ScopeEvent.Tick} subscribers; {@link #onPlayerTick}/{@link #onLevelTick} hold the actual
+ * per-player/per-level work and are called from those subscribers once a tick's worth of
+ * {@code ServerPlayer}/{@code ServerLevel} has been resolved -- {@link #onPlayerTick} covers the
+ * cosmetic tell on already-spawned Feral mobs and {@link #maintainPackNearPlayer}'s force-spawn
+ * maintenance; {@link #onLevelTick} covers FRO_111's re-entry sweep (kills a Feral mob that
+ * wandered back inside the Frontier). The no-free-loot rule (FRO_147) rides
+ * {@link LivingDropsSignal}/{@link LivingExperienceDropSignal} (SAT_072), subscribed via the same
+ * {@code FERAL_LEVEL_JIG} config's {@code eventHandlers()} -- see {@link #onLivingDrops}/
+ * {@link #onLivingExperienceDrop}. Both are bare, unscoped signals (no jig-key filtering needed,
+ * unlike {@code ScopeEvent.Tick}); declaring their handlers on {@code FERAL_LEVEL_JIG} is only
+ * where installation happens to occur, not a claim this is jig-scoped -- same precedent
+ * {@code BossTellModule}/{@code StructureModule} already established for {@code ItemPickupSignal}/
+ * {@code BlockBreakSignal}.
  */
 public final class FeralModule {
 
@@ -147,6 +170,88 @@ public final class FeralModule {
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
+        registerPlayerJig();
+        registerLevelJig();
+    }
+
+    // FRO_146: no fixture/bundle -- these two configs exist purely to get a ScopeEvent.Tick
+    // source, replacing the raw TickEvent.PlayerTickEvent/LevelTickEvent subscriptions that used
+    // to live in FrontierMode.java. See this class's own doc for why Feral gets its own keys
+    // rather than riding Border's.
+
+    private static void registerPlayerJig() {
+        EventHandlers eventHandlers =
+                EventHandlers.builder()
+                        .on(ScopeEvent.Tick.class, FeralModule::onPlayerScopeTick)
+                        .build();
+
+        PlayerJigConfig config = new PlayerJigConfig(FrontierKeys.FERAL_PLAYER_JIG);
+        config.bundles().schema(new JigBundles.Schema<>(List.of()));
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
+                .eventHandlers(eventHandlers);
+
+        Satchel.registerJigConfig(config);
+    }
+
+    private static void registerLevelJig() {
+        EventHandlers eventHandlers =
+                EventHandlers.builder()
+                        .on(ScopeEvent.Tick.class, FeralModule::onLevelScopeTick)
+                        // FRO_147: bare, unscoped signals like ItemPickupSignal (see
+                        // BossTellModule.init()/StructureModule.init() for the identical
+                        // precedent) -- declaring them here is just where installation happens to
+                        // occur, not a claim this is FERAL_LEVEL_JIG-scoped.
+                        .on(LivingDropsSignal.class, FeralModule::onLivingDrops)
+                        .on(LivingExperienceDropSignal.class, FeralModule::onLivingExperienceDrop)
+                        .build();
+
+        LevelJigConfig config = new LevelJigConfig(FrontierKeys.FERAL_LEVEL_JIG);
+        config.bundles().schema(new JigBundles.Schema<>(List.of()));
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
+                .eventHandlers(eventHandlers);
+
+        Satchel.registerJigConfig(config);
+    }
+
+    /**
+     * Shared-bus caveat, same as every other {@code ScopeEvent} handler in this codebase --
+     * {@code ScopeEvent.Tick} fires for every jig scoped to whatever just ticked, so the
+     * {@code FERAL_PLAYER_JIG} key check is what keeps this from running against the wrong jig's
+     * scopes (Border's own {@code BORDER_PLAYER_JIG} ticks included).
+     */
+    private static void onPlayerScopeTick(ScopeEvent.Tick event) {
+        ScopeInfo info = event.info();
+        Objects.requireNonNull(info, "info");
+
+        if (!FrontierKeys.FERAL_PLAYER_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        PlayerScope scope = (PlayerScope) info.scope();
+        ServerPlayer player = (ServerPlayer) scope.player();
+        onPlayerTick(player);
+    }
+
+    /**
+     * Same shared-bus caveat as {@link #onPlayerScopeTick}, filtered to {@code FERAL_LEVEL_JIG}.
+     * Direct cast to {@code ServerLevel}, no instanceof guard -- {@code LevelJigConfig}'s own
+     * default is already {@code SideApplicability.SERVER} (unoverridden here), so this handler is
+     * never invoked client-side to begin with (same reasoning FRO_104 already applied to
+     * {@code BossJigHandlers.onTick}).
+     */
+    private static void onLevelScopeTick(ScopeEvent.Tick event) {
+        ScopeInfo info = event.info();
+        Objects.requireNonNull(info, "info");
+
+        if (!FrontierKeys.FERAL_LEVEL_JIG.equals(info.jigInfo().key)) {
+            return;
+        }
+
+        LevelScope scope = (LevelScope) info.scope();
+        ServerLevel level = (ServerLevel) scope.level();
+        onLevelTick(level);
     }
 
     public static void onRegisterCommands(RegisterCommandsEvent event) {
@@ -173,17 +278,12 @@ public final class FeralModule {
      *
      * <p>Cadence-gated on {@code player.tickCount}, same modulo shape
      * {@code BorderModule.applySicknessEffects} already uses, rather than a per-player counter
-     * field -- Feral has no per-player object to hold one on (no fixture, no bundle). Gated to
-     * {@code Phase.END} so this runs once per player per tick, not twice.
+     * field -- Feral has no per-player object to hold one on (no fixture, no bundle). Called from
+     * {@link #onPlayerScopeTick}, which already runs once per player per real game tick --
+     * {@code ScopeEvent.Tick} has no START/END-phase double-fire the way raw
+     * {@code TickEvent.PlayerTickEvent} did, so there's nothing left here to gate on.
      */
-    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-        if (!(event.player instanceof ServerPlayer player)) {
-            return;
-        }
-
+    private static void onPlayerTick(ServerPlayer player) {
         // Own cadence, independent of the tell-interval gate below -- maintainPackNearPlayer's
         // own doc covers why this rides onPlayerTick rather than a new Forge subscription.
         maintainPackNearPlayer(player);
@@ -472,16 +572,11 @@ public final class FeralModule {
      * {@code FeralRules.TELL_RADIUS} -- the guarantee has to hold everywhere a Feral mob might
      * wander back to, not just wherever a player happens to be standing. Cadence-gated per level
      * via {@link #REENTRY_SWEEP_THROTTLERS} rather than every tick -- this doesn't need to be
-     * instant, only reliable.
+     * instant, only reliable. Called from {@link #onLevelScopeTick}, which already runs once per
+     * level per real game tick -- same "no START/END double-fire to gate on anymore" reasoning as
+     * {@link #onPlayerTick}.
      */
-    public static void onLevelTick(TickEvent.LevelTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) {
-            return;
-        }
-        if (!(event.level instanceof ServerLevel level)) {
-            return;
-        }
-
+    private static void onLevelTick(ServerLevel level) {
         logPackDiagnostics(level);
 
         TickThrottler throttler = REENTRY_SWEEP_THROTTLERS.computeIfAbsent(
@@ -804,22 +899,29 @@ public final class FeralModule {
      * however it dies. Gated on {@code feral}-team membership (not a fixture/list -- same "no
      * persisted tracking" precedent everywhere else in this module), so this only ever touches
      * mobs Feral itself tagged; ordinary hostiles, Boss, and Guardian Mobs are unaffected.
+     *
+     * <p>FRO_147: rides {@link LivingDropsSignal} (SAT_072) instead of a raw Forge subscription --
+     * {@link LivingDropsSignal#cancel()} passes straight through to the wrapped event's own
+     * {@code setCanceled(true)}.
      */
-    public static void onLivingDrops(LivingDropsEvent event) {
-        if (isFeral(event.getEntity())) {
-            event.setCanceled(true);
+    private static void onLivingDrops(LivingDropsSignal signal) {
+        if (isFeral(signal.entity())) {
+            signal.cancel();
             // FRO_128: a legitimate combat kill is the one death path sweepFeralCleanup itself
             // never sees (it's already removed from the level by the time the next sweep runs) --
             // clear any lingering DESPAWN_TIMERS entry here so it doesn't outlive the mob it was
             // tracking.
-            DESPAWN_TIMERS.remove(event.getEntity().getUUID());
+            DESPAWN_TIMERS.remove(signal.entity().getUUID());
         }
     }
 
-    /** XP counts as "free loot" too, per the same ruling {@link #onLivingDrops} follows. */
-    public static void onLivingExperienceDrop(LivingExperienceDropEvent event) {
-        if (isFeral(event.getEntity())) {
-            event.setCanceled(true);
+    /**
+     * XP counts as "free loot" too, per the same ruling {@link #onLivingDrops} follows. FRO_147:
+     * rides {@link LivingExperienceDropSignal} (SAT_072) instead of a raw Forge subscription.
+     */
+    private static void onLivingExperienceDrop(LivingExperienceDropSignal signal) {
+        if (isFeral(signal.entity())) {
+            signal.cancel();
         }
     }
 

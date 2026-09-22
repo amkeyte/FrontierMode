@@ -73,6 +73,33 @@ public final class Satchel {
         return foundation().map(LogicalFoundation::isReady).orElse(false);
     }
 
+    /**
+     * Collapses the three-step "safe to touch yet" check a caller otherwise hand-writes before
+     * every scope-info read -- {@link #isReady()}, then {@link LogicalFoundation#tryScopeInfo},
+     * then {@link ScopeInfo#isReady()} -- into one call, one empty-vs-present result (SAT_077).
+     * Every check here degrades to an empty {@code Optional}, never a throw -- the same "standby,
+     * don't crash" contract each of the three steps already carries on its own.
+     *
+     * <p>
+     * Deliberately a static method here, not an instance method on {@link LogicalFoundation}
+     * reached via {@link #require()}: {@link #require()} throws if no foundation is installed for
+     * this side at all, a strictly earlier and different condition than "installed but not ready"
+     * -- checking {@link #isReady()} first, safely (it degrades through {@link #foundation()}'s
+     * own {@code Optional}, never throwing), and only calling {@link #require()} once that's
+     * already confirmed true, is what keeps this method exactly as crash-safe as the three-step
+     * check it replaces, not a narrower version of it.
+     *
+     * <p>
+     * Doesn't replace {@link AScopeCoupler}'s own {@code isReady(ScopeInfo)}/{@code
+     * requireReady} -- those gate operations on a {@link ScopeInfo} the caller already has in
+     * hand; this is the layer underneath that, for a caller that doesn't have one yet and needs to
+     * find out whether it safely can.
+     */
+    public static Optional<ScopeInfo> tryReadyScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
+        if (!isReady()) return Optional.empty();
+        return require().tryScopeInfo(jigKey, scope).filter(ScopeInfo::isReady);
+    }
+
     /* =============================================================
      * Installation / activation
      * ========================================================== */

@@ -4,7 +4,7 @@
 
 # Backhaul
 
-- [Work Board](backhaul/BOARD.md) — 33 open tickets
-- [Wiki Index](backhaul/WIKI_INDEX.md) — 70 pages
-- [Roadmap](backhaul/ROADMAP_INDEX.md) — 2 graphs, 5 actionable nodes
+- [Work Board](backhaul/BOARD.md) — 28 open tickets
+- [Wiki Index](backhaul/WIKI_INDEX.md) — 71 pages
+- [Roadmap](backhaul/ROADMAP_INDEX.md) — 2 graphs, 6 actionable nodes
 - [Team](backhaul/ROLES_INDEX.md) — 7 roles

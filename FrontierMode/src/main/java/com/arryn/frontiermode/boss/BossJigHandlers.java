@@ -50,8 +50,9 @@ final class BossJigHandlers {
         LevelScope scope = (LevelScope) info.scope();
         Level level = scope.level();
 
-        if(!Satchel.isServer()) return;
-
+        // FRO_104: the manual Satchel.isServer() check that used to live here was redundant --
+        // BOSS_JIG is already declared SideApplicability.SERVER (BossModule.java), so this
+        // handler is never invoked client-side to begin with; the branch could never fire.
         var jig = (LevelJig) info.jigInfo().jig;
         BossBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
