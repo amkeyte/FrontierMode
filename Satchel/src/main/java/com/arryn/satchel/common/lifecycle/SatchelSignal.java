@@ -26,7 +26,15 @@ import java.util.Objects;
  * SatchelEventBus.post()}, and Forge sees the cancellation already applied.
  *
  * <p>
- * Producers: {@code ServerForgeIngress} only, per the Forge Integration & Sidedness Contract's
+ * {@link #allow()}/{@link #deny()} are the {@code @HasResult}-shaped sibling of {@link #cancel()}
+ * (SAT_076) — Forge's other, independent veto mechanism (some events, e.g. {@code
+ * MobSpawnEvent.SpawnPlacementCheck}, use {@code Event.Result} instead of the cancel flag; a
+ * handful use both). Same pass-through discipline: reflects whatever {@code forgeEvent.hasResult()}
+ * actually says, throws rather than silently no-opping if it's false.
+ *
+ * <p>
+ * Producers: {@code ServerForgeIngress} and other sanctioned, concern-grouped ingress classes
+ * (e.g. {@code ServerSpawnIngress}, SAT_076) per the Forge Integration & Sidedness Contract's
  * ingress discipline — see {@code ItemPickupSignal}/{@code BlockBreakSignal} for the first two
  * concrete signals built on this base.
  *
@@ -66,5 +74,42 @@ public abstract class SatchelSignal<E extends Event> {
             );
         }
         forgeEvent.setCanceled(true);
+    }
+
+    /**
+     * Explicitly allows the operation this signal represents, via Forge's {@code Event.Result}
+     * mechanism (independent of {@link #cancel()}'s cancel-flag mechanism).
+     *
+     * @throws UnsupportedOperationException if the wrapped Forge event has no result to set.
+     */
+    public final void allow() {
+        requireHasResult();
+        forgeEvent.setResult(Event.Result.ALLOW);
+    }
+
+    /**
+     * Denies the operation this signal represents, via Forge's {@code Event.Result} mechanism
+     * (independent of {@link #cancel()}'s cancel-flag mechanism).
+     *
+     * @throws UnsupportedOperationException if the wrapped Forge event has no result to set.
+     */
+    public final void deny() {
+        requireHasResult();
+        forgeEvent.setResult(Event.Result.DENY);
+    }
+
+    /** The current {@code Event.Result}, for a consumer that wants to read rather than set it. */
+    public final Event.Result result() {
+        requireHasResult();
+        return forgeEvent.getResult();
+    }
+
+    private void requireHasResult() {
+        if (!forgeEvent.hasResult()) {
+            throw new UnsupportedOperationException(
+                    "Signal " + getClass().getSimpleName() + " wraps a Forge event ("
+                            + forgeEvent.getClass().getSimpleName() + ") with no Result -- nothing to set."
+            );
+        }
     }
 }

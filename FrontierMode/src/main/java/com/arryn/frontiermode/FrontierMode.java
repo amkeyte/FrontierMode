@@ -2,7 +2,6 @@ package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.admin.AdminToolsModule;
 import com.arryn.frontiermode.border.BorderModule;
-import net.minecraft.server.level.ServerLevel;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.boss.BossModule;
@@ -17,11 +16,8 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.world.entity.monster.Slime;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -217,72 +213,6 @@ public final class FrontierMode {
         FeralModule.onRegisterCommands(event);
         // Admin tools: registers /admin as its own, separate root -- not merged into /boss.
         AdminToolsModule.onRegisterCommands(event);
-    }
-
-    // ------------------------------------------------------------
-    // RM_FRO_029 ("Gloria") / RM_FRO_037 ("Brenda") / RM_FRO_038 ("Martha"): the mod's one raw
-    // MobSpawnEvent.FinalizeSpawn touch point. Same shape as onRegisterCommands above -- this
-    // stays the single real Forge-subscription class, delegating immediately, by name, to each
-    // module rather than holding any decision logic itself. Guardian Mobs (Boss-side, guardian
-    // conversion on hostiles near a boss), Sick Wildlife's density boost (Border-side, extra
-    // spawns on passive mobs in the Exterior), and Feral (its own module, hostile conversion in
-    // the Exterior) are independent concerns on the same event -- none of the three cancels the
-    // spawn, so calling them in sequence is safe and needs no coordination between them. The one
-    // exception is the Slime/MagmaCube blanket deny below, handled here directly (not delegated)
-    // since it's a precondition for all three, not a fourth peer concern.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onMobSpawnFinalize(MobSpawnEvent.FinalizeSpawn event) {
-        if (event.getEntity() instanceof Slime) {
-            // Project owner ruling (2026-09-21): Slime/MagmaCube removed from FrontierMode's
-            // world entirely, normal (inside the border) or Feral (outside) -- MagmaCube extends
-            // Slime in vanilla, so this one check covers both. Supersedes FRO_125's narrower
-            // scope (Feral-eligibility only): that fix stopped Slime/MagmaCube from ever getting
-            // *tagged* Feral, but didn't stop them spawning at all, and rollDensityCompanion
-            // doesn't check Feral-tag status before multiplying a spawn -- an untagged Exterior
-            // Slime still triggered the density mechanic and kept multiplying itself, which is
-            // what the playtest report ("still getting tons of slimes") was actually seeing.
-            // Denying the spawn here, before any module's own delegate below runs, is a single
-            // point of control that closes every downstream path at once -- Guardian conversion,
-            // Feral's density roll, and ordinary in-border natural spawning never see a Slime
-            // spawn to act on in the first place.
-            //
-            // setSpawnCancelled(true), not setResult/setCanceled -- FinalizeSpawn isn't
-            // @HasResult, and per its own doc, cancelling the *event* only blocks the
-            // Mob#finalizeSpawn call while still letting the entity spawn; setSpawnCancelled is
-            // the one call Forge itself actually enforces (ForgeInternalHandler) to stop the
-            // spawn outright.
-            event.setSpawnCancelled(true);
-            return;
-        }
-
-        BossModule.onMobSpawnFinalize(event);
-
-        if (event.getLevel() instanceof ServerLevel level) {
-            BorderModule.onMobSpawnFinalize(event.getEntity(), level);
-            FeralModule.onMobSpawnFinalize(event.getEntity(), level);
-        }
-    }
-
-    // ------------------------------------------------------------
-    // RM_FRO_038 ("Martha"): fires earlier than FinalizeSpawn above -- before a mob attempts to
-    // spawn at all, where vanilla's own light-level gate lives. Same single-subscription-class
-    // shape as every other @SubscribeEvent on this file.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onSpawnPlacementCheck(MobSpawnEvent.SpawnPlacementCheck event) {
-        FeralModule.onSpawnPlacementCheck(event);
-    }
-
-    // ------------------------------------------------------------
-    // RM_FRO_038 ("Martha"): Feral's actual tagging authority -- catches anything that joins a
-    // level however it got there (natural spawn, Slime/MagmaCube split children, this module's
-    // own density companions), not just the ones that pass through FinalizeSpawn. See
-    // FeralModule.onEntityJoinLevel's own doc for why tagging moved here.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onEntityJoinLevel(EntityJoinLevelEvent event) {
-        FeralModule.onEntityJoinLevel(event);
     }
 
     // ------------------------------------------------------------

@@ -51,17 +51,12 @@ public final class BossAPI {
 
         LevelScope scope = new LevelScope(level);
 
-        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BOSS_JIG, scope);
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
         if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] bosses(): scope not yet known -> Optional.empty level="
+            OUT.debug("[BossAPI] bosses(): scope not ready -> Optional.empty level="
                     + level.dimension().location());
-            return Optional.empty();
-        }
-
-        var info = infoOpt.get();
-        if (!info.isReady()) {
-            OUT.debug("[BossAPI] bosses(): scope NOT ready -> Optional.empty level="
-                    + level.dimension().location() + " phase=" + info.phase());
             return Optional.empty();
         }
 
@@ -109,17 +104,12 @@ public final class BossAPI {
 
         LevelScope scope = new LevelScope(level);
 
-        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BOSS_JIG, scope);
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
         if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] bossTells(): scope not yet known -> Optional.empty level="
+            OUT.debug("[BossAPI] bossTells(): scope not ready -> Optional.empty level="
                     + level.dimension().location());
-            return Optional.empty();
-        }
-
-        var info = infoOpt.get();
-        if (!info.isReady()) {
-            OUT.debug("[BossAPI] bossTells(): scope NOT ready -> Optional.empty level="
-                    + level.dimension().location() + " phase=" + info.phase());
             return Optional.empty();
         }
 
@@ -224,17 +214,12 @@ public final class BossAPI {
 
         LevelScope scope = new LevelScope(level);
 
-        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BOSS_JIG, scope);
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
         if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] guardians(): scope not yet known -> Optional.empty level="
+            OUT.debug("[BossAPI] guardians(): scope not ready -> Optional.empty level="
                     + level.dimension().location());
-            return Optional.empty();
-        }
-
-        var info = infoOpt.get();
-        if (!info.isReady()) {
-            OUT.debug("[BossAPI] guardians(): scope NOT ready -> Optional.empty level="
-                    + level.dimension().location() + " phase=" + info.phase());
             return Optional.empty();
         }
 

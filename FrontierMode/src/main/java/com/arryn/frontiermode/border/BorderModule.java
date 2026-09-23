@@ -501,16 +501,6 @@ public final class BorderModule {
         double extraSpawnChance = multiplier - 1.0;
         double roll = RNG.nextDouble();
 
-        // TEMP DIAGNOSTIC (2026-09-08, RM_FRO_037): project owner reported no visible density
-        // effect -- this line exists only to tell "this hook never even sees an Animal spawn out
-        // here" apart from "it sees one but the roll/companion spawn itself is broken." Safe to
-        // delete once that's confirmed; OUT.info so it shows up without needing debug logging
-        // enabled.
-        OUT.info("[Border] onMobSpawnFinalize animal=" + mob.getType()
-                + " frontierDistance=" + frontierDistance + " multiplier=" + multiplier
-                + " extraSpawnChance=" + extraSpawnChance + " roll=" + roll
-                + " willSpawnCompanion=" + (roll < extraSpawnChance));
-
         if (extraSpawnChance <= 0.0 || roll >= extraSpawnChance) {
             return;
         }

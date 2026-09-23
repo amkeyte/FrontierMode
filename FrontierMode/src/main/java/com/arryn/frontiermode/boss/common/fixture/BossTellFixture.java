@@ -136,6 +136,10 @@ public final class BossTellFixture extends SatchelFixture {
     // that border's own scale. Computed per-tell in runTellsForPlayers from the resolved
     // Border.radius(), not a static field. Tunable; playtest territory.
     private static final double PARTICLE_SPREAD_FRACTION = 0.3;
+
+    // FRO_158: sound only fires within this fraction of the border radius from the boss. Playtest
+    // tuning knob, not a mechanic -- safe baseline, adjust by ear.
+    private static final double SOUND_MAX_NORMALIZED_DISTANCE = 0.3;
     // Inner radius (blocks) excluded from that ring -- keeps particles off the 3x3 platform
     // itself, so they read as an aura *around* it rather than occasionally landing on its
     // surface. Fixed, not border-scaled -- the platform itself is always 3x3 regardless of border
@@ -456,7 +460,11 @@ public final class BossTellFixture extends SatchelFixture {
                         (int) Math.round(borderOpt.get().radius() * PARTICLE_SPREAD_FRACTION));
                 spawnTellParticle(level, player, nearest.position(), scatterRadius);
             }
-            if (RNG.nextDouble() < intensity * soundCoeff) {
+            // FRO_158: the sound plays at the player's own position, so distance only enters via
+            // this trigger -- intensity > 0 across the whole border radius meant a layer 6 boss's
+            // music fired from a huge distance. Gate it to the closer part of the border.
+            if (normalizedDistance <= SOUND_MAX_NORMALIZED_DISTANCE
+                    && RNG.nextDouble() < intensity * soundCoeff) {
                 // RM_FRO_037 follow-up (2026-09-08): hard per-boss cooldown gates the probability
                 // roll above -- see BossRules#tellSoundCooldownTicks's own doc for why (4x ~30s
                 // clips would otherwise stack/overlap at this roll's original sub-second-blip

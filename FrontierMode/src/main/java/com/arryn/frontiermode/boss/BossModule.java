@@ -22,12 +22,13 @@ import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,22 +63,20 @@ public final class BossModule {
     }
 
     /**
-     * RM_FRO_029 (Gloria): delegate target for {@code FrontierMode.onMobSpawnFinalize}, mirroring
-     * {@link #onRegisterCommands}'s identical shape (a raw Forge {@code @SubscribeEvent} on
-     * {@code FrontierMode.java} delegating immediately, by name, to a module static method --
-     * {@code FrontierMode.java} stays the single real Forge-subscription point).
+     * RM_FRO_029 (Gloria): delegate target for {@code FrontierMode.onMobSpawnFinalize}
+     * (FRO_107: now a {@code MobSpawnFinalizeSignal} subscriber, not a raw Forge
+     * {@code @SubscribeEvent} -- {@code FrontierMode.java} still does the fan-out, by name, to a
+     * module static method, just off Satchel's own signal now instead of the raw Forge event).
      *
      * <p>Never cancels the spawn either way -- Guardian Mobs is a modifier on an already-happening
-     * spawn, not a summon. "Standby, don't crash": a level that isn't a real {@link ServerLevel},
-     * or a {@link BossGuardiansFixture} that isn't resolvable yet (Satchel not ready, scope not
-     * known), is a silent no-op -- the vanilla spawn proceeds unmodified either way.
+     * spawn, not a summon. "Standby, don't crash": a {@link BossGuardiansFixture} that isn't
+     * resolvable yet (Satchel not ready, scope not known) is a silent no-op -- the vanilla spawn
+     * proceeds unmodified either way. {@code level} is already confirmed a real {@link ServerLevel}
+     * by the caller.
      */
-    public static void onMobSpawnFinalize(MobSpawnEvent.FinalizeSpawn event) {
-        if (!(event.getLevel() instanceof ServerLevel level)) {
-            return;
-        }
+    public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
         BossAPI.guardians(level).ifPresent(guardians ->
-                guardians.onMobSpawnFinalize(event.getEntity(), level));
+                guardians.onMobSpawnFinalize(mob, level));
     }
 
     // ── TargetType.BOSS resolver ──────────────────────────────────────────────
@@ -125,6 +124,12 @@ public final class BossModule {
                         .on(ScopeEvent.Tick.class, BossJigHandlers::onTick)
                         .on(ScopeEvent.Loaded.class, BossJigHandlers::onBordersScopeLoaded)
                         .on(MobDied.class, BossJigHandlers::onMobDied)
+                        // FRO_107: bare, unscoped signal (SAT_076) -- declaring it here is only
+                        // where installation happens to occur, not a claim this is BOSS_JIG-scoped.
+                        // BossJigHandlers::onMobSpawnFinalize is the cross-module fan-out (Slime
+                        // deny, then Boss/Border/Feral in sequence), same role FrontierMode.java's
+                        // raw @SubscribeEvent played before this signal existed.
+                        .on(MobSpawnFinalizeSignal.class, BossJigHandlers::onMobSpawnFinalize)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);
