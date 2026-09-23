@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
@@ -11,18 +12,22 @@ import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.feral.FeralModule;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -33,7 +38,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Event handlers for {@code BOSS_JIG}: tick, borders-loaded bootstrap, and defeat detection. */
+/**
+ * Event handlers for {@code BOSS_JIG}: tick, borders-loaded bootstrap, defeat detection, and
+ * (FRO_107) the mob-spawn-finalize fan-out -- registered on {@code BOSS_JIG}'s own config only
+ * because that's where installation happens to occur (see {@link #onMobSpawnFinalize}'s own doc);
+ * it isn't Boss-owned logic.
+ */
 final class BossJigHandlers {
 
     private BossJigHandlers() {
@@ -65,6 +75,44 @@ final class BossJigHandlers {
         fixture.SPAWN.materializeUnresolved(level, uuid -> BossInterests.add(level, uuid));
         reconcilePathAgainstBossRecords(level, fixture);
 
+    }
+
+    /**
+     * FRO_107: cross-module fan-out for {@link MobSpawnFinalizeSignal} (SAT_076) -- the same role
+     * {@code FrontierMode.java}'s raw {@code @SubscribeEvent} played before this signal existed,
+     * just off Satchel's own signal now instead of the raw Forge event. Not Boss-specific; Boss,
+     * Border, and Feral each get a turn.
+     *
+     * <p>The Slime/MagmaCube deny check runs first and short-circuits, same ordering the original
+     * handler had -- project owner ruling (2026-09-21, narrowed 2026-09-23 per FRO_154): Slime/
+     * MagmaCube only removed from the Exterior, where Feral rules take over -- ordinary in-border
+     * spawns are untouched, same standard vanilla rate as before this whole cluster existed.
+     * {@link MobSpawnFinalizeSignal#denySpawn()}, not {@link MobSpawnFinalizeSignal#cancel()} --
+     * see that method's own doc for the real Forge gotcha (canceling the signal/event alone does
+     * not stop the entity from spawning).
+     */
+    static void onMobSpawnFinalize(MobSpawnFinalizeSignal signal) {
+        // MobSpawnFinalizeSignal's own doc: server-only by construction (FinalizeSpawn "only
+        // fired on the logical server") -- same defensive instanceof check the original
+        // FrontierMode.java handler used, rather than trusting that guarantee with a raw cast.
+        if (!(signal.level() instanceof ServerLevel level)) {
+            return;
+        }
+
+        // FRO_154: Exterior-only now -- same frontierDistanceAt(level, pos) > 0 check
+        // FeralModule.onSpawnPlacementCheck/onEntityJoinLevel already use for "is this the
+        // Exterior." An in-border Slime/MagmaCube falls through to Boss/Border/Feral like any
+        // other mob (Feral's own onMobSpawnFinalize is already a no-op in-border anyway, via its
+        // own frontierDistance <= 0 guard).
+        if (signal.mob() instanceof Slime
+                && BorderAPI.frontierDistanceAt(level, signal.mob().blockPosition()) > 0) {
+            signal.denySpawn();
+            return;
+        }
+
+        BossModule.onMobSpawnFinalize(signal.mob(), level);
+        BorderModule.onMobSpawnFinalize(signal.mob(), level);
+        FeralModule.onMobSpawnFinalize(signal.mob(), level);
     }
 
     /**

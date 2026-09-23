@@ -185,8 +185,10 @@ public final class StructureModule {
             return Optional.empty();
         }
         LevelScope scope = new LevelScope(level);
-        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.STRUCTURE_JIG, scope);
-        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.STRUCTURE_JIG, scope);
+        if (infoOpt.isEmpty()) {
             return Optional.empty();
         }
         var jig = (LevelJig) infoOpt.get().jigInfo().jig;

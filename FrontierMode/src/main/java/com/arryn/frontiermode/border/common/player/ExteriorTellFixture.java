@@ -8,7 +8,6 @@ import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.player.PlayerScope;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -95,8 +94,6 @@ public final class ExteriorTellFixture extends SatchelFixture {
         AABB searchArea = new AABB(player.blockPosition()).inflate(PlayerRules.WILDLIFE_TELL_RADIUS);
         List<Animal> nearby = level.getEntitiesOfClass(Animal.class, searchArea);
 
-        int sickCount = 0;
-
         for (Animal animal : nearby) {
             BlockPos animalPos = animal.blockPosition();
             int frontierDistance = borders.stream()
@@ -108,7 +105,6 @@ public final class ExteriorTellFixture extends SatchelFixture {
                 // standing near it is.
                 continue;
             }
-            sickCount++;
 
             Vec3 pos = animal.position();
 
@@ -134,11 +130,5 @@ public final class ExteriorTellFixture extends SatchelFixture {
                         0.4f, 1.4f + RNG.nextFloat() * 0.3f);
             }
         }
-
-        // TEMP DIAGNOSTIC (2026-09-08, RM_FRO_037): now reports the per-animal split -- how many
-        // were nearby vs. how many actually counted as "in the Exterior" and got rolled against.
-        // Safe to delete once confirmed good in play.
-        OUT.info("[ExteriorTell] player=" + player.getGameProfile().getName()
-                + " nearbyAnimals=" + nearby.size() + " sickEligible=" + sickCount);
     }
 }

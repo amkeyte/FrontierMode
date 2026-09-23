@@ -109,21 +109,25 @@ public final class BorderAPI {
         return new LevelScope(level);
     }
 
-    // Edge-triggered logging for resolveFixture()'s three "not ready yet" outcomes below -- same
-    // shape BossInfoFacet.lastReportedMismatch (FRO_081; formerly BossModule
+    // Edge-triggered "not ready" logging for resolveFixture() below -- same shape
+    // BossInfoFacet.lastReportedMismatch (FRO_081; formerly BossModule
     // .LAST_RECONCILIATION_MISMATCH) already uses. RenderContext's own lazy-
     // resolve-and-cache accessors (crud()/path()/info()) call straight back into this method
     // every single render frame for as long as it keeps returning empty, so logging every
     // attempt at DEBUG level was spamming dozens of identical lines per second during the (now
     // survivable, see the Satchel fix on tryScopeInfo) pre-ready window on world join. Tracks
-    // each level's last-reported reason so this only logs on a real transition -- a changed
-    // reason, or first hitting "not ready" at all.
-    private static final Map<Level, String> LAST_NOT_READY_REASON = new ConcurrentHashMap<>();
+    // whether the last attempt for this level was "not ready" so this only logs on the
+    // true -> false -> true transition, not every retry. FRO_150: collapsed from three
+    // distinguished reasons (Satchel not ready / scope not yet known / scope not ready) down to
+    // one, since Satchel.tryReadyScopeInfo() -- the shared helper this method now uses -- doesn't
+    // surface which of the three actually applied; only the anti-spam dedup was load-bearing, not
+    // the specific reason text.
+    private static final Map<Level, Boolean> LAST_ATTEMPT_NOT_READY = new ConcurrentHashMap<>();
 
-    private static void logNotReadyOnce(Level level, String reason) {
-        String previous = LAST_NOT_READY_REASON.put(level, reason);
-        if (!reason.equals(previous)) {
-            OUT.debug("[BorderAPI] resolveFixture(): " + reason + " → Optional.empty level="
+    private static void logNotReadyOnce(Level level) {
+        Boolean previous = LAST_ATTEMPT_NOT_READY.put(level, Boolean.TRUE);
+        if (!Boolean.TRUE.equals(previous)) {
+            OUT.debug("[BorderAPI] resolveFixture(): not ready yet -> Optional.empty level="
                     + level.dimension().location());
         }
     }
@@ -133,50 +137,37 @@ public final class BorderAPI {
      * public {@code borders(Level)}/{@code borders(LevelScope)} surface. {@link #PATH}/
      * {@link #CRUD}/{@link #RULES}/{@link #INFO} below are the only way outside code reaches into
      * it now; the fixture type itself never crosses this method's boundary as a return value.
-     * Same "standby, don't crash" body {@code borders(Level)} always had -- isReady() gate, then
-     * scope-info known/ready checks, each falling through to {@code Optional.empty()} rather than
-     * throwing.
+     * Same "standby, don't crash" contract {@code borders(Level)} always had -- falls through to
+     * {@code Optional.empty()} rather than throwing whenever Satchel or this scope isn't ready.
      */
     private static Optional<BordersFixture> resolveFixture(Level level) {
-        // isReady() gate: scope(level) constructs a LevelScope directly (not through
-        // LevelResolver), and LevelScope now throws SatchelException.NotReady rather than
-        // silently falling back if the world-identity token isn't bound yet -- see the
-        // isReady()/NotReady redesign this superseded (FRO_021 originally fixed this window with
-        // tryScopeInfo alone, before LevelScope's own fallback was removed). This is the one
-        // proactive check that keeps this method's whole body safe to run early, same "standby,
-        // don't crash" philosophy as the two checks below it.
+        // isReady() gate stays ahead of scope construction: scope(level) constructs a LevelScope
+        // directly (not through LevelResolver), and LevelScope throws SatchelException.NotReady
+        // rather than falling back if the world-identity token isn't bound yet -- see the
+        // isReady()/NotReady redesign this predates (FRO_021 originally fixed this window with
+        // tryScopeInfo alone, before LevelScope's own fallback was removed).
         if (!Satchel.isReady()) {
-            logNotReadyOnce(level, "Satchel not ready yet");
+            logNotReadyOnce(level);
             return Optional.empty();
         }
 
         LevelScope scope = scope(level);
 
-        // RM_SAT_019: client-side scope recognition can now be legitimately deferred (waiting on
-        // the world-identity token round-trip), so "this jig doesn't know this scope yet" is a
-        // real, expected state on top of the "known but not ready" one already handled below --
-        // not a hard failure. tryScopeInfo (Satchel-side, added for this) hands that back as an
-        // empty Optional instead of requireScopeInfo's throw; treat it exactly like the
-        // !isReady() case a few lines down: standby, don't crash.
-        var infoOpt = Satchel.require()
-                .tryScopeInfo(FrontierKeys.BORDERS_JIG, scope);
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDERS_JIG, scope);
 
         if (infoOpt.isEmpty()) {
-            logNotReadyOnce(level, "scope not yet known");
+            logNotReadyOnce(level);
             return Optional.empty();
         }
 
         var info = infoOpt.get();
 
-        if (!info.isReady()) {
-            logNotReadyOnce(level, "scope NOT ready (phase=" + info.phase() + ")");
-            return Optional.empty();
-        }
-
-        // Past every "not ready" gate -- clear this level's tracked reason so a future stretch of
+        // Past the not-ready gate -- clear this level's tracked state so a future stretch of
         // not-ready (a relog, a reconnect) logs fresh instead of being silently deduped against a
-        // stale reason from before this success.
-        LAST_NOT_READY_REASON.remove(level);
+        // stale flag from before this success.
+        LAST_ATTEMPT_NOT_READY.remove(level);
 
         try {
             Optional<BordersFixture> result =
@@ -210,14 +201,18 @@ public final class BorderAPI {
      * not a specific fixture inside it).
      */
     private static Optional<BordersBundle> resolveBordersBundle(Level level) {
+        // isReady() gate stays ahead of scope construction -- see resolveFixture()'s own comment
+        // on why (LevelScope throws SatchelException.NotReady rather than falling back).
         if (!Satchel.isReady()) {
             return Optional.empty();
         }
 
         LevelScope scope = scope(level);
 
-        var infoOpt = Satchel.require().tryScopeInfo(FrontierKeys.BORDERS_JIG, scope);
-        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDERS_JIG, scope);
+        if (infoOpt.isEmpty()) {
             return Optional.empty();
         }
 
@@ -336,10 +331,11 @@ public final class BorderAPI {
 
         PlayerScope scope = new PlayerScope(player);
 
-        var infoOpt = Satchel.require()
-                .tryScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
 
-        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+        if (infoOpt.isEmpty()) {
             return Optional.empty();
         }
 
@@ -381,10 +377,11 @@ public final class BorderAPI {
 
         PlayerScope scope = new PlayerScope(player);
 
-        var infoOpt = Satchel.require()
-                .tryScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
 
-        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+        if (infoOpt.isEmpty()) {
             return;
         }
 

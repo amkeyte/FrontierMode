@@ -407,9 +407,10 @@ public final class BorderCommandHandler {
     // never touches Mob#finalizeSpawn at all), this routes each spawned rabbit through the real
     // Forge dispatch -- ForgeEventFactory.onFinalizeSpawn constructs and posts the actual
     // MobSpawnEvent.FinalizeSpawn, then calls finalizeSpawn itself if nothing cancels it. That's
-    // the same event BorderModule.onMobSpawnFinalize (Sick Wildlife's density hook) and
-    // BossModule.onMobSpawnFinalize are subscribed to, so this is a deterministic way to exercise
-    // that hook on demand instead of waiting on natural spawn RNG. Deliberately not the
+    // the same event Satchel's ServerSpawnIngress wraps into MobSpawnFinalizeSignal (FRO_107), which
+    // BossJigHandlers.onMobSpawnFinalize fans out to BorderModule (Sick Wildlife's density hook)
+    // and BossModule -- so this is a deterministic way to exercise that hook on demand instead of
+    // waiting on natural spawn RNG. Deliberately not the
     // DefaultBossRules.materialize()/spawnDensityCompanion() pattern -- those call
     // Mob#finalizeSpawn directly precisely to AVOID re-entering the event bus; this command wants
     // the opposite.

@@ -14,10 +14,12 @@ import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
+import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
@@ -51,9 +53,6 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.living.MobSpawnEvent;
-import net.minecraftforge.eventbus.api.Event;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -79,18 +78,12 @@ import java.util.UUID;
  * files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
  * is cheaper than untangling it from Border's own files later.
  *
- * <p>No persisted state, no fixture/bundle -- event-driven off two raw Forge events, each
- * registered from its own {@code FrontierMode} delegate alongside the Boss/Border ones already on
- * that shared touch point: {@code EntityJoinLevelEvent} (the actual tagging authority -- see
- * {@link #onEntityJoinLevel} for why this replaced tagging from {@code MobSpawnEvent.FinalizeSpawn}),
- * and {@code MobSpawnEvent.SpawnPlacementCheck} (bypass the Exterior's own light-level gate as a
- * visual-tell wall for a player who hasn't crossed yet, deny ambient spawns outright once they
- * have -- see {@link #onSpawnPlacementCheck}). {@code MobSpawnEvent.FinalizeSpawn} is still a raw
- * touch point too (density-boost roll, currently disabled -- see {@link #onMobSpawnFinalize}/
- * {@link #densityCompanionEnabled}), same shared-delegate shape as the other two.
+ * <p>No persisted state, no fixture/bundle. {@code onRegisterCommands} is Feral's one remaining
+ * raw-Forge delegate target (command registration, a permanently-accepted exception per
+ * wiki/satchel/spec/forge-integration.md) -- every other concern rides a Satchel signal or
+ * {@code ScopeEvent.Tick}, none of them a raw Forge touch point of Feral's own.
  *
- * <p><b>Tick-driven work and the loot-veto rule both ride Satchel signals instead of raw
- * Forge.</b> Tick-driven work uses its own two {@code JigConfig}s (FRO_146) --
+ * <p><b>Tick-driven work</b> uses its own two {@code JigConfig}s (FRO_146) --
  * {@link FrontierKeys#FERAL_PLAYER_JIG}/{@link FrontierKeys#FERAL_LEVEL_JIG}, registered in
  * {@link #init()} with an empty bundle schema (no fixture/bundle needed, same as the module as a
  * whole -- these two keys exist purely to get a per-tick {@code ScopeEvent.Tick} callback).
@@ -102,14 +95,23 @@ import java.util.UUID;
  * {@code ServerPlayer}/{@code ServerLevel} has been resolved -- {@link #onPlayerTick} covers the
  * cosmetic tell on already-spawned Feral mobs and {@link #maintainPackNearPlayer}'s force-spawn
  * maintenance; {@link #onLevelTick} covers FRO_111's re-entry sweep (kills a Feral mob that
- * wandered back inside the Frontier). The no-free-loot rule (FRO_147) rides
- * {@link LivingDropsSignal}/{@link LivingExperienceDropSignal} (SAT_072), subscribed via the same
- * {@code FERAL_LEVEL_JIG} config's {@code eventHandlers()} -- see {@link #onLivingDrops}/
- * {@link #onLivingExperienceDrop}. Both are bare, unscoped signals (no jig-key filtering needed,
- * unlike {@code ScopeEvent.Tick}); declaring their handlers on {@code FERAL_LEVEL_JIG} is only
- * where installation happens to occur, not a claim this is jig-scoped -- same precedent
- * {@code BossTellModule}/{@code StructureModule} already established for {@code ItemPickupSignal}/
- * {@code BlockBreakSignal}.
+ * wandered back inside the Frontier).
+ *
+ * <p><b>Everything else rides a bare Satchel signal</b> (SAT_072's {@link LivingDropsSignal}/
+ * {@link LivingExperienceDropSignal} for the no-free-loot rule, FRO_147; SAT_076's
+ * {@link SpawnPlacementCheckSignal}/{@link EntityJoinLevelSignal} for the light-bypass wall and
+ * the actual tagging authority, FRO_107 -- see {@link #onLivingDrops}/{@link #onLivingExperienceDrop}/
+ * {@link #onSpawnPlacementCheck}/{@link #onEntityJoinLevel}), all subscribed via the same
+ * {@code FERAL_LEVEL_JIG} config's {@code eventHandlers()}. Every one of these is a bare, unscoped
+ * signal (no jig-key filtering needed, unlike {@code ScopeEvent.Tick}); declaring their handlers
+ * on {@code FERAL_LEVEL_JIG} is only where installation happens to occur, not a claim this is
+ * jig-scoped -- same precedent {@code BossTellModule}/{@code StructureModule} already established
+ * for {@code ItemPickupSignal}/{@code BlockBreakSignal}. {@link #onMobSpawnFinalize} is the one
+ * exception -- it stays a plain {@code (Mob, ServerLevel)} delegate target, called directly from
+ * {@code BossJigHandlers.onMobSpawnFinalize}'s cross-module fan-out (FRO_107) rather than
+ * subscribing to {@code MobSpawnFinalizeSignal} itself, since Boss/Border/Feral all need a turn on
+ * the same spawn in a specific order (Slime deny first) that independent bare-signal subscribers
+ * can't guarantee.
  */
 public final class FeralModule {
 
@@ -126,7 +128,7 @@ public final class FeralModule {
     private static final Map<Level, TickThrottler> REENTRY_SWEEP_THROTTLERS = new HashMap<>();
 
     // FRO_128: per-mob lingering despawn timer, keyed by entity UUID -- started the first sweep a
-    // Feral mob is found farther than FeralRules.DESPAWN_RADIUS from every player, cleared if it
+    // Feral mob is found farther than FeralRules.despawnRadius() from every player, cleared if it
     // comes back within range before the timer fires. Not persisted, same "in-memory only, a
     // world reload just re-seeds it" precedent as REENTRY_SWEEP_THROTTLERS above -- losing a
     // partially-elapsed timer on reload only delays a despawn, never blocks one. Entries are
@@ -204,6 +206,9 @@ public final class FeralModule {
                         // occur, not a claim this is FERAL_LEVEL_JIG-scoped.
                         .on(LivingDropsSignal.class, FeralModule::onLivingDrops)
                         .on(LivingExperienceDropSignal.class, FeralModule::onLivingExperienceDrop)
+                        // FRO_107: same bare-signal precedent, SAT_076's spawn-cluster signals.
+                        .on(SpawnPlacementCheckSignal.class, FeralModule::onSpawnPlacementCheck)
+                        .on(EntityJoinLevelSignal.class, FeralModule::onEntityJoinLevel)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.FERAL_LEVEL_JIG);
@@ -288,12 +293,12 @@ public final class FeralModule {
         // own doc covers why this rides onPlayerTick rather than a new Forge subscription.
         maintainPackNearPlayer(player);
 
-        if (player.tickCount % FeralRules.TELL_INTERVAL_TICKS != 0) {
+        if (player.tickCount % FeralRules.tellIntervalTicks() != 0) {
             return;
         }
 
         ServerLevel level = player.serverLevel();
-        AABB searchArea = new AABB(player.blockPosition()).inflate(FeralRules.TELL_RADIUS);
+        AABB searchArea = new AABB(player.blockPosition()).inflate(FeralRules.tellRadius());
         List<Mob> nearby = level.getEntitiesOfClass(Mob.class, searchArea,
                 m -> m.getType().getCategory() == MobCategory.MONSTER);
 
@@ -312,7 +317,7 @@ public final class FeralModule {
         // Two independent rolls, same shape ExteriorTellFixture/BossTellFixture already use --
         // particle is targeted (only this player sees their own local tell), sound is an area
         // broadcast (anyone nearby hears it, not just this one player).
-        if (RNG.nextDouble() < FeralRules.TELL_PARTICLE_CHANCE) {
+        if (RNG.nextDouble() < FeralRules.tellParticleChance()) {
             // Placeholder particle -- same WITCH placeholder ExteriorTellFixture uses, same
             // "swap for a real poison-green particle once confirmed against real sources" hedge.
             EffectsAPI.sendParticleToPlayer(
@@ -320,7 +325,7 @@ public final class FeralModule {
                     pos.x, pos.y + monster.getBbHeight() * 0.5, pos.z,
                     6, 0.2, 0.2, 0.2, 0.01);
         }
-        if (RNG.nextDouble() < FeralRules.TELL_SOUND_CHANCE) {
+        if (RNG.nextDouble() < FeralRules.tellSoundChance()) {
             // Placeholder sound -- same GENERIC_HURT placeholder ExteriorTellFixture uses.
             EffectsAPI.broadcastSound(
                     level, pos.x, pos.y, pos.z,
@@ -343,7 +348,7 @@ public final class FeralModule {
      * <p>Counts currently-alive Feral mobs within {@link FeralRules#PACK_MAINTAIN_RADIUS} of
      * {@code player}; if under {@link FeralRules#PACK_TARGET_COUNT}, spawns the shortfall via
      * {@link #spawnPackMember}, clamped to whatever room remains under
-     * {@link FeralRules#MAX_ALIVE_FERAL} the same way {@link #rollDensityCompanion} already
+     * {@link FeralRules#maxAliveFeral()} the same way {@link #rollDensityCompanion} already
      * respects that cap. A no-op outside the Exterior (mirrors every other Feral check's own
      * {@code frontierDistance <= 0} guard) and while the cap has no room left.
      *
@@ -457,10 +462,10 @@ public final class FeralModule {
      * {@code ForgeEventFactory.onFinalizeSpawn} dispatch {@code FeralCommandHandler
      * .spawnTestHostiles} already uses (unlike {@code /summon}, this still fires
      * {@code MobSpawnEvent.FinalizeSpawn}, so it stays fully integrated with everything else on
-     * that touch point -- the Slime/MagmaCube blanket deny in {@code FrontierMode
-     * .onMobSpawnFinalize} and Guardian conversion both still apply normally, and
+     * that touch point -- the Exterior-only Slime/MagmaCube deny in {@code BossJigHandlers
+     * .onMobSpawnFinalize} (FRO_154) and Guardian conversion both still apply normally, and
      * {@link #onEntityJoinLevel} still catches and tags it Feral through the ordinary
-     * {@code EntityJoinLevelEvent} path, same as any other spawn). Zombie, matching that same
+     * {@link EntityJoinLevelSignal} path, same as any other spawn). Zombie, matching that same
      * debug command's own choice -- a deliberately simple placeholder, not tuned for variety yet.
      *
      * <p>Playtest feedback (2026-09-21, third pass): a plain radius around the player's own
@@ -569,7 +574,7 @@ public final class FeralModule {
      * recovers).
      *
      * <p>Deliberately level-wide, not bounded to {@link #onPlayerTick}'s
-     * {@code FeralRules.TELL_RADIUS} -- the guarantee has to hold everywhere a Feral mob might
+     * {@code FeralRules.tellRadius()} -- the guarantee has to hold everywhere a Feral mob might
      * wander back to, not just wherever a player happens to be standing. Cadence-gated per level
      * via {@link #REENTRY_SWEEP_THROTTLERS} rather than every tick -- this doesn't need to be
      * instant, only reliable. Called from {@link #onLevelScopeTick}, which already runs once per
@@ -580,7 +585,7 @@ public final class FeralModule {
         logPackDiagnostics(level);
 
         TickThrottler throttler = REENTRY_SWEEP_THROTTLERS.computeIfAbsent(
-                level, l -> new TickThrottler(FeralRules.REENTRY_SWEEP_INTERVAL_TICKS, level::getGameTime));
+                level, l -> new TickThrottler(FeralRules.reentrySweepIntervalTicks(), level::getGameTime));
         if (!throttler.allow()) {
             return;
         }
@@ -714,20 +719,20 @@ public final class FeralModule {
 
     /**
      * FRO_128's original approach -- a lingering {@link TickDelay} per mob, tolerating a brief
-     * crossing of {@link FeralRules#DESPAWN_RADIUS} without flickering. Disabled by default (see
+     * crossing of {@link FeralRules#despawnRadius()} without flickering. Disabled by default (see
      * {@link #legacyDistanceDespawnEnabled}); kept intact rather than deleted so it's a one-flag
      * flip to compare against {@link #despawnIfBeyondPackRadius} again later.
      */
     private static boolean despawnWithLegacyLinger(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
-        boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.DESPAWN_RADIUS;
+        boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.despawnRadius();
         if (!farFromEveryPlayer) {
             DESPAWN_TIMERS.remove(monster.getUUID());
             return false;
         }
 
         TickDelay timer = DESPAWN_TIMERS.computeIfAbsent(monster.getUUID(),
-                id -> new TickDelay(FeralRules.DESPAWN_LINGER_TICKS, level::getGameTime));
+                id -> new TickDelay(FeralRules.despawnLingerTicks(), level::getGameTime));
         if (!timer.allow()) {
             return false;
         }
@@ -746,7 +751,7 @@ public final class FeralModule {
      * gives pack members enough speed to keep pace with a sprinting player even from behind, so a
      * mob the player has already passed can trail them indefinitely without ever actually
      * covering {@link FeralRules#PACK_DESPAWN_RADIUS} worth of raw distance -- it just never
-     * despawns, quietly eating {@link FeralRules#MAX_ALIVE_FERAL}'s budget until nothing new can
+     * despawns, quietly eating {@link FeralRules#maxAliveFeral()}'s budget until nothing new can
      * spawn ahead. Direction-aware now, using the same {@link #isAheadOfPlayer} test
      * {@link #maintainPackNearPlayer} already applies to counting: a mob still ahead gets the
      * generous {@code PACK_DESPAWN_RADIUS} leash (a distant but real ambush shouldn't be destroyed
@@ -778,7 +783,7 @@ public final class FeralModule {
      * it at all, so it doesn't earn {@link #despawnIfBeyondPackRadius}'s generous ahead-leash or
      * its ahead/behind distinction -- either way, once it's farther than
      * {@link FeralRules#AMBIENT_DESPAWN_RADIUS} from every player, it was never going to be
-     * encountered and is just sitting on {@link FeralRules#MAX_ALIVE_FERAL}'s shared budget for
+     * encountered and is just sitting on {@link FeralRules#maxAliveFeral()}'s shared budget for
      * nothing. Flat distance check, no direction, no linger.
      */
     private static boolean despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
@@ -843,15 +848,16 @@ public final class FeralModule {
      *
      * <p>Playtest ask (2026-09-22): "once they start outside the fence we don't need those mobs
      * anymore" -- now conditional on the nearest player's own state, not just the spawn
-     * position's. Resolved per attempt: whoever's nearest to {@code event.getPos()}.
+     * position's. Resolved per attempt: whoever's nearest to {@code signal.pos()}.
      *
      * <ul>
      *   <li><b>That player hasn't crossed yet</b> ({@code frontierDistance <= 0} for <em>them</em>,
      *       even though the spawn position itself is in the Exterior): unchanged from the
-     *       original behavior -- force {@link Event.Result#ALLOW}. This is the visual-tell wall,
-     *       visible from inside the Frontier, that lures/warns a player who hasn't committed to
-     *       crossing yet.
-     *   <li><b>That player has already crossed</b>: force {@link Event.Result#DENY} outright --
+     *       original behavior -- force {@link SpawnPlacementCheckSignal#allow()}. This is the
+     *       visual-tell wall, visible from inside the Frontier, that lures/warns a player who
+     *       hasn't committed to crossing yet.
+     *   <li><b>That player has already crossed</b>: force {@link SpawnPlacementCheckSignal#deny()}
+     *       outright --
      *       not a reversion to vanilla's own light-gated rules, a full stop. Once a player is
      *       genuinely in the wild, {@link #maintainPackNearPlayer}'s deliberate pack is the real
      *       threat; ambient chaff spawning around them no longer serves the visual-tell purpose
@@ -867,26 +873,30 @@ public final class FeralModule {
      * {@code WorldGenRegion} during chunk generation), Border state not resolvable yet, or no
      * player found near the spawn position all fall through to the original ALLOW behavior rather
      * than denying on an unresolvable state.
+     *
+     * <p>FRO_107: rides {@link SpawnPlacementCheckSignal} (SAT_076) instead of a raw Forge
+     * subscription -- {@code allow()}/{@code deny()}, not {@code cancel()}: this event is
+     * {@code @HasResult}, not {@code @Cancelable} (see that signal's own doc).
      */
-    public static void onSpawnPlacementCheck(MobSpawnEvent.SpawnPlacementCheck event) {
-        if (event.getEntityType().getCategory() != MobCategory.MONSTER) {
+    private static void onSpawnPlacementCheck(SpawnPlacementCheckSignal signal) {
+        if (signal.entityType().getCategory() != MobCategory.MONSTER) {
             return;
         }
-        if (!(event.getLevel() instanceof ServerLevel level)) {
+        if (!(signal.level() instanceof ServerLevel level)) {
             return;
         }
-        BlockPos pos = event.getPos();
+        BlockPos pos = signal.pos();
         if (BorderAPI.frontierDistanceAt(level, pos) <= 0) {
             return;
         }
 
         Player nearest = level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), -1.0, false);
         if (nearest != null && BorderAPI.frontierDistanceAt(level, nearest.blockPosition()) > 0) {
-            event.setResult(Event.Result.DENY);
+            signal.deny();
             return;
         }
 
-        event.setResult(Event.Result.ALLOW);
+        signal.allow();
     }
 
     /**
@@ -970,7 +980,7 @@ public final class FeralModule {
      * all (per that event's own doc, it's injected by a transformer at specific vanilla call
      * sites, not universally wherever {@code Mob#finalizeSpawn} happens to be called) -- the same
      * reason this module's own {@code spawnDensityCompanion} deliberately avoids the event bus.
-     * {@link EntityJoinLevelEvent} is the general fix: it fires whenever anything joins a level
+     * {@link EntityJoinLevelSignal} is the general fix: it fires whenever anything joins a level
      * <em>however it was created</em> ({@code Level#addFreshEntity}, per its own doc), so it
      * catches split children, this module's own density companions, and any future mechanic that
      * bypasses the normal spawn-event pipeline the same way, with one rule instead of chasing
@@ -984,12 +994,15 @@ public final class FeralModule {
      * than once for edge cases like a dimension change) rather than re-tagging and re-logging.
      * {@code loadedFromDisk()} excludes chunk-load rehydration -- this only tags genuinely new
      * joins, not every already-tagged-or-not entity a chunk reload brings back.
+     *
+     * <p>FRO_107: rides {@link EntityJoinLevelSignal} (SAT_076) instead of a raw Forge
+     * subscription.
      */
-    public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
-        if (event.loadedFromDisk()) {
+    private static void onEntityJoinLevel(EntityJoinLevelSignal signal) {
+        if (signal.loadedFromDisk()) {
             return;
         }
-        if (!(event.getEntity() instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
+        if (!(signal.entity() instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
             return;
         }
         if (mob instanceof Slime) {
@@ -1007,7 +1020,7 @@ public final class FeralModule {
         if (isFeral(mob)) {
             return;
         }
-        if (!(event.getLevel() instanceof ServerLevel level)) {
+        if (!(signal.level() instanceof ServerLevel level)) {
             return;
         }
 
@@ -1016,7 +1029,7 @@ public final class FeralModule {
             return;
         }
 
-        double intensity = FeralLogic.intensity(frontierDistance, FeralRules.INTENSITY_SCALE);
+        double intensity = FeralLogic.intensity(frontierDistance, FeralRules.intensityScale());
         tagFeral(mob, frontierDistance, level);
         applyStatScaling(mob, intensity);
     }
@@ -1033,29 +1046,30 @@ public final class FeralModule {
      * turned into an actual integer the standard unbiased way: the whole part spawns
      * unconditionally, the fractional remainder is one more independent roll. E.g. an expectation
      * of 2.7 always spawns 2 companions and has a 70% chance of a 3rd, averaging 2.7 over many
-     * events. Clamped to {@link FeralRules#DENSITY_MAX_PER_EVENT} -- a safety valve against an
-     * extreme distance turning one spawn into a lag spike, not a design cap (see that constant's
+     * events. Clamped to {@link FeralRules#densityMaxPerEvent()} -- a safety valve against an
+     * extreme distance turning one spawn into a lag spike, not a design cap (see that method's
      * own doc).
      */
     private static void rollDensityCompanion(Mob mob, ServerLevel level, BlockPos spawnPos, int frontierDistance) {
-        double expected = FeralLogic.expectedDensityCount(frontierDistance, FeralRules.DENSITY_COUNT_SCALE);
+        double expected = FeralLogic.expectedDensityCount(frontierDistance, FeralRules.densityCountScale());
         if (expected <= 0.0) {
             return;
         }
 
         int guaranteed = (int) Math.floor(expected);
         double fractional = expected - guaranteed;
-        int count = Math.min(guaranteed, FeralRules.DENSITY_MAX_PER_EVENT);
-        if (count < FeralRules.DENSITY_MAX_PER_EVENT && RNG.nextDouble() < fractional) {
+        int densityMaxPerEvent = FeralRules.densityMaxPerEvent();
+        int count = Math.min(guaranteed, densityMaxPerEvent);
+        if (count < densityMaxPerEvent && RNG.nextDouble() < fractional) {
             count++;
         }
 
         // FRO_128 follow-up (project owner, 2026-09-21): clamp to remaining room under
-        // FeralRules.MAX_ALIVE_FERAL -- the density mechanic, not natural spawns/tagging, is what
+        // FeralRules.maxAliveFeral() -- the density mechanic, not natural spawns/tagging, is what
         // actually drives the "border wall eats the whole mob cap" problem, so this is the one
         // place the cap needs enforcing. countAliveFeral() is a live scan, same "resolve live off
         // the scoreboard, never a maintained count" precedent every other Feral check follows.
-        int room = FeralRules.MAX_ALIVE_FERAL - countAliveFeral(level);
+        int room = FeralRules.maxAliveFeral() - countAliveFeral(level);
         if (room <= 0) {
             return;
         }
@@ -1183,7 +1197,7 @@ public final class FeralModule {
      * exactly, keyed off {@link FeralLogic#intensity} instead of a {@code BorderCurve} intensity.
      */
     private static void applyStatScaling(Mob mob, double intensity) {
-        double factor = 1.0 + (FeralRules.HEALTH_SCALE * intensity);
+        double factor = 1.0 + (FeralRules.healthScale() * intensity);
 
         var healthAttr = mob.getAttribute(Attributes.MAX_HEALTH);
         if (healthAttr != null) {

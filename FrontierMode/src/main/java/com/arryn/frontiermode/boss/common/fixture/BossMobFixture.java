@@ -65,9 +65,10 @@ public final class BossMobFixture extends SatchelFixture {
             return Optional.empty();
         }
         MobScope scope = new MobScope(mob);
-        Optional<ScopeInfo> infoOpt =
-                Satchel.require().tryScopeInfo(FrontierKeys.BOSS_MOB_JIG, scope);
-        if (infoOpt.isEmpty() || !infoOpt.get().isReady()) {
+        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
+        // steps this used to hand-write into one call.
+        Optional<ScopeInfo> infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_MOB_JIG, scope);
+        if (infoOpt.isEmpty()) {
             return Optional.empty();
         }
         var jig = (MobJig) infoOpt.get().jigInfo().jig;

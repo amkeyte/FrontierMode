@@ -1,10 +1,18 @@
 package com.arryn.frontiermode.feral.server.rules;
 
+import com.arryn.satchel.common.tunable.Tunable;
+
 /**
  * Tunables for Feral (RM_FRO_038 "Martha") -- see {@code FeralLogic.intensity}. Placeholder
  * baselines, not playtest-tuned, same "safe baseline, replace later" convention every other
  * rules/constants class in this codebase follows (e.g. {@code PlayerRules},
  * {@code DefaultBossRules}).
+ *
+ * <p>FRO_141: twelve of these are now {@link Tunable}-backed (SAT_074) instead of plain constants
+ * -- accessor <b>methods</b>, not fields, since a {@code Tunable} is constructed fresh at point of
+ * use rather than cached (see that class's own doc). Every other constant in this file is still a
+ * plain field, untouched -- FRO_141's own scope named exactly these twelve as the first real
+ * consumer.
  */
 public final class FeralRules {
 
@@ -16,10 +24,14 @@ public final class FeralRules {
      * conversion-chance constant here to bound; this only scales how twisted/dangerous a Feral
      * mob is once it exists.)
      */
-    public static final double INTENSITY_SCALE = 0.05;
+    public static float intensityScale() {
+        return new Tunable("intensityScale", 0f, 1f, 0.05f).floatValue();
+    }
 
     /** Stat-scaling factor per unit of intensity -- same shape as Guardian's own health-scale constant. */
-    public static final double HEALTH_SCALE = 1.0;
+    public static float healthScale() {
+        return new Tunable("healthScale", 0f, 10f, 1.0f).floatValue();
+    }
 
     // ------------------------------------------------------------------
     // Density -- extra hostile companions near a hostile that already spawned in the Exterior,
@@ -38,7 +50,9 @@ public final class FeralRules {
      * ramp and the safety valve meet by construction, not a coincidence to re-tune separately.
      * Roughly 4x the original 0.02 baseline.
      */
-    public static final double DENSITY_COUNT_SCALE = 0.08;
+    public static float densityCountScale() {
+        return new Tunable("densityCountScale", 0f, 1f, 0.08f).floatValue();
+    }
 
     /**
      * Safety valve, not a design cap: bounds how many companions one single spawn event can ever
@@ -47,7 +61,9 @@ public final class FeralRules {
      * design target, not just an arbitrary ceiling. See this project's own "how many mobs before
      * lag" discussion, deferred rather than measured, per project owner's own call.
      */
-    public static final int DENSITY_MAX_PER_EVENT = 8;
+    public static int densityMaxPerEvent() {
+        return new Tunable("densityMaxPerEvent", 0, 50, 8).intValue();
+    }
 
     /**
      * Radius (blocks, both x and z, uniform) a density companion can land from the original
@@ -67,14 +83,23 @@ public final class FeralRules {
     // ------------------------------------------------------------------
 
     /** How often (ticks) the cosmetic tell rolls per player -- mirrors WILDLIFE_TELL_INTERVAL_TICKS. */
-    public static final int TELL_INTERVAL_TICKS = 20;
+    public static int tellIntervalTicks() {
+        return new Tunable("tellIntervalTicks", 1, 200, 20).intValue();
+    }
 
     /** Radius (blocks) around a player the cosmetic tell searches for Feral mobs. */
-    public static final double TELL_RADIUS = 16.0;
+    public static float tellRadius() {
+        return new Tunable("tellRadius", 0f, 128f, 16.0f).floatValue();
+    }
 
     /** Independent per-mob roll chance (per tell interval) for the particle and the sound. */
-    public static final double TELL_PARTICLE_CHANCE = 0.5;
-    public static final double TELL_SOUND_CHANCE = 0.15;
+    public static float tellParticleChance() {
+        return new Tunable("tellParticleChance", 0f, 1f, 0.5f).floatValue();
+    }
+
+    public static float tellSoundChance() {
+        return new Tunable("tellSoundChance", 0f, 1f, 0.15f).floatValue();
+    }
 
     // ------------------------------------------------------------------
     // Re-entry kill (FRO_111) -- a Feral mob that wanders back inside the Frontier must not
@@ -91,7 +116,9 @@ public final class FeralRules {
      * for the full trace. Not the sole fix (see {@code FeralModule.maintainPackNearPlayer}'s own
      * doc for the actual budget bug), but a tighter interval keeps that overshoot smaller.
      */
-    public static final int REENTRY_SWEEP_INTERVAL_TICKS = 20;
+    public static int reentrySweepIntervalTicks() {
+        return new Tunable("reentrySweepIntervalTicks", 1, 200, 20).intValue();
+    }
 
     // ------------------------------------------------------------------
     // Distant despawn -- project owner report (2026-09-20): crossing a border spawns a real
@@ -121,22 +148,26 @@ public final class FeralRules {
 
     /**
      * Distance (blocks) from the nearest player beyond which a Feral mob starts its despawn
-     * timer (see {@link #DESPAWN_LINGER_TICKS}), freeing its mob-cap slot once the timer fires.
+     * timer (see {@link #despawnLingerTicks()}), freeing its mob-cap slot once the timer fires.
      * "Safe baseline, replace later," like every other placeholder tunable in this class --
      * playtest feedback (2026-09-21) widened this from the original 10 to 20, the project
      * owner's own number, to keep a slightly wider close-in band alive as a visual cue.
      */
-    public static final double DESPAWN_RADIUS = 20.0;
+    public static float despawnRadius() {
+        return new Tunable("despawnRadius", 0f, 200f, 20.0f).floatValue();
+    }
 
     /**
-     * How long (ticks) a Feral mob must stay continuously farther than {@link #DESPAWN_RADIUS}
+     * How long (ticks) a Feral mob must stay continuously farther than {@link #despawnRadius()}
      * from every player before it's actually cleared -- a lingering window, not an instant cutoff,
      * so a mob doesn't flicker out and back as a player's distance oscillates right around the
      * threshold. Playtest feedback (2026-09-21, second pass): even 10s (200 ticks) was clearing
      * mobs fast enough to make the whole Exterior feel thin/underwhelming rather than a sustained
      * swarm -- project owner's own "like a minute" target, taken literally: 1200 ticks (60s).
      */
-    public static final int DESPAWN_LINGER_TICKS = 1200;
+    public static int despawnLingerTicks() {
+        return new Tunable("despawnLingerTicks", 0, 6000, 1200).intValue();
+    }
 
     // ------------------------------------------------------------------
     // Total population cap -- project owner rationale (2026-09-21): vanilla's own hostile mob
@@ -163,7 +194,9 @@ public final class FeralRules {
      * cap is reached. Well under vanilla's 70-mob hostile cap so real spawn room always remains --
      * project owner's own suggested number, not derived from anything besides "well under 70."
      */
-    public static final int MAX_ALIVE_FERAL = 40;
+    public static int maxAliveFeral() {
+        return new Tunable("maxAliveFeral", 0, 70, 40).intValue();
+    }
 
     /**
      * Dedicated ceiling on pack members specifically (see {@code FeralModule.PACK_MEMBER_TAG}),
@@ -171,7 +204,7 @@ public final class FeralRules {
      * .countAlivePackMembers}. Playtest feedback (2026-09-21, fifth pass): "we are getting a lot
      * of mobs from regular spawn algo as well, that's most of the cap" -- ambient Exterior
      * spawning was never itself capped, so it could (and did) consume the entire shared
-     * {@link #MAX_ALIVE_FERAL} budget and starve {@code maintainPackNearPlayer} of any room to
+     * {@link #maxAliveFeral()} budget and starve {@code maintainPackNearPlayer} of any room to
      * spawn at all. This reserves headroom ambient spawns can never crowd out. Twice
      * {@link #PACK_TARGET_COUNT} -- enough for one full pack near the player plus a trailing
      * previous batch still clearing out, not unbounded. Widened 24 -> 40 alongside
@@ -238,7 +271,7 @@ public final class FeralRules {
      * FeralModule.applyPackSpeedBoost}'s speed boost lets a passed mob keep pace well enough from
      * behind that it can trail the player indefinitely without ever covering
      * {@code PACK_DESPAWN_RADIUS} worth of raw distance, quietly eating
-     * {@link #MAX_ALIVE_FERAL}'s budget forever. Small on purpose -- a short trailing beat after
+     * {@link #maxAliveFeral()}'s budget forever. Small on purpose -- a short trailing beat after
      * being passed, not an instant vanish, but nowhere near the 100-block leash an ahead mob gets.
      * Widened 12 -> 20 per playtest feedback (2026-09-21, seventh pass).
      */
