@@ -73,6 +73,13 @@ public class BossCrudFacet {
     }
 
     /**
+     * FRO_160: see {@link BossFixture#dematerialize(UUID)}.
+     */
+    public boolean dematerialize(UUID bossId) {
+        return fixture.dematerialize(bossId);
+    }
+
+    /**
      * See {@link BossFixture#markDefeated(UUID)}.
      */
     @SuppressWarnings({"inverted", "BooleanMethodIsAlwaysInverted"})

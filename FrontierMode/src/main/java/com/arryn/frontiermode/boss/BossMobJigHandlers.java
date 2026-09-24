@@ -48,6 +48,9 @@ final class BossMobJigHandlers {
         BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
         BossMobFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new);
         fixture.attachTo(recordOpt.get().bossId());
+
+        // FRO_145: publish "this entity is a boss" to clients -- no position, just the id pair.
+        BossAPI.publicMarkers(mob.level()).ifPresent(m -> m.add(recordOpt.get().bossId(), entityId));
     }
 
     /** Chunk unload and genuine removal are indistinguishable here by design -- see boss.md. */
@@ -57,5 +60,8 @@ final class BossMobJigHandlers {
         MobScope scope = (MobScope) info.scope();
         OUT.debug("[Boss] Boss mob scope unloaded (chunk unload or removal, indistinguishable"
                 + " here): " + Ids.shortId(scope.uuid()));
+
+        // FRO_145: retire the client marker at the same release hook it was published at.
+        BossAPI.publicMarkers(scope.mob().level()).ifPresent(m -> m.removeByMob(scope.uuid()));
     }
 }

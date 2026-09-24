@@ -83,6 +83,19 @@ public interface BossRules {
     Optional<Mob> materialize(Level level, BlockPos position, int layer);
 
     /**
+     * FRO_160: ticks between a non-player death returning a boss to unmaterialized and the
+     * materialization tick being allowed to respawn it at its recorded position. Safe baseline:
+     * 100 ticks (5 seconds). Tuning is playtest territory.
+     */
+    int respawnDelayTicks();
+
+    /**
+     * FRO_160: how many consecutive non-player deaths a single boss record may take before
+     * auto-respawn is suspended (a loop guard, not a balance lever). Safe baseline: 5.
+     */
+    int maxConsecutiveNonPlayerDeaths();
+
+    /**
      * FRO_087 (Janice): cadence for the tell-pass in {@code BossTellFixture} -- how many server
      * ticks between each per-player intensity evaluation and particle/sound roll. Safe baseline:
      * 20 ticks (~1 second). Tuning is playtest territory.

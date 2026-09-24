@@ -12,6 +12,8 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
@@ -32,14 +34,14 @@ import java.util.Optional;
  */
 public final class DefaultBossRules implements BossRules {
 
-    // Placeholder layer -> mob type table. Layer 1 is Progression & Frontier Mechanics' own named
-    // example (a rabbit); higher layers step up through tougher vanilla mobs. Not a locked curve.
-    // Index 0 covers layer 0 (a level's very first border, per Border's own "0 for the initial
-    // border" rule) the same as layer 1, since Tier 1 draws no meaningful distinction between them.
+    // Placeholder tier -> mob type table (boss.md "Spawn algorithm"). Ordered as a ramp in what a
+    // player has to deal with: passive (Rabbit), conditional (Spider), always-hostile melee
+    // (Zombie), ranged (Skeleton), then the rest. Indexed by tier, not layer -- see
+    // mobTypeForLayer(). Not a locked curve.
     private static final List<EntityType<? extends Mob>> LAYER_MOBS = List.of(
             EntityType.RABBIT,
-            EntityType.ZOMBIE,
             EntityType.SPIDER,
+            EntityType.ZOMBIE,
             EntityType.SKELETON,
             EntityType.ZOMBIFIED_PIGLIN,
             EntityType.PILLAGER,
@@ -279,6 +281,7 @@ public final class DefaultBossRules implements BossRules {
         mob.setPersistenceRequired();
 
         applyStatScaling(mob, layer);
+        makeFireImmune(mob);
         tagVisibly(mob, layer);
 
         if (!level.addFreshEntity(mob)) {
@@ -289,9 +292,23 @@ public final class DefaultBossRules implements BossRules {
         return Optional.of(mob);
     }
 
+    // Tier 0 covers layers 0-1; from layer 2 on the tier steps every bandWidth layers, capped at
+    // the table's last entry. bandWidth is the pacing dial (a CSV cell, not a rebuild); the linear
+    // health/damage scale in applyStatScaling() is the separate difficulty dial.
     private EntityType<? extends Mob> mobTypeForLayer(int layer) {
-        int index = Math.min(Math.max(layer, 0), LAYER_MOBS.size() - 1);
-        return LAYER_MOBS.get(index);
+        int bandWidth = Math.max(1, new Tunable("mobTierBandWidth", 1, 20, 3).intValue());
+        int tier = layer <= 1 ? 0 : Math.min(1 + (layer - 2) / bandWidth, LAYER_MOBS.size() - 1);
+        return LAYER_MOBS.get(tier);
+    }
+
+    // Boss invariant (boss.md Scope): no fire damage for any boss. A permanent Fire Resistance
+    // effect covers everything in #minecraft:is_fire (burning, in-fire, lava, magma) with no
+    // damage-event subscription. Infinite duration, no particles/icon; effects persist in the
+    // entity's NBT, so this survives unload/reload without re-application. The burning visual may
+    // still show in daylight -- Fire Resistance blocks the damage, not the flame render.
+    private void makeFireImmune(Mob mob) {
+        mob.addEffect(new MobEffectInstance(
+                MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
     }
 
     private void applyStatScaling(Mob mob, int layer) {
@@ -332,6 +349,17 @@ public final class DefaultBossRules implements BossRules {
         mob.setCustomName(Component.literal("Boss (Layer " + layer + ")"));
         mob.setCustomNameVisible(true);
         mob.setGlowingTag(glowEnabled);
+    }
+
+    // FRO_160: non-player-death respawn tuning -- see BossRules for the meaning of each.
+    @Override
+    public int respawnDelayTicks() {
+        return new Tunable("respawnDelayTicks", 1, 6000, 100).intValue();
+    }
+
+    @Override
+    public int maxConsecutiveNonPlayerDeaths() {
+        return new Tunable("maxConsecutiveNonPlayerDeaths", 1, 100, 5).intValue();
     }
 
     // ------------------------------------------------------------------

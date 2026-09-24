@@ -67,6 +67,20 @@ public final class BossRulesFacet {
     }
 
     /**
+     * See {@link BossRules#respawnDelayTicks()}.
+     */
+    public int respawnDelayTicks() {
+        return RULES.respawnDelayTicks();
+    }
+
+    /**
+     * See {@link BossRules#maxConsecutiveNonPlayerDeaths()}.
+     */
+    public int maxConsecutiveNonPlayerDeaths() {
+        return RULES.maxConsecutiveNonPlayerDeaths();
+    }
+
+    /**
      * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}.
      */
     public int tellTickInterval() {

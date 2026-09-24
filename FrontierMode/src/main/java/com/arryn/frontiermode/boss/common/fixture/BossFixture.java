@@ -13,8 +13,10 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -85,6 +87,12 @@ public final class BossFixture extends SatchelFixture {
     // See boss.md's "Cascade durability" section for the full design this implements.
     private static final long FORCE_FLUSH_DELAY_TICKS = 20;
     private TickDelay pendingForceFlush;
+
+    // FRO_160: transient non-player-death respawn state, keyed by bossId. See the "respawn
+    // bookkeeping" section below.
+    private final Map<UUID, Integer> nonPlayerDeaths = new HashMap<>();
+    private final Map<UUID, TickDelay> respawnDelays = new HashMap<>();
+    private final Set<UUID> respawnSuspended = new HashSet<>();
 
     public BossFixture() {
         registerCustom(
@@ -374,6 +382,43 @@ public final class BossFixture extends SatchelFixture {
     }
 
     /**
+     * FRO_160: returns a materialized, alive record to unmaterialized by clearing only
+     * {@code bossEntityId} -- {@code alive}, {@code position}, {@code layer}, and {@code borderId}
+     * are untouched. The ordinary materialization tick then respawns the boss at
+     * {@code position} through the same path as any first materialization (boss.md's "Player
+     * credit and non-player death"). Validated like {@link #markDefeated}/{@link #materialize}:
+     * a missing, already-defeated, or already-unmaterialized record is warned about and left
+     * alone -- the last case also makes a duplicate death event for one physical death a no-op.
+     *
+     * @return true if the record existed, was alive, and was materialized and now isn't
+     */
+    public boolean dematerialize(UUID bossId) {
+        Satchel.requireServer();
+
+        Optional<BossRecord> existing = get(bossId);
+        if (existing.isEmpty()) {
+            OUT.warn("[Boss] dematerialize(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
+            return false;
+        }
+
+        BossRecord record = existing.get();
+        if (!record.alive()) {
+            OUT.warn("[Boss] dematerialize(): bossId=" + Ids.shortId(bossId) + " is already defeated -- ignoring.");
+            return false;
+        }
+        if (!record.materialized()) {
+            OUT.warn("[Boss] dematerialize(): bossId=" + Ids.shortId(bossId) + " is not materialized -- ignoring.");
+            return false;
+        }
+
+        BossRecord updated = record.dematerialized();
+        bosses.removeIf(r -> r.bossId().equals(bossId));
+        bosses.add(updated);
+        markDirty();
+        return true;
+    }
+
+    /**
      * Marks a boss record defeated (`alive: false`), addressed by its own {@code bossId} --
      * never via any {@code Border} reference, this fixture isn't keyed by one (see this class's
      * own doc and boss.md's "Data model" section). Replaces the record in place (records are
@@ -402,6 +447,7 @@ public final class BossFixture extends SatchelFixture {
         BossRecord updated = record.defeated();
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
+        clearRespawnState(bossId);
         markDirty();
         return true;
     }
@@ -425,9 +471,74 @@ public final class BossFixture extends SatchelFixture {
 
         boolean removed = bosses.removeIf(r -> r.bossId().equals(bossId));
         if (removed) {
+            clearRespawnState(bossId);
             markDirty();
         }
         return removed;
+    }
+
+    // ------------------------------------------------------------------
+    // FRO_160: non-player-death respawn bookkeeping -- transient (not persisted), per boss.md's
+    // "Player credit and non-player death". A restart loses all of it, which just means a delayed
+    // or suspended boss materializes as soon as its home chunk loads.
+    // ------------------------------------------------------------------
+
+    /**
+     * Called right after {@link #dematerialize} for a non-player death. Counts it against the
+     * record's consecutive-death cap; under the cap, arms the respawn delay, at the cap suspends
+     * auto-respawn (the record stays alive/unmaterialized until {@code /boss mob spawn} -- see
+     * {@link #clearRespawnState}).
+     *
+     * @return true if a respawn is now pending; false if the cap was reached and it's suspended
+     */
+    public boolean scheduleRespawn(UUID bossId) {
+        int count = nonPlayerDeaths.merge(bossId, 1, Integer::sum);
+        int cap = RULES.maxConsecutiveNonPlayerDeaths();
+        if (count >= cap) {
+            respawnSuspended.add(bossId);
+            respawnDelays.remove(bossId);
+            BlockPos position = get(bossId).map(BossRecord::position).orElse(null);
+            OUT.warn("[Boss] scheduleRespawn(): bossId=" + Ids.shortId(bossId) + " (position " + position
+                    + ") has died to non-player causes " + count + " times in a row -- auto-respawn"
+                    + " suspended. Use /boss mob spawn to bring it back (that resets the count).");
+            return false;
+        }
+        respawnDelays.put(bossId, new TickDelay(Math.max(1, RULES.respawnDelayTicks()),
+                new SchedulerClock.AutoClock()));
+        return true;
+    }
+
+    /**
+     * Whether an unmaterialized record may materialize this tick: false while suspended by the
+     * repeat-death cap or while its respawn delay is still running. Polled once per tick per
+     * unmaterialized record from {@link BossSpawnFacet#materializeUnresolved}, so the delay counts
+     * real ticks even while the home chunk is unloaded. A record with no pending state is always
+     * ready.
+     */
+    public boolean respawnReady(UUID bossId) {
+        if (respawnSuspended.contains(bossId)) {
+            return false;
+        }
+        TickDelay delay = respawnDelays.get(bossId);
+        if (delay == null) {
+            return true;
+        }
+        if (delay.allow()) {
+            respawnDelays.remove(bossId);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Forgets a record's consecutive-death count, pending delay, and suspension -- called on a
+     * player-credited defeat, a record removal, and an admin {@code /boss mob spawn}
+     * ({@link BossSpawnFacet#forceMaterialize}).
+     */
+    public void clearRespawnState(UUID bossId) {
+        nonPlayerDeaths.remove(bossId);
+        respawnDelays.remove(bossId);
+        respawnSuspended.remove(bossId);
     }
 
     // ------------------------------------------------------------------
