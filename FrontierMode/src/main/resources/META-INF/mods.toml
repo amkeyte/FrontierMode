@@ -5,7 +5,7 @@ license="All Rights Reserved"
 
 [[mods]]
 modId="frontiermode"
-version="1.0.0"
+version="${mod_version}"
 displayName="Frontier Mode"
 authors="Arryn"
 description='''
@@ -33,6 +33,6 @@ side="BOTH"
 [[dependencies.frontiermode]]
 modId="satchel"
 mandatory=true
-versionRange="[0.0.1,)"
+versionRange="[${satchel_min_version},)"
 ordering="AFTER"
 side="BOTH"
