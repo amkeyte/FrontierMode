@@ -94,14 +94,14 @@ public final class BossTellModule {
 
     private static void registerCompassPlayerJig() {
         var compassPlayerFixture =
-                new JigBundles.FixtureDecl<CompassPlayerFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.COMPASS_PLAYER,
                         CompassPlayerFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
         var compassPlayerBundle =
-                new JigBundles.BundleDecl<PlayerScope, CompassPlayerBundle>(
+                new JigBundles.BundleDecl<>(
                         FrontierKeys.COMPASS_PLAYER_BUNDLE,
                         (PlayerScope scope) -> new CompassPlayerBundle(scope, FrontierKeys.COMPASS_PLAYER_BUNDLE),
                         List.of(compassPlayerFixture)

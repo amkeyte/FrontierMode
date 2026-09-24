@@ -21,7 +21,6 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -29,6 +28,10 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+
+//TODO AmethystCompassClient::onClientSetup has the correct ResourceLocation pattern. Update to this pattern.
+//'ResourceLocation(java.lang.String, java.lang.String)' is deprecated since version 1.20.6 and marked for removal
+
 
 @Mod(FrontierMode.MODID)
 public final class FrontierMode {
@@ -63,7 +66,7 @@ public final class FrontierMode {
     public static final RegistryObject<SoundEvent> ENTRY_CUE =
             SOUND_EVENTS.register(
                     "entry_cue",
-                    () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "entry_cue")));
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "entry_cue")));
 
     // RM_FRO_037 boss-audio-tell follow-up (2026-09-08): first of up to 5 real round-robin clips
     // for BossTellFixture's ambient tell sound (see that class's own TELL_SOUNDS doc) -- project
@@ -73,7 +76,7 @@ public final class FrontierMode {
     public static final RegistryObject<SoundEvent> BOSS_TELL_1 =
             SOUND_EVENTS.register(
                     "boss_tell_1",
-                    () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "boss_tell_1")));
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "boss_tell_1")));
 
     // 2026-09-08: remaining 4 slots -- project owner supplied these directly as ready-to-use mono
     // OGG Vorbis (no re-encoding done or needed; see this ticket's own log for why bitrate/sample
@@ -82,29 +85,29 @@ public final class FrontierMode {
     public static final RegistryObject<SoundEvent> BOSS_TELL_2 =
             SOUND_EVENTS.register(
                     "boss_tell_2",
-                    () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "boss_tell_2")));
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "boss_tell_2")));
 
     public static final RegistryObject<SoundEvent> BOSS_TELL_3 =
             SOUND_EVENTS.register(
                     "boss_tell_3",
-                    () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "boss_tell_3")));
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "boss_tell_3")));
 
     public static final RegistryObject<SoundEvent> BOSS_TELL_4 =
             SOUND_EVENTS.register(
                     "boss_tell_4",
-                    () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "boss_tell_4")));
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "boss_tell_4")));
 
     public static final RegistryObject<SoundEvent> BOSS_TELL_5 =
             SOUND_EVENTS.register(
                     "boss_tell_5",
-                    () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "boss_tell_5")));
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "boss_tell_5")));
 
     // ------------------------------------------------------------
     // Constructor – module bootstrap
     // ------------------------------------------------------------
-    public FrontierMode() {
+    public FrontierMode(FMLJavaModLoadingContext context) {
 
-        IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        IEventBus modBus = context.getModEventBus();
 
         // Register custom argument types with Forge
         ARGUMENT_TYPES.register(modBus);
@@ -128,7 +131,7 @@ public final class FrontierMode {
         AdminToolsModule.ENCHANTMENTS.register(modBus);
 
         // Register configuration
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
         // Hook lifecycle events
         modBus.addListener(this::commonSetup);
@@ -177,6 +180,7 @@ public final class FrontierMode {
     // ------------------------------------------------------------
     // Common Setup (runs once on both sides)
     // ------------------------------------------------------------
+    @SuppressWarnings("unchecked")
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             ArgumentTypeInfos.registerByClass(

@@ -42,7 +42,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -90,7 +89,7 @@ public final class BorderModule {
         // full history of that duality.
         // ─────────────────────────────────────────────
         var bordersFixture =
-                new JigBundles.FixtureDecl<BordersFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.BORDERS,
                         BordersFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
@@ -102,7 +101,7 @@ public final class BorderModule {
         // (BossBundle/BossMobBundle each still host exactly one), though JigConfigValidator's
         // FixtureDecl -> BundleDecl -> Schema chain already supported it regardless of count.
         var navigatorFixture =
-                new JigBundles.FixtureDecl<NavigatorFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.NAVIGATOR,
                         NavigatorFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
@@ -112,7 +111,7 @@ public final class BorderModule {
         // its own needed (static descriptors, read on demand), per
         // wiki/frontiermode/architecture/border-curve.md's "Data model" section.
         var curveFixture =
-                new JigBundles.FixtureDecl<BorderCurveFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.CURVE,
                         BorderCurveFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
@@ -122,14 +121,14 @@ public final class BorderModule {
         // onJigTick() drives its throttled work automatically once this bundle's own JigConfig
         // ticks (already true below), no separate EventHandlers entry needed here.
         var pregenFixture =
-                new JigBundles.FixtureDecl<BorderPregenFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.PREGEN,
                         BorderPregenFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
         var bordersBundle =
-                new JigBundles.BundleDecl<LevelScope, BordersBundle>(
+                new JigBundles.BundleDecl<>(
                         FrontierKeys.BORDERS_BUNDLE,
                         (LevelScope scope) -> new BordersBundle(scope, FrontierKeys.BORDERS_BUNDLE),
                         List.of(bordersFixture, navigatorFixture, curveFixture, pregenFixture)
@@ -216,7 +215,7 @@ public final class BorderModule {
         // for why this had to wait on PlayerJig/PlayerScope landing first.
         // ─────────────────────────────────────────────
         var borderPlayerFixture =
-                new JigBundles.FixtureDecl<BorderPlayerStatusFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.BORDER_PLAYER_STATUS,
                         BorderPlayerStatusFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
@@ -228,14 +227,14 @@ public final class BorderModule {
         // EventHandlers entry needed" shape BorderPregenFixture's own sibling-fixture doc
         // describes for BORDERS_BUNDLE.
         var exteriorTellFixture =
-                new JigBundles.FixtureDecl<ExteriorTellFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.EXTERIOR_TELL,
                         ExteriorTellFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
         var borderPlayerBundle =
-                new JigBundles.BundleDecl<PlayerScope, BorderPlayerBundle>(
+                new JigBundles.BundleDecl<>(
                         FrontierKeys.BORDER_PLAYER_BUNDLE,
                         (PlayerScope scope) -> new BorderPlayerBundle(scope, FrontierKeys.BORDER_PLAYER_BUNDLE),
                         List.of(borderPlayerFixture, exteriorTellFixture)
@@ -516,6 +515,9 @@ public final class BorderModule {
      * same "construct, finalizeSpawn, addFreshEntity" sequence
      * {@code DefaultBossRules.materialize} already uses -- so this never re-enters this class's
      * own {@link #onMobSpawnFinalize} handler for the companion it creates.
+
+     * [Arryn] re-evaluate this sequence as it may have a bad interaction with unrelated code. Probably source of inconsistent behavior.
+     *
      */
     private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
         Entity created = mob.getType().create(level);
@@ -529,6 +531,11 @@ public final class BorderModule {
         BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, offset);
 
         companion.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
+
+
+
+
+
         companion.finalizeSpawn(level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
 
         if (!level.addFreshEntity(companion)) {

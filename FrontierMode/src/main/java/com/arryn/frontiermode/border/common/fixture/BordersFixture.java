@@ -204,10 +204,7 @@ public final class BordersFixture
         OUT.info("            Borders loaded: " + borders.size());
     }
 
-    @Override
-    public void onCreated() {
-        super.onCreated();
-    }
+
 
     List<Border> all() {
         return Collections.unmodifiableList(borders);

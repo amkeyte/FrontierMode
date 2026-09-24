@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.network.FriendlyByteBuf;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Forge registry glue for {@link BossSelectorArgumentType} -- mirrors
@@ -15,20 +16,20 @@ public final class BossSelectorArgumentTypeInfo
         implements ArgumentTypeInfo<BossSelectorArgumentType, BossSelectorArgumentTypeInfo.Template> {
 
     @Override
-    public void serializeToNetwork(Template template, FriendlyByteBuf buffer) {
+    public void serializeToNetwork(@NotNull Template template, @NotNull FriendlyByteBuf buffer) {
     }
 
     @Override
-    public Template deserializeFromNetwork(FriendlyByteBuf buffer) {
+    public @NotNull Template deserializeFromNetwork(@NotNull FriendlyByteBuf buffer) {
         return new Template();
     }
 
     @Override
-    public void serializeToJson(Template template, JsonObject json) {
+    public void serializeToJson(@NotNull Template template, @NotNull JsonObject json) {
     }
 
     @Override
-    public Template unpack(BossSelectorArgumentType type) {
+    public @NotNull Template unpack(@NotNull BossSelectorArgumentType type) {
         return new Template();
     }
 
@@ -36,13 +37,13 @@ public final class BossSelectorArgumentTypeInfo
             implements ArgumentTypeInfo.Template<BossSelectorArgumentType> {
 
         @Override
-        public BossSelectorArgumentType instantiate(CommandBuildContext ctx) {
+        public @NotNull BossSelectorArgumentType instantiate(@NotNull CommandBuildContext ctx) {
             return BossSelectorArgumentType.selector();
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public ArgumentTypeInfo<BossSelectorArgumentType, ?> type() {
+        public @NotNull ArgumentTypeInfo<BossSelectorArgumentType, ?> type() {
             return (ArgumentTypeInfo<BossSelectorArgumentType, ?>)
                     FrontierMode.BOSS_SELECTOR.get();
         }

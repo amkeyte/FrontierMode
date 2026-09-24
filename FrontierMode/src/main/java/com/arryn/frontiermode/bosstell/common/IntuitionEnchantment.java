@@ -2,6 +2,7 @@ package com.arryn.frontiermode.bosstell.common;
 
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.enchantment.Enchantment;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * FRO_121 (Tiers 2-4 of RM_FRO_033 "Marilyn"): Intuition I-III, per
@@ -51,7 +52,7 @@ public class IntuitionEnchantment extends Enchantment {
     }
 
     @Override
-    protected boolean checkCompatibility(Enchantment other) {
+    protected boolean checkCompatibility(@NotNull Enchantment other) {
         return !(other instanceof ResonanceEnchantment);
     }
 }

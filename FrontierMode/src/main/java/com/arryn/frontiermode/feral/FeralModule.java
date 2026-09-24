@@ -161,14 +161,8 @@ public final class FeralModule {
     // force-spawn-near-the-player approach below, same "plain static flag" shape as glowEnabled
     // above, not a code deletion -- easy to flip back and compare if the new approach doesn't
     // land either.
-    private static boolean densityCompanionEnabled = false;
-    private static boolean legacyDistanceDespawnEnabled = false;
-
-    // Playtest ask (2026-09-22): "we can mothball that logging" -- FRO_144 is confirmed working,
-    // so logPackDiagnostics's own per-second [Feral][Diag] line has served its purpose. Same
-    // "disabled, not deleted" shape as the two flags above -- a one-line flip to bring the
-    // diagnostic back if a future regression needs the same visibility again.
-    private static boolean diagnosticLoggingEnabled = false;
+    private static final boolean densityCompanionEnabled = false;
+    private static final boolean legacyDistanceDespawnEnabled = false;
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
@@ -612,6 +606,11 @@ public final class FeralModule {
      * decided to pursue.
      */
     private static void logPackDiagnostics(ServerLevel level) {
+        // Playtest ask (2026-09-22): "we can mothball that logging" -- FRO_144 is confirmed working,
+        // so logPackDiagnostics's own per-second [Feral][Diag] line has served its purpose. Same
+        // "disabled, not deleted" shape as the two flags above -- a one-line flip to bring the
+        // diagnostic back if a future regression needs the same visibility again.
+        boolean diagnosticLoggingEnabled = false;
         if (!diagnosticLoggingEnabled) {
             return;
         }
@@ -722,7 +721,10 @@ public final class FeralModule {
      * crossing of {@link FeralRules#despawnRadius()} without flickering. Disabled by default (see
      * {@link #legacyDistanceDespawnEnabled}); kept intact rather than deleted so it's a one-flag
      * flip to compare against {@link #despawnIfBeyondPackRadius} again later.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     private static boolean despawnWithLegacyLinger(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.despawnRadius();
@@ -759,7 +761,10 @@ public final class FeralModule {
      * {@link FeralRules#PACK_BEHIND_DESPAWN_RADIUS} -- raw distance no longer matters once the
      * player has moved past it; that's the actual signal it's done being relevant, not how far
      * away it managed to stay.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     private static boolean despawnIfBeyondPackRadius(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         if (nearest == null) {
@@ -785,7 +790,10 @@ public final class FeralModule {
      * {@link FeralRules#AMBIENT_DESPAWN_RADIUS} from every player, it was never going to be
      * encountered and is just sitting on {@link FeralRules#maxAliveFeral()}'s shared budget for
      * nothing. Flat distance check, no direction, no linger.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     private static boolean despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.AMBIENT_DESPAWN_RADIUS;
@@ -882,6 +890,7 @@ public final class FeralModule {
         if (signal.entityType().getCategory() != MobCategory.MONSTER) {
             return;
         }
+        //noinspection resource
         if (!(signal.level() instanceof ServerLevel level)) {
             return;
         }
@@ -1020,6 +1029,7 @@ public final class FeralModule {
         if (isFeral(mob)) {
             return;
         }
+        //noinspection resource
         if (!(signal.level() instanceof ServerLevel level)) {
             return;
         }
@@ -1135,6 +1145,7 @@ public final class FeralModule {
      * {@link #onEntityJoinLevel} still catches it via {@code level.addFreshEntity} below and tags
      * it there, so no explicit tag call is needed here anymore.
      */
+    @SuppressWarnings("deprecation")
     private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
         Entity created = mob.getType().create(level);
         if (!(created instanceof Mob companion)) {
@@ -1161,6 +1172,7 @@ public final class FeralModule {
         }
 
         companion.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
+        //[Arryn] This is deprecated. look into it if porting.
         companion.finalizeSpawn(level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
 
         if (!level.addFreshEntity(companion)) {

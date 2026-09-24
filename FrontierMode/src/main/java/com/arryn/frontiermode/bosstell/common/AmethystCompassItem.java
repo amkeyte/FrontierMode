@@ -1,8 +1,8 @@
 package com.arryn.frontiermode.bosstell.common;
 
-import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -24,6 +24,7 @@ import net.minecraft.world.item.enchantment.EnchantmentCategory;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
@@ -158,8 +159,8 @@ public class AmethystCompassItem extends CompassItem {
 
         enforceSingleEnchant(stack);
 
-        int intuitionLevel = EnchantmentHelper.getItemEnchantmentLevel(BossTellModule.INTUITION.get(), stack);
-        int resonanceLevel = EnchantmentHelper.getItemEnchantmentLevel(BossTellModule.RESONANCE.get(), stack);
+        int intuitionLevel = EnchantmentHelper.getTagEnchantmentLevel(BossTellModule.INTUITION.get(), stack);
+        int resonanceLevel = EnchantmentHelper.getTagEnchantmentLevel(BossTellModule.RESONANCE.get(), stack);
         // Mutually exclusive by checkCompatibility(); Resonance wins if somehow both are present.
         int currentCode = resonanceLevel > 0 ? RESONANCE_CODE : intuitionLevel;
 
@@ -299,7 +300,7 @@ public class AmethystCompassItem extends CompassItem {
      * persisted index, just a runtime scan (bounded by however many bosses exist on the level).
      */
     @Override
-    public InteractionResult useOn(UseOnContext context) {
+    public @NotNull InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
@@ -323,7 +324,7 @@ public class AmethystCompassItem extends CompassItem {
         Optional<UUID> bossIdOpt = BossAPI.bosses(level).flatMap(fixture ->
                 fixture.all().stream()
                         .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked))
-                        .map(record -> record.bossId())
+                        .map(BossRecord::bossId)
                         .findFirst());
         if (bossIdOpt.isEmpty()) {
             return InteractionResult.PASS;
@@ -356,7 +357,7 @@ public class AmethystCompassItem extends CompassItem {
      * (registry-name-derived) description id.
      */
     @Override
-    public String getDescriptionId(ItemStack stack) {
+    public @NotNull String getDescriptionId(@NotNull ItemStack stack) {
         return getDescriptionId();
     }
 
@@ -367,7 +368,7 @@ public class AmethystCompassItem extends CompassItem {
      * reading (a placeholder display decision, not final, per that section).
      */
     @Override
-    public void appendHoverText(ItemStack stack, Level level, List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(@NotNull ItemStack stack, Level level, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
 
         Optional<UUID> bossIdOpt = CompassAttunement.bossId(stack);

@@ -56,7 +56,7 @@ public final class AmethystCompassClient {
     public static void onClientSetup(FMLClientSetupEvent event) {
         ItemProperties.register(
                 BossTellModule.AMETHYST_COMPASS.get(),
-                new ResourceLocation("angle"),
+                ResourceLocation.withDefaultNamespace("angle"),
                 new CompassItemPropertyFunction((level, stack, entity) ->
                         CompassItem.isLodestoneCompass(stack)
                                 ? CompassItem.getLodestonePosition(stack.getOrCreateTag())

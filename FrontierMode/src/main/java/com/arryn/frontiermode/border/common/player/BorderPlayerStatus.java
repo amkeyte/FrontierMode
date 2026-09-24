@@ -5,9 +5,9 @@ import java.util.UUID;
 
 /**
  * Authoritative snapshot of border-related state for a player.
- *
+ * <p>
  * Constructed only by BorderPlayerStatusFixture.
- *
+ * <p>
  * {@code relevantLayer}/{@code nearestLayer} were split from a single overloaded {@code
  * layer} field (Border Vocabulary Conformance Checklist item 2.4) -- see {@link
  * BorderPlayerEval}'s own doc comment for the full reasoning. {@code relevantLayer} is the one

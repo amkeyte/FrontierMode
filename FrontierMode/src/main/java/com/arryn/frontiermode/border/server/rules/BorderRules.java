@@ -17,18 +17,18 @@ import java.util.OptionalInt;
 
 /**
  * BorderRules implementations propose values only.
- *
+ * <p>
  * They:
  * - do NOT create or mutate borders
  * - do NOT access fixtures or bundles
  * - do NOT enforce authority
- *
+ * <p>
  * Returned values are treated as proposals and may be rejected
  * or modified by the authoritative facet.
  */
 public interface BorderRules {
 
-        static final BorderRules ACTIVE = new DefaultBorderRules();
+        BorderRules ACTIVE = new DefaultBorderRules();
 
 /**
      * Choose the center position for the very first border in a level.
@@ -41,7 +41,8 @@ public interface BorderRules {
      * Choose the radius for the very first border in a level.
      */
 
-    int chooseInitialRadius(Level level);
+@SuppressWarnings("SameReturnValue")
+int chooseInitialRadius(Level level);
 
 
 /**
@@ -61,6 +62,7 @@ public interface BorderRules {
 
     Border getRelevant(List<Border> containing, BlockPos pos);
 
+    @SuppressWarnings("SameReturnValue")
     List<String> borderNames();
 
     // ------------------------------------------------------------------

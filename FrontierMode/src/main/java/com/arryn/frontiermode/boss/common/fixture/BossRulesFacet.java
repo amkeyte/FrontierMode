@@ -28,10 +28,7 @@ import java.util.Optional;
 public final class BossRulesFacet {
     private static final BossRules RULES = new DefaultBossRules();
 
-    private final BossFixture fixture;
-
     BossRulesFacet(BossFixture fixture) {
-        this.fixture = fixture;
     }
 
 

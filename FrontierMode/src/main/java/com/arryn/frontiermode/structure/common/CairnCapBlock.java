@@ -12,6 +12,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Cairn's own cap block -- the top of the 3-block pillar, and the only block in a Cairn that
@@ -27,6 +28,7 @@ import net.minecraft.world.phys.BlockHitResult;
  * charge fires {@code neighborChanged} repeatedly while nothing about the actual signal changes,
  * and re-triggering the pulse on every one of those would read as spam, not a single event.
  */
+@SuppressWarnings("deprecation")
 public class CairnCapBlock extends Block {
 
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
@@ -42,9 +44,9 @@ public class CairnCapBlock extends Block {
     }
 
     @Override
-    public InteractionResult use(
-            BlockState state, Level level, BlockPos pos, Player player,
-            InteractionHand hand, BlockHitResult hit
+    public @NotNull InteractionResult use(
+            @NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player,
+            @NotNull InteractionHand hand, @NotNull BlockHitResult hit
     ) {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
@@ -55,8 +57,8 @@ public class CairnCapBlock extends Block {
 
     @Override
     public void neighborChanged(
-            BlockState state, Level level, BlockPos pos,
-            Block neighborBlock, BlockPos neighborPos, boolean movedByPiston
+            @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos,
+            @NotNull Block neighborBlock, @NotNull BlockPos neighborPos, boolean movedByPiston
     ) {
         super.neighborChanged(state, level, pos, neighborBlock, neighborPos, movedByPiston);
         if (level.isClientSide) {
@@ -77,7 +79,7 @@ public class CairnCapBlock extends Block {
 
     /** Reads neighbor signal only -- never emits one of its own. */
     @Override
-    public boolean isSignalSource(BlockState state) {
+    public boolean isSignalSource(@NotNull BlockState state) {
         return false;
     }
 }

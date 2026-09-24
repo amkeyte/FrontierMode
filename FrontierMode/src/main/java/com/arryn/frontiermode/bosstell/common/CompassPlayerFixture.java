@@ -31,6 +31,7 @@ public final class CompassPlayerFixture extends SatchelFixture {
 
     public void tick(ServerPlayer player) {
         if (throttler == null) {
+            //noinspection resource
             throttler = new TickThrottler(REFRESH_INTERVAL_TICKS, player.level()::getGameTime);
         }
         if (!throttler.allow()) {

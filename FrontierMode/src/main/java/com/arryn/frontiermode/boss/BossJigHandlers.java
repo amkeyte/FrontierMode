@@ -95,6 +95,7 @@ final class BossJigHandlers {
         // MobSpawnFinalizeSignal's own doc: server-only by construction (FinalizeSpawn "only
         // fired on the logical server") -- same defensive instanceof check the original
         // FrontierMode.java handler used, rather than trusting that guarantee with a raw cast.
+        //noinspection resource
         if (!(signal.level() instanceof ServerLevel level)) {
             return;
         }

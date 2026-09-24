@@ -13,7 +13,7 @@ import java.util.Optional;
  * Mob-scoped bundle hosting {@link BossMobFixture}. Needed even though nothing else is registered
  * on {@code MobScope} yet -- ordinary {@code JigConfigValidator} shape, not a footgun; see
  * wiki/satchel/architecture/new-module-checklist.md item 7 and boss.md's "Data model" section.
- *
+ * <p>
  * Intentionally boring, same shape as {@code BossBundle}/{@code BordersBundle}.
  */
 public final class BossMobBundle extends SatchelBundle {

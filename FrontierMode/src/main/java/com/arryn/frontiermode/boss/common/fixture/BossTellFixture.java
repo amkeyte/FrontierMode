@@ -324,7 +324,7 @@ public final class BossTellFixture extends SatchelFixture {
     public void onJigTick() {
         Satchel.requireServer();
         BossBundle bundle = getBundle();
-        Level level = bundle.level();
+        @SuppressWarnings("resource") Level level = bundle.level();
         bundle.boss().ifPresent(boss ->
                 BorderAPI.CURVE(level).ifPresent(curves -> tick(level, boss, curves)));
     }
@@ -420,7 +420,7 @@ public final class BossTellFixture extends SatchelFixture {
                 continue;
             }
 
-            UUID borderId = nearest.borderId().get(); // present by construction of `candidates`
+            @SuppressWarnings("OptionalGetWithoutIsPresent") UUID borderId = nearest.borderId().get(); // present by construction of `candidates`
 
             // Resolve border and tell curve.
             Optional<Border> borderOpt = crud.get(borderId);

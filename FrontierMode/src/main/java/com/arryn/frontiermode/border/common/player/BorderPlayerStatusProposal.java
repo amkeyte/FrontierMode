@@ -5,7 +5,7 @@ import java.util.UUID;
 
 /**
  * Player status evaluation request.
- *
+ * <p>
  * This proposal intentionally carries NO derived border data.
  * It exists only to anchor evaluation to a player identity and
  * to provide a stable mutation seam for future player-authored

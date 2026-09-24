@@ -44,6 +44,7 @@ public final class EffectsAPI {
      * {@code ServerLevel} reference alongside the player. {@code forceVisible=false} lets
      * vanilla's own render-distance rules decide whether the client actually shows it.
      */
+    @SuppressWarnings("resource")
     public static void sendParticleToPlayer(
             ServerPlayer player,
             ParticleOptions particle,
@@ -52,6 +53,7 @@ public final class EffectsAPI {
             double xOffset, double yOffset, double zOffset,
             double speed
     ) {
+        //noinspection resource
         player.serverLevel().sendParticles(
                 player, particle, false, x, y, z, count, xOffset, yOffset, zOffset, speed);
     }

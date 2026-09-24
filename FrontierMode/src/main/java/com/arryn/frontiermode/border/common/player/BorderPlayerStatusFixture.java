@@ -10,13 +10,13 @@ import java.util.UUID;
 
 /**
  * Player-scoped facet owning the authoritative BorderPlayerStatus snapshot.
- *
+ * <p>
  * This facet is the sole authority that:
  * - accepts player status evaluation requests
  * - computes derived border context internally
  * - materializes BorderPlayerStatus
  * - tracks dirty state
- *
+ * <p>
  * FRO_026 rewrite: rebuilt against {@link SatchelFixture} (the current base class) instead of
  * the predecessor {@code SatchelSetting}, which no longer exists. Deliberately not persisted --
  * {@link BorderPlayerStatus}/{@link BorderPlayerEval}'s own docs already call this data
@@ -38,7 +38,7 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
     /**
      * Accepts a player status evaluation request and updates authoritative
      * player border state if it has changed.
-     *
+     * <p>
      * The proposal carries identity only; all derived values are computed
      * internally by this facet.
      */

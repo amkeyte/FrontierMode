@@ -13,6 +13,7 @@ import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraftforge.event.village.VillagerTradesEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * FRO_121: injects Resonance into the Librarian's enchanted-book trade pool, per
@@ -52,7 +53,7 @@ public final class ResonanceTrade {
 
     private static final class ResonanceListing implements VillagerTrades.ItemListing {
         @Override
-        public MerchantOffer getOffer(Entity trader, RandomSource rng) {
+        public MerchantOffer getOffer(@NotNull Entity trader, @NotNull RandomSource rng) {
             ItemStack book = EnchantedBookItem.createForEnchantment(
                     new EnchantmentInstance(BossTellModule.RESONANCE.get(), 1));
             return new MerchantOffer(

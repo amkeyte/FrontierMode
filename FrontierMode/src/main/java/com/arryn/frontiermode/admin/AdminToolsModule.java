@@ -106,7 +106,7 @@ public final class AdminToolsModule {
         List<ItemStack> stashed = new ArrayList<>();
         signal.drops().removeIf(itemEntity -> {
             ItemStack stack = itemEntity.getItem();
-            if (EnchantmentHelper.getItemEnchantmentLevel(DEATH_TOUCH.get(), stack) <= 0) {
+            if (EnchantmentHelper.getTagEnchantmentLevel(DEATH_TOUCH.get(), stack) <= 0) {
                 return false;
             }
             stashed.add(stack);
@@ -132,8 +132,9 @@ public final class AdminToolsModule {
      * reads clearly as the admin tool it is -- direct construction, the same "never through the
      * recipe book or crafting grid" shape {@code /boss debug compass} already uses for the
      * Admin Compass. No creative-tab entry, no recipe -- {@code /give} would work too (once the
-     * enchant is known to exist), but wouldn't apply the enchant itself.
+     * enchant is known to exist), but wouldn't apply to enchant itself.
      */
+    @SuppressWarnings("SameReturnValue")
     private static int giveDeathStick(CommandContext<CommandSourceStack> ctx)
             throws CommandSyntaxException {
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
@@ -157,7 +158,7 @@ public final class AdminToolsModule {
      * damage pipeline (armor/absorption/death handling) instead of a re-entrant second call
      * stack on top of it. {@code DamageSource.getEntity()} is the true causer (the attacker
      * itself for an ordinary melee hit, as opposed to {@code getDirectEntity()}, which would be
-     * a thrown projectile instead) -- checked against their mainhand item specifically, since
+     * a thrown projectile instead) -- checked against their main hand item specifically, since
      * that's what actually landed the hit.
      */
     @Mod.EventBusSubscriber(modid = FrontierMode.MODID)
@@ -170,7 +171,7 @@ public final class AdminToolsModule {
             if (!(event.getSource().getEntity() instanceof LivingEntity attacker)) {
                 return;
             }
-            if (EnchantmentHelper.getItemEnchantmentLevel(DEATH_TOUCH.get(), attacker.getMainHandItem()) <= 0) {
+            if (EnchantmentHelper.getTagEnchantmentLevel(DEATH_TOUCH.get(), attacker.getMainHandItem()) <= 0) {
                 return;
             }
             event.setAmount(Float.MAX_VALUE);
@@ -189,7 +190,7 @@ public final class AdminToolsModule {
                 return;
             }
             ItemStack stack = event.getEntity().getItem();
-            if (EnchantmentHelper.getItemEnchantmentLevel(DEATH_TOUCH.get(), stack) <= 0) {
+            if (EnchantmentHelper.getTagEnchantmentLevel(DEATH_TOUCH.get(), stack) <= 0) {
                 return;
             }
 

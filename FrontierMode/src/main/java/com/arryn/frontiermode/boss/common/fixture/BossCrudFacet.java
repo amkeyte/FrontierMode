@@ -52,14 +52,22 @@ public class BossCrudFacet {
 
     /**
      * See {@link BossFixture#finalizePosition(UUID, BlockPos)}.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
+     *
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean finalizePosition(UUID bossId, BlockPos resolvedPosition) {
         return fixture.finalizePosition(bossId, resolvedPosition);
     }
 
     /**
      * See {@link BossFixture#materialize(UUID, UUID)}.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
+     *
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean materialize(UUID bossId, UUID entityId) {
         return fixture.materialize(bossId, entityId);
     }
@@ -67,6 +75,7 @@ public class BossCrudFacet {
     /**
      * See {@link BossFixture#markDefeated(UUID)}.
      */
+    @SuppressWarnings({"inverted", "BooleanMethodIsAlwaysInverted"})
     public boolean markDefeated(UUID bossId) {
         return fixture.markDefeated(bossId);
     }
@@ -87,14 +96,19 @@ public class BossCrudFacet {
 
     /**
      * FRO_082: see {@link BossFixture#addPendingAttach(UUID)}.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean addPendingAttach(UUID borderId) {
         return fixture.addPendingAttach(borderId);
     }
 
     /**
-     * FRO_082: see {@link BossFixture#removePendingAttach(UUID)}.
+     * FRO_082: see {@link BossFixture#removePendingAttach(UUID)}.     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean removePendingAttach(UUID borderId) {
         return fixture.removePendingAttach(borderId);
     }

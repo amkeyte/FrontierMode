@@ -15,7 +15,7 @@ import java.util.Optional;
 
 /**
  * World-scoped bundle hosting {@link BossFixture}.
- *
+ * <p>
  * This bundle is intentionally boring: no logic, no state beyond fixtures -- same shape as
  * {@code BordersBundle}.
  */

@@ -3,10 +3,8 @@ package com.arryn.frontiermode.border.server.rules;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 import java.util.List;

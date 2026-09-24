@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Sibling fixture to {@link BordersFixture} (and {@link NavigatorFixture}) inside
@@ -75,7 +74,7 @@ public final class BorderCurveFixture extends SatchelFixture {
     public List<BorderCurve> forBorder(UUID borderId) {
         return curves.stream()
                 .filter(c -> c.borderId().equals(borderId))
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
     }
 
     public Optional<BorderCurve> forBorder(UUID borderId, String purpose) {
@@ -88,6 +87,10 @@ public final class BorderCurveFixture extends SatchelFixture {
     // Mutations
     // ------------------------------------------------------------------
 
+     /**
+      * <p>[Arryn] examine why the Result value is never used.
+      */
+    @SuppressWarnings("UnusedReturnValue")
     public BorderCurve create(UUID borderId, String purpose, Shape shape, double steepness) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
@@ -115,7 +118,10 @@ public final class BorderCurveFixture extends SatchelFixture {
      * would otherwise be stuck with them until the world resets, since {@code create}-if-absent
      * never touches an existing record. This lets a consumer's own "ensure current shape" helper
      * reconcile forward instead.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public BorderCurve replace(UUID borderId, String purpose, Shape shape, double steepness) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
@@ -135,7 +141,10 @@ public final class BorderCurveFixture extends SatchelFixture {
      *
      * @return the number of records removed (0 is a normal, expected outcome -- a border with no
      *         curves is the common case, not an error).
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public int removeForBorder(UUID borderId) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");

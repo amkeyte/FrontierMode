@@ -113,14 +113,14 @@ public final class StructureModule {
 
     private static void registerStructureJig() {
         var cairnFixture =
-                new JigBundles.FixtureDecl<CairnFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.CAIRN,
                         CairnFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
         var structureBundle =
-                new JigBundles.BundleDecl<LevelScope, StructureBundle>(
+                new JigBundles.BundleDecl<>(
                         FrontierKeys.STRUCTURE_BUNDLE,
                         (LevelScope scope) -> new StructureBundle(scope, FrontierKeys.STRUCTURE_BUNDLE),
                         List.of(cairnFixture)
@@ -382,6 +382,7 @@ public final class StructureModule {
     }
 
     /** Uniform random point within a sphere of {@code radius} centered on {@code center}. */
+    @SuppressWarnings("SameParameterValue")
     private static BlockPos randomPointInSphere(RandomSource rng, BlockPos center, int radius) {
         double u = rng.nextDouble();
         double r = radius * Math.cbrt(u);
