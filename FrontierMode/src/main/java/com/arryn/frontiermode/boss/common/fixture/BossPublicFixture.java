@@ -13,7 +13,7 @@ import java.util.UUID;
 
 /**
  * FRO_145: the client-syncable "this entity is a boss" signal -- a flat collection of
- * {@code {bossId, mobUuid, alive}} records, one per currently-attached boss entity (see boss.md's
+ * {@code {bossId, mobUuid, alive, scale}} records, one per currently-attached boss entity (see boss.md's
  * "Client-side visual marker").
  *
  * <p><b>Deliberately carries no position.</b> The marker only needs "is this entity a boss";
@@ -30,7 +30,7 @@ public final class BossPublicFixture extends SatchelFixture {
 
     private static final String KEY_MARKERS = "markers";
 
-    private record Marker(UUID bossId, UUID mobUuid, boolean alive) {
+    private record Marker(UUID bossId, UUID mobUuid, boolean alive, float scale) {
     }
 
     // Keyed by mobUuid -- the render layer's lookup key, and unique per live entity.
@@ -47,6 +47,7 @@ public final class BossPublicFixture extends SatchelFixture {
             tag.putUUID("bossId", m.bossId);
             tag.putUUID("mobUuid", m.mobUuid);
             tag.putBoolean("alive", m.alive);
+            tag.putFloat("scale", m.scale);
             list.add(tag);
         }
         root.put(KEY_MARKERS, list);
@@ -63,15 +64,23 @@ public final class BossPublicFixture extends SatchelFixture {
                 continue;
             }
             UUID mobUuid = tag.getUUID("mobUuid");
-            markers.put(mobUuid, new Marker(tag.getUUID("bossId"), mobUuid, tag.getBoolean("alive")));
+            // "scale" is absent on a marker saved before FRO_148 -- 1.0 (unscaled) is the right
+            // default, and the next attach rewrites it.
+            float scale = tag.contains("scale", Tag.TAG_FLOAT) ? tag.getFloat("scale") : 1.0F;
+            markers.put(mobUuid, new Marker(tag.getUUID("bossId"), mobUuid, tag.getBoolean("alive"), scale));
         }
     }
 
     // ── server-side writes ────────────────────────────────────────────────────
 
-    /** Adds (or refreshes) the marker for a just-attached boss entity. */
-    public void add(UUID bossId, UUID mobUuid) {
-        markers.put(mobUuid, new Marker(bossId, mobUuid, true));
+    /**
+     * Adds (or refreshes) the marker for a just-attached boss entity. {@code scale} is the
+     * boss's size multiplier (FRO_148), computed once server-side from its layer -- carried here so
+     * the client's hitbox and render scale come from the same synced value, rather than a data
+     * accessor bolted onto a vanilla entity class.
+     */
+    public void add(UUID bossId, UUID mobUuid, float scale) {
+        markers.put(mobUuid, new Marker(bossId, mobUuid, true, scale));
         markDirty();
     }
 
@@ -86,7 +95,7 @@ public final class BossPublicFixture extends SatchelFixture {
     public void markDead(UUID mobUuid) {
         Marker m = markers.get(mobUuid);
         if (m != null && m.alive) {
-            markers.put(mobUuid, new Marker(m.bossId, mobUuid, false));
+            markers.put(mobUuid, new Marker(m.bossId, mobUuid, false, m.scale));
             markDirty();
         }
     }
@@ -97,6 +106,12 @@ public final class BossPublicFixture extends SatchelFixture {
     public boolean isLiveBoss(UUID mobUuid) {
         Marker m = markers.get(mobUuid);
         return m != null && m.alive;
+    }
+
+    /** The boss's size multiplier (FRO_148), or {@code 1.0} if {@code mobUuid} isn't tracked. */
+    public float scaleOf(UUID mobUuid) {
+        Marker m = markers.get(mobUuid);
+        return m == null ? 1.0F : m.scale;
     }
 
     /** Snapshot of every tracked boss entity's UUID -- diagnostics/tests. */

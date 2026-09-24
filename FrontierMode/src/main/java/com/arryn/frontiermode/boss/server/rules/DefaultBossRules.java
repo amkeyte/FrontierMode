@@ -62,6 +62,9 @@ public final class DefaultBossRules implements BossRules {
     // once per boss, not per tick) that quadrupling it is effectively free insurance.
     private static final int POSITION_CANDIDATES = 20;
 
+    // FRO_163: Y used when every candidate scores hazardous -- see choosePosition's fallback branch.
+    private static final int FALLBACK_Y = 64;
+
     // flatnessScore()'s own safe baseline: candidate height compared against four points this far
     // out in each cardinal direction. A tuning number, not an architecture decision.
     private static final int FLATNESS_SAMPLE_DISTANCE = 4;
@@ -154,10 +157,17 @@ public final class DefaultBossRules implements BossRules {
         // loud on purpose -- a boss placed from this branch is placed somewhere hazardous, and
         // that belongs in the log the moment it happens, not discovered later by someone
         // teleporting out to an empty location.
+        // FRO_163: the best-scoring hazardous column is often the void sentinel (y = world floor),
+        // which reads as perfectly flat -- placing there dropped a boss into the void. Keep the
+        // chosen X/Z but pin Y to a fixed height instead: it may end up in the ground or floating
+        // over water, but it is never the void, and it is loud in the log so a real occurrence
+        // gets looked at rather than breaking the game loop.
+        BlockPos fallback = new BlockPos(bestAny.getX(), FALLBACK_Y, bestAny.getZ());
         OUT.warn("[Boss] choosePosition(): all " + POSITION_CANDIDATES + " candidates for border "
-                + Ids.shortId(border.id()) + " scored hazardous -- placing at " + bestAny.getX() + ", "
-                + bestAny.getY() + ", " + bestAny.getZ() + " anyway (best of a bad batch).");
-        return bestAny;
+                + Ids.shortId(border.id()) + " scored hazardous -- placing at " + fallback.getX() + ", "
+                + fallback.getY() + ", " + fallback.getZ() + " anyway (fixed-height fallback; best"
+                + " candidate read y=" + bestAny.getY() + ").");
+        return fallback;
     }
 
     private static BlockPos chunkCenterOf(BlockPos pos) {
@@ -349,6 +359,13 @@ public final class DefaultBossRules implements BossRules {
         mob.setCustomName(Component.literal("Boss (Layer " + layer + ")"));
         mob.setCustomNameVisible(true);
         mob.setGlowingTag(glowEnabled);
+    }
+
+    // FRO_148: shared size multiplier, 1.0 + layer * scalePerLayer (boss.md "Spawn platform").
+    @Override
+    public float scaleForLayer(int layer) {
+        float perLayer = new Tunable("scalePerLayer", 0f, 1f, 0.1f).floatValue();
+        return 1.0F + Math.max(layer, 0) * perLayer;
     }
 
     // FRO_160: non-player-death respawn tuning -- see BossRules for the meaning of each.
