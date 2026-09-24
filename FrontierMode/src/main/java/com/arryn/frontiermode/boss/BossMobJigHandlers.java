@@ -50,7 +50,14 @@ final class BossMobJigHandlers {
         fixture.attachTo(recordOpt.get().bossId());
 
         // FRO_145: publish "this entity is a boss" to clients -- no position, just the id pair.
-        BossAPI.publicMarkers(mob.level()).ifPresent(m -> m.add(recordOpt.get().bossId(), entityId));
+        // FRO_148: plus its size multiplier, computed once from the record's layer. The entity was
+        // constructed before it was known to be a boss, so its hitbox is still unscaled -- refresh
+        // it now that the marker (which the Size handler reads) exists.
+        BossRecord record = recordOpt.get();
+        float scale = BossAPI.bosses(mob.level())
+                .map(f -> f.RULES.scaleForLayer(record.layer())).orElse(1.0F);
+        BossAPI.publicMarkers(mob.level()).ifPresent(m -> m.add(record.bossId(), entityId, scale));
+        mob.refreshDimensions();
     }
 
     /** Chunk unload and genuine removal are indistinguishable here by design -- see boss.md. */

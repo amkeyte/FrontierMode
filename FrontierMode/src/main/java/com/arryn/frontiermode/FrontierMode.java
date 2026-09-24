@@ -141,6 +141,9 @@ public final class FrontierMode {
 
         OUT.info("FrontierMode: Module initialization started.");
 
+        // FRO_155: silence vanilla's per-death log line for our own named mobs (Feral, Boss).
+        LogFilters.install();
+
         // Initialize the Border module (fixtures, tick handler, commands)
         BorderModule.init();
 

@@ -114,25 +114,10 @@ public class Rendering {
     }
 
 
-    public static void onClientTick(ScopeEvent.Tick event) {
-
-        if (Satchel.foundation()
-                .filter(f -> f.side().isClient())
-                .isEmpty()) return;
-
-
-
-        // Spawn visual-only particles (growth trigger, etc.)
-        GrowthTriggerRenderer.tick();
-
-
-    }
-
     /**
-     * RM_FRO_012: newly subscribed to {@code ScopeEvent.Unloaded} via {@code BorderModule}'s
-     * {@code EventHandlers}, alongside the existing {@code Tick} subscription above --
-     * {@code RenderContext.CACHE} was never evicted before this; see that class's own doc for the
-     * full reasoning. Same client-side guard as {@link #onClientTick}, same shared-bus caveat
+     * RM_FRO_012: subscribed to {@code ScopeEvent.Unloaded} via {@code BorderModule}'s
+     * {@code EventHandlers} -- {@code RenderContext.CACHE} was never evicted before this; see that
+     * class's own doc for the full reasoning. Client-side only, and on the shared per-side bus
      * (this fires for every LevelJig scope unload on this dimension, not just Border's -- eviction
      * is idempotent, so that's harmless here).
      */

@@ -83,6 +83,14 @@ public interface BossRules {
     Optional<Mob> materialize(Level level, BlockPos position, int layer);
 
     /**
+     * FRO_148: the boss's size multiplier for {@code layer} -- {@code 1.0 + layer * perLayer},
+     * one number driving both the entity's own hitbox/render scale and (boss.md's "Spawn
+     * platform") the platform's footprint and clearance. Computed once at attach from the record's
+     * own layer, never re-read from a live Border. Safe baseline: {@code perLayer = 0.1}.
+     */
+    float scaleForLayer(int layer);
+
+    /**
      * FRO_160: ticks between a non-player death returning a boss to unmaterialized and the
      * materialization tick being allowed to respawn it at its recorded position. Safe baseline:
      * 100 ticks (5 seconds). Tuning is playtest territory.

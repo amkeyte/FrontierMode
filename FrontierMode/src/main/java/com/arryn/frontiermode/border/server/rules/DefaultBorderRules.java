@@ -25,7 +25,6 @@ import java.util.OptionalInt;
 
 public final class DefaultBorderRules implements BorderRules {
 
-    public static final int GROWTH_RING_RADIUS = 3;
     public static final List<String> DEFAULT_BORDER_NAMES = List.of(
             "Ashring",
             "Dawnmark",

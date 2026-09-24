@@ -67,6 +67,13 @@ public final class BossRulesFacet {
     }
 
     /**
+     * See {@link BossRules#scaleForLayer(int)}.
+     */
+    public float scaleForLayer(int layer) {
+        return RULES.scaleForLayer(layer);
+    }
+
+    /**
      * See {@link BossRules#respawnDelayTicks()}.
      */
     public int respawnDelayTicks() {

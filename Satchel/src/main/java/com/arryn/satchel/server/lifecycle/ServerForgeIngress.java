@@ -230,10 +230,7 @@ public final class ServerForgeIngress {
         }
 
         UUID uuid = e.getEntity().getUUID();
-        if (!MobInterestRegistry.isAnyInterested(uuid)) {
-            OUT.debug("[MobDied] gate: not interested -- " + Ids.shortId(uuid));
-            return;
-        }
+        if (!MobInterestRegistry.isAnyInterested(uuid)) return;
 
         OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
