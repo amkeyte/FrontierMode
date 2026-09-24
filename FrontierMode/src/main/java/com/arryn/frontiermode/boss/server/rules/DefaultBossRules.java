@@ -91,6 +91,9 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
+    /*
+     * [Arryn] Review this. It may need reworked for NPE and algorithm robustness.
+     */
     public BlockPos choosePosition(Level level, Border border) {
         BlockPos bestSafe = null;
         double bestSafeScore = Double.NEGATIVE_INFINITY;

@@ -5,13 +5,13 @@ import java.util.UUID;
 
 /**
  * Pure value object representing derived player-border evaluation results.
- *
+ * <p>
  * This object:
  * - carries no authority
  * - has no identity beyond its values
  * - is not persisted or synced
  * - is produced only by BorderPlayerLogic
- *
+ * <p>
  * {@code relevantLayer} and {@code nearestLayer} were split from a single overloaded
  * {@code layer} field (Border Vocabulary Conformance Checklist item 2.4): {@code
  * relevantLayer} is populated only when {@code insideNearest} is true (a real Relevance

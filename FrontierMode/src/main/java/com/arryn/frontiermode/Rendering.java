@@ -5,27 +5,23 @@ import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.lifecycle.SatchelEvent;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.LevelEvent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 
 /**
  * Client-side rendering and visual tick hooks.
- *
+ * <p>
  * This class is responsible only for visual affordances:
  *  - border rendering
  *  - particle effects
- *
+ * <p>
  * No authority, no level mutation.
  */
 @Mod.EventBusSubscriber(
@@ -115,10 +111,6 @@ public class Rendering {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             bordersRenderer().render(event.getPoseStack());
         }
-//        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
-//            // Spawn visual-only particles (growth trigger, etc.)
-//            GrowthTriggerRenderer.tick();
-//        }
     }
 
 
@@ -133,17 +125,7 @@ public class Rendering {
         // Spawn visual-only particles (growth trigger, etc.)
         GrowthTriggerRenderer.tick();
 
-//        Minecraft mc = Minecraft.getInstance();
-//        if (mc.level == null || mc.player == null) return;
-//        if (mc.isPaused()) return;
-//
-//        mc.level.addParticle(
-//                ParticleTypes.FLAME,
-//                mc.player.getX(),
-//                mc.player.getY() + 2,
-//                mc.player.getZ(),
-//                0.0, 0.05, 0.0
-//        );
+
     }
 
     /**

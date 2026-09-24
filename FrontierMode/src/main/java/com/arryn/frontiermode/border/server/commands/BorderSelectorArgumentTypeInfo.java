@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.network.FriendlyByteBuf;
+import org.jetbrains.annotations.NotNull;
 
 public final class BorderSelectorArgumentTypeInfo
         implements ArgumentTypeInfo<
@@ -13,18 +14,18 @@ public final class BorderSelectorArgumentTypeInfo
         > {
 
     @Override
-    public void serializeToNetwork(Template template, FriendlyByteBuf buffer) {}
+    public void serializeToNetwork(@NotNull Template template, @NotNull FriendlyByteBuf buffer) {}
 
     @Override
-    public Template deserializeFromNetwork(FriendlyByteBuf buffer) {
+    public @NotNull Template deserializeFromNetwork(@NotNull FriendlyByteBuf buffer) {
         return new Template();
     }
 
     @Override
-    public void serializeToJson(Template template, JsonObject json) {}
+    public void serializeToJson(@NotNull Template template, @NotNull JsonObject json) {}
 
     @Override
-    public Template unpack(BorderSelectorArgumentType type) {
+    public @NotNull Template unpack(@NotNull BorderSelectorArgumentType type) {
         return new Template();
     }
 
@@ -32,13 +33,13 @@ public final class BorderSelectorArgumentTypeInfo
             implements ArgumentTypeInfo.Template<BorderSelectorArgumentType> {
 
         @Override
-        public BorderSelectorArgumentType instantiate(CommandBuildContext ctx) {
+        public @NotNull BorderSelectorArgumentType instantiate(@NotNull CommandBuildContext ctx) {
             return BorderSelectorArgumentType.selector();
         }
 
         @SuppressWarnings("unchecked")
         @Override
-        public ArgumentTypeInfo<BorderSelectorArgumentType, ?> type() {
+        public @NotNull ArgumentTypeInfo<BorderSelectorArgumentType, ?> type() {
             return (ArgumentTypeInfo<BorderSelectorArgumentType, ?>)
                     FrontierMode.BORDER_SELECTOR.get();
         }

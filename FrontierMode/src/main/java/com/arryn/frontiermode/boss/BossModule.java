@@ -92,13 +92,13 @@ public final class BossModule {
 
     private static void registerBossJig() {
         var bossFixture =
-                new JigBundles.FixtureDecl<BossFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS,
                         BossFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
         var bossTellFixture =
-                new JigBundles.FixtureDecl<BossTellFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS_TELL,
                         BossTellFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
@@ -107,13 +107,13 @@ public final class BossModule {
         // rather than BOSS_JIG's own tick -- rides this same bundle purely for membership/access
         // parity with its siblings, per guardian-mobs.md's own reasoning.
         var bossGuardiansFixture =
-                new JigBundles.FixtureDecl<BossGuardiansFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS_GUARDIANS,
                         BossGuardiansFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
         var bossBundle =
-                new JigBundles.BundleDecl<LevelScope, BossBundle>(
+                new JigBundles.BundleDecl<>(
                         FrontierKeys.BOSS_BUNDLE,
                         (LevelScope scope) -> new BossBundle(scope, FrontierKeys.BOSS_BUNDLE),
                         List.of(bossFixture, bossTellFixture, bossGuardiansFixture)
@@ -160,13 +160,13 @@ public final class BossModule {
 
     private static void registerBossMobJig() {
         var bossMobFixture =
-                new JigBundles.FixtureDecl<BossMobFixture>(
+                new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS_MOB,
                         BossMobFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
         var bossMobBundle =
-                new JigBundles.BundleDecl<MobScope, BossMobBundle>(
+                new JigBundles.BundleDecl<>(
                         FrontierKeys.BOSS_MOB_BUNDLE,
                         (MobScope scope) -> new BossMobBundle(scope, FrontierKeys.BOSS_MOB_BUNDLE),
                         List.of(bossMobFixture)

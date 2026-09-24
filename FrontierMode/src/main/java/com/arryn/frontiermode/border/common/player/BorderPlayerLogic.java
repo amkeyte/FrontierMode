@@ -13,7 +13,7 @@ import java.util.OptionalInt;
 
 /**
  * Stateless evaluator producing derived player-border information.
- *
+ * <p>
  * This class:
  * - performs no mutation
  * - enforces no authority

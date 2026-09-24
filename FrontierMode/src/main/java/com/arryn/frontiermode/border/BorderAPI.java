@@ -407,9 +407,7 @@ public final class BorderAPI {
     public static Optional<Border> getRelevant(ServerPlayer player) {
         return playerStatus(player)
                 .map(BorderPlayerStatus::nearestBorderId)
-                .flatMap(id -> id == null
-                        ? Optional.empty()
-                        : border(player.serverLevel(), id));
+                .flatMap(id -> border(player.serverLevel(), id));
     }
 
     /**
@@ -605,7 +603,10 @@ public final class BorderAPI {
      * {@link Result#success(Border)} -- "ensure this border's pregeneration has been triggered"
      * is what a caller actually wants, and it's already true either way, per
      * {@code BorderPregenFixture.start}'s own "calling this twice is safe" contract.
+     *
+     * <p>[Arryn] examine why the Result value is never used.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public static Result startPregeneration(Level level, UUID borderId) {
         Optional<Border> existing = border(level, borderId);
         if (existing.isEmpty()) {

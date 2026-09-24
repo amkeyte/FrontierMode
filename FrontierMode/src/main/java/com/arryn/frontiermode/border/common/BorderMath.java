@@ -10,10 +10,10 @@ import java.util.Objects;
 
 /**
  * Pure geometry helpers for border containment and distance.
- *
+ * <p>
  * All calculations are performed in X/Z space only.
  * Y is intentionally ignored so that math matches rendered borders.
- *
+ * <p>
  * This class favors clarity and correctness over micro-optimizations.
  *
  * <p><b>Public for structural reasons only, same as {@code BordersFixture}
@@ -44,7 +44,7 @@ public final class BorderMath {
     /**
      * Returns true if {@code pos} lies within {@code range} (inclusive),
      * measured in X/Z space from {@code center}.
-     *
+     * <p>
      * Y is intentionally ignored.
      */
     public static boolean isInside(int range, BlockPos pos, BlockPos center) {
@@ -61,11 +61,11 @@ public final class BorderMath {
 
     /**
      * Returns the signed distance from {@code pos} to the border surface.
-     *
+     * <p>
      * - negative → inside the border (how far inside)
      * - 0 → exactly on the border
      * - positive → outside the border (how far outside)
-     *
+     * <p>
      * Distance is computed in X/Z space only.
      *
      * <p>FRO_099 bugfix: this used to compute {@code distanceSqToCenter(border, pos) -

@@ -156,6 +156,7 @@ public final class BorderPregenFixture extends SatchelFixture {
      * exists for {@code borderId}, whether still in progress or already complete -- calling this
      * twice is safe, not an error, per this fixture's own class doc.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean start(UUID borderId) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");

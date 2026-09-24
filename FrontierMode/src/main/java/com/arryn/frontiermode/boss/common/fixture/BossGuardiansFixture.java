@@ -106,8 +106,9 @@ public final class BossGuardiansFixture extends SatchelFixture {
      * cluster. Never cancels or blocks the spawn either way; this is a modifier on an
      * already-happening spawn, not a summon.
      */
+    @SuppressWarnings("JavadocReference")
     public void onMobSpawnFinalize(Mob mob, ServerLevel level) {
-        // Playtest report: fish/squid (WATER_AMBIENT/WATER_CREATURE) were getting guardianized --
+        // Playtest report: fish/squid (WATER_AMBIENT/WATER_CREATURE) were getting guardian-ized --
         // this method had no hostility filter at all before rolling a conversion. guardian-mobs.md
         // itself frames this as gating "a hostile mob about to spawn," so this was always the
         // intent, just never implemented. MobCategory.MONSTER, not instanceof Monster -- same
@@ -121,10 +122,10 @@ public final class BossGuardiansFixture extends SatchelFixture {
         Satchel.requireServer();
         BossBundle bundle = getBundle();
         bundle.boss().ifPresent(bossFixture ->
-                BorderAPI.CURVE(level).ifPresent(curves -> tryGuardianize(mob, level, bossFixture, curves)));
+                BorderAPI.CURVE(level).ifPresent(curves -> tryMakeGuardian(mob, level, bossFixture, curves)));
     }
 
-    private void tryGuardianize(Mob mob, ServerLevel level, BossFixture bossFixture, BorderCurveFixture curves) {
+    private void tryMakeGuardian(Mob mob, ServerLevel level, BossFixture bossFixture, BorderCurveFixture curves) {
         BlockPos spawnPos = mob.blockPosition();
 
         // Alive+positioned bosses with a borderId are the only candidates -- identical filter

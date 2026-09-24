@@ -2,7 +2,7 @@ package com.arryn.frontiermode.border.common;
 
 /**
  * Central location for numeric constants related to border gameplay.
- *
+ * <p>
  * Placeholder values for now — fill out as design matures.
  */
 public final class BorderConstants {

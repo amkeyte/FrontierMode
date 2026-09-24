@@ -62,7 +62,7 @@ class FrontierSicknessLogicTest {
         // At one falloff-distance out, the rise term (1 - e^-1) is already ~63% of the way from
         // 1.0 to maxMultiplier -- "pronounced right at the edge," not a slow climb.
         double atOneFalloff = FrontierSicknessLogic.wildlifeDensityMultiplier(10, 10.0, 2.0);
-        assertEquals(1.0 + (2.0 - 1.0) * (1.0 - Math.exp(-1.0)), atOneFalloff, DELTA);
+        assertEquals(1.0 + (1.0 - Math.exp(-1.0)), atOneFalloff, DELTA);
         assertTrue(atOneFalloff > 1.5, "should already be well past halfway to the flat multiplier one falloff-distance out");
     }
 

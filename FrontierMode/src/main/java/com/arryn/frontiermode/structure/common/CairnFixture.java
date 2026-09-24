@@ -71,7 +71,11 @@ public final class CairnFixture extends SatchelFixture {
      * BossGuardiansFixture.ensureGuardianCurves} already establish for paired-creation call
      * sites. Returns the existing record unchanged if one is already there (defends against
      * {@code BossPositionListeners} somehow firing twice for the same boss).
+     *
+     * <p>[Arryn] examine why the Result value is never used.
+     *
      */
+    @SuppressWarnings("UnusedReturnValue")
     public CairnRecord createIfAbsent(UUID bossId, BlockPos lastKnownBossPos) {
         Optional<CairnRecord> existing = get(bossId);
         if (existing.isPresent()) {

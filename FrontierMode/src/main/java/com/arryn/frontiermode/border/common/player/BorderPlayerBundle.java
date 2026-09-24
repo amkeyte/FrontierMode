@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /**
  * Player-scoped bundle hosting {@link BorderPlayerStatusFixture}.
- *
+ * <p>
  * FRO_026 rewrite: package paths (predecessor {@code satchel.identity}/{@code satchel.bundle}/
  * {@code satchel.jig.guts}) predate the current {@code satchel.common.*} structure; the dead
  * {@code getOrCreateFacet(Class)} stub is replaced with the modern {@code get(FixtureKey)}

@@ -13,6 +13,7 @@ import java.util.UUID;
  * only real caller ({@link BordersFixture#reassignLayers} also constructs directly, for the
  * layer-reassignment replace-in-place case).
  */
+@SuppressWarnings("ClassCanBeRecord")
 public final class Border {
 
     // ============================================================
@@ -99,8 +100,11 @@ public final class Border {
         tag.putInt("z", b.center.getZ());
         tag.putInt("radius", b.radius);
         tag.putInt("layer", b.layerIndex);
-        tag.putString("displayName", b.displayName);
-        return tag;
+
+        //[Arryn] possibly change displayName default to something useful "Unknown" or something.
+        if (b.displayName != null) {
+            tag.putString("displayName", b.displayName);
+        }        return tag;
     }
 
     static Border load(CompoundTag tag) {

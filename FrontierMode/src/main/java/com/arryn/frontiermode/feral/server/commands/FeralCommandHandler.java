@@ -29,6 +29,7 @@ import net.minecraftforge.event.ForgeEventFactory;
  * {@code MobSpawnEvent.FinalizeSpawn}, then calls {@code finalizeSpawn} itself if nothing cancels
  * it -- the same event {@code FeralModule.onMobSpawnFinalize} is subscribed to.
  */
+@SuppressWarnings("SameReturnValue")
 public final class FeralCommandHandler {
 
     private FeralCommandHandler() {

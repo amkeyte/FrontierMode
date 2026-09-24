@@ -6,10 +6,8 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.BossAPI;
-import com.arryn.satchel.common.jig.level.LevelScope;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -22,9 +20,9 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.event.ForgeEventFactory;
 
-import java.util.List;
 import java.util.UUID;
 
+@SuppressWarnings("SameReturnValue")
 public final class BorderCommandHandler {
 
     private BorderCommandHandler() {
@@ -179,8 +177,7 @@ public final class BorderCommandHandler {
     // GROW
     // ------------------------------------------------------------
 
-    public static int pathGrow(CommandContext<CommandSourceStack> ctx, BlockPos center)
-            throws CommandSyntaxException {
+    public static int pathGrow(CommandContext<CommandSourceStack> ctx, BlockPos center) {
 
         ServerLevel level = ctx.getSource().getLevel();
 

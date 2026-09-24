@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -207,7 +206,7 @@ public final class BossFixture extends SatchelFixture {
     public List<BossRecord> unmaterialized() {
         return bosses.stream()
                 .filter(r -> r.alive() && r.positioned() && !r.materialized())
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
     }
 
     /**
@@ -220,7 +219,7 @@ public final class BossFixture extends SatchelFixture {
     public List<BossRecord> unpositioned() {
         return bosses.stream()
                 .filter(r -> r.alive() && !r.positioned())
-                .collect(Collectors.toUnmodifiableList());
+                .toList();
     }
 
     /**
@@ -516,7 +515,7 @@ public final class BossFixture extends SatchelFixture {
      */
     public void pollForceFlush() {
         if (pendingForceFlush != null && pendingForceFlush.allow()) {
-            this.<SatchelBundle>getBundle().forceWriteToDisk();
+            this.getBundle().forceWriteToDisk();
             pendingForceFlush = null;
         }
     }

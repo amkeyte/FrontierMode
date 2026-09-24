@@ -43,7 +43,6 @@ class RenderContext {
      * Try to pull an instance of the renderContext if the context is
      * ready and client side.
      *
-     * @return
      */
     public static Optional<RenderContext> getInstance() {
         // Gate: must be valid context and client-side
@@ -168,6 +167,7 @@ class RenderContext {
     /**
      * @return true if rendering should no-op this frame
      */
+    @SuppressWarnings({"inverted", "BooleanMethodIsAlwaysInverted"})
     public boolean standby() {
 
         Optional<BordersInfoFacet> infoOpt = info();

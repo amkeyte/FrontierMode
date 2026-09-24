@@ -18,14 +18,12 @@ import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.StructureBundle;
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.player.PlayerJig;
-import net.minecraftforge.fml.LogicalSide;
 
 
 public final class FrontierKeys {

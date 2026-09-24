@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
@@ -19,6 +20,7 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
@@ -127,8 +129,6 @@ public final class BossAPI {
      * RM_FRO_029 (Gloria): resolves {@link BossGuardiansFixture} for {@code level} -- same
      * "standby, don't crash" discipline as {@link #bosses(Level)}, mirroring {@link #bossTells}
      * exactly. Used by {@code BossModule.onMobSpawnFinalize}.
-     */
-    /**
      * FRO_121 (Intuition/Resonance): resolves the boss identity at the level's current
      * {@code BordersPathFacet} tip -- "Intuition/Resonance resolve 'the current Path Tip'
      * exactly once, at lock time, to get a boss identity" per special-compass.md's "One shared
@@ -143,7 +143,7 @@ public final class BossAPI {
         if (fixtureOpt.isEmpty()) {
             return Optional.empty();
         }
-        Optional<UUID> tipBorderIdOpt = BorderAPI.PATH(level).flatMap(path -> path.tip()).map(Border::id);
+        Optional<UUID> tipBorderIdOpt = BorderAPI.PATH(level).flatMap(BordersPathFacet::tip).map(Border::id);
         if (tipBorderIdOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -308,15 +308,16 @@ public final class BossAPI {
 
         // FRO_061: despawn the live entity, silently -- see this method's own doc for why
         // discard() (not kill()) is the deliberate choice.
-        recordOpt.filter(BossRecord::materialized).ifPresent(record ->
-                Satchel.require().egress().getEntity(level, record.bossEntityId())
-                        .ifPresent(net.minecraft.world.entity.Entity::discard));
+        recordOpt
+                .filter(BossRecord::materialized)
+                .flatMap(record -> Satchel.require().egress().getEntity(level, record.bossEntityId()))
+                .ifPresent(Entity::discard);
 
         // FRO_082: mark the removed record's border pendingAttach, same sanctioned wait-state a
         // boss-less pathGrow() produces -- but only if it actually had a borderId (a hand-placed
         // off-path /boss add-ed record never does) and that border is still genuinely on the
         // level's path (a border removed from the path some other way shouldn't get queued for
-        // an attach that no longer makes sense).
+        // an attach action that no longer makes sense).
         recordOpt.flatMap(BossRecord::borderId).ifPresent(borderId -> {
             if (isOnPath(level, borderId)) {
                 fixture.CRUD.addPendingAttach(borderId);

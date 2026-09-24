@@ -4,6 +4,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.MobType;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentCategory;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Admin/debug enchant -- any hit landed with a weapon carrying it kills the target outright
@@ -47,8 +48,9 @@ public class DeathTouchEnchantment extends Enchantment {
      * the real kill still happens entirely through {@code onLivingHurt}'s
      * {@code Float.MAX_VALUE} override, never through this bonus actually landing as damage.
      */
+    @SuppressWarnings("deprecation")
     @Override
-    public float getDamageBonus(int level, MobType mobType) {
+    public float getDamageBonus(int level, @NotNull MobType mobType) {
         return 1.0F;
     }
 }

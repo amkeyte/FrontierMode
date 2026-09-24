@@ -2,6 +2,7 @@ package com.arryn.frontiermode.bosstell.common;
 
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.enchantment.Enchantment;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * FRO_121 (Tier 5 of RM_FRO_033 "Marilyn"): Resonance, per
@@ -38,7 +39,7 @@ public class ResonanceEnchantment extends Enchantment {
     }
 
     @Override
-    protected boolean checkCompatibility(Enchantment other) {
+    protected boolean checkCompatibility(@NotNull Enchantment other) {
         return !(other instanceof IntuitionEnchantment);
     }
 }

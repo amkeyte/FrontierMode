@@ -54,7 +54,7 @@ public final class Result {
     public static Result notFound(String message) {
         return new Result(Outcome.FAILURE, FailureKind.NOT_FOUND, message, null);
     }
-
+    @SuppressWarnings({"inverted", "BooleanMethodIsAlwaysInverted"})
     public boolean isSuccess() {
         return outcome == Outcome.SUCCESS;
     }

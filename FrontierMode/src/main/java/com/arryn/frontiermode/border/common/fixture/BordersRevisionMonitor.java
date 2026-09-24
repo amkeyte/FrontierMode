@@ -45,7 +45,7 @@ public final class BordersRevisionMonitor {
 
         var info  = monitored.INFO;
         var scope = info.scope();   // deterministic value-identity
-        var level = info.level();
+        @SuppressWarnings("resource") var level = info.level();
 
         TickThrottler throttler = throttlers.computeIfAbsent(
                 scope,
