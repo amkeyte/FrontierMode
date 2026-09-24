@@ -9,6 +9,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
+import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
@@ -203,6 +204,28 @@ public final class BossAPI {
         }
 
         return Optional.ofNullable(record.position());
+    }
+
+    /**
+     * FRO_145: the client-syncable boss marker fixture, on either side. Unlike the resolvers above
+     * this never logs and never throws -- the client eye layer calls it from the render path, where
+     * "not ready yet" is the normal state for the first moments after joining a world and a
+     * per-frame debug line or exception would be noise. See boss.md's "Client-side visual marker".
+     */
+    public static Optional<BossPublicFixture> publicMarkers(Level level) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+        LevelScope scope = new LevelScope(level);
+        if (Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_PUBLIC_JIG, scope).isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.BOSS_PUBLIC_JIG).jig;
+            return jig.getOrCreate(scope, FrontierKeys.BOSS_PUBLIC_BUNDLE).get(FrontierKeys.BOSS_PUBLIC);
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
     }
 
     public static Optional<BossGuardiansFixture> guardians(Level level) {

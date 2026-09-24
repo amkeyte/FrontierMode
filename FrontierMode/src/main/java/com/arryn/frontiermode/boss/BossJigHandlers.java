@@ -219,6 +219,18 @@ final class BossJigHandlers {
         }
         BossFixture fixture = fixtureOpt.get();
 
+        // FRO_145: flag the client marker not-alive ahead of its release at MobLostInterest.
+        BossAPI.publicMarkers(level).ifPresent(m -> m.markDead(mob.getUUID()));
+
+        // FRO_160: only a player's defeat advances the loop. Evaluated once, before markDefeated,
+        // so a non-player death never marks the record defeated -- see boss.md's "Player credit
+        // and non-player death".
+        ServerPlayer credited = creditedPlayer(mob);
+        if (credited == null) {
+            onNonPlayerDeath(fixture, bossId.get(), mob);
+            return;
+        }
+
         if (!fixture.CRUD.markDefeated(bossId.get())) {
             return;
         }
@@ -237,7 +249,7 @@ final class BossJigHandlers {
         // itself gates on (trivially true for an off-path record), independent of whether growth
         // actually fires afterward. See grantDefeatLoot's own doc.
         if (lastStanding) {
-            defeatedRecord.ifPresent(record -> grantDefeatLoot(record, event, mob, level));
+            defeatedRecord.ifPresent(record -> grantDefeatLoot(record, credited, mob, level));
         }
 
         if (borderId.isEmpty()) {
@@ -282,13 +294,46 @@ final class BossJigHandlers {
     // ── private helpers ───────────────────────────────────────────────────────
 
     /**
+     * FRO_160: the player credited with this death, or {@code null} for a non-player death.
+     * Reads vanilla's own kill-credit state ({@code LivingEntity#getKillCredit()}): the player who
+     * last damaged the mob, still set only while vanilla's 100-tick (5 s) window is open -- each
+     * new player hit restarts it, a tamed pet's hit credits its online owner, and lava/drowning/
+     * falls the player set in motion land inside the window. Needs no tracking of our own and no
+     * new Forge subscription. The window is vanilla's fixed value, not a {@code Tunable}: the
+     * remaining-time counter is protected, so a different window would need bespoke damage
+     * tracking, which per boss.md arrives as a Satchel signal.
+     */
+    private static ServerPlayer creditedPlayer(Mob mob) {
+        return mob.getKillCredit() instanceof ServerPlayer player ? player : null;
+    }
+
+    /**
+     * FRO_160: a boss killed with no player credited returns to unmaterialized and respawns at its
+     * recorded position through the ordinary materialization tick (after
+     * {@code BossRules#respawnDelayTicks()}); no defeat, no cascade, no defeat loot -- the entity's
+     * own vanilla drops are untouched. {@code dematerialize} returning false covers a duplicate
+     * death event for the same death (already unmaterialized) and a record that vanished.
+     */
+    private static void onNonPlayerDeath(BossFixture fixture, UUID bossId, Mob mob) {
+        if (!fixture.CRUD.dematerialize(bossId)) {
+            return;
+        }
+        // The cleared bossEntityId is real state worth protecting: a crash before the next
+        // autosave would restore a "materialized" record whose entity is dead.
+        fixture.scheduleForceFlush();
+
+        if (fixture.scheduleRespawn(bossId)) {
+            OUT.info("[Boss] onMobDied: bossId=" + Ids.shortId(bossId) + " died with no player credit at "
+                    + mob.blockPosition() + " -- respawning at its recorded position.");
+        }
+    }
+
+    /**
      * FRO_112: flat placeholder reward ahead of Boss Discovery's fuller, randomized,
      * difficulty-scaled loot table (Tier 2/3, still unclaimed) -- see boss.md's own "Placeholder
      * defeat loot" section. {@code record.layer() + 1} diamonds (0-indexed layer, so a layer-0
-     * kill still pays out 1). If the death has no attacking player at all (mob-on-mob,
-     * environmental, an admin's {@code /kill}), there's no one to reward -- skipped outright
-     * rather than dropping loot with no player responsible for it, matching this ticket's own
-     * "Lead Dev's call" on that edge case.
+     * kill still pays out 1). FRO_160: only reached for a player-credited defeat, so there is
+     * always a credited player -- the reward is a world drop at the death position either way.
      *
      * <p>FRO_134 (project owner ask): a real item drop at the boss's death position, not a direct
      * inventory insert -- previously inserted straight into the killing player's inventory,
@@ -302,10 +347,9 @@ final class BossJigHandlers {
      * cancellation just settled: an admin command force-defeating bosses for diamonds is exactly
      * the kind of riskless exploit that shouldn't exist.
      */
-    private static void grantDefeatLoot(BossRecord record, MobDied event, Mob mob, Level level) {
-        if (!(event.forgeEvent().getSource().getEntity() instanceof ServerPlayer)) {
-            return;
-        }
+    private static void grantDefeatLoot(BossRecord record, ServerPlayer credited, Mob mob, Level level) {
+        OUT.debug("[Boss] grantDefeatLoot: paying " + credited.getGameProfile().getName()
+                + " for bossId=" + Ids.shortId(record.bossId()));
 
         int diamonds = record.layer() + 1;
         ItemStack stack = new ItemStack(Items.DIAMOND, diamonds);

@@ -5,6 +5,8 @@ import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
 import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
+import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
+import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
@@ -54,6 +56,7 @@ public final class BossModule {
         OUT.info("FrontierMode - Boss Module Initiating.");
         registerBossJig();
         registerBossMobJig();
+        registerBossPublicJig();
         registerNavigatorResolver();
     }
 
@@ -152,6 +155,48 @@ public final class BossModule {
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
+
+        Satchel.registerJigConfig(config);
+    }
+
+    // ── BOSS_PUBLIC_JIG ──────────────────────────────────────────────────────
+
+    /**
+     * FRO_145: the client-syncable boss marker signal, in its own BOTH-applicability jig -- kept
+     * separate from {@code BOSS_JIG} so that jig's server-only secrecy policy (boss position) and
+     * {@code BossFixture} stay exactly as they are. Written server-side at the
+     * {@code BOSS_MOB_JIG} attach/release hooks; read client-side by the eye render layer.
+     */
+    private static void registerBossPublicJig() {
+        var bossPublicFixture =
+                new JigBundles.FixtureDecl<>(
+                        FrontierKeys.BOSS_PUBLIC,
+                        BossPublicFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+        var bossPublicBundle =
+                new JigBundles.BundleDecl<>(
+                        FrontierKeys.BOSS_PUBLIC_BUNDLE,
+                        (LevelScope scope) -> new BossPublicBundle(scope, FrontierKeys.BOSS_PUBLIC_BUNDLE),
+                        List.of(bossPublicFixture)
+                );
+
+        LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_PUBLIC_JIG);
+        // Networking requires BOTH (JigConfigValidator).
+        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
+        config.bundles().schema(new JigBundles.Schema<>(List.of(bossPublicBundle)));
+        // Same two-call requirement BORDERS_JIG documents: capability AND matching policy.
+        // Networking is what lets the client-side bundle receive a parcel at all (FRO_115).
+        config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
+        config.policies().persistence(
+                new JigPolicies.Persistence(
+                        true,
+                        JigPolicies.FlushPolicy.EXECUTION_PULSE,
+                        JigPolicies.MissingDataPolicy.WARN));
+        // withExecutionPulse(true): persistence flush and client sync only ever run from the
+        // execution pulse (the FRO_018 lesson) -- no tick handler needed, this jig has no logic.
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withExecutionPulse(true));
 
         Satchel.registerJigConfig(config);
     }

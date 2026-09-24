@@ -142,6 +142,23 @@ public final class BossRecord {
     }
 
     /**
+     * FRO_160: returns a copy of this record with {@code bossEntityId} cleared -- the inverse of
+     * {@link #materializedAt}, for a non-player death that sends the boss back to
+     * unmaterialized. {@code alive}, {@code position}, {@code layer}, and {@code borderId} are
+     * unchanged.
+     */
+    public BossRecord dematerialized() {
+        return new BossRecord(
+                bossId,
+                position,
+                layer,
+                null,
+                alive,
+                borderId
+        );
+    }
+
+    /**
      * Returns a copy of this record with {@code alive} set to {@code false} -- the defeat
      * transition RM_FRO_019 ("Karen")'s own handler drives, addressed by this record's own
      * {@code bossId} rather than any {@code Border} reference. Position/layer/entity id are

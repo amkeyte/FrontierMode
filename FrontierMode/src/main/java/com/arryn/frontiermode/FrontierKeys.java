@@ -10,6 +10,8 @@ import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.ExteriorTellFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
+import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
+import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
@@ -149,6 +151,28 @@ public final class FrontierKeys {
             new JigKey<>(
                     "frontiermode:boss_mob_jig",
                     MobJig.class
+            );
+
+    // FRO_145: BossPublicFixture -- the client-syncable "this entity is a boss" signal, in its own
+    // BOTH-applicability jig so BOSS_JIG's server-only secrecy policy (boss position) is untouched.
+    // See BossModule.registerBossPublicJig() and boss.md's "Client-side visual marker".
+
+    public static final BundleKey<BossPublicBundle> BOSS_PUBLIC_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:boss_public_bundle",
+                    BossPublicBundle.class
+            );
+
+    public static final FixtureKey<BossPublicFixture> BOSS_PUBLIC =
+            new FixtureKey<>(
+                    "frontiermode:boss_public_fixture",
+                    BossPublicFixture.class
+            );
+
+    public static final JigKey<LevelJig> BOSS_PUBLIC_JIG =
+            new JigKey<>(
+                    "frontiermode:boss_public_jig",
+                    LevelJig.class
             );
 
     // RM_FRO_030 (Janice): BossTellFixture -- sibling fixture in BOSS_BUNDLE alongside

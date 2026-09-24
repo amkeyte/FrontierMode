@@ -73,6 +73,12 @@ public final class BossSpawnFacet {
      */
     public void materializeUnresolved(Level level, Consumer<UUID> onMaterialized) {
         for (BossRecord record : fixture.INFO.unmaterialized()) {
+            // FRO_160: a boss returned here by a non-player death waits out its respawn delay (or
+            // stays suspended at the repeat-death cap). Polled before the isLoaded check so the
+            // delay counts real ticks.
+            if (!fixture.respawnReady(record.bossId())) {
+                continue;
+            }
             BlockPos xz = record.position();
             if (!level.isLoaded(xz)) {
                 continue;
@@ -149,6 +155,8 @@ public final class BossSpawnFacet {
 
         Mob mob = mobOpt.get();
         fixture.CRUD.materialize(record.bossId(), mob.getUUID());
+        // FRO_160: an admin spawn is the way back from a repeat-death suspension.
+        fixture.clearRespawnState(record.bossId());
         onMaterialized.accept(mob.getUUID());
         OUT.info("[Boss] forceMaterialize(): spawned bossId=" + Ids.shortId(bossId)
                 + " entity=" + Ids.shortId(mob.getUUID()) + " at " + mob.blockPosition());
