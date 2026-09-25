@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.feral.server.rules;
 
 import com.arryn.satchel.common.tunable.Tunable;
+import com.arryn.satchel.common.util.out.OUT;
 
 /**
  * Tunables for Feral (RM_FRO_038 "Martha") -- see {@code FeralLogic.intensity}. Placeholder
@@ -184,7 +185,7 @@ public final class FeralRules {
     /**
      * Ceiling on how many Feral-tagged mobs (ambient natural spawns and pack members combined)
      * may be alive across a level at once -- a combined-population safety valve, not a per-
-     * mechanic budget (see {@link #MAX_ALIVE_PACK_MEMBERS} for that). Originally enforced only
+     * mechanic budget (see {@link #maxAlivePackMembers()} for that). Originally enforced only
      * against {@code rollDensityCompanion}'s own extra-companion spawns (that mechanic is
      * disabled as of 2026-09-21, see {@code FeralModule.densityCompanionEnabled}) --
      * {@code FeralModule.maintainPackNearPlayer} respects it too now, for the same reason:
@@ -206,13 +207,15 @@ public final class FeralRules {
      * spawning was never itself capped, so it could (and did) consume the entire shared
      * {@link #maxAliveFeral()} budget and starve {@code maintainPackNearPlayer} of any room to
      * spawn at all. This reserves headroom ambient spawns can never crowd out. Twice
-     * {@link #PACK_TARGET_COUNT} -- enough for one full pack near the player plus a trailing
+     * {@link #packTargetCount()} -- enough for one full pack near the player plus a trailing
      * previous batch still clearing out, not unbounded. Widened 24 -> 40 alongside
-     * {@code PACK_TARGET_COUNT} (2026-09-22, "can we increase the pack number?") -- packMembers
+     * {@code packTargetCount()} (2026-09-22, "can we increase the pack number?") -- packMembers
      * was pinned at the old cap of 24 in the log that prompted this ask, so the cap itself was the
      * binding constraint, not just the target.
      */
-    public static final int MAX_ALIVE_PACK_MEMBERS = 40;
+    public static int maxAlivePackMembers() {
+        return new Tunable("maxAlivePackMembers", 0, 200, 40).intValue();
+    }
 
     // ------------------------------------------------------------------
     // Pack maintenance -- playtest feedback (2026-09-21): both the density-companion piggyback
@@ -225,63 +228,76 @@ public final class FeralRules {
 
     /**
      * How many Feral mobs {@code FeralModule.maintainPackNearPlayer} tries to keep within
-     * {@link #PACK_MAINTAIN_RADIUS} of a player who's in the Exterior. "Safe baseline, replace
+     * {@link #packMaintainRadius()} of a player who's in the Exterior. "Safe baseline, replace
      * later" -- picked to be a real, weave-through-it pack, not a token few; not playtest-tuned
      * against feel yet. Widened 12 -> 20 (2026-09-22, "can we increase the pack number?") --
-     * {@link #MAX_ALIVE_PACK_MEMBERS} widened alongside it, same 2x ratio as before.
+     * {@link #maxAlivePackMembers()} widened alongside it, same 2x ratio as before.
      */
-    public static final int PACK_TARGET_COUNT = 20;
+    public static int packTargetCount() {
+        return new Tunable("packTargetCount", 0, 100, 20).intValue();
+    }
 
     /**
      * Radius (blocks) {@code FeralModule.maintainPackNearPlayer} counts existing Feral mobs
-     * within -- must stay comfortably larger than {@link #PACK_SPAWN_MAX_DISTANCE}, otherwise a
+     * within -- must stay comfortably larger than {@link #packSpawnMaxDistance()}, otherwise a
      * mob can spawn already outside this radius and never count toward its own quota.
      */
-    public static final double PACK_MAINTAIN_RADIUS = 64.0;
+    public static float packMaintainRadius() {
+        return new Tunable("packMaintainRadius", 8f, 256f, 64f).floatValue();
+    }
 
     /**
      * Distance (blocks) beyond which an ordinary natural Exterior spawn (not a
      * {@code FeralModule.isPackMember}-marked one) is discarded outright -- see
      * {@code FeralModule.despawnIfBeyondAmbientRadius}. Playtest feedback (2026-09-21, sixth
      * pass): "still hitting cap... remove all feral mobs spawned outside a radius, they are
-     * inconsequential." Flat and direction-agnostic, unlike {@link #PACK_DESPAWN_RADIUS}/
-     * {@link #PACK_BEHIND_DESPAWN_RADIUS} -- an ambient spawn was never part of a deliberate
+     * inconsequential." Flat and direction-agnostic, unlike {@link #packDespawnRadius()}/
+     * {@link #packBehindDespawnRadius()} -- an ambient spawn was never part of a deliberate
      * encounter, so it doesn't earn the pack mechanic's generous ahead-leash. Reuses
-     * {@link #PACK_MAINTAIN_RADIUS}'s own value rather than picking a fresh number: if a natural
+     * {@link #packMaintainRadius()}'s own value rather than picking a fresh number: if a natural
      * spawn isn't even within the zone the pack mechanic itself considers "near the player," it
      * was never going to be encountered either.
      */
-    public static final double AMBIENT_DESPAWN_RADIUS = PACK_MAINTAIN_RADIUS;
+    public static float ambientDespawnRadius() {
+        // Deliberately tied to packMaintainRadius() rather than its own Tunable -- see the doc above.
+        return packMaintainRadius();
+    }
 
     /**
      * Distance (blocks) beyond which a Feral mob still *ahead* of the player is discarded
      * outright, no linger -- see {@code FeralModule.despawnIfBeyondPackRadius}. Deliberately well
-     * past {@link #PACK_MAINTAIN_RADIUS}, not equal to it: the gap between the two is what keeps
+     * past {@link #packMaintainRadius()}, not equal to it: the gap between the two is what keeps
      * a player's distance oscillating near either threshold from constantly spawning and
      * despawning the same mobs, without needing a per-mob timer to smooth it out. Only applies to
-     * mobs ahead of the player -- see {@link #PACK_BEHIND_DESPAWN_RADIUS} for mobs the player has
+     * mobs ahead of the player -- see {@link #packBehindDespawnRadius()} for mobs the player has
      * already passed.
      */
-    public static final double PACK_DESPAWN_RADIUS = 100.0;
+    public static float packDespawnRadius() {
+        return new Tunable("packDespawnRadius", 8f, 512f, 100f).floatValue();
+    }
 
     /**
      * Distance (blocks) beyond which a Feral mob *behind* the player is discarded, regardless of
-     * how far {@link #PACK_DESPAWN_RADIUS} allows an ahead mob to stay. Playtest feedback
+     * how far {@link #packDespawnRadius()} allows an ahead mob to stay. Playtest feedback
      * (2026-09-21, fifth pass): "hitting mob caps again" -- {@code
      * FeralModule.applyPackSpeedBoost}'s speed boost lets a passed mob keep pace well enough from
      * behind that it can trail the player indefinitely without ever covering
-     * {@code PACK_DESPAWN_RADIUS} worth of raw distance, quietly eating
+     * {@code packDespawnRadius()} worth of raw distance, quietly eating
      * {@link #maxAliveFeral()}'s budget forever. Small on purpose -- a short trailing beat after
      * being passed, not an instant vanish, but nowhere near the 100-block leash an ahead mob gets.
      * Widened 12 -> 20 per playtest feedback (2026-09-21, seventh pass).
      */
-    public static final double PACK_BEHIND_DESPAWN_RADIUS = 20.0;
+    public static float packBehindDespawnRadius() {
+        return new Tunable("packBehindDespawnRadius", 0f, 256f, 20f).floatValue();
+    }
 
     /** How often (ticks) {@code FeralModule.maintainPackNearPlayer} checks/tops up each player's pack. */
     // Halved 20 -> 10 (2026-09-21, eighth pass) per "maybe cadence needs to bump" -- the actual
     // stall-out bug was the hemisphere-vs-cone "ahead" test (see FeralModule.isAheadOfPlayer's
     // own doc), but a tighter check interval is a cheap, low-risk complement regardless.
-    public static final int PACK_MAINTAIN_INTERVAL_TICKS = 10;
+    public static int packMaintainIntervalTicks() {
+        return new Tunable("packMaintainIntervalTicks", 1, 200, 10).intValue();
+    }
 
     // ------------------------------------------------------------------
     // Spawn placement/speed -- playtest feedback (2026-09-21, third pass): a plain radius around
@@ -304,23 +320,31 @@ public final class FeralRules {
      * ForgeEventFactory.onFinalizeSpawn} dispatch, so unlike a natural spawn this isn't bound by
      * vanilla's own minimum spawn-distance-from-player rule.
      */
-    public static final double PACK_SPAWN_CONE_HALF_ANGLE_DEGREES = 40.0;
+    public static float packSpawnConeHalfAngleDegrees() {
+        return new Tunable("packSpawnConeHalfAngleDegrees", 1f, 180f, 40f).floatValue();
+    }
 
     /** Nearest distance (blocks) a pack member can spawn from the player, within the cone above. */
-    public static final double PACK_SPAWN_MIN_DISTANCE = 20.0;
+    public static float packSpawnMinDistance() {
+        return new Tunable("packSpawnMinDistance", 0f, 128f, 20f).floatValue();
+    }
 
     /** Farthest distance (blocks) a pack member can spawn from the player, within the cone above. */
-    public static final double PACK_SPAWN_MAX_DISTANCE = 45.0;
+    public static float packSpawnMaxDistance() {
+        return new Tunable("packSpawnMaxDistance", 1f, 256f, 45f).floatValue();
+    }
 
     /**
      * {@code Attributes.FOLLOW_RANGE} applied to every spawned pack member -- playtest ask
      * (2026-09-22): wider aggro range. Vanilla's own zombie default is meaningfully shorter than
-     * {@link #PACK_SPAWN_MAX_DISTANCE}, so a pack member landing at the far edge of the cone
+     * {@link #packSpawnMaxDistance()}, so a pack member landing at the far edge of the cone
      * could spawn already outside its own vanilla target-acquisition range and just stand there.
-     * Comfortably past {@code PACK_SPAWN_MAX_DISTANCE} so every pack member notices the player
+     * Comfortably past {@code packSpawnMaxDistance()} so every pack member notices the player
      * immediately, wherever in the cone it lands.
      */
-    public static final double PACK_FOLLOW_RANGE = 64.0;
+    public static float packFollowRange() {
+        return new Tunable("packFollowRange", 8f, 256f, 64f).floatValue();
+    }
 
     /**
      * {@code MobEffects.MOVEMENT_SPEED} amplifier applied to every spawned pack member -- a plain
@@ -337,12 +361,77 @@ public final class FeralRules {
      * of trailing at a stable distance for hundreds of blocks. Not playtest-confirmed against
      * this specific target yet.
      */
-    public static final int PACK_SPEED_AMPLIFIER = 5;
+    public static int packSpeedAmplifier() {
+        return new Tunable("packSpeedAmplifier", 0, 10, 5).intValue();
+    }
 
     /**
      * Duration (ticks) of the speed boost above -- generous (30s) rather than tied to actual
      * engagement time, since there's no cheap signal for "this mob stopped being relevant."
-     * {@link #PACK_DESPAWN_RADIUS} is what actually ends a mob's relevance, not this running out.
+     * {@link #packDespawnRadius()} is what actually ends a mob's relevance, not this running out.
      */
-    public static final int PACK_SPEED_DURATION_TICKS = 600;
+    public static int packSpeedDurationTicks() {
+        return new Tunable("packSpeedDurationTicks", 20, 6000, 600).intValue();
+    }
+
+    // ------------------------------------------------------------------
+    // Pack Tunable consistency check (FRO_141). The pack Tunables have relationships the doc
+    // comments above state but nothing enforces -- warn instead of clamping (project owner call),
+    // so a bad CSV edit is diagnosed from the log rather than silently "corrected" or silently
+    // broken.
+    // ------------------------------------------------------------------
+
+    // The violations reported on the last check, so each is logged once when it appears (and once
+    // when it clears), not every maintenance pass.
+    private static java.util.Set<String> lastReportedPackProblems = java.util.Set.of();
+
+    /**
+     * Checks the pack Tunables' documented relationships and OUT.warns about any that are out of
+     * whack. Edge-triggered: a given problem is logged when it first appears and again only if it
+     * clears and comes back; a resolved set is noted once at INFO. Cheap enough to call from the
+     * pack maintenance pass. Never changes a value.
+     */
+    public static void warnIfPackTunablesInconsistent() {
+        float minDist = packSpawnMinDistance();
+        float maxDist = packSpawnMaxDistance();
+        float maintain = packMaintainRadius();
+        float despawn = packDespawnRadius();
+
+        java.util.Set<String> problems = new java.util.LinkedHashSet<>();
+        if (minDist >= maxDist) {
+            problems.add("packSpawnMinDistance (" + minDist + ") >= packSpawnMaxDistance (" + maxDist
+                    + ") -- the pack spawn-distance roll goes zero/negative, so members spawn at or inside"
+                    + " the minimum distance");
+        }
+        if (maintain <= maxDist) {
+            problems.add("packMaintainRadius (" + maintain + ") <= packSpawnMaxDistance (" + maxDist
+                    + ") -- a member can spawn already outside the counted radius and never counts toward"
+                    + " its own quota, so the pack keeps over-spawning");
+        }
+        if (despawn <= maintain) {
+            problems.add("packDespawnRadius (" + despawn + ") <= packMaintainRadius (" + maintain
+                    + ") -- ahead pack members are despawned while still inside the counted radius, so the"
+                    + " pack is destroyed and respawned in a loop");
+        }
+        int target = packTargetCount();
+        int cap = maxAlivePackMembers();
+        if (cap < target) {
+            problems.add("maxAlivePackMembers (" + cap + ") < packTargetCount (" + target
+                    + ") -- the pack can never reach its target size");
+        }
+
+        if (problems.equals(lastReportedPackProblems)) {
+            return;
+        }
+        for (String problem : problems) {
+            if (!lastReportedPackProblems.contains(problem)) {
+                OUT.warn("[Feral] Pack Tunables out of whack: " + problem + ". (Not clamped -- fix the"
+                        + " values in the tunables CSV.)");
+            }
+        }
+        if (problems.isEmpty()) {
+            OUT.info("[Feral] Pack Tunables are consistent again.");
+        }
+        lastReportedPackProblems = java.util.Set.copyOf(problems);
+    }
 }

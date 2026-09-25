@@ -336,11 +336,11 @@ public final class FeralModule {
      * mobs actually near *them* specifically, rather than hoping natural spawns happen to land
      * nearby. Rides {@link #onPlayerTick} rather than its own Forge subscription -- same
      * "no new touch point needed" shape that method's cosmetic-tell call already established,
-     * just gated on {@link FeralRules#PACK_MAINTAIN_INTERVAL_TICKS} independently of the tell's
+     * just gated on {@link FeralRules#packMaintainIntervalTicks()} independently of the tell's
      * own cadence.
      *
-     * <p>Counts currently-alive Feral mobs within {@link FeralRules#PACK_MAINTAIN_RADIUS} of
-     * {@code player}; if under {@link FeralRules#PACK_TARGET_COUNT}, spawns the shortfall via
+     * <p>Counts currently-alive Feral mobs within {@link FeralRules#packMaintainRadius()} of
+     * {@code player}; if under {@link FeralRules#packTargetCount()}, spawns the shortfall via
      * {@link #spawnPackMember}, clamped to whatever room remains under
      * {@link FeralRules#maxAliveFeral()} the same way {@link #rollDensityCompanion} already
      * respects that cap. A no-op outside the Exterior (mirrors every other Feral check's own
@@ -349,8 +349,8 @@ public final class FeralModule {
      * <p>Playtest feedback (2026-09-21, fourth pass): "got one pack... but I still passed them" --
      * a plain radius around the player counted a pack the player had already run past just as
      * "present" as one still ahead of them, so once a pack fell behind, its own stragglers kept
-     * satisfying {@code PACK_TARGET_COUNT} and blocked a fresh spawn ahead until they eventually
-     * drifted past {@link FeralRules#PACK_MAINTAIN_RADIUS} entirely -- a real gap, not just a
+     * satisfying {@code packTargetCount()} and blocked a fresh spawn ahead until they eventually
+     * drifted past {@link FeralRules#packMaintainRadius()} entirely -- a real gap, not just a
      * distance to retune. {@link #isAheadOfPlayer} now filters the count to mobs actually ahead
      * of the player's own look direction, so passed mobs stop counting toward the quota the
      * moment they're behind, not whenever they finally fall far enough back.
@@ -360,7 +360,7 @@ public final class FeralModule {
      * natural Exterior spawn Feral (the standing 2026-09-18 design ruling, untouched by any of
      * this), and that population was never capped at all before now -- only whichever mechanic
      * was actively checking {@code MAX_ALIVE_FERAL} got throttled by it. Originally addressed by
-     * giving pack members their own dedicated {@link FeralRules#MAX_ALIVE_PACK_MEMBERS} budget
+     * giving pack members their own dedicated {@link FeralRules#maxAlivePackMembers()} budget
      * via {@link #countAlivePackMembers} -- but this method also kept checking the shared
      * {@code MAX_ALIVE_FERAL} total as a second, combined-population gate.
      *
@@ -369,16 +369,19 @@ public final class FeralModule {
      * one gets instantly hostile-populated ({@code onSpawnPlacementCheck} force-allows regardless
      * of light) -- ambient count blew past 40 and stayed there for most of a run, so {@code
      * MAX_ALIVE_FERAL - countAliveFeral(level)} sat at or below 0 almost continuously, vetoing
-     * every pack spawn attempt despite {@code MAX_ALIVE_PACK_MEMBERS} having room to spare. Logs
+     * every pack spawn attempt despite {@code maxAlivePackMembers()} having room to spare. Logs
      * showed the exact signature: pack count bled out from 24 to 3 over one run as
      * {@code frontierDistance} climbed, tracking ambient count exceeding 40, not anything about
      * the pack itself. Dropped the shared check entirely -- room is now
-     * {@code MAX_ALIVE_PACK_MEMBERS} alone, so ambient spawns can never crowd the pack out again.
+     * {@code maxAlivePackMembers()} alone, so ambient spawns can never crowd the pack out again.
      */
     private static void maintainPackNearPlayer(ServerPlayer player) {
-        if (player.tickCount % FeralRules.PACK_MAINTAIN_INTERVAL_TICKS != 0) {
+        if (player.tickCount % FeralRules.packMaintainIntervalTicks() != 0) {
             return;
         }
+
+        // FRO_141: warn (never clamp) if the pack Tunables' documented relationships are broken.
+        FeralRules.warnIfPackTunablesInconsistent();
 
         ServerLevel level = player.serverLevel();
         if (BorderAPI.frontierDistanceAt(level, player.blockPosition()) <= 0) {
@@ -387,19 +390,19 @@ public final class FeralModule {
 
         Vec3 playerPos = player.position();
         float playerYaw = player.getYRot();
-        AABB maintainArea = new AABB(player.blockPosition()).inflate(FeralRules.PACK_MAINTAIN_RADIUS);
+        AABB maintainArea = new AABB(player.blockPosition()).inflate(FeralRules.packMaintainRadius());
         List<Mob> nearbyFeral = level.getEntitiesOfClass(Mob.class, maintainArea,
                 m -> isFeralMonster(m) && isAheadOfPlayer(m, playerPos, playerYaw));
-        if (nearbyFeral.size() >= FeralRules.PACK_TARGET_COUNT) {
+        if (nearbyFeral.size() >= FeralRules.packTargetCount()) {
             return;
         }
 
-        int room = FeralRules.MAX_ALIVE_PACK_MEMBERS - countAlivePackMembers(level);
+        int room = FeralRules.maxAlivePackMembers() - countAlivePackMembers(level);
         if (room <= 0) {
             return;
         }
 
-        int toSpawn = Math.min(FeralRules.PACK_TARGET_COUNT - nearbyFeral.size(), room);
+        int toSpawn = Math.min(FeralRules.packTargetCount() - nearbyFeral.size(), room);
         for (int i = 0; i < toSpawn; i++) {
             spawnPackMember(player, level);
         }
@@ -410,9 +413,9 @@ public final class FeralModule {
      * seem to quit going in front of me" -- the original dot-product test only excluded a mob
      * more than 90 degrees off the player's own facing, meaning anything within an entire
      * forward hemisphere (including mobs almost directly to the player's left or right) still
-     * counted as "ahead" and kept satisfying {@link FeralRules#PACK_TARGET_COUNT}, even once the
+     * counted as "ahead" and kept satisfying {@link FeralRules#packTargetCount()}, even once the
      * player's actual path forward was empty. Narrowed to the real spawn cone --
-     * {@link FeralRules#PACK_SPAWN_CONE_HALF_ANGLE_DEGREES} either side of the player's own yaw --
+     * {@link FeralRules#packSpawnConeHalfAngleDegrees()} either side of the player's own yaw --
      * so a mob has to still be in roughly the same direction pack members actually spawn in to
      * count as "part of the pack," not just technically in front.
      *
@@ -429,7 +432,7 @@ public final class FeralModule {
         double toMobAngle = Math.atan2(-toMob.x, toMob.z);
         double yawRad = Math.toRadians(playerYaw);
         double diff = normalizeAngleRad(toMobAngle - yawRad);
-        return Math.abs(diff) <= Math.toRadians(FeralRules.PACK_SPAWN_CONE_HALF_ANGLE_DEGREES);
+        return Math.abs(diff) <= Math.toRadians(FeralRules.packSpawnConeHalfAngleDegrees());
     }
 
     /** Wraps a radian angle into {@code (-PI, PI]}, so comparing angles across the +/-180 seam works. */
@@ -470,9 +473,9 @@ public final class FeralModule {
      * <ul>
      *   <li>Position is sampled from a real cone in front of the player (eighth pass -- "are we
      *       doing a wedge or more like a cone to the front?"), not a single fixed point: a random
-     *       bearing within {@link FeralRules#PACK_SPAWN_CONE_HALF_ANGLE_DEGREES} either side of
+     *       bearing within {@link FeralRules#packSpawnConeHalfAngleDegrees()} either side of
      *       the player's own yaw, at a random distance between
-     *       {@link FeralRules#PACK_SPAWN_MIN_DISTANCE} and {@link FeralRules#PACK_SPAWN_MAX_DISTANCE}
+     *       {@link FeralRules#packSpawnMinDistance()} and {@link FeralRules#packSpawnMaxDistance()}
      *       -- mobs land somewhere in the player's actual path, not clustered at one exact spot.
      *       Yaw-based, not {@code getLookAngle()} -- see {@link #isAheadOfPlayer}'s own doc for
      *       why a pure heading is more robust than a pitch-sensitive 3D look vector here.
@@ -487,10 +490,10 @@ public final class FeralModule {
      * widened spread.
      */
     private static void spawnPackMember(ServerPlayer player, ServerLevel level) {
-        double halfAngleRad = Math.toRadians(FeralRules.PACK_SPAWN_CONE_HALF_ANGLE_DEGREES);
+        double halfAngleRad = Math.toRadians(FeralRules.packSpawnConeHalfAngleDegrees());
         double angle = Math.toRadians(player.getYRot()) + (RNG.nextDouble() * 2.0 - 1.0) * halfAngleRad;
-        double distance = FeralRules.PACK_SPAWN_MIN_DISTANCE
-                + RNG.nextDouble() * (FeralRules.PACK_SPAWN_MAX_DISTANCE - FeralRules.PACK_SPAWN_MIN_DISTANCE);
+        double distance = FeralRules.packSpawnMinDistance()
+                + RNG.nextDouble() * (FeralRules.packSpawnMaxDistance() - FeralRules.packSpawnMinDistance());
 
         double targetX = player.getX() + (-Math.sin(angle)) * distance;
         double targetZ = player.getZ() + Math.cos(angle) * distance;
@@ -507,7 +510,7 @@ public final class FeralModule {
         }
 
         // Marked before it ever joins the level -- see PACK_MEMBER_TAG's own doc for why this
-        // distinction matters (countAlivePackMembers, MAX_ALIVE_PACK_MEMBERS).
+        // distinction matters (countAlivePackMembers, maxAlivePackMembers()).
         mob.getPersistentData().putBoolean(PACK_MEMBER_TAG, true);
 
         mob.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
@@ -527,29 +530,29 @@ public final class FeralModule {
      * See {@link #spawnPackMember}'s own doc for why this exists -- a plain zombie can't sustain
      * a chase against a sprinting player. {@code ambient=false, visible=true}: the vanilla
      * swirling particles are a deliberate tell that this specific mob is unnaturally fast, not
-     * hidden polish. Duration is generous ({@link FeralRules#PACK_SPEED_DURATION_TICKS}) rather
+     * hidden polish. Duration is generous ({@link FeralRules#packSpeedDurationTicks()}) rather
      * than tied to actual engagement time, since there's no cheap signal for "has this mob
      * stopped being relevant yet" -- {@link #despawnIfBeyondPackRadius} is what actually ends a
      * mob's relevance, not this effect running out first.
      */
     private static void applyPackSpeedBoost(Mob mob) {
         mob.addEffect(new MobEffectInstance(
-                MobEffects.MOVEMENT_SPEED, FeralRules.PACK_SPEED_DURATION_TICKS,
-                FeralRules.PACK_SPEED_AMPLIFIER, false, true));
+                MobEffects.MOVEMENT_SPEED, FeralRules.packSpeedDurationTicks(),
+                FeralRules.packSpeedAmplifier(), false, true));
     }
 
     /**
      * Playtest ask (2026-09-22): wider aggro range. Vanilla's own {@code Attributes.FOLLOW_RANGE}
-     * default is meaningfully shorter than {@link FeralRules#PACK_SPAWN_MAX_DISTANCE} -- a pack
+     * default is meaningfully shorter than {@link FeralRules#packSpawnMaxDistance()} -- a pack
      * member spawned at the far edge of the cone could land already outside its own vanilla
      * target-acquisition range, sitting there doing nothing until the player closed most of that
-     * gap on their own. Raised to {@link FeralRules#PACK_FOLLOW_RANGE} so a pack member reliably
+     * gap on their own. Raised to {@link FeralRules#packFollowRange()} so a pack member reliably
      * notices and starts pursuing the moment it spawns, anywhere in the cone.
      */
     private static void applyPackFollowRange(Mob mob) {
         var followRange = mob.getAttribute(Attributes.FOLLOW_RANGE);
         if (followRange != null) {
-            followRange.setBaseValue(FeralRules.PACK_FOLLOW_RANGE);
+            followRange.setBaseValue(FeralRules.packFollowRange());
         }
     }
 
@@ -752,13 +755,13 @@ public final class FeralModule {
      * <p>Playtest feedback (fifth pass): "hitting mob caps again" -- {@link #applyPackSpeedBoost}
      * gives pack members enough speed to keep pace with a sprinting player even from behind, so a
      * mob the player has already passed can trail them indefinitely without ever actually
-     * covering {@link FeralRules#PACK_DESPAWN_RADIUS} worth of raw distance -- it just never
+     * covering {@link FeralRules#packDespawnRadius()} worth of raw distance -- it just never
      * despawns, quietly eating {@link FeralRules#maxAliveFeral()}'s budget until nothing new can
      * spawn ahead. Direction-aware now, using the same {@link #isAheadOfPlayer} test
      * {@link #maintainPackNearPlayer} already applies to counting: a mob still ahead gets the
-     * generous {@code PACK_DESPAWN_RADIUS} leash (a distant but real ambush shouldn't be destroyed
+     * generous {@code packDespawnRadius()} leash (a distant but real ambush shouldn't be destroyed
      * just for not being reached yet), but a mob that's fallen behind only gets
-     * {@link FeralRules#PACK_BEHIND_DESPAWN_RADIUS} -- raw distance no longer matters once the
+     * {@link FeralRules#packBehindDespawnRadius()} -- raw distance no longer matters once the
      * player has moved past it; that's the actual signal it's done being relevant, not how far
      * away it managed to stay.
      *
@@ -773,7 +776,7 @@ public final class FeralModule {
         }
 
         boolean ahead = isAheadOfPlayer(monster, nearest.position(), nearest.getYRot());
-        double radius = ahead ? FeralRules.PACK_DESPAWN_RADIUS : FeralRules.PACK_BEHIND_DESPAWN_RADIUS;
+        double radius = ahead ? FeralRules.packDespawnRadius() : FeralRules.packBehindDespawnRadius();
         if (monster.distanceTo(nearest) <= radius) {
             return false;
         }
@@ -787,7 +790,7 @@ public final class FeralModule {
      * Exterior spawn (not a {@link #isPackMember}-marked one) has no deliberate encounter behind
      * it at all, so it doesn't earn {@link #despawnIfBeyondPackRadius}'s generous ahead-leash or
      * its ahead/behind distinction -- either way, once it's farther than
-     * {@link FeralRules#AMBIENT_DESPAWN_RADIUS} from every player, it was never going to be
+     * {@link FeralRules#ambientDespawnRadius()} from every player, it was never going to be
      * encountered and is just sitting on {@link FeralRules#maxAliveFeral()}'s shared budget for
      * nothing. Flat distance check, no direction, no linger.
      *
@@ -796,7 +799,7 @@ public final class FeralModule {
     @SuppressWarnings("UnusedReturnValue")
     private static boolean despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
-        boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.AMBIENT_DESPAWN_RADIUS;
+        boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.ambientDespawnRadius();
         if (!farFromEveryPlayer) {
             return false;
         }
