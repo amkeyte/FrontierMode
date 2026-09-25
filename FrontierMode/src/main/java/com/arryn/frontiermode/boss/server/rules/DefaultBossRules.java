@@ -49,10 +49,6 @@ public final class DefaultBossRules implements BossRules {
             EntityType.RAVAGER
     );
 
-    // Safe-baseline linear scale, same shape as DefaultBorderRules.GROWTH_FACTOR: +50% max health
-    // per layer above the table's own baseline. Not a locked curve.
-    private static final double HEALTH_SCALE_PER_LAYER = 0.5;
-
     // Border Pregeneration: how many candidate chunk-center positions choosePosition() scores
     // before picking a winner -- a tuning number ("safe baseline, replace later"), not settled by
     // border-pregeneration.md itself. Bumped from 5 -> 20 after a real playtest hit "all 5
@@ -321,8 +317,13 @@ public final class DefaultBossRules implements BossRules {
                 MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
     }
 
+    // FRO_142: the boss stat ramp's one dial -- max health AND attack damage both scale by
+    // 1.0 + statScalePerLayer * layer (safe baseline 0.5, i.e. +50% per layer above the table's own
+    // baseline; same shape as DefaultBorderRules.GROWTH_FACTOR). Independent of how fast the mob
+    // type changes (mobTierBandWidth). Set to 0 for base vanilla stats. Not a locked curve.
+    // Tunable-backed (SAT_074), constructed at point of use.
     private void applyStatScaling(Mob mob, int layer) {
-        double factor = 1.0 + (HEALTH_SCALE_PER_LAYER * Math.max(layer, 0));
+        double factor = 1.0 + (new Tunable("statScalePerLayer", 0f, 5f, 0.5f).floatValue() * Math.max(layer, 0));
 
         var healthAttr = mob.getAttribute(Attributes.MAX_HEALTH);
         if (healthAttr != null) {
@@ -491,7 +492,7 @@ public final class DefaultBossRules implements BossRules {
 
     @Override
     public void applyGuardianStatScaling(Mob mob, double difficultyIntensity) {
-        // Same "+X% per unit of intensity" shape as HEALTH_SCALE_PER_LAYER, but keyed off a
+        // Same "+X% per unit of intensity" shape as statScalePerLayer, but keyed off a
         // continuous [0,1] intensity rather than a discrete layer -- +100% max health/attack damage
         // at difficultyIntensity == 1.0 (right on top of the boss), scaling down linearly toward the
         // border's edge. Safe baseline; playtest territory. FRO_142: Tunable-backed (SAT_074).
