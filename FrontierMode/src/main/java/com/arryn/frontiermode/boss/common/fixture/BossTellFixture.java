@@ -126,29 +126,10 @@ public final class BossTellFixture extends SatchelFixture {
     private final Map<UUID, Integer> tellSoundRotation = new HashMap<>();
     private final Map<UUID, Long> lastTellSoundTick = new HashMap<>();
 
-    // Outer radius (blocks) of the ring particles scatter across around the boss' platform, as a
-    // fraction of *that boss' own border's radius* -- not a fixed block count. Player call,
-    // 2026-09-06: "base it on 30% of the last path size, then it grows with the game." A fixed
-    // radius either felt tiny once borders grow large, or oversized on the very first, smallest
-    // border -- scaling with the border it belongs to means an early boss (BorderConstants
-    // .DEFAULT_RADIUS=16 -> ~5 blocks) and a late-game boss (borders grow 1.5x per layer, capped
-    // at BorderConstants.MAX_RADIUS=512 -> ~154 blocks) both get a tell radius proportionate to
-    // that border's own scale. Computed per-tell in runTellsForPlayers from the resolved
-    // Border.radius(), not a static field. Tunable; playtest territory.
-    private static final double PARTICLE_SPREAD_FRACTION = 0.3;
-
     // FRO_158: sound only fires within this fraction of the border radius from the boss. Playtest
     // tuning knob, not a mechanic -- safe baseline, adjust by ear.
     private static final double SOUND_MAX_NORMALIZED_DISTANCE = 0.3;
-    // Inner radius (blocks) excluded from that ring -- keeps particles off the 3x3 platform
-    // itself, so they read as an aura *around* it rather than occasionally landing on its
-    // surface. Fixed, not border-scaled -- the platform itself is always 3x3 regardless of border
-    // size. Player suggestion, 2026-09-06 ("a non-path border around the boss location that just
-    // adds the particles"): this reuses BorderMath's existing disk/annulus sampling
-    // (randomPointInAnnulus is already a pure center+radius function, no Border object required)
-    // rather than a hand-rolled square offset or an actual second Border entity -- same circular
-    // "area around a point" the suggestion was after, without a new border to create and manage
-    // the lifecycle of.
+    // Inner radius (blocks) excluded around the player, so puffs never spawn on top of them.
     private static final int PARTICLE_INNER_SPREAD = 2;
 
     // Upper bound on independent scatter points (each its own small puff) spawned in one tell pass,
@@ -160,7 +141,10 @@ public final class BossTellFixture extends SatchelFixture {
     // rare and its puffs still piling onto a block -- rate is now intensity-scaled and each puff is
     // jittered inside its block and spread wider. Tunable via tellParticleCoefficient; playtest
     // territory.
-    private static final int PARTICLE_MAX_BURSTS = 16;
+    private static final int PARTICLE_MAX_BURSTS = 24;
+    // Radius (blocks) around the receiving player within which puffs are scattered -- kept inside
+    // the ~32 blocks the client renders particles at, so every puff spawned can actually be seen.
+    private static final int PARTICLE_PLAYER_RADIUS = 16;
     // How many particles spawn per burst point. Tunable; playtest territory.
     private static final int PARTICLE_COUNT = 8;
     // Per-particle offset (blocks) Minecraft scatters each burst's PARTICLE_COUNT within.
@@ -176,7 +160,6 @@ public final class BossTellFixture extends SatchelFixture {
     // Non-persisted tell-pass cadence counter. Resets on server restart; the first partial
     // interval is silently skipped -- "off/on signal" discipline, no harm done.
     private int tickCounter = 0;
-    private int debugPass = 0;
 
     public BossTellFixture() {
         registerCustom(KEY_TELLS, this::saveTells, this::loadTells);
@@ -219,32 +202,33 @@ public final class BossTellFixture extends SatchelFixture {
     }
 
     /**
-     * Spawns {@code bursts} small particle bursts at independently randomized
-     * positions around {@code bossPos} (the boss' actual position -- same point
-     * {@link #placePlatform} builds the 3x3 platform under), each after its own short heightmap
-     * ground check. Not BorderPregen's full column check -- just a single heightmap lookup per
-     * burst, per the discovery-systems spec ("short heightmap ground check").
+     * Spawns {@code bursts} small smoke bursts at independently randomized positions around
+     * {@code center} (the receiving player), each after its own short heightmap ground check. Not
+     * BorderPregen's full column check -- just a single heightmap lookup per burst, per the
+     * discovery-systems spec ("short heightmap ground check").
      *
-     * <p>Playtest feedback, 2026-09-06: this originally centered on the <em>player's</em>
-     * position, which read as "particles following you around" rather than an environmental tell
-     * at the boss itself -- moved to center on the boss' platform instead. Bug found the same
-     * day ("stacking on top of each other at one coordinate... concentrated on a single spot"):
-     * a single call used to draw one random point and dump every particle there, so a tell read
-     * as one blob relocating each tick rather than a scattered field -- fixed by drawing a fresh
-     * random point per burst instead of one point for all of them. The per-player intensity roll
-     * upstream (distance-to-boss) still gates whether/how often this fires at all; this method
-     * only controls the shape of what appears once it does.
+     * <p>History: this originally centered on the player (read as "particles following you
+     * around", 2026-09-06), was moved to the boss's platform, and -- because the boss-centered ring
+     * scaled with border size and put most puffs out of the client's view (FRO_159) -- is centered
+     * on the player again by project owner direction. What tells the player they're near the boss
+     * is therefore the <em>rate</em>: the per-player intensity roll upstream
+     * (distance-to-boss) decides how many bursts fire, this method only places them. A fresh random
+     * point per burst avoids the one-blob-relocating-each-interval look (2026-09-06).
      */
-    private static void spawnTellParticle(Level level, ServerPlayer player, BlockPos bossPos, int scatterRadius, int bursts) {
+    private static void spawnTellParticle(Level level, ServerPlayer player, BlockPos center, int bursts) {
         for (int i = 0; i < bursts; i++) {
-            // Area-uniform point in the ring [PARTICLE_INNER_SPREAD, scatterRadius] around the
-            // boss -- same BorderMath primitive DefaultBossRules.choosePosition uses for placing
-            // a new border's boss away from its own border's center (FRO_072), reused here for
-            // the same "point somewhere in an annulus around this center" shape. scatterRadius is
-            // caller-computed from this boss' own border's radius (see PARTICLE_SPREAD_FRACTION's
-            // doc) and already guaranteed >= PARTICLE_INNER_SPREAD. Drawn fresh every iteration
-            // so the bursts land independently across the ring.
-            BlockPos scatter = BorderMath.randomPointInAnnulus(RNG, bossPos, PARTICLE_INNER_SPREAD, scatterRadius);
+            // An area-uniform point in the ring [PARTICLE_INNER_SPREAD, PARTICLE_PLAYER_RADIUS] around
+            // the PLAYER (center). FRO_159 playtest: the tell used to scatter around the boss over a
+            // border-scaled ring, so on a large border nearly every burst landed beyond the ~32
+            // blocks the client renders. Centering on the receiving player keeps every puff where
+            // they can see it; how MANY appear is still set by their distance to the boss (see
+            // runTellsForPlayers), so the "getting warmer" signal is the density, not the position.
+            // Drawn fresh every iteration so the bursts land independently.
+            double innerSq = (double) PARTICLE_INNER_SPREAD * PARTICLE_INNER_SPREAD;
+            double outerSq = (double) PARTICLE_PLAYER_RADIUS * PARTICLE_PLAYER_RADIUS;
+            double r = Math.sqrt(innerSq + (outerSq - innerSq) * RNG.nextDouble());
+            double angle = RNG.nextDouble() * Math.PI * 2.0;
+            BlockPos scatter = center.offset((int) Math.round(Math.cos(angle) * r), 0, (int) Math.round(Math.sin(angle) * r));
             BlockPos groundPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(scatter.getX(), 0, scatter.getZ()));
             // Targeted send (only this player sees it) -- unchanged from before; the fix here is
             // *where* it spawns, not who sees it. Routed through EffectsAPI (FRO_089) rather than
@@ -471,26 +455,12 @@ public final class BossTellFixture extends SatchelFixture {
             // The fractional part of the expected count is rolled, so low intensity still fires
             // sometimes rather than rounding to nothing.
             double expectedBursts = intensity * particleCoeff * PARTICLE_MAX_BURSTS;
-            // FRO_159 diagnostic (playtest: "smoke not found") -- once every ~10 passes per level,
-            // so it is visible without flooding. Remove once smoke is confirmed good in play.
-            if (++debugPass % 10 == 0) {
-                OUT.info("[BossTell] smoke check: player=" + player.getGameProfile().getName()
-                        + " boss=" + Ids.shortId(nearest.bossId()) + " dist="
-                        + Math.round(BorderMath.distanceTo(nearest.position(), playerPos))
-                        + " radius=" + borderOpt.get().radius() + " intensity=" + intensity
-                        + " coeff=" + particleCoeff + " expectedBursts=" + expectedBursts);
-            }
             int bursts = (int) expectedBursts;
             if (RNG.nextDouble() < expectedBursts - bursts) {
                 bursts++;
             }
             if (bursts > 0) {
-                // Scale the scatter radius off this boss' own border, not a fixed constant --
-                // clamped to at least PARTICLE_INNER_SPREAD so the annulus stays valid even for
-                // BorderConstants.MIN_RADIUS-sized borders.
-                int scatterRadius = Math.max(PARTICLE_INNER_SPREAD,
-                        (int) Math.round(borderOpt.get().radius() * PARTICLE_SPREAD_FRACTION));
-                spawnTellParticle(level, player, nearest.position(), scatterRadius, bursts);
+                spawnTellParticle(level, player, playerPos, bursts);
             }
             // The sound roll below is independent of the particles.
             // FRO_158: the sound plays at the player's own position, so distance only enters via
