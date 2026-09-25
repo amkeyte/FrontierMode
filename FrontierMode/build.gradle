@@ -374,12 +374,13 @@ tasks.register('setServerWorld') {
     }
 }
 
+// -PfreshWorld together with -PworldName wipes the NEW target world, not the old one.
+tasks.named('resetServerWorld').configure { mustRunAfter tasks.named('setServerWorld') }
+
 tasks.matching { it.name == 'runServer' }.configureEach {
     if (project.hasProperty('worldName')) {
         dependsOn tasks.named('setServerWorld')
     }
-    // -PfreshWorld together with -PworldName wipes the NEW target world, not the old one.
-    tasks.named('resetServerWorld').configure { mustRunAfter tasks.named('setServerWorld') }
 
     if (project.hasProperty('freshWorld')) {
         dependsOn tasks.named('resetServerWorld')

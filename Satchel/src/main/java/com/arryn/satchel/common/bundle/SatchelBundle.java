@@ -73,6 +73,7 @@ public class SatchelBundle {
     private int syncCounter;
 
     private BundleFlushDelegate flushDelegate;
+    private BundleForceSyncDelegate forceSyncDelegate;
 
     private int ticksNotActive;
     private boolean inertnessWarned;
@@ -356,6 +357,30 @@ public class SatchelBundle {
 
     public final void attachFlushDelegate(BundleFlushDelegate delegate) {
         this.flushDelegate = delegate;
+    }
+
+    public final void attachForceSyncDelegate(BundleForceSyncDelegate delegate) {
+        this.forceSyncDelegate = delegate;
+    }
+
+    /**
+     * SAT_081: pushes this bundle's current full state to clients immediately, instead of waiting
+     * out {@link #pulseSync}'s fixed interval -- for a caller that considers a mutation visible-now
+     * (a boss's public marker at attach, say). Same send path, payload, and client application as
+     * a timed sync; only the trigger differs. Not gated on {@link #isDirty()}, and resets the
+     * interval counter so the next timed send isn't an immediate redundant repeat.
+     *
+     * <p>No-op if never attached -- true client-side only, mirroring {@link #forceWriteToDisk()}.
+     * Server-side the delegate is always attached at creation; calling this on a bundle that never
+     * declared {@link Capability#NETWORKING} is a caller mistake, and the attached delegate throws
+     * for it rather than silently doing nothing. A push with nobody in the dimension to receive it,
+     * or on a jig that doesn't allow networking, is skipped exactly as a timed send would be -- the
+     * timer still covers a client that arrives later. Still fire-and-forget: no acknowledgment.
+     */
+    public final void forceSync() {
+        if (forceSyncDelegate == null) return;
+        syncCounter = 0;
+        forceSyncDelegate.push();
     }
 
     /**

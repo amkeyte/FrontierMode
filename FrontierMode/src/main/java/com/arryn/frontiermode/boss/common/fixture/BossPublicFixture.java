@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
+import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -82,12 +83,14 @@ public final class BossPublicFixture extends SatchelFixture {
     public void add(UUID bossId, UUID mobUuid, float scale) {
         markers.put(mobUuid, new Marker(bossId, mobUuid, true, scale));
         markDirty();
+        pushNow();
     }
 
     /** Removes the marker for a released boss entity. No-op if it was never added. */
     public void removeByMob(UUID mobUuid) {
         if (markers.remove(mobUuid) != null) {
             markDirty();
+            pushNow();
         }
     }
 
@@ -97,7 +100,19 @@ public final class BossPublicFixture extends SatchelFixture {
         if (m != null && m.alive) {
             markers.put(mobUuid, new Marker(m.bossId, mobUuid, false, m.scale));
             markDirty();
+            pushNow();
         }
+    }
+
+    /**
+     * Pushes the marker set to clients now instead of waiting out Satchel's ~5s sync interval
+     * (SAT_081), so a boss's eyes and size appear when it does rather than popping in late. Only
+     * ever called from the server-side writers above; a push with nobody in the dimension is
+     * skipped by Satchel itself and the timer covers a client that arrives later.
+     */
+    private void pushNow() {
+        SatchelBundle bundle = getBundle();
+        bundle.forceSync();
     }
 
     // ── reads (either side) ───────────────────────────────────────────────────
