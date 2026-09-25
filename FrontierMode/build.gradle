@@ -392,6 +392,9 @@ tasks.matching { it.name == 'runServer' }.configureEach {
     standardInput = System.in
 }
 
+// Tunables dev sync (FRO_165) -- see gradle/tunables-sync.gradle
+apply from: 'gradle/tunables-sync.gradle'
+
 allprojects {
     tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"

@@ -1,14 +1,19 @@
 package com.arryn.satchel.common.tunable;
 
 import com.arryn.satchel.SatchelMod;
+import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLPaths;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,13 +22,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
- * Registry + persistence for {@link Tunable} -- a dev-only balance-tuning utility, not part of
- * Satchel's gameplay-facing runtime. Touches Forge's server-lifecycle events directly rather than
- * routing through {@code ServerForgeIngress} -- a deliberate, named exception to Satchel's ingress
- * discipline (see the Forge Integration & Sidedness Contract), same category as Feral's own six
- * direct hooks or {@code Rendering.onRenderLevel}: this is dev tooling, not gameplay.
+ * Registry + persistence for {@link Tunable}. Touches Forge's server-lifecycle events directly
+ * rather than routing through {@code ServerForgeIngress} -- a deliberate, named exception to
+ * Satchel's ingress discipline (see the Forge Integration & Sidedness Contract), same category as
+ * Feral's own six direct hooks or {@code Rendering.onRenderLevel}.
  *
  * <p>
  * Single global registry, not side-scoped like {@code LogicalFoundation} -- balance numbers have
@@ -37,7 +42,18 @@ import java.util.Set;
  * the unexpected-kneecapper class of bugs a live-reload path would risk.
  *
  * <p>
- * Producer: {@code SAT_074}.
+ * <b>Seed + live file (SAT_082).</b> Two files share one name, {@value #FILE_NAME}. The
+ * <em>live file</em> in the config directory is the one this class reads and writes at runtime.
+ * The <em>seed</em> is a read-only copy in Satchel's own resources, shipped in Satchel's jar --
+ * tunables are a Satchel facility, and consuming modules contribute rows, not files.
+ * If the live file is missing, the seed rows become the live file. If it exists, each key merges
+ * by this rule: seed-only rows are added; live-only rows are kept; a row in both whose live value
+ * still equals its {@code shipped} column (never hand-edited) adopts the whole seed row; a
+ * hand-edited row (or one with no recorded {@code shipped}) keeps the live row. Either way {@code
+ * shipped} is then set to the seed's value.
+ *
+ * <p>
+ * Producers: {@code SAT_074}, {@code SAT_082}.
  */
 @Mod.EventBusSubscriber(
         modid = SatchelMod.MODID,
@@ -46,16 +62,15 @@ import java.util.Set;
 public final class TunableManager {
 
     private static final String FILE_NAME = "satchel-tunables.csv";
-    private static final String HEADER = "name,type,min,max,default,value";
+    private static final String HEADER = "name,type,min,max,default,value,shipped";
 
-    /** Insertion-ordered: rows loaded from the CSV keep their original file order automatically;
-     * a name first registered this session is appended (see {@link #loadedKeys}, used to sort
-     * only the newly-appended subset at write time). */
+    /** Insertion-ordered: rows loaded at start keep their order automatically; a name first
+     * registered this session is appended (see {@link #loadedKeys}, used to sort only the
+     * newly-appended subset at write time). */
     private static final Map<String, TunableRecord> REGISTRY = new LinkedHashMap<>();
 
     /** Snapshot of {@link #REGISTRY}'s keys right after load -- distinguishes "was in the file"
-     * from "registered fresh this session" for write-time ordering, without needing a second pass
-     * over the file. */
+     * from "registered fresh this session" for write-time ordering. */
     private static Set<String> loadedKeys = Set.of();
 
     private static Path csvPath;
@@ -75,7 +90,7 @@ public final class TunableManager {
 
         TunableRecord existing = REGISTRY.get(namespacedName);
         if (existing == null) {
-            REGISTRY.put(namespacedName, new TunableRecord(type, min, max, def, def));
+            REGISTRY.put(namespacedName, new TunableRecord(type, min, max, def, def, null));
             return def;
         }
 
@@ -89,7 +104,8 @@ public final class TunableManager {
         }
 
         // Shape matches -- refresh the reference-only default, keep the resolved value.
-        REGISTRY.put(namespacedName, new TunableRecord(type, min, max, def, existing.value()));
+        REGISTRY.put(namespacedName,
+                new TunableRecord(type, min, max, def, existing.value(), existing.shipped()));
         return existing.value();
     }
 
@@ -110,52 +126,107 @@ public final class TunableManager {
         REGISTRY.clear();
         csvPath = FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
 
-        if (!Files.exists(csvPath)) {
-            loadedKeys = Set.of();
-            return;
-        }
+        Map<String, TunableRecord> seed = readSeeds();
+        boolean liveExists = Files.exists(csvPath);
+        Map<String, TunableRecord> live = liveExists ? readFile(csvPath) : Map.of();
 
-        List<String> lines;
-        try {
-            lines = Files.readAllLines(csvPath);
-        } catch (IOException ex) {
-            throw new UncheckedIOException("Failed reading " + csvPath, ex);
-        }
-
-        if (lines.size() > 1) {
-            for (String line : lines.subList(1, lines.size())) {
-                if (line.isBlank()) continue;
-                loadRow(line);
+        // Live rows first, in their own file order.
+        for (Map.Entry<String, TunableRecord> entry : live.entrySet()) {
+            TunableRecord liveRow = entry.getValue();
+            TunableRecord seedRow = seed.get(entry.getKey());
+            if (seedRow == null) {
+                REGISTRY.put(entry.getKey(), liveRow);
+                continue;
             }
+            boolean untouched = liveRow.shipped() != null && Objects.equals(liveRow.value(), liveRow.shipped());
+            REGISTRY.put(entry.getKey(), (untouched ? seedRow : liveRow).withShipped(seedRow.value()));
+        }
+
+        // Then seed-only rows: file order when there's no live file to sort against, alphabetical
+        // when appending to an existing one, matching the write-time rule for new rows.
+        List<String> seedOnly = new ArrayList<>();
+        for (String key : seed.keySet()) if (!live.containsKey(key)) seedOnly.add(key);
+        if (liveExists) seedOnly.sort(null);
+        for (String key : seedOnly) {
+            TunableRecord seedRow = seed.get(key);
+            REGISTRY.put(key, seedRow.withShipped(seedRow.value()));
         }
 
         loadedKeys = Set.copyOf(REGISTRY.keySet());
+        OUT.info("[Tunables] " + (liveExists ? "merged " : "seeded live file from ") + seed.size()
+                + " shipped row(s); registry now holds " + REGISTRY.size());
+
+        // A fresh live file is written straight away so it exists even if this run never stops
+        // cleanly.
+        if (!liveExists) writeLive();
     }
 
-    private static void loadRow(String line) {
-        String[] cols = line.split(",", -1);
+    /** The one seed: {@value #FILE_NAME} in Satchel's own resources, shipped in Satchel's jar.
+     * Tunables are a Satchel facility -- consuming modules contribute rows, not files -- so there
+     * is exactly one seed and no classpath scan. Absent (a fresh repo before the first Gradle
+     * copy-back) means an empty seed, not an error. */
+    private static Map<String, TunableRecord> readSeeds() {
+        try (InputStream in = TunableManager.class.getResourceAsStream("/" + FILE_NAME)) {
+            if (in == null) {
+                OUT.info("[Tunables] no shipped seed found");
+                return Map.of();
+            }
+            List<String> lines = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))
+                    .lines().toList();
+            return parseRows(lines);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Failed reading tunable seed", ex);
+        }
+    }
+
+    private static Map<String, TunableRecord> readFile(Path path) {
+        try {
+            return parseRows(Files.readAllLines(path));
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Failed reading " + path, ex);
+        }
+    }
+
+    /** Skips the header line; blank lines ignored. */
+    private static Map<String, TunableRecord> parseRows(List<String> lines) {
+        Map<String, TunableRecord> rows = new LinkedHashMap<>();
+        for (int i = 1; i < lines.size(); i++) {
+            String line = lines.get(i);
+            if (line.isBlank()) continue;
+            String[] cols = line.split(",", -1);
+            rows.put(cols[0], parseRow(cols));
+        }
+        return rows;
+    }
+
+    /** Accepts both the current 7-column layout and the pre-{@code shipped} 6-column one. */
+    private static TunableRecord parseRow(String[] cols) {
         String name = cols[0];
         TunableType type = TunableType.valueOf(cols[1]);
+        String shippedText = cols.length > 6 ? cols[6] : "";
 
-        Object min, max, def, value;
+        Object min, max, def, value, shipped;
         switch (type) {
             case FLOAT -> {
                 min = Float.parseFloat(cols[2]);
                 max = Float.parseFloat(cols[3]);
                 def = Float.parseFloat(cols[4]);
                 value = Float.parseFloat(cols[5]);
+                shipped = shippedText.isEmpty() ? null : Float.parseFloat(shippedText);
             }
             case INT -> {
                 min = Integer.parseInt(cols[2]);
                 max = Integer.parseInt(cols[3]);
                 def = Integer.parseInt(cols[4]);
                 value = Integer.parseInt(cols[5]);
+                shipped = shippedText.isEmpty() ? null : Integer.parseInt(shippedText);
             }
             default -> {
                 min = null;
                 max = null;
                 def = cols[4];
                 value = cols[5];
+                shipped = shippedText.isEmpty() ? null : shippedText;
             }
         }
 
@@ -165,7 +236,7 @@ public final class TunableManager {
             );
         }
 
-        REGISTRY.put(name, new TunableRecord(type, min, max, def, value));
+        return new TunableRecord(type, min, max, def, value, shipped);
     }
 
     /* =============================================================
@@ -174,6 +245,10 @@ public final class TunableManager {
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent e) {
+        writeLive();
+    }
+
+    private static void writeLive() {
         List<String> lines = new ArrayList<>();
         lines.add(HEADER);
 
@@ -183,10 +258,9 @@ public final class TunableManager {
             }
         }
 
-        REGISTRY.entrySet().stream()
-                .filter(entry -> !loadedKeys.contains(entry.getKey()))
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry -> lines.add(formatRow(entry.getKey(), entry.getValue())));
+        for (String key : new TreeSet<>(REGISTRY.keySet())) {
+            if (!loadedKeys.contains(key)) lines.add(formatRow(key, REGISTRY.get(key)));
+        }
 
         try {
             Files.write(csvPath, lines);
@@ -198,6 +272,7 @@ public final class TunableManager {
     private static String formatRow(String name, TunableRecord r) {
         String min = r.min() == null ? "" : String.valueOf(r.min());
         String max = r.max() == null ? "" : String.valueOf(r.max());
-        return String.join(",", name, r.type().name(), min, max, String.valueOf(r.def()), String.valueOf(r.value()));
+        String shipped = r.shipped() == null ? "" : String.valueOf(r.shipped());
+        return String.join(",", name, r.type().name(), min, max, String.valueOf(r.def()), String.valueOf(r.value()), shipped);
     }
 }

@@ -1,0 +1,66 @@
+// ------------------------------------------------------------
+// Tunables dev sync (FRO_165): after a run stops, copy that run's live tunables CSV over the seed in
+// Satchel's resources so the next Satchel jar ships it. Spec: wiki satchel/architecture/tunables.md.
+// One copy task per run task, each copying only its own live file; last run to stop wins.
+// The seed path is absolute, same convention (and same FRO_004 debt) as satchelLibDir in build.gradle.
+// Applied from build.gradle via `apply from:`, so file()/tasks/logger resolve against FrontierMode.
+// A finalizer runs when Gradle ends the run task; Satchel only writes the live file on a clean
+// server stop, so a killed run leaves nothing new to copy.
+// ------------------------------------------------------------
+def tunablesSeedFile = file("C:/_local/mcRepos/Satchel/src/main/resources/satchel-tunables.csv")
+def tunablesHeader = 'name,type,min,max,default,value,shipped'
+def tunablesLegacyHeader = 'name,type,min,max,default,value'
+
+def syncTunablesToSeed = { File live ->
+    // Fresh clone: give the seed its header so nothing downstream trips on a missing file.
+    if (!tunablesSeedFile.exists() && tunablesSeedFile.parentFile.isDirectory()) {
+        tunablesSeedFile.setText(tunablesHeader + '\n', 'UTF-8')
+        logger.lifecycle("Created header-only tunables seed: ${tunablesSeedFile}")
+    }
+
+    if (!live.exists()) return                       // nothing to sync; silent by design
+    if (!tunablesSeedFile.parentFile.isDirectory()) {
+        logger.warn("Tunables sync skipped: ${tunablesSeedFile.parentFile} not found.")
+        return
+    }
+
+    byte[] bytes = live.bytes
+    String text = new String(bytes, 'UTF-8')
+    def lines = text.readLines()
+    def first = lines ? lines[0].trim() : ''
+    if (first != tunablesHeader && first != tunablesLegacyHeader) {
+        logger.warn("Tunables sync skipped: ${live} has an unexpected header line.")
+        return
+    }
+    if (lines.drop(1).every { it.trim().isEmpty() }) {
+        logger.warn("Tunables sync skipped: ${live} has no data rows (won't overwrite the seed with an empty file).")
+        return
+    }
+    if (!text.endsWith('\n')) {
+        logger.warn("Tunables sync skipped: ${live} doesn't end with a newline (looks truncated).")
+        return
+    }
+    if (tunablesSeedFile.exists() && Arrays.equals(tunablesSeedFile.bytes, bytes)) return   // already identical
+
+    // Write beside the seed then move, so a failure can't leave a half-written seed behind.
+    def tmp = new File(tunablesSeedFile.parentFile, tunablesSeedFile.name + '.tmp')
+    tmp.bytes = bytes
+    java.nio.file.Files.move(tmp.toPath(), tunablesSeedFile.toPath(),
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    logger.lifecycle("Tunables synced: ${live} -> ${tunablesSeedFile}")
+}
+
+tasks.register('syncTunablesFromServer') {
+    group = 'frontiermode'
+    description = 'Copies run-server/config/satchel-tunables.csv over the seed in Satchel resources (guarded).'
+    doLast { syncTunablesToSeed(project.file('run-server/config/satchel-tunables.csv')) }
+}
+
+tasks.register('syncTunablesFromClient') {
+    group = 'frontiermode'
+    description = 'Copies run/config/satchel-tunables.csv over the seed in Satchel resources (guarded).'
+    doLast { syncTunablesToSeed(project.file('run/config/satchel-tunables.csv')) }
+}
+
+tasks.matching { it.name == 'runServer' }.configureEach { finalizedBy tasks.named('syncTunablesFromServer') }
+tasks.matching { it.name == 'runClient' }.configureEach { finalizedBy tasks.named('syncTunablesFromClient') }
