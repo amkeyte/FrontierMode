@@ -341,7 +341,46 @@ tasks.register('resetServerWorld') {
     }
 }
 
+// Switch the dedicated server to a different world WITHOUT deleting the current one.
+// Usage: ./gradlew runServer -PworldName=waterworld [-Pseed=-7166633288336467974]
+// Rewrites level-name (and level-seed if -Pseed is given) in run-server/server.properties. The old
+// world folder is left untouched, so switching back is just -PworldName=<old name>. A new name
+// generates a fresh world on first launch; an existing folder is loaded as-is (seed only affects
+// newly generated worlds). The change persists: later plain runServer runs keep using that world.
+tasks.register('setServerWorld') {
+    group = 'frontiermode'
+    description = "Points server.properties at -PworldName (optionally -Pseed) without deleting any world."
+
+    doLast {
+        if (!project.hasProperty('worldName')) {
+            throw new GradleException("setServerWorld needs -PworldName=<folder name>.")
+        }
+        def newName = project.property('worldName').toString().trim()
+        if (!(newName ==~ /[A-Za-z0-9_.\- ]+/) || newName.contains('..')) {
+            throw new GradleException("Invalid worldName '${newName}' -- use letters, digits, space, _ . - only.")
+        }
+        def propsFile = project.file('run-server/server.properties')
+        if (!propsFile.exists()) {
+            throw new GradleException("${propsFile} not found -- run the server once so it generates server.properties.")
+        }
+        def text = propsFile.getText('UTF-8')
+        text = text.replaceFirst(/(?m)^level-name=.*$/, java.util.regex.Matcher.quoteReplacement("level-name=${newName}"))
+        if (project.hasProperty('seed')) {
+            text = text.replaceFirst(/(?m)^level-seed=.*$/, java.util.regex.Matcher.quoteReplacement("level-seed=${project.property('seed')}"))
+        }
+        propsFile.setText(text, 'UTF-8')
+        def exists = project.file("run-server/${newName}").exists()
+        logger.lifecycle("Server world set to '${newName}' (${exists ? 'existing folder will be loaded' : 'new world will be generated'}).")
+    }
+}
+
 tasks.matching { it.name == 'runServer' }.configureEach {
+    if (project.hasProperty('worldName')) {
+        dependsOn tasks.named('setServerWorld')
+    }
+    // -PfreshWorld together with -PworldName wipes the NEW target world, not the old one.
+    tasks.named('resetServerWorld').configure { mustRunAfter tasks.named('setServerWorld') }
+
     if (project.hasProperty('freshWorld')) {
         dependsOn tasks.named('resetServerWorld')
     }
