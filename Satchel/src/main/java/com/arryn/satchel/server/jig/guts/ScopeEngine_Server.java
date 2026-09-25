@@ -208,6 +208,8 @@ public final class ScopeEngine_Server implements ScopeEngine {
         // forceWriteToDisk() stays a zero-arg call for module code that only ever holds the
         // bundle reference, never a ScopeInfo.
         bundle.attachFlushDelegate(() -> forceFlushToDisk(info, key, bundle));
+        // SAT_081: same binding-at-create shape as the flush delegate above.
+        bundle.attachForceSyncDelegate(() -> forceSyncNow(info, key, bundle));
         bundle.onCreated();
 
         // Hydrate state-only
@@ -457,6 +459,27 @@ public final class ScopeEngine_Server implements ScopeEngine {
         // to be dirty at this exact moment gets the same durability for free, which is a feature
         // here, not scope creep -- one real disk write, not N.
         level.getDataStorage().save();
+    }
+
+    /**
+     * SAT_081: the delegate behind {@link SatchelBundle#forceSync()}. Runs the exact same {@link
+     * #scheduleSync} the fixed timer runs -- one send path, two triggers -- so it inherits that
+     * method's skip when nobody is in the dimension, and {@code SatchelNetwork.send}'s jig-level
+     * {@code allowsNetworking()} gate. Unlike the timed path, a missing {@code
+     * Capability.NETWORKING} declaration throws rather than silently sending: calling this on a
+     * bundle that was never meant to be networked is a caller wiring mistake, the same "crash
+     * loudly" precedent {@link #forceFlushToDisk} sets for a missing PERSISTENCE declaration.
+     */
+    private void forceSyncNow(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle) {
+        if ((bundle.required() & Capability.NETWORKING.bit()) == 0) {
+            throw new SatchelException.AccessFailed(
+                    "forceSync() called on bundle " + bundle.debugName()
+                            + ", which does not declare Capability.NETWORKING -- nothing to "
+                            + "push. Either this bundle needs NETWORKING, or this call is "
+                            + "wrong for it."
+            );
+        }
+        scheduleSync(info, key, bundle);
     }
 
     private void scheduleSync(

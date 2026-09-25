@@ -35,15 +35,35 @@ public final class ParcelInbox {
 //        return parcels.remove(bundleId);
 //    }
 
+    /**
+     * Removes and returns only the parcels for {@code ownedBundleIds} under {@code scopeId} --
+     * parcels for any other bundle on the same scope stay queued for whichever engine actually
+     * owns them (SAT_080). Every jig on a level shares that level's scope UUID but has its own
+     * engine, so draining the whole scope here let whichever jig pulsed first consume, and drop,
+     * every other jig's parcels.
+     */
     public static synchronized Collection<S2cBundleParcel> drainForScope(
-            UUID scopeId
+            UUID scopeId,
+            Set<UUID> ownedBundleIds
     ) {
-        Map<UUID, S2cBundleParcel> parcels =
-                INBOX.remove(scopeId);
+        Map<UUID, S2cBundleParcel> parcels = INBOX.get(scopeId);
         if (parcels == null) return List.of();
 
-        OUT.TRACE().log("[ParcelInbox] draining "+ parcels.size() + " Parcels for scopeInfo: " + scopeId);
+        List<S2cBundleParcel> drained = new ArrayList<>();
+        var it = parcels.entrySet().iterator();
+        while (it.hasNext()) {
+            var entry = it.next();
+            if (ownedBundleIds.contains(entry.getKey())) {
+                drained.add(entry.getValue());
+                it.remove();
+            }
+        }
+        if (parcels.isEmpty()) INBOX.remove(scopeId);
 
-        return parcels.values();
+        if (!drained.isEmpty()) {
+            OUT.TRACE().log("[ParcelInbox] draining " + drained.size() + " Parcels for scopeInfo: " + scopeId);
+        }
+
+        return drained;
     }
 }

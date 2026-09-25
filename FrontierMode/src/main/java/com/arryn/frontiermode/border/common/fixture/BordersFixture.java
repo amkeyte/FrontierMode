@@ -83,6 +83,8 @@ public final class BordersFixture
     // ---------------------------------------------------------------------
     // Construction + persistence registration
     // ---------------------------------------------------------------------
+    private String lastLoggedPathSummary;
+
     public BordersFixture() {
         this.borders = new ArrayList<>();
 
@@ -169,8 +171,14 @@ public final class BordersFixture
         // actually is (server or the connecting client), same as every other OUT.info call in
         // this class already logs unconditionally on both sides. Remove once FRO_055 is resolved
         // or the client/server sync mismatch is otherwise root-caused.
-        OUT.info("            [FRO_055] borderPath after load: size=" + borderPath.size()
-                + ", tip=" + (borderPath.isEmpty() ? "none" : borderPath.get(borderPath.size() - 1)));
+        // Logged only when the summary changes -- this runs on every client parcel (every ~5s), and an
+        // unchanged repeat is just noise (the diagnostic only matters at a growth event).
+        String pathSummary = "size=" + borderPath.size()
+                + ", tip=" + (borderPath.isEmpty() ? "none" : borderPath.get(borderPath.size() - 1));
+        if (!pathSummary.equals(lastLoggedPathSummary)) {
+            lastLoggedPathSummary = pathSummary;
+            OUT.info("            [FRO_055] borderPath after load: " + pathSummary);
+        }
     }
 
     // ---------------------------------------------------------------------

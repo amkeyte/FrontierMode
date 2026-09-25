@@ -3,6 +3,7 @@ package com.arryn.frontiermode.bosstell.common;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -323,7 +324,8 @@ public class AmethystCompassItem extends CompassItem {
 
         Optional<UUID> bossIdOpt = BossAPI.bosses(level).flatMap(fixture ->
                 fixture.all().stream()
-                        .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked))
+                        .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked,
+                                BossTellFixture.platformHalfWidth(fixture.RULES.scaleForLayer(record.layer()))))
                         .map(BossRecord::bossId)
                         .findFirst());
         if (bossIdOpt.isEmpty()) {
@@ -340,12 +342,16 @@ public class AmethystCompassItem extends CompassItem {
         return InteractionResult.CONSUME;
     }
 
-    /** Is {@code clicked} inside the 3x3 bedrock cell centered at {@code bossPos.below()}? */
-    private static boolean matchesPlatform(BlockPos bossPos, BlockPos clicked) {
+    /**
+     * Is {@code clicked} inside the square bedrock cell centered at {@code bossPos.below()}?
+     * {@code halfWidth} is 1 for the base 3x3 and grows with the boss's size (FRO_148) -- see
+     * {@code BossTellFixture.platformHalfWidth}.
+     */
+    private static boolean matchesPlatform(BlockPos bossPos, BlockPos clicked, int halfWidth) {
         BlockPos platformCenter = bossPos.below();
         return clicked.getY() == platformCenter.getY()
-                && Math.abs(clicked.getX() - platformCenter.getX()) <= 1
-                && Math.abs(clicked.getZ() - platformCenter.getZ()) <= 1;
+                && Math.abs(clicked.getX() - platformCenter.getX()) <= halfWidth
+                && Math.abs(clicked.getZ() - platformCenter.getZ()) <= halfWidth;
     }
 
     /**

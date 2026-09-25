@@ -176,27 +176,42 @@ public final class BossTellFixture extends SatchelFixture {
     // Non-persisted tell-pass cadence counter. Resets on server restart; the first partial
     // interval is silently skipped -- "off/on signal" discipline, no harm done.
     private int tickCounter = 0;
+    private int debugPass = 0;
 
     public BossTellFixture() {
         registerCustom(KEY_TELLS, this::saveTells, this::loadTells);
     }
 
     /**
-     * Places a 3×3 bedrock layer at {@code bossPos.below()} and clears {@value #AIR_CLEARANCE}
-     * blocks of air above each bedrock cell.
+     * FRO_148: half-width of the square bedrock platform for a boss of the given size multiplier
+     * (boss.md's "Spawn platform"): the base 3x3 (half-width 1) scaled by the same multiplier that
+     * scales the boss's own hitbox, kept odd-sized so it stays centered. Public because the
+     * Amethyst Compass's pad detection has to match the same footprint.
+     */
+    public static int platformHalfWidth(float scale) {
+        return Math.max(1, Math.round((3.0F * scale - 1.0F) / 2.0F));
+    }
+
+    /**
+     * Places a square bedrock layer at {@code bossPos.below()} and clears air above each bedrock
+     * cell. Footprint and clearance height both scale by the boss's size multiplier (FRO_148,
+     * boss.md's "Spawn platform"): a base 3x3 and {@value #AIR_CLEARANCE} blocks of air at scale
+     * 1.0.
      *
      * <p>{@code bossPos} is the boss's standing position (the air block the mob is at, per
      * {@code MOTION_BLOCKING_NO_LEAVES} heightmap semantics). The bedrock goes one block below
      * that, the air clearance runs from bossPos upward.
      */
-    private static void placePlatform(Level level, BlockPos bossPos) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
+    private static void placePlatform(Level level, BlockPos bossPos, float scale) {
+        int half = platformHalfWidth(scale);
+        int clearance = Math.max(AIR_CLEARANCE, (int) Math.ceil(AIR_CLEARANCE * scale));
+        for (int dx = -half; dx <= half; dx++) {
+            for (int dz = -half; dz <= half; dz++) {
                 // Bedrock cell: one below boss standing position.
                 BlockPos bedrockCell = bossPos.offset(dx, -1, dz);
                 level.setBlock(bedrockCell, Blocks.BEDROCK.defaultBlockState(), 3);
-                // Air clearance above the platform (boss Y through boss Y + AIR_CLEARANCE - 1).
-                for (int dy = 0; dy < AIR_CLEARANCE; dy++) {
+                // Air clearance above the platform (boss Y through boss Y + clearance - 1).
+                for (int dy = 0; dy < clearance; dy++) {
                     level.setBlock(bedrockCell.above(dy + 1), Blocks.AIR.defaultBlockState(), 3);
                 }
             }
@@ -376,10 +391,10 @@ public final class BossTellFixture extends SatchelFixture {
                 continue;
             }
 
-            placePlatform(level, bossPos);
+            placePlatform(level, bossPos, bossFixture.RULES.scaleForLayer(bossRecord.get().layer()));
             // Record the base of the bedrock layer (one below the boss standing position).
             setPlatformPos(tellRecord.bossId(), bossPos.below());
-            OUT.info("[BossTell] Built 3×3 bedrock platform for bossId=" + Ids.shortId(tellRecord.bossId()) + " centered at " + bossPos.below());
+            OUT.info("[BossTell] Built bedrock platform for bossId=" + Ids.shortId(tellRecord.bossId()) + " centered at " + bossPos.below());
         }
     }
 
@@ -456,6 +471,15 @@ public final class BossTellFixture extends SatchelFixture {
             // The fractional part of the expected count is rolled, so low intensity still fires
             // sometimes rather than rounding to nothing.
             double expectedBursts = intensity * particleCoeff * PARTICLE_MAX_BURSTS;
+            // FRO_159 diagnostic (playtest: "smoke not found") -- once every ~10 passes per level,
+            // so it is visible without flooding. Remove once smoke is confirmed good in play.
+            if (++debugPass % 10 == 0) {
+                OUT.info("[BossTell] smoke check: player=" + player.getGameProfile().getName()
+                        + " boss=" + Ids.shortId(nearest.bossId()) + " dist="
+                        + Math.round(BorderMath.distanceTo(nearest.position(), playerPos))
+                        + " radius=" + borderOpt.get().radius() + " intensity=" + intensity
+                        + " coeff=" + particleCoeff + " expectedBursts=" + expectedBursts);
+            }
             int bursts = (int) expectedBursts;
             if (RNG.nextDouble() < expectedBursts - bursts) {
                 bursts++;

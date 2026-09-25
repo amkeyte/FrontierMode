@@ -232,8 +232,13 @@ public final class ScopeEngine_Client implements ScopeEngine {
             return; // IMPORTANT: don't drain yet
         }
 
+        // Only this engine's own bundles: every jig on a level shares its scopeId but has its own
+        // engine, so draining the whole scope starved every other synced jig (SAT_080).
+        Set<UUID> ownedBundleIds = new HashSet<>();
+        for (BundleKey<?> key : map.keySet()) ownedBundleIds.add(key.id);
+
         Collection<S2cBundleParcel> parcels =
-                ParcelInbox.drainForScope(info.scopeId());
+                ParcelInbox.drainForScope(info.scopeId(), ownedBundleIds);
         if (parcels == null || parcels.isEmpty()) return;
 
         for (S2cBundleParcel parcel : parcels) {
