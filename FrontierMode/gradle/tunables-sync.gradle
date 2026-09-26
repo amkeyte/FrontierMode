@@ -2,12 +2,12 @@
 // Tunables dev sync (FRO_165): after a run stops, copy that run's live tunables CSV over the seed in
 // Satchel's resources so the next Satchel jar ships it. Spec: wiki satchel/architecture/tunables.md.
 // One copy task per run task, each copying only its own live file; last run to stop wins.
-// The seed path is absolute, same convention (and same FRO_004 debt) as satchelLibDir in build.gradle.
+// The seed path is relative to FrontierMode (Satchel is a sibling), same as satchelLibDir in build.gradle.
 // Applied from build.gradle via `apply from:`, so file()/tasks/logger resolve against FrontierMode.
 // A finalizer runs when Gradle ends the run task; Satchel only writes the live file on a clean
 // server stop, so a killed run leaves nothing new to copy.
 // ------------------------------------------------------------
-def tunablesSeedFile = file("C:/_local/mcRepos/Satchel/src/main/resources/satchel-tunables.csv")
+def tunablesSeedFile = file("${projectDir}/../Satchel/src/main/resources/satchel-tunables.csv")
 def tunablesHeader = 'name,type,min,max,default,value,shipped'
 def tunablesLegacyHeader = 'name,type,min,max,default,value'
 
