@@ -11,6 +11,7 @@ import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.MobRemoved;
+import com.arryn.satchel.common.lifecycle.PlayerAttackSignal;
 import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
@@ -27,6 +28,7 @@ import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
@@ -51,6 +53,7 @@ import java.util.UUID;
  *   {@link LivingExperienceDropSignal} for item pickup, block break, and death drops
  *   (SAT_072)</li>
  *   <li>Post {@link PlayerRespawnSignal} when a player respawns (SAT_083)</li>
+ *   <li>Post {@link PlayerAttackSignal} before a player's attack applies (SAT_087)</li>
  *   <li>Post {@link MobRemoved}, with the removal reason, when a mob something is interested
  *   in leaves its level (SAT_084)</li>
  * </ul>
@@ -208,6 +211,28 @@ public final class ServerForgeIngress {
         }
 
         Satchel.require().eventBus().post(new PlayerRespawnSignal(e));
+    }
+
+    /**
+     * Posts {@link PlayerAttackSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
+     * (SAT_087) before any of the attack applies, so a subscriber can cancel the whole hit. A
+     * per-player event, so it rides this general ingress class beside the other player handlers.
+     *
+     * <p>
+     * {@link AttackEntityEvent} fires on both logical sides -- {@code Player#attack} also runs for
+     * the local player's predicted attack -- so the client firing is dropped explicitly, ahead of
+     * the {@code Satchel.isReady()} gate. No {@code BOOTER.bindFoundation()}: an attack happens
+     * mid-gameplay, long after the foundation is established.
+     */
+    @SubscribeEvent
+    public static void onPlayerAttack(AttackEntityEvent e) {
+        if (e.getEntity().level().isClientSide()) return;
+        if (!Satchel.isReady()) {
+            OUT.debug("[PlayerAttackSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new PlayerAttackSignal(e));
     }
 
     /**
