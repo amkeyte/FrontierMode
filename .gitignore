@@ -19,7 +19,10 @@ bin/
 *.launch
 
 # IntelliJ IDEA
-out/
+# Anchored on purpose: an unanchored `out/` also matches Satchel's source package
+# com.arryn.satchel.common.util.out. Only the repo root and each mod's root are IDE output dirs.
+/out/
+/*/out/
 .idea/
 *.iml
 *.ipr
