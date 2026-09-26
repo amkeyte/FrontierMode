@@ -27,7 +27,7 @@ DefaultBossRules:guardianMaxScale,FLOAT,1.0,5.0,1.5,1.5,1.5
 DefaultBossRules:guardianScaleRatio,FLOAT,0.0,1.0,0.5,0.5,0.5
 DefaultBossRules:statScalePerLayer,FLOAT,0.0,5.0,0.5,0.5,0.5
 DefaultBossRules:trailIntervalTicks,INT,1,200,4,4,4
-DefaultBossRules:trailLifetimeTicks,INT,1,600,30,30,30
+DefaultBossRules:trailLifetimeTicks,INT,1,600,30,100,300
 DefaultBossRules:trailRadius,INT,1,128,24,24,24
 FeralRules:maxAlivePackMembers,INT,0,200,40,40,40
 FeralRules:packBehindDespawnRadius,FLOAT,0.0,256.0,20.0,20.0,20.0

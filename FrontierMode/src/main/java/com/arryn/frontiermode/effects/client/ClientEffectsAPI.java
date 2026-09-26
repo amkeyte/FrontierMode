@@ -96,8 +96,10 @@ public final class ClientEffectsAPI {
 
     /**
      * Spawns one client-local particle that lives {@code lifetimeTicks} ticks, not the particle's
-     * own default. Not the parity-roll method: nothing here needs two clients to agree tick for tick.
-     * A no-op if the particle engine declines to create it.
+     * own default, and stays exactly where it's dropped: its speed is zeroed, removing the small
+     * random drift every particle starts with. (A particle with gravity still moves -- pass one
+     * without, such as the shared amethyst dust.) Not the parity-roll method: nothing here needs two
+     * clients to agree tick for tick. A no-op if the particle engine declines to create it.
      */
     public static void spawnParticleWithLifetime(
             ClientLevel level,
@@ -108,6 +110,7 @@ public final class ClientEffectsAPI {
         Particle created = Minecraft.getInstance().particleEngine.createParticle(particle, x, y, z, 0.0, 0.0, 0.0);
         if (created != null) {
             created.setLifetime(lifetimeTicks);
+            created.setParticleSpeed(0.0, 0.0, 0.0);
         }
     }
 }

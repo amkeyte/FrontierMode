@@ -11,6 +11,7 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
@@ -158,7 +159,7 @@ final class GuardianJigHandlers {
     /**
      * Interest lost: unloaded or gone, indistinguishable here. Retires the client copy; the server
      * record stays -- a guardian unloaded with its chunk is still a guardian when it loads back.
-     * Deleting a record for a guardian that is gone for good waits on SAT_084.
+     * {@link #onMobRemoved} deletes the record of one that is gone for good.
      */
     static void onMobLostInterest(ScopeEvent.MobLostInterest event) {
         if (!event.isJig(FrontierKeys.GUARDIAN_MOB_JIG)) return;
@@ -166,6 +167,19 @@ final class GuardianJigHandlers {
         UUID uuid = scope.uuid();
         OUT.debug("[Guardian] onMobLostInterest(): " + Ids.shortId(uuid));
         BossAPI.guardianMarkers(scope.mob().level()).ifPresent(pub -> pub.remove(uuid));
+    }
+
+    /**
+     * {@code MobRemoved} is posted unscoped and only for an interest-registered mob: a guardian that
+     * left the level for good (killed, discarded by natural despawn or a vanilla conversion, or changed
+     * dimension) loses its record. One that merely unloaded with its chunk keeps it -- it is still a
+     * guardian when it loads back. Records are per level, so a guardian that changes dimension is an
+     * ordinary mob in the new one.
+     */
+    static void onMobRemoved(MobRemoved event) {
+        if (event.isGone() && event.level() instanceof ServerLevel level) {
+            deleteGuardian(level, event.uuid());
+        }
     }
 
     /** {@code MobDied} is posted unscoped: a no-op unless the dying mob has a guardian record. */

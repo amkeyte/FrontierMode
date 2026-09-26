@@ -29,6 +29,7 @@ import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
@@ -272,6 +273,7 @@ public final class BossModule {
                         .on(SpawnPlacementCheckSignal.class, GuardianJigHandlers::onSpawnPlacementCheck)
                         .on(SpawnPositionCheckSignal.class, GuardianJigHandlers::onSpawnPositionCheck)
                         .on(MobDied.class, GuardianJigHandlers::onMobDied)
+                        .on(MobRemoved.class, GuardianJigHandlers::onMobRemoved)
                         .build();
 
         MobJigConfig config = new MobJigConfig(FrontierKeys.GUARDIAN_MOB_JIG);

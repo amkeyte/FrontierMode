@@ -2,6 +2,7 @@ package com.arryn.frontiermode.effects.common;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -12,6 +13,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
+import org.joml.Vector3f;
 
 /**
  * Side-agnostic ingress facade for cross-cutting effect dispatch (particles, sounds) -- mirrors
@@ -114,6 +116,14 @@ public final class EffectsAPI {
         player.connection.send(new ClientboundSoundPacket(
                 Holder.direct(sound), category, x, y, z, volume, pitch, player.getRandom().nextLong()));
     }
+
+    /**
+     * The shared amethyst particle until a custom type is registered: vanilla dust in an amethyst
+     * purple, so every consumer (a guardian's trail, Cairn, the boss's flash) draws the same colour.
+     * Dust has no gravity, so a consumer that wants it to stay put can zero its speed.
+     */
+    public static final DustParticleOptions AMETHYST_DUST =
+            new DustParticleOptions(new Vector3f(0.65F, 0.45F, 0.9F), 1.0F);
 
     /**
      * Idempotent create-if-absent for a named {@link PlayerTeam} -- proposed shape from
