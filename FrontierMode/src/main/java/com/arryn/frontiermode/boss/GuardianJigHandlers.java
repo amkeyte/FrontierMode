@@ -13,6 +13,7 @@ import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
+import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -20,6 +21,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
 
 import java.util.UUID;
@@ -79,16 +81,18 @@ final class GuardianJigHandlers {
     }
 
     /**
-     * The daylight rule's placement gate. Inside a boss's guardian placement radius, and only there,
+     * The daylight rule's placement gate (gate 1 of 2; see {@link #onSpawnPositionCheck}). Inside a boss's guardian placement radius, and only there,
      * the darkness gate lifts for a spawn that will become a guardian: the same placement roll
      * conversion uses runs here, before the mob exists, and on a hit the spawn is allowed and its
      * position recorded so conversion skips its own roll. Feral owns the Exterior's gate, so this
-     * acts inside the Frontier only. Phantoms are never guardians, so their spawns are left alone.
+     * acts inside the Frontier only. Types that can't be guardians (see
+     * {@code BossRules#canBeGuardian}) are left alone.
      */
     static void onSpawnPlacementCheck(SpawnPlacementCheckSignal signal) {
         EntityType<?> type = signal.entityType();
+        // Natural spawns only: the lift never applies to spawner blocks, eggs, or commands.
         if (type.getCategory() != MobCategory.MONSTER
-                || type == EntityType.PHANTOM
+                || signal.spawnType() != MobSpawnType.NATURAL
                 || signal.defaultResult()
                 || !(signal.level() instanceof ServerLevel level)) {
             return;
@@ -98,7 +102,7 @@ final class GuardianJigHandlers {
             return;
         }
         BossAPI.guardiansQuiet(level).ifPresent(guardians -> {
-            if (!guardians.rollPlacementAt(level, pos)) {
+            if (!guardians.canBeGuardian(type) || !guardians.rollPlacementAt(level, pos)) {
                 return;
             }
             // allow() bypasses all of Monster.checkMonsterSpawnRules, not just its darkness test, so
@@ -108,6 +112,26 @@ final class GuardianJigHandlers {
             if (MobSpawns.surfaceAllows(level, mobType, signal.spawnType(), pos)) {
                 signal.allow();
                 guardians.markLifted(pos);
+            }
+        });
+    }
+
+    /**
+     * The daylight rule's position gate, the second gate a natural spawn passes: after the mob is
+     * created and placed, vanilla checks {@code checkSpawnRules} (a light test for a {@code Monster})
+     * and {@code checkSpawnObstruction}. A mob standing on a lifted position is allowed if nothing is
+     * in its way; {@code allow()} bypasses the obstruction test too, so it's re-checked here. Reads the
+     * lifted record and leaves it in place -- finalize-spawn consumes it.
+     */
+    static void onSpawnPositionCheck(SpawnPositionCheckSignal signal) {
+        if (signal.spawnType() != MobSpawnType.NATURAL
+                || !(signal.level() instanceof ServerLevel level)) {
+            return;
+        }
+        Mob mob = signal.mob();
+        BossAPI.guardiansQuiet(level).ifPresent(guardians -> {
+            if (guardians.isLifted(mob.blockPosition()) && MobSpawns.obstructionClear(level, mob)) {
+                signal.allow();
             }
         });
     }

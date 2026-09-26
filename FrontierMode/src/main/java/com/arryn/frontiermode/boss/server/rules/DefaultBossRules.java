@@ -18,6 +18,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
@@ -460,6 +461,14 @@ public final class DefaultBossRules implements BossRules {
         // noticeable ramp concentrated in a smaller ring around the boss. Safe baseline; playtest
         // territory, same as guardianPlacementCoefficient above. [0,1] bound -- a fraction of radius.
         return new Tunable("guardianPlacementRadiusFraction", 0f, 1f, 0.5f).floatValue();
+    }
+
+    @Override
+    public boolean canBeGuardian(EntityType<?> type) {
+        return type.getCategory() == MobCategory.MONSTER
+                && type != EntityType.PHANTOM
+                && type != EntityType.SLIME
+                && type != EntityType.MAGMA_CUBE;
     }
 
     // Guardian size and adds: starting values for playtest (guardian-mobs.md, "Size and adds").

@@ -19,8 +19,6 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
@@ -182,6 +180,11 @@ public final class BossGuardiansFixture extends SatchelFixture {
         liftedPositions.add(pos.asLong());
     }
 
+    /** True if {@code pos} is a recorded lifted position. Read only: finalize-spawn consumes the entry. */
+    public boolean isLifted(BlockPos pos) {
+        return liftedPositions.contains(pos.asLong());
+    }
+
     private boolean consumeLifted(BlockPos pos) {
         return liftedPositions.remove(pos.asLong());
     }
@@ -300,6 +303,12 @@ public final class BossGuardiansFixture extends SatchelFixture {
                           double distanceToBoss) {
     }
 
+    /** {@code BossRules#canBeGuardian} through this level's boss rules; false if they aren't resolvable yet. */
+    public boolean canBeGuardian(EntityType<?> type) {
+        BossBundle bundle = getBundle();
+        return bundle.boss().map(boss -> boss.RULES.canBeGuardian(type)).orElse(false);
+    }
+
     /**
      * Called from {@code BossModule.onMobSpawnFinalize} for every mob about to finalize-spawn on
      * this fixture's own level. Rolls whether this spawn becomes a guardian; on a hit, converts it in
@@ -307,10 +316,7 @@ public final class BossGuardiansFixture extends SatchelFixture {
      * not a summon. Standby, don't crash: nothing resolvable means the spawn proceeds unmodified.
      */
     public void onMobSpawnFinalize(Mob mob, ServerLevel level) {
-        // MobCategory.MONSTER, not instanceof Monster: Slime and MagmaCube are MONSTER-category
-        // hostiles that don't extend Monster. A Phantom ignites in sunlight with no helmet check, so
-        // the sun ward can't protect it.
-        if (mob.getType().getCategory() != MobCategory.MONSTER || mob instanceof Phantom) {
+        if (!canBeGuardian(mob.getType())) {
             return;
         }
 

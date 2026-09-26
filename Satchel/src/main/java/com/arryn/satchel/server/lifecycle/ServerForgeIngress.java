@@ -10,6 +10,8 @@ import com.arryn.satchel.common.lifecycle.ItemPickupSignal;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.MobRemoved;
+import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
 import com.arryn.satchel.common.tracking.SatchelHealth;
@@ -18,7 +20,10 @@ import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
@@ -45,6 +50,9 @@ import java.util.UUID;
  *   <li>Post {@link ItemPickupSignal}/{@link BlockBreakSignal}/{@link LivingDropsSignal}/
  *   {@link LivingExperienceDropSignal} for item pickup, block break, and death drops
  *   (SAT_072)</li>
+ *   <li>Post {@link PlayerRespawnSignal} when a player respawns (SAT_083)</li>
+ *   <li>Post {@link MobRemoved}, with the removal reason, when a mob something is interested
+ *   in leaves its level (SAT_084)</li>
  * </ul>
  *
  * <p>
@@ -185,6 +193,24 @@ public final class ServerForgeIngress {
     }
 
     /**
+     * Posts {@link PlayerRespawnSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
+     * (SAT_083). A per-player event, so it rides this general ingress class beside the other two
+     * player handlers rather than a concern-grouped one. No {@code BOOTER.bindFoundation()}: a
+     * respawn happens mid-gameplay, long after the foundation is established; the {@code
+     * Satchel.isReady()} guard is the safety net.
+     */
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
+        if (!(e.getEntity() instanceof ServerPlayer)) return;
+        if (!Satchel.isReady()) {
+            OUT.debug("[PlayerRespawnSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new PlayerRespawnSignal(e));
+    }
+
+    /**
      * Re-sent on every dimension change, not just at login -- cheap (one UUID), and per
      * RM_SAT_019's proposal this is deliberate robustness against a missed initial packet rather
      * than an optimization to skip.
@@ -234,6 +260,43 @@ public final class ServerForgeIngress {
 
         OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
+    }
+
+    /* =============================================================
+     * Mob removal signal — MobRemoved (SAT_084)
+     * ========================================================== */
+
+    /**
+     * Posts {@link MobRemoved} when a mob some registered supplier has interest in leaves its
+     * level, with the reason captured at the exact moment it leaves -- {@code Entity#setRemoved}
+     * records the reason before the level's tracking-end callback posts this event, so {@code
+     * getRemovalReason()} is already set here.
+     *
+     * <p>
+     * {@link EntityLeaveLevelEvent} fires for every entity on both logical sides, far more often
+     * than a death, so the cheap filters come first, in order: client side dropped, non-{@link Mob}
+     * dropped (items and orbs can't be {@code MobJig} scopes), then the interest gate. No debug
+     * line on the dropped paths -- they are nearly every call.
+     */
+    @SubscribeEvent
+    public static void onEntityLeaveLevel(EntityLeaveLevelEvent e) {
+        if (e.getLevel().isClientSide()) return;
+        Entity entity = e.getEntity();
+        if (!(entity instanceof Mob)) return;
+        if (!Satchel.isReady()) return;
+
+        UUID uuid = entity.getUUID();
+        if (!MobInterestRegistry.isAnyInterested(uuid)) return;
+
+        Entity.RemovalReason reason = entity.getRemovalReason();
+        if (reason == null) {
+            OUT.warn("[MobRemoved] interested mob " + Ids.shortId(uuid)
+                    + " left its level with no removal reason -- not posting.");
+            return;
+        }
+
+        OUT.debug("[MobRemoved] posting for " + Ids.shortId(uuid) + " reason=" + reason);
+        Satchel.require().eventBus().post(new MobRemoved(e.getLevel(), uuid, entity, reason));
     }
 
     /* =============================================================

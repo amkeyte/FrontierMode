@@ -5,6 +5,7 @@ import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
+import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
@@ -17,7 +18,8 @@ import net.minecraftforge.fml.common.Mod;
  * "Growing Satchel's own ingress isn't limited to adding another handler onto
  * ServerForgeIngress/ClientForgeIngress themselves"], not a fifth handler bolted onto {@code
  * ServerForgeIngress}. {@link MobSpawnEvent.FinalizeSpawn}, {@link
- * MobSpawnEvent.SpawnPlacementCheck}, and {@link EntityJoinLevelEvent} are one real cluster, not a
+ * MobSpawnEvent.SpawnPlacementCheck}, {@link MobSpawnEvent.PositionCheck}, and {@link
+ * EntityJoinLevelEvent} are one real cluster, not a
  * grab-bag -- {@code MobSpawnEvent}'s own class doc names {@link EntityJoinLevelEvent} as the tail
  * end of the same spawn flow ("if the spawn was not cancelled... EntityJoinLevelEvent is fired as
  * the entity enters the world").
@@ -26,7 +28,8 @@ import net.minecraftforge.fml.common.Mod;
  * Responsibilities:
  * <ul>
  *   <li>Post {@link MobSpawnFinalizeSignal}/{@link SpawnPlacementCheckSignal}/{@link
- *   EntityJoinLevelSignal} for the three raw Forge events in this cluster</li>
+ *   SpawnPositionCheckSignal}/{@link EntityJoinLevelSignal} for the four raw Forge events in this
+ *   cluster</li>
  * </ul>
  *
  * <p>
@@ -85,6 +88,26 @@ public final class ServerSpawnIngress {
         }
 
         Satchel.require().eventBus().post(new SpawnPlacementCheckSignal(e));
+    }
+
+    /* =============================================================
+     * Spawn position check — SpawnPositionCheckSignal (SAT_086)
+     * ========================================================== */
+
+    /**
+     * Posts {@link SpawnPositionCheckSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
+     * when a freshly created mob's position is checked -- the second gate in the spawn flow, after
+     * {@link #onSpawnPlacementCheck}'s. No {@code isClientSide} guard needed: {@link
+     * MobSpawnEvent.PositionCheck}'s own doc says it's "only fired on the logical server."
+     */
+    @SubscribeEvent
+    public static void onSpawnPositionCheck(MobSpawnEvent.PositionCheck e) {
+        if (!Satchel.isReady()) {
+            OUT.debug("[SpawnPositionCheckSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        Satchel.require().eventBus().post(new SpawnPositionCheckSignal(e));
     }
 
     /* =============================================================
