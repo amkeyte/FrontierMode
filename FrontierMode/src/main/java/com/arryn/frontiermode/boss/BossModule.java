@@ -1,11 +1,15 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
 import com.arryn.frontiermode.border.common.navigator.TargetType;
+import com.arryn.frontiermode.boss.common.SunWardItem;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
+import com.arryn.frontiermode.boss.common.bundle.GuardianPublicBundle;
+import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
@@ -22,15 +26,21 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.jig.mob.MobScope;
+import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +59,13 @@ import java.util.UUID;
  */
 public final class BossModule {
 
+    // The sun ward: registered here, not on BossTellModule.ITEMS (Boss must not depend on BossTell).
+    // Still has to be registered onto the mod event bus from FrontierMode's constructor.
+    public static final DeferredRegister<Item> ITEMS =
+            DeferredRegister.create(ForgeRegistries.ITEMS, FrontierMode.MODID);
+
+    public static final RegistryObject<Item> SUN_WARD = ITEMS.register("sun_ward", SunWardItem::new);
+
     private BossModule() {
     }
 
@@ -57,6 +74,8 @@ public final class BossModule {
         registerBossJig();
         registerBossMobJig();
         registerBossPublicJig();
+        registerGuardianMobJig();
+        registerGuardianPublicJig();
         registerNavigatorResolver();
     }
 
@@ -106,9 +125,8 @@ public final class BossModule {
                         BossTellFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
-        // RM_FRO_029 (Gloria): third BossBundle sibling, event-driven off onMobSpawnFinalize below
-        // rather than BOSS_JIG's own tick -- rides this same bundle purely for membership/access
-        // parity with its siblings, per guardian-mobs.md's own reasoning.
+        // RM_FRO_029 (Gloria): third BossBundle sibling. Persisted records; conversion is
+        // event-driven off onMobSpawnFinalize, and the fixture rides BOSS_JIG's tick for its staging.
         var bossGuardiansFixture =
                 new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS_GUARDIANS,
@@ -232,6 +250,72 @@ public final class BossModule {
                 .eventHandlers(eventHandlers);
 
         MobInterestRegistry.register(FrontierKeys.BOSS_MOB_JIG, () -> BossInterests.MAP);
+        Satchel.registerJigConfig(config);
+    }
+
+    // ── GUARDIAN_MOB_JIG ─────────────────────────────────────────────────────
+
+    /**
+     * Tracks the guardian entities {@code BossGuardiansFixture}'s records name. Server-only, and an
+     * empty bundle schema: there is no per-mob state to hold. The interest set is the fixture's live
+     * record-key view, registered per level from {@code BOSS_JIG}'s tick.
+     */
+    private static void registerGuardianMobJig() {
+        EventHandlers eventHandlers =
+                EventHandlers.builder()
+                        .on(ScopeEvent.MobGainedInterest.class, GuardianJigHandlers::onMobGainedInterest)
+                        .on(ScopeEvent.MobLostInterest.class, GuardianJigHandlers::onMobLostInterest)
+                        // Bare, unscoped signals -- declared here only because this is the topically
+                        // closest config, not a claim they are GUARDIAN_MOB_JIG-scoped.
+                        .on(EntityJoinLevelSignal.class, GuardianJigHandlers::onEntityJoinLevel)
+                        .on(SpawnPlacementCheckSignal.class, GuardianJigHandlers::onSpawnPlacementCheck)
+                        .on(MobDied.class, GuardianJigHandlers::onMobDied)
+                        .build();
+
+        MobJigConfig config = new MobJigConfig(FrontierKeys.GUARDIAN_MOB_JIG);
+        config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
+        config.bundles().schema(new JigBundles.Schema<>(List.of()));
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
+                .eventHandlers(eventHandlers);
+
+        MobInterestRegistry.register(FrontierKeys.GUARDIAN_MOB_JIG, () -> GuardianInterests.MAP);
+        Satchel.registerJigConfig(config);
+    }
+
+    // ── GUARDIAN_PUBLIC_JIG ──────────────────────────────────────────────────
+
+    /**
+     * The client-visible guardian record, in its own BOTH-applicability jig. Networked, not
+     * persisted; the fixture's own tick flushes its coalesced push.
+     */
+    private static void registerGuardianPublicJig() {
+        var guardianPublicFixture =
+                new JigBundles.FixtureDecl<>(
+                        FrontierKeys.GUARDIAN_PUBLIC,
+                        GuardianPublicFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+        var guardianPublicBundle =
+                new JigBundles.BundleDecl<>(
+                        FrontierKeys.GUARDIAN_PUBLIC_BUNDLE,
+                        (LevelScope scope) -> new GuardianPublicBundle(scope, FrontierKeys.GUARDIAN_PUBLIC_BUNDLE),
+                        List.of(guardianPublicFixture)
+                );
+
+        LevelJigConfig config = new LevelJigConfig(FrontierKeys.GUARDIAN_PUBLIC_JIG);
+        // Networking requires BOTH (JigConfigValidator).
+        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
+        config.bundles().schema(new JigBundles.Schema<>(List.of(guardianPublicBundle)));
+        config.policies().capabilities(new JigPolicies.Capabilities(false, true, false));
+        // The execution pulse drives client sync; the tick runs the fixture's coalesced push flush
+        // and, client side, the trail.
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
+                .eventHandlers(EventHandlers.builder()
+                        .on(ScopeEvent.Tick.class, GuardianJigHandlers::onGuardianPublicTick)
+                        .build());
+
         Satchel.registerJigConfig(config);
     }
 

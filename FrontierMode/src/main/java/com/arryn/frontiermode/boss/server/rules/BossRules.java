@@ -7,6 +7,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Strategy interface for Boss's own two genuinely separate mechanisms -- position and
@@ -142,7 +143,7 @@ public interface BossRules {
 
     /**
      * Project owner request (2026-09-08): a live debug toggle for whether {@code tagVisibly}
-     * (Boss materialize) and {@code tagGuardian} (Guardian Mobs tagging) apply
+     * (Boss materialize) and {@link #applyGlow} (guardians) apply
      * {@code Entity#setGlowingTag(true)} to the mob they're tagging. Unlike every other method on
      * this interface, this pair is mutable, real-time state rather than a fixed strategy/baseline
      * -- deliberately still routed through {@code BossRules}/{@code BossRulesFacet} rather than a
@@ -150,8 +151,8 @@ public interface BossRules {
      * is), because this one needs to be reachable from a SERVER command (glow is real synced
      * entity state, not a purely client-side render decision) and {@code BossRulesFacet} is
      * already the one existing path {@code BossCommandHandler} and {@code BossTellFixture} both
-     * use to reach the live {@code DefaultBossRules} instance. Default {@code true} -- matches
-     * this codebase's behavior before the toggle existed.
+     * use to reach the live {@code DefaultBossRules} instance. Shared by bosses and guardians;
+     * default {@code false}, not persisted.
      */
     boolean glowEnabled();
 
@@ -187,22 +188,53 @@ public interface BossRules {
     double guardianPlacementRadiusFraction();
 
     /**
-     * RM_FRO_029 (Gloria): buckets a rolled guardian's {@code difficultyIntensity} (from the
-     * border's {@code "difficulty"}-purpose curve) into a tier -- the same pluggable-strategy
-     * territory {@link #materialize}'s layer-to-mob-table lookup already occupies. Safe baseline:
-     * a flat linear bucket count, "safe baseline, replace later." Feeds both {@link #tagGuardian}'s
-     * displayed tier and, indirectly, {@link #applyGuardianStatScaling}.
+     * A guardian's uncapped target scale for its boss's {@code layer}:
+     * {@code 1 + layer x scalePerLayer x guardianScaleRatio}. The ratio keeps a guardian at a
+     * fraction of its boss's growth, so the boss stays the largest thing on the field at every layer.
      */
-    int guardianTier(double difficultyIntensity);
+    double guardianTargetScale(int layer);
+
+    /** The largest scale a single guardian takes; growth past it becomes extra guardians instead. */
+    double guardianMaxScale();
+
+    /** How far the fit test steps down from the ceiling toward 1.0 when the full size doesn't fit. */
+    double guardianFitStep();
+
+    /** How much of the scale budget one extra guardian costs. */
+    double guardianAddCost();
+
+    /** The most extra guardians one conversion queues. */
+    int guardianMaxAddsPerSpawn();
+
+    /** How far from its parent an extra guardian is placed, in blocks. */
+    int guardianAddScatterRadius();
 
     /**
-     * RM_FRO_029 (Gloria): applies the visible guardian marker -- name tag
-     * ({@code "GM-<tier>[<intensity>%]"}) and a shared, team-colored glow -- mirroring
-     * {@code DefaultBossRules.tagVisibly()} directly, per
-     * wiki/frontiermode/architecture/guardian-mobs.md's "Marker and stat scaling" ruling
-     * (2026-09-07): both the name tag and the glow ship together, not just the name-tag half.
+     * Puts a converted guardian on the shared guardian team. The team carries color only (what
+     * makes a glowing guardian's outline purple); membership has no visible effect while glow is off.
      */
-    void tagGuardian(Mob mob, int tier, double difficultyIntensity, ServerLevel level);
+    void joinGuardianTeam(Mob mob, ServerLevel level);
+
+    /** Removes {@code mobUuid} from the guardian team -- called when its record is deleted. */
+    void leaveGuardianTeam(UUID mobUuid, ServerLevel level);
+
+    /** Ticks between trail particles per guardian. Reaches the client through the public fixture. */
+    int trailIntervalTicks();
+
+    /** How long each trail particle lives, in ticks. Reaches the client through the public fixture. */
+    int trailLifetimeTicks();
+
+    /** How close to the local player a guardian must be to leave a trail. Reaches the client through the public fixture. */
+    int trailRadius();
+
+    /**
+     * Equips {@code mob} with the sun ward: an invisible, non-damageable, Curse-of-Binding item in
+     * its head slot with a drop chance of 0, so vanilla's sun-ignition check never burns it.
+     */
+    void equipSunWard(Mob mob);
+
+    /** Sets {@code mob}'s glow outline to the current {@link #glowEnabled()} state. */
+    void applyGlow(Mob mob);
 
     /**
      * RM_FRO_029 (Gloria): applies stat scaling keyed off {@code difficultyIntensity} rather than

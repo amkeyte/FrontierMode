@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.feral.server.commands;
 
 import com.arryn.frontiermode.feral.FeralModule;
+import com.arryn.frontiermode.spawn.MobSpawns;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -14,10 +15,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.scores.Team;
-import net.minecraftforge.event.ForgeEventFactory;
 
 /**
  * Backs {@code /feral debug spawn} -- same real-{@code FinalizeSpawn} shape as
@@ -43,23 +42,13 @@ public final class FeralCommandHandler {
 
         int spawned = 0;
         for (int i = 0; i < count; i++) {
-            Mob mob = EntityType.ZOMBIE.create(level);
-            if (mob == null) {
-                continue;
-            }
-
             int dx = DEBUG_RNG.nextInt(29) - 14;
             int dz = DEBUG_RNG.nextInt(29) - 14;
             BlockPos ground = level.getHeightmapPos(
                     Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     player.blockPosition().offset(dx, 0, dz));
 
-            mob.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, DEBUG_RNG.nextFloat() * 360.0F, 0.0F);
-
-            ForgeEventFactory.onFinalizeSpawn(
-                    mob, level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
-
-            if (level.addFreshEntity(mob)) {
+            if (MobSpawns.spawn(level, EntityType.ZOMBIE, ground, MobSpawns.Setup.DISPATCHED).isPresent()) {
                 spawned++;
             }
         }
@@ -78,9 +67,8 @@ public final class FeralCommandHandler {
 
     /**
      * Backs {@code /feral debug glow} -- mirrors {@code BossCommandHandler.setGlow}'s shape
-     * (toggle + retroactive apply to already-tagged mobs) but doesn't need Boss's "can't look
-     * back up already-tagged Guardians" caveat: Feral has no fixture, but {@code sweepFeralCleanup}
-     * already establishes that resolving {@code feral}-team membership live off the scoreboard
+     * (toggle + retroactive apply to already-tagged mobs). Feral has no records to walk, but
+     * {@code sweepFeralCleanup} already establishes that resolving {@code feral}-team membership live off the scoreboard
      * works fine as a lookup, so the same live scan retroactively updates every currently-loaded
      * Feral mob on this level immediately, not just future ones.
      */

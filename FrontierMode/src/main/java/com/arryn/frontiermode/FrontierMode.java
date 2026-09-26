@@ -119,6 +119,8 @@ public final class FrontierMode {
         // see BossTellModule's own class doc), but a DeferredRegister still needs the mod bus
         // instance to register onto, which only exists in this constructor.
         BossTellModule.ITEMS.register(modBus);
+        // The sun ward's register lives on BossModule for the same reason.
+        BossModule.ITEMS.register(modBus);
         // FRO_121: same reasoning as ITEMS above.
         BossTellModule.ENCHANTMENTS.register(modBus);
 

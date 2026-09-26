@@ -210,12 +210,9 @@ public final class BossCommands {
 
     private static ArgumentBuilder<CommandSourceStack, ?> debug() {
         return Commands.literal("debug")
-                // Project owner request (2026-09-08): "/boss debug glow <true|false>" -- toggles
-                // whether Boss/Guardian tagging applies Entity#setGlowingTag, and immediately
-                // re-applies that value to every currently-loaded, alive boss (by record) and
-                // every currently-loaded guardian (by "guardian" scoreboard team, since Guardian
-                // Mobs have no fixture to look already-spawned entities back up in) -- see
-                // BossCommandHandler.setGlow's own doc.
+                // "/boss debug glow <true|false>" -- toggles the glow outline for bosses and guardians
+                // and immediately re-applies it to every present boss and guardian record. See
+                // BossCommandHandler.setGlow.
                 .then(Commands.literal("glow")
                         .then(Commands.argument("value", BoolArgumentType.bool())
                                 .executes(ctx -> BossCommandHandler.setGlow(

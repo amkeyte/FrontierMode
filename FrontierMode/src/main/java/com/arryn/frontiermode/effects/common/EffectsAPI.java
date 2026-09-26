@@ -123,12 +123,8 @@ public final class EffectsAPI {
      * particle burst or a sound), so it has no client-derived/parity counterpart -- every real
      * caller is this server-broadcast path.
      *
-     * <p>First real consumer: Guardian Mobs (RM_FRO_029) -- a single shared {@code "guardian"}
-     * team, colored {@link ChatFormatting#DARK_PURPLE}, applied regardless of tier. Known
-     * limitation, accepted 2026-09-07 (project owner's direct call): team membership is allowed
-     * to leak -- nothing here removes an entry when the underlying entity dies or despawns, since
-     * Guardian Mobs keeps no record of which mobs are guardians to clean one up from. See the wiki
-     * section above for the full acceptance.
+     * <p>A team user that keeps records removes a member with {@link #removeFromTeam} when its record
+     * is deleted; a team user with no records leaves its members behind.
      */
     public static PlayerTeam ensureTeam(Scoreboard scoreboard, String name, ChatFormatting color) {
         PlayerTeam team = scoreboard.getPlayerTeam(name);
@@ -149,5 +145,15 @@ public final class EffectsAPI {
      */
     public static void assignToTeam(Entity entity, Scoreboard scoreboard, PlayerTeam team) {
         scoreboard.addPlayerToTeam(entity.getScoreboardName(), team);
+    }
+
+    /**
+     * Removes {@code scoreboardName} from {@code team}; a no-op if it isn't a member. The name is
+     * the string {@link #assignToTeam} registered: an entity's UUID for a non-player.
+     */
+    public static void removeFromTeam(Scoreboard scoreboard, String scoreboardName, PlayerTeam team) {
+        if (scoreboard.getPlayersTeam(scoreboardName) == team) {
+            scoreboard.removePlayerFromTeam(scoreboardName, team);
+        }
     }
 }
