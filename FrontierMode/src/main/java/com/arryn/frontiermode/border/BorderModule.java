@@ -30,6 +30,7 @@ import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
+import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -42,7 +43,6 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.List;
 import java.util.Objects;
@@ -243,6 +243,8 @@ public final class BorderModule {
         EventHandlers playerEventHandlers =
                 EventHandlers.builder()
                         .on(ScopeEvent.Tick.class, BorderModule::onPlayerScopeTick)
+                        // Bare, unscoped signal -- installed here only because this is the topically closest config.
+                        .on(PlayerRespawnSignal.class, BorderModule::onPlayerRespawn)
                         .build();
 
         // PlayerJigConfig already pins jigType/couplerType/scopeType/sourceType/
@@ -449,8 +451,8 @@ public final class BorderModule {
      * already-active effects). See that method's own doc, and
      * {@link BorderPlayerStatusFixture#resetSicknessSeverity}'s, for the full root-cause trace.
      */
-    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
+    public static void onPlayerRespawn(PlayerRespawnSignal signal) {
+        if (signal.player() instanceof ServerPlayer player) {
             clearSicknessEffectsOnRespawn(player);
             BorderAPI.resetSicknessSeverity(player);
         }
@@ -460,7 +462,7 @@ public final class BorderModule {
     // RM_FRO_037 ("Brenda"): Sick Wildlife's density half -- a Border-side MobSpawnEvent
     // .FinalizeSpawn hook, mirroring BossGuardiansFixture's own hook shape but simpler (no
     // player, no boss, no curve -- just "is this passive mob's spawn position in the Exterior").
-    // Registered from FrontierMode.onMobSpawnFinalize alongside the existing Boss/Feral delegates
+    // Called from SpawnCoordinator alongside the Boss/Feral delegates
     // -- Feral (RM_FRO_038 "Martha") used to share this one method too, but was pulled out into
     // its own com.arryn.frontiermode.feral module (containment for a feature branch expected to
     // grow a lot -- see FeralModule's own doc) rather than growing this method into a two-concern

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Tunables</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel Tunables</h1>
+<p>How a dev-tuned balance value flows. Code declares a <code>Tunable</code> with a range and default. The server merges the shipped seed CSV with the live config CSV at start and writes the live CSV at stop. FrontierMode's Gradle run tasks copy the live CSV back over the seed. A <code>Tunable</code> reads its value once, when it's constructed.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>common/tunable/{Tunable,TunableManager,TunableRecord,TunableType}.java</code></li>
+<li><code>Satchel/src/main/resources/satchel-tunables.csv (seed)</code></li>
+<li><code>FrontierMode/gradle/tunables-sync.gradle</code></li>
+</ul>
+</details>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    DECL["<b>new Tunable(name, min, max, default)</b><br/>float · int · string<br/>key = CallerSimpleClassName:name"]
+    REGI["<b>TunableManager.register</b><br/>default must be in [min, max]<br/>shape must match an existing row<br/>returns the registry value, else the default"]
+    VAL["<b>resolvedValue</b> — fixed at construction<br/>floatValue · intValue · stringValue<br/>built before server start → the default"]
+    START["<b>ServerStartingEvent</b><br/>onServerStarting · clears the registry"]
+    SEED["<b>seed</b><br/>satchel-tunables.csv in Satchel's resources"]
+    LIVE["<b>live</b><br/>config/satchel-tunables.csv<br/>name,type,min,max,default,value,shipped"]
+    MERGE["<b>merge</b><br/>live row untouched (value = shipped) → seed row<br/>live row edited → keep live · shipped ← seed value<br/>seed-only rows added · live-only rows kept"]
+    REGY["<b>REGISTRY</b><br/>name → TunableRecord"]
+    STOP["<b>ServerStoppingEvent</b> → writeLive<br/>also written at start when no live file exists"]
+    GR["<b>FrontierMode gradle/tunables-sync.gradle</b><br/>runServer / runClient finalizedBy syncTunablesFrom*<br/>copies run*/config csv over the seed<br/>guarded: header · rows · trailing newline · changed"]
+
+    DECL --> REGI
+    REGI --> REGY
+    REGI --> VAL
+    START --> SEED
+    START --> LIVE
+    SEED --> MERGE
+    LIVE --> MERGE
+    MERGE --> REGY
+    REGY --> STOP
+    STOP --> LIVE
+    LIVE --> GR
+    GR --> SEED
+
+    class START,STOP forge
+    class DECL,REGI,MERGE sat
+    class VAL,SEED,LIVE,REGY state
+    class GR ext
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

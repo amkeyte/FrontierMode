@@ -104,10 +104,6 @@ public final class BossCommandHandler {
 
         BossRecord record = recordOpt.get();
         fixture.finalizePosition(record.bossId(), pos);
-        // FRO_087 fix: off-path (/boss add) bosses want a BossTellRecord too, purely for the
-        // 3x3 platform -- no "tell" BorderCurve exists for them (no border), and the tell pass
-        // already filters them out via borderId().isEmpty(), so only the record is needed here.
-        BossAPI.bossTells(level).ifPresent(tell -> tell.createRecord(record.bossId()));
         ctx.getSource().sendSuccess(() -> msg("Created boss record " + record.bossId()), false);
         return 1;
     }
@@ -139,7 +135,6 @@ public final class BossCommandHandler {
         BossRecord record = recordOpt.get();
         fixture.finalizePosition(record.bossId(), pos);
         // FRO_087 fix: see addExplicit()'s matching comment above.
-        BossAPI.bossTells(sp.serverLevel()).ifPresent(tell -> tell.createRecord(record.bossId()));
         sp.sendSystemMessage(msg("Created boss record " + record.bossId() + " at your location"));
         return 1;
     }
@@ -220,7 +215,6 @@ public final class BossCommandHandler {
         // it needs the same tell-curve-plus-record pairing they already do, which this call site
         // was missing.
         BossTellFixture.createTellCurveIfAbsent(level, border.id());
-        BossAPI.bossTells(level).ifPresent(tell -> tell.createRecord(record.bossId()));
 
         ctx.getSource().sendSuccess(
                 () -> msg("Attached boss " + record.bossId() + " to border " + border.id() + "."),

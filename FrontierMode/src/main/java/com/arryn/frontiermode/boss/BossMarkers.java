@@ -1,33 +1,22 @@
 package com.arryn.frontiermode.boss;
 
+import com.arryn.frontiermode.boss.common.BossMobTypes;
 import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * FRO_145/FRO_148: side-agnostic "is this entity a boss, and how big" lookup over
  * {@link BossPublicFixture} -- the one place the eye render layer, the hitbox {@code Size} handler,
  * and the render-scale handler all ask. No client classes here, so it loads on a dedicated server.
  *
- * <p>Bosses are only ever one of {@link #ELIGIBLE}, so anything else is rejected before any
+ * <p>Bosses are only ever one of {@link BossMobTypes#ORDERED}, so anything else is rejected before any
  * fixture lookup -- these are called from hot paths (every entity's dimension refresh, every
  * rendered frame).
  */
 public final class BossMarkers {
-
-    /**
-     * The boss-eligible mob types -- boss.md's layer table, Rabbit through Ravager. Mirrors
-     * {@code DefaultBossRules}' own table and {@code BossClientEvents}' texture list: adding a
-     * boss mob type means updating all three.
-     */
-    private static final Set<EntityType<?>> ELIGIBLE = Set.of(
-            EntityType.RABBIT, EntityType.SPIDER, EntityType.ZOMBIE, EntityType.SKELETON,
-            EntityType.ZOMBIFIED_PIGLIN, EntityType.PILLAGER, EntityType.VINDICATOR,
-            EntityType.RAVAGER);
 
     private static final ClientFixtureCache<BossPublicFixture> CLIENT_FIXTURE =
             new ClientFixtureCache<>(BossAPI::publicMarkers);
@@ -38,7 +27,7 @@ public final class BossMarkers {
     // level() can be null for an entity built off-world (dimension queries, registry probes) -- the
     // Size event fires from the Entity constructor, so it has to tolerate that.
     public static boolean isEligible(Entity entity) {
-        return ELIGIBLE.contains(entity.getType()) && entity.level() != null;
+        return BossMobTypes.isEligible(entity.getType()) && entity.level() != null;
     }
 
     /** True if {@code entity} is a currently-tracked, alive boss. */

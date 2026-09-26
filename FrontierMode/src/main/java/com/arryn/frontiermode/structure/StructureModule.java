@@ -279,7 +279,7 @@ public final class StructureModule {
      * variation across the 3x3 area -- so on uneven terrain, a non-center cell's original,
      * taller ground can leave solid leftover blocks sitting right above the new pad surface.
      * That's exactly what a debug-teleported player standing on an edge cell suffocated in.
-     * Matches the precedent {@code BossTellFixture.placePlatform} (Environmental Tells' own 3x3
+     * Matches the precedent {@code BossPlatform.place} (Environmental Tells' own 3x3
      * platform) already established for the identical reason -- clear air above every cell, not
      * just the one the pillar sits on.
      */

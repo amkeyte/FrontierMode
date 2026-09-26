@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Scope Engines and Bundles</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel Scope Engines and Bundles</h1>
+<p>How bundles and fixtures live inside a jig's <code>ScopeEngine</code>. Each jig gets its own engine, server- or client-flavoured. Bundles are created lazily on the first <code>getOrCreate</code>, through the coupler's access hooks. A server bundle becomes ACTIVE once it's hydrated. A client bundle that needs a capability waits, still CREATED, until its first parcel arrives. Only ACTIVE bundles tick.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>common/jig/guts/{AScopeCoupler,ScopeEngine,ASatchelJig}.java</code></li>
+<li><code>server/jig/guts/ScopeEngine_Server.java</code></li>
+<li><code>client/jig/guts/ScopeEngine_Client.java</code></li>
+<li><code>common/bundle/{SatchelBundle,LifecycleState,LifecycleGuard,Capability}.java</code></li>
+<li><code>common/fixture/SatchelFixture.java</code></li>
+<li><code>common/lifecycle/BundleLifecycleDispatcher.java</code></li>
+</ul>
+</details>
+<h2>Access, creation, tick, unload</h2>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    ACC["<b>consumer access</b><br/>jig.getOrCreate(scope, bundleKey) · get · ask"]
+    CPL["<b>AScopeCoupler</b><br/>requireReady · beforeAccess / afterAccess ·<br/>beforeCreate / afterCreate — all ALLOW by default"]
+    EGET["<b>engine.get</b><br/>BundleNotFound if absent"]
+    ECRE["<b>engine.create(info, key)</b><br/>BundleDecl factory → getOrCreateFixture per FixtureDecl"]
+    SRV["<b>ScopeEngine_Server.create</b><br/>attach sync · flush · forceSync delegates<br/>bundle.onCreated (marks dirty) → hydrateBundle"]
+    HYD["<b>hydrateBundle</b><br/>requires PERSISTENCE: SavedData snapshot, or empty per MissingDataPolicy<br/>then onLoaded → BundleEvent.Loaded"]
+    CLI["<b>ScopeEngine_Client.create</b><br/>no-op sync delegate → onCreated<br/>required NONE: onLoaded now · otherwise waits for a parcel"]
+    PARCEL["<b>client execution pulse</b><br/>ParcelInbox.drainForScope<br/>first parcel: hydrateAll → onLoaded → BundleEvent.Loaded<br/>later parcels: refreshFrom"]
+    BUN["<b>SatchelBundle</b><br/>fixtures by FixtureKey · dirty flag · LifecycleGuard<br/>required(): PERSISTENCE · NETWORKING bits"]
+    FIX["<b>SatchelFixture</b><br/>registerInt / Long / UUID / Custom → NBT fields<br/>onCreated · onLoaded · onJigTick · onRemoved"]
+    TICK["<b>coupler.onJigTick</b> — tick policy on<br/>every ACTIVE bundle → bundle.onJigTick → fixture.onJigTick<br/>→ BundleEvent.Tick"]
+    EP["<b>coupler.onExecutionPulse</b> — executionPulse policy on<br/>server: pulseSync every 100 ticks · healthCheckPulse · flushIfDirty<br/>client: drain parcels · clear dirty"]
+    UNL["<b>coupler.onScopeUnload → engine.unload</b><br/>server: terminal flush first<br/>remove the scope's bundles → BundleEvent.Unloaded → onDestroyed"]
+    PERS["<b>Persistence page</b>"]
+    NET["<b>Networking page</b>"]
+
+    ACC --> CPL
+    CPL --> EGET
+    EGET -->|"absent · getOrCreate"| ECRE
+    ECRE --> SRV
+    ECRE --> CLI
+    SRV --> HYD
+    HYD -.-> PERS
+    CLI --> PARCEL
+    PARCEL -.-> NET
+    SRV --> BUN
+    CLI --> BUN
+    BUN --> FIX
+    TICK --> BUN
+    EP --> BUN
+    EP -.-> PERS
+    EP -.-> NET
+    UNL --> BUN
+
+    class ACC,PERS,NET ext
+    class CPL gate
+    class EGET,ECRE,SRV,HYD,CLI,PARCEL,TICK,EP,UNL sat
+    class BUN,FIX state
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+<h2>Bundle LifecycleState</h2>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'state': {'useMaxWidth': false}}}%%
+stateDiagram-v2
+    direction LR
+    [*] --> CONSTRUCTED: BundleDecl factory
+    CONSTRUCTED --> CREATED: onCreated
+    CREATED --> LOADED: onLoaded — server after hydrate · client after first parcel, or at once when required() is NONE
+    LOADED --> ACTIVE: same onLoaded, after each fixture.onLoaded
+    ACTIVE --> ACTIVE: onJigTick
+    ACTIVE --> DESTROYING: onDestroyed
+    CREATED --> DESTROYING: onDestroyed before load
+    DESTROYING --> DESTROYED: each fixture.onRemoved
+    DESTROYED --> [*]
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

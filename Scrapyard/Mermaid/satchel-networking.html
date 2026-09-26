@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Networking</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel Networking</h1>
+<p>How bundle state reaches the client. One-way, server to client. A server bundle resends its whole snapshot every 100 ticks on the execution pulse, whether or not it's dirty, plus whenever <code>forceSync</code> is called. The client keeps only the latest parcel per bundle and applies it on its own pulse. The same channel carries the world-identity token that makes the client foundation ready at all.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>common/net/{SatchelNetwork,S2cBundleParcel,S2cWorldIdentityToken,ParcelInbox}.java</code></li>
+<li><code>common/persistence/ParcelEgressSink.java</code></li>
+<li><code>server/jig/guts/ScopeEngine_Server.java</code></li>
+<li><code>client/jig/guts/ScopeEngine_Client.java</code></li>
+<li><code>common/bundle/SatchelBundle.java</code></li>
+<li><code>server/lifecycle/ServerForgeIngress.java</code></li>
+<li><code>client/lifecycle/ClientForgeIngress.java</code></li>
+</ul>
+</details>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    REG["<b>SatchelMod → SatchelNetwork.register()</b><br/>SimpleChannel · S2cBundleParcel · S2cWorldIdentityToken"]
+    PULSE["<b>server execution pulse</b><br/>bundle.pulseSync: every 100 ticks, dirty or not"]
+    FORCE["<b>bundle.forceSync()</b><br/>bundle must require NETWORKING · resets counter"]
+    SCHED["<b>ScopeEngine_Server.scheduleSync</b><br/>skip a LevelScope whose level has no players"]
+    SINK["<b>ParcelEgressSink.emit(bundle.saveAll())</b><br/>S2cBundleParcel(scopeId, bundleId, name, data)"]
+    SEND["<b>SatchelNetwork.send · sendToPlayer</b><br/>dropped unless the jig allows networking<br/>LevelScope → whole dimension · PlayerScope → that player"]
+    CH["<b>Forge SimpleChannel</b>"]
+    HANDLE["<b>S2cBundleParcel.handle</b><br/>client → ParcelInbox.enqueue"]
+    INBOX["<b>ParcelInbox</b><br/>scopeId → bundleId → latest parcel only"]
+    DRAIN["<b>client execution pulse</b><br/>ScopeEngine_Client.applyIncomingParcels<br/>waits until the scope's bundles exist"]
+    APPLY["<b>apply</b><br/>first parcel: hydrateAll → onLoaded → BundleEvent.Loaded<br/>later: refreshFrom"]
+
+    TOKS["<b>ServerForgeIngress</b><br/>login · dimension change → sendToken"]
+    TOKH["<b>S2cWorldIdentityToken.handle</b><br/>WorldIdentityContext.bindClientToken"]
+    READY["<b>client Satchel.isReady()</b><br/>client pulse starts · level re-announced"]
+
+    REG --> CH
+    PULSE --> SCHED
+    FORCE --> SCHED
+    SCHED --> SINK
+    SINK --> SEND
+    SEND --> CH
+    CH --> HANDLE
+    HANDLE --> INBOX
+    DRAIN --> INBOX
+    DRAIN --> APPLY
+    TOKS -->|"sendToken"| CH
+    CH --> TOKH
+    TOKH --> READY
+    READY --> DRAIN
+
+    class CH forge
+    class REG,PULSE,FORCE,SCHED,SINK,HANDLE,DRAIN,APPLY,TOKS,TOKH sat
+    class INBOX state
+    class SEND,READY gate
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

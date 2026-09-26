@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Foundation</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel Foundation</h1>
+<p>How Satchel boots one <code>LogicalFoundation</code> per logical side, how it knows which side a call is on, and the per-tick pulse that drives everything else. The side comes from a thread-local that every ingress handler binds first; nothing on a scope object carries it.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>server/lifecycle/ServerForgeIngress.java</code></li>
+<li><code>client/lifecycle/ClientForgeIngress.java</code></li>
+<li><code>server/jig/guts/ServerFoundationBooter.java</code></li>
+<li><code>client/jig/guts/ClientFoundationBooter.java</code></li>
+<li><code>common/jig/guts/{LogicalFoundation,LogicalSideContext,ASatchelFoundationBooter}.java</code></li>
+<li><code>Satchel.java</code></li>
+<li><code>common/lifecycle/FoundationLifecycleDispatcher.java</code></li>
+<li><code>common/identity/WorldIdentityContext.java</code></li>
+</ul>
+</details>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    F_LOAD["<b>LevelEvent.Load / Unload</b><br/>server or client level"]
+    F_LOGIN["<b>Player login / logout</b><br/>PlayerLoggedIn / Out · ClientPlayerNetworkEvent"]
+    F_TICK["<b>ServerTickEvent · ClientTickEvent</b><br/>END phase"]
+
+    ING["<b>ServerForgeIngress · ClientForgeIngress</b><br/>every handler first calls booter.bindFoundation()"]
+    CTX["<b>LogicalSideContext</b><br/>ThreadLocal side, bound per handler"]
+    ENS["<b>ensureInstalled()</b><br/>once per ingress class · static INSTALLED flag"]
+    BOOT["<b>Server / ClientFoundationBooter.installFoundation()</b><br/>new LogicalFoundation(side) → Satchel.installFoundation<br/>installs booter · ForgeEgress · SatchelEventBus ·<br/>Foundation, Scope and Bundle lifecycle dispatchers<br/>JigConfigCompiler.compileForSide(side) → installConfigs"]
+    FMAP["<b>Satchel.FOUNDATIONS</b><br/>EnumMap side → LogicalFoundation<br/>both present in single-player"]
+    REQ["<b>Satchel.require() · foundation()</b><br/>side from LogicalSideContext → FOUNDATIONS"]
+    TOKEN["<b>WorldIdentityContext</b><br/>server: bound in onLevelDiscover from WorldIdentitySavedData<br/>client: bound when S2cWorldIdentityToken arrives"]
+    READY["<b>Satchel.isReady()</b><br/>server: always true<br/>client: world-identity token bound"]
+    REANN["<b>client: reannounceLevelIfTokenJustArrived</b><br/>new token → introduceSource(current level)"]
+    PUMP["<b>SatchelHealth.pumpPendingHealthChecks()</b><br/>server tick, before the isReady gate"]
+    DISC["<b>introduceSource · tryRemoveSource</b><br/>Scope Discovery page"]
+    CONS["<b>consumer code</b><br/>any call into Satchel"]
+
+    PULSE["<b>FoundationLifecycleDispatcher.pulse()</b>"]
+    START["<b>phase NEW</b><br/>canStart: bus + scope dispatcher installed<br/>→ STARTED · posts SatchelEvent.Started"]
+    LOOP["<b>phase STARTED, every tick</b><br/>for each JigInfo: jig.reconcile(jigInfo)<br/>then for each ScopeInfo:<br/>handleExecutionPulse → onTick"]
+    STOP["<b>shouldStop()</b> returns false<br/>unload-all + SatchelEvent.Stopped branch never runs"]
+
+    F_LOAD --> ING
+    F_LOGIN --> ING
+    F_TICK --> ING
+    ING -->|"bind side"| CTX
+    ING --> ENS
+    ENS -->|"first call"| BOOT
+    BOOT --> FMAP
+    CONS --> REQ
+    REQ --> CTX
+    REQ --> FMAP
+    ING -->|"load / unload · login / logout"| DISC
+    ING -->|"server level load"| TOKEN
+    TOKEN --> READY
+    ING -->|"server tick"| PUMP
+    ING -->|"client tick"| REANN
+    ING -->|"tick, if isReady"| PULSE
+    READY -.-> PULSE
+    PULSE --> START
+    PULSE --> LOOP
+    PULSE --> STOP
+
+    class F_LOAD,F_LOGIN,F_TICK forge
+    class ING,ENS,BOOT,REQ,REANN,PUMP,PULSE,LOOP sat
+    class CTX,FMAP,TOKEN state
+    class READY,START,STOP gate
+    class DISC,CONS ext
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

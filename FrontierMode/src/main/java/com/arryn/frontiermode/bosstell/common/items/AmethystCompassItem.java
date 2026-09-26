@@ -4,6 +4,7 @@ import com.arryn.frontiermode.bosstell.common.CompassAttunement;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.boss.common.BossPlatform;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.BossTellModule;
@@ -299,7 +300,7 @@ public class AmethystCompassItem extends CompassItem {
         Optional<UUID> bossIdOpt = BossAPI.bosses(level).flatMap(fixture ->
                 fixture.all().stream()
                         .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked,
-                                BossTellFixture.platformHalfWidth(fixture.RULES.scaleForLayer(record.layer()))))
+                                BossPlatform.halfWidth(fixture.RULES.scaleForLayer(record.layer()))))
                         .map(BossRecord::bossId)
                         .findFirst());
         if (bossIdOpt.isEmpty()) {
@@ -319,7 +320,7 @@ public class AmethystCompassItem extends CompassItem {
     /**
      * Is {@code clicked} inside the square bedrock cell centered at {@code bossPos.below()}?
      * {@code halfWidth} is 1 for the base 3x3 and grows with the boss's size (FRO_148) -- see
-     * {@code BossTellFixture.platformHalfWidth}.
+     * {@code BossPlatform.halfWidth}.
      */
     private static boolean matchesPlatform(BlockPos bossPos, BlockPos clicked, int halfWidth) {
         BlockPos platformCenter = bossPos.below();

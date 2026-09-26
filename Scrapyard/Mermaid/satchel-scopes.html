@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Scope Discovery</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel Scope Discovery</h1>
+<p>How scopes come and go for the three jig kinds. Level and player scopes are discovered from Forge load and login events. Mob scopes come from <code>MobJig</code>'s own 20-tick reconcile poll over consumer interest sets, or from <code>MobScope.getFor</code>. Every new scope starts NEW and is promoted to LOADED on the next pulse.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>common/jig/guts/{LogicalFoundation,JigInfo,ScopeInfo,ASatchelJig,AScopeCoupler}.java</code></li>
+<li><code>common/jig/level/{LevelJig,LevelResolver,LevelScope,LevelScopeCoupler}.java</code></li>
+<li><code>common/jig/player/{PlayerJig,PlayerResolver,PlayerScope,PlayerScopeCoupler}.java</code></li>
+<li><code>common/jig/mob/{MobJig,MobScope,MobScopeCoupler,MobInterestRegistry,MobReconcileLogic}.java</code></li>
+<li><code>common/lifecycle/ScopeLifecycleDispatcher.java</code></li>
+</ul>
+</details>
+<h2>Discovery and teardown</h2>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    SRC_L["<b>Level</b><br/>LevelEvent.Load / Unload<br/>client re-announce once token arrives"]
+    SRC_P["<b>Player</b><br/>login / logout"]
+    SRC_M["<b>Mob</b><br/>MobJig.reconcile, every 20 ticks<br/>or MobScope.getFor(mob)"]
+    INTEREST["<b>MobInterestRegistry</b><br/>per-jig supplier: level → UUID set"]
+    EGR["<b>ForgeEgress.getEntity(level, uuid)</b><br/>alive and not removed"]
+
+    INTRO["<b>LogicalFoundation.introduceSource(source)</b><br/>asks every JigInfo"]
+    RES["<b>JigInfo.resolveScope</b><br/>source type check → binding scopeResolver"]
+    LRS["<b>LevelResolver</b> → LevelScope<br/>null until Satchel.isReady<br/>UUID = hash(world token + dimension)"]
+    PRS["<b>PlayerResolver</b> → PlayerScope<br/>UUID = hash(player UUID)"]
+    MRS["<b>MobScope</b><br/>UUID from the mob"]
+    ADD["<b>JigInfo.addScope</b><br/>skipped if already scoped<br/>new ScopeInfo(scope, source) · phase NEW"]
+    PUL["<b>pulse → ASatchelJig.handleExecutionPulse</b><br/>NEW → coupler.tryMarkReady"]
+    RDY["<b>readiness</b><br/>IMMEDIATE policy, or coupler.markReady<br/>Level / Player / Mob couplers all return true"]
+    LOAD["<b>ASatchelJig.onLoad</b><br/>coupler.onScopeLoad → signalScopeLoaded<br/>phase LOADED · ScopeEvent.Loaded"]
+
+    REM["<b>LogicalFoundation.tryRemoveSource(source)</b><br/>same resolution → jig.onUnload(info)"]
+    TEAR["<b>MobReconcileLogic.computeTeardowns</b><br/>scoped UUIDs not resolved this cycle<br/>→ onUnload"]
+    UNL["<b>ASatchelJig.onUnload</b><br/>signalScopeUnloaded (LOADED only) → ScopeEvent.Unloaded → removeScope<br/>then coupler.onScopeUnload → engine.unload"]
+    MOBX["<b>MobJig overrides</b><br/>posts MobGainedInterest after onLoad<br/>posts MobLostInterest after onUnload"]
+
+    SRC_L --> INTRO
+    SRC_P --> INTRO
+    SRC_M --> INTEREST
+    INTEREST --> EGR
+    EGR --> INTRO
+    INTRO --> RES
+    RES --> LRS
+    RES --> PRS
+    RES --> MRS
+    RES --> ADD
+    ADD --> PUL
+    PUL --> RDY
+    RDY -->|"accepted"| LOAD
+    SRC_L -->|"unload"| REM
+    SRC_P -->|"logout"| REM
+    REM --> UNL
+    EGR -->|"not resolved"| TEAR
+    TEAR --> UNL
+    LOAD -.-> MOBX
+    UNL -.-> MOBX
+
+    class SRC_L,SRC_P,SRC_M forge
+    class INTRO,RES,LRS,PRS,MRS,ADD,PUL,LOAD,REM,UNL,MOBX,EGR sat
+    class INTEREST state
+    class RDY,TEAR gate
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+<h2>ScopeInfo.Phase</h2>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'state': {'useMaxWidth': false}}}%%
+stateDiagram-v2
+    direction LR
+    [*] --> NEW: JigInfo.addScope
+    NEW --> LOADED: tryMarkReady accepted → onLoad → ScopeEvent.Loaded
+    LOADED --> LOADED: pulse → ScopeEvent.Tick
+    LOADED --> UNLOADING: onUnload → signalScopeUnloaded
+    UNLOADING --> UNLOADED: ScopeEvent.Unloaded posted
+    UNLOADED --> [*]: JigInfo.removeScope
+    NEW --> NEW: onUnload while NEW — signal is a no-op, scope not removed
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

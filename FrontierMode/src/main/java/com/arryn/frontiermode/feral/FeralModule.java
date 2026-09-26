@@ -108,7 +108,7 @@ import java.util.UUID;
  * jig-scoped -- same precedent {@code BossTellModule}/{@code StructureModule} already established
  * for {@code ItemPickupSignal}/{@code BlockBreakSignal}. {@link #onMobSpawnFinalize} is the one
  * exception -- it stays a plain {@code (Mob, ServerLevel)} delegate target, called directly from
- * {@code BossJigHandlers.onMobSpawnFinalize}'s cross-module fan-out (FRO_107) rather than
+ * {@code SpawnCoordinator}, the cross-module fan-out, rather than
  * subscribing to {@code MobSpawnFinalizeSignal} itself, since Boss/Border/Feral all need a turn on
  * the same spawn in a specific order (Slime deny first) that independent bare-signal subscribers
  * can't guarantee.
@@ -902,7 +902,13 @@ public final class FeralModule {
             return;
         }
 
-        signal.allow();
+        // allow() bypasses vanilla's whole monster spawn predicate, not just its darkness test, so
+        // the spawn surface is re-checked; if it fails the result stays unset and vanilla refuses.
+        @SuppressWarnings("unchecked")
+        EntityType<? extends Mob> mobType = (EntityType<? extends Mob>) signal.entityType();
+        if (MobSpawns.surfaceAllows(level, mobType, signal.spawnType(), pos)) {
+            signal.allow();
+        }
     }
 
     /**
@@ -944,6 +950,17 @@ public final class FeralModule {
     private static boolean isFeral(LivingEntity entity) {
         Team team = entity.getTeam();
         return team != null && "feral".equals(team.getName());
+    }
+
+    /**
+     * Exterior policy: Slime and MagmaCube (a {@code Slime}) are removed from the Exterior only --
+     * where {@code frontierDistanceAt > 0} -- so Feral rules govern out there, and they spawn at the
+     * ordinary vanilla rate inside the border. The caller denies the spawn with
+     * {@code MobSpawnFinalizeSignal#denySpawn()}, not {@code cancel()}, which only skips
+     * {@code Mob#finalizeSpawn}'s initialization and still lets the entity spawn.
+     */
+    public static boolean shouldDenySpawn(Mob mob, ServerLevel level) {
+        return mob instanceof Slime && BorderAPI.frontierDistanceAt(level, mob.blockPosition()) > 0;
     }
 
     /**

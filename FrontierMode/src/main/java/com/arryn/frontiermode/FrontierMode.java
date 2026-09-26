@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.boss.BossModule;
+import com.arryn.frontiermode.coordination.SpawnCoordinator;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.bosstell.BossTellModule;
@@ -18,7 +19,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -186,6 +186,10 @@ public final class FrontierMode {
         // from inside Boss's own module. Kept as its own module deliberately -- see FeralModule's
         // own doc.
         FeralModule.init();
+
+        // The one subscriber to the mob-spawn-finalize signal: fans out to Boss, Border and Feral in a
+        // fixed order. Depends on all three modules and none depends on it, so it inits last.
+        SpawnCoordinator.init();
     }
 
     // ------------------------------------------------------------
@@ -228,15 +232,6 @@ public final class FrontierMode {
         FeralModule.onRegisterCommands(event);
         // Admin tools: registers /admin as its own, separate root -- not merged into /boss.
         AdminToolsModule.onRegisterCommands(event);
-    }
-
-    // ------------------------------------------------------------
-    // FRO_133: Frontier Sickness's own lingering effects should clear on respawn, not persist
-    // through death -- see BorderModule.onPlayerRespawn/clearSicknessEffectsOnRespawn's own docs.
-    // ------------------------------------------------------------
-    @SubscribeEvent
-    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        BorderModule.onPlayerRespawn(event);
     }
 
 }

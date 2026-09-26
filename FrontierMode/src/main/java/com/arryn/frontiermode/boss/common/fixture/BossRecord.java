@@ -45,6 +45,7 @@ public final class BossRecord {
     private final UUID bossEntityId;
     private final boolean alive;
     private final Optional<UUID> borderId;
+    private final BlockPos platformPos; // nullable until the spawn platform is built
 
     public BossRecord(
             UUID bossId,
@@ -52,7 +53,8 @@ public final class BossRecord {
             int layer,
             UUID bossEntityId,
             boolean alive,
-            Optional<UUID> borderId
+            Optional<UUID> borderId,
+            BlockPos platformPos
     ) {
         this.bossId = Objects.requireNonNull(bossId, "bossId");
         this.position = position; // nullable -- see this class's own doc
@@ -60,6 +62,7 @@ public final class BossRecord {
         this.bossEntityId = bossEntityId; // nullable
         this.alive = alive;
         this.borderId = Objects.requireNonNull(borderId, "borderId");
+        this.platformPos = platformPos; // nullable -- see platformBuilt()
     }
 
     public UUID bossId() {
@@ -98,6 +101,25 @@ public final class BossRecord {
         return borderId;
     }
 
+    /**
+     * The base of the boss's bedrock spawn platform (one below its standing position); nullable --
+     * null until the platform is built. Check {@link #platformBuilt()} first.
+     */
+    public BlockPos platformPos() {
+        return platformPos;
+    }
+
+    /** True once the spawn platform has been built for this record. Built once, never re-carved. */
+    public boolean platformBuilt() {
+        return platformPos != null;
+    }
+
+    /** Returns a copy of this record with {@code platformPos} set: the platform is in place. */
+    public BossRecord withPlatform(BlockPos pos) {
+        return new BossRecord(bossId, position, layer, bossEntityId, alive, borderId,
+                Objects.requireNonNull(pos, "pos"));
+    }
+
     public boolean positioned() {
         return position != null;
     }
@@ -119,7 +141,8 @@ public final class BossRecord {
                 layer,
                 bossEntityId,
                 alive,
-                borderId
+                borderId,
+                platformPos
         );
     }
 
@@ -137,7 +160,8 @@ public final class BossRecord {
                 layer,
                 Objects.requireNonNull(entityId, "entityId"),
                 alive,
-                borderId
+                borderId,
+                platformPos
         );
     }
 
@@ -154,7 +178,8 @@ public final class BossRecord {
                 layer,
                 null,
                 alive,
-                borderId
+                borderId,
+                platformPos
         );
     }
 
@@ -171,7 +196,8 @@ public final class BossRecord {
                 layer,
                 bossEntityId,
                 false,
-                borderId
+                borderId,
+                platformPos
         );
     }
 
@@ -206,6 +232,12 @@ public final class BossRecord {
         // (a "has" boolean plus the UUID itself, only written when present).
         tag.putBoolean("hasBorderId", r.borderId.isPresent());
         r.borderId.ifPresent(id -> tag.putUUID("borderId", id));
+        tag.putBoolean("hasPlatform", r.platformPos != null);
+        if (r.platformPos != null) {
+            tag.putInt("platformX", r.platformPos.getX());
+            tag.putInt("platformY", r.platformPos.getY());
+            tag.putInt("platformZ", r.platformPos.getZ());
+        }
         return tag;
     }
 
@@ -225,7 +257,10 @@ public final class BossRecord {
                 tag.getInt("layer"),
                 entityId,
                 tag.getBoolean("alive"),
-                borderId
+                borderId,
+                tag.getBoolean("hasPlatform")
+                        ? new BlockPos(tag.getInt("platformX"), tag.getInt("platformY"), tag.getInt("platformZ"))
+                        : null
         );
     }
 }

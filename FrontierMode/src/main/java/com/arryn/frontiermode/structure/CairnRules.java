@@ -13,7 +13,7 @@ public final class CairnRules {
 
     /** Volume of the ping played at the cap when the pulse fires. */
     public static float pingVolume() {
-        return new Tunable("pingVolume", 0f, 4f, 1.0f).floatValue();
+        return new Tunable("pingVolume", 0f, 4f, 0.25f).floatValue();
     }
 
     /** Pitch of the ping played at the cap when the pulse fires. */

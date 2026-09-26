@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel JigConfig Registration</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel JigConfig Registration</h1>
+<p>How a consumer's <code>JigConfig</code> becomes a running jig. Configs are collected in one static registry until the first foundation boots. Each side's booter then compiles, validates and installs the configs that apply to it, so a <code>BOTH</code> config yields two independent jigs and two engines, with its handlers installed on both sides' buses.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>common/jig/config/{JigConfig,JigConfigCompiler,JigConfigValidator,CompiledJigConfig,JigPolicies,JigBundles}.java</code></li>
+<li><code>common/jig/{level/LevelJigConfig,player/PlayerJigConfig,mob/MobJigConfig}.java</code></li>
+<li><code>common/jig/guts/{LogicalFoundation,JigInfo}.java</code></li>
+<li><code>common/lifecycle/EventHandlers.java</code></li>
+<li><code>common/jig/mob/MobInterestRegistry.java</code></li>
+</ul>
+</details>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart TB
+    MOD["<b>consumer module init()</b><br/>new LevelJigConfig / PlayerJigConfig / MobJigConfig(key)"]
+    PRE["<b>kind presets</b><br/>Level: side SERVER · LevelResolver · referenceLevel = the level<br/>Player: side SERVER · PlayerResolver · tick on<br/>Mob: no side default · MobJigLifecycle preset"]
+    LENS["<b>JigConfig lenses</b><br/>binding() — side · jig / coupler / scope / source types · resolvers<br/>bundles() — Schema → BundleDecl → FixtureDecl<br/>policies() — readiness · sync · persistence · errors · diagnostics · capabilities<br/>execution() — lifecycle (tick · executionPulse) · priority · tickOrder · EventHandlers"]
+    MIR["<b>MobInterestRegistry.register(key, supplier)</b><br/>Mob jigs, separate call"]
+    REG["<b>Satchel.registerJigConfig → JigConfigCompiler.register</b><br/>static LinkedHashMap by JigKey · one config per key<br/>rejected once frozen"]
+    COMP["<b>compileForSide(side)</b><br/>called by each booter · freezes the registry<br/>skips configs whose side doesn't apply"]
+    VAL["<b>JigConfigValidator.validate</b><br/>binding complete · schema present · lifecycle + priority + tickOrder<br/>every policy declared<br/>persistence cap → persistent policy + referenceLevel<br/>networking cap → side BOTH<br/>clock cap → tick or executionPulse"]
+    CJC["<b>CompiledJigConfig</b>"]
+    INST["<b>LogicalFoundation.installConfigs</b><br/>per side"]
+    JIG["<b>instantiateJig</b><br/>jigType reflectively · installJigConfig · installKey"]
+    CPL["<b>instantiateCoupler</b><br/>couplerType reflectively · booter.engine() → new ScopeEngine<br/>engine.registerBundleSchema → freeze · coupler.installEngine"]
+    JI["<b>JigInfo(key, jig, coupler)</b><br/>in the foundation's jigInfos map"]
+    EH["<b>EventHandlers.install(eventBus)</b><br/>each .on(type, handler) → bus.subscribe"]
+    HC["<b>checkExecutionPulseHealth</b><br/>warns: persistence / networking allowed,<br/>executionPulse off"]
+
+    MOD --> PRE
+    PRE --> LENS
+    MOD -->|"registerJigConfig"| REG
+    LENS -.-> REG
+    MOD -.-> MIR
+    REG --> COMP
+    COMP --> VAL
+    VAL --> CJC
+    CJC --> INST
+    INST --> JIG
+    INST --> CPL
+    JIG --> JI
+    CPL --> JI
+    INST --> EH
+    INST --> HC
+
+    class MOD,MIR ext
+    class PRE,LENS,CJC,JI state
+    class REG,COMP,INST,JIG,CPL,EH sat
+    class VAL,HC gate
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

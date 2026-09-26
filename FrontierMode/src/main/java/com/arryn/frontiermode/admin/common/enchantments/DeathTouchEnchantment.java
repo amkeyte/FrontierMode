@@ -1,5 +1,6 @@
-package com.arryn.frontiermode.admin;
+package com.arryn.frontiermode.admin.common.enchantments;
 
+import com.arryn.frontiermode.admin.AdminToolsModule;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.MobType;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -8,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Admin/debug enchant -- any hit landed with a weapon carrying it kills the target outright
- * (see {@link AdminToolsModule#onLivingHurt}, the actual mechanism; enchant classes get no
+ * (see {@code AdminToolHandlers#onLivingHurt}, the actual mechanism; enchant classes get no
  * generic combat hook from Forge, same reasoning as {@code IntuitionEnchantment}'s own doc).
  * {@code EnchantmentCategory.WEAPON} (vanilla's own category) rather than a new one restricted
  * to a single item -- unlike the Amethyst Compass's enchants, this is meant to work on whatever
@@ -17,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>Treasure-only and {@code VERY_RARE} -- never offered at an enchant table or from any
  * vanilla trade/loot pool; the only sanctioned path onto a stack is
- * {@code AdminCommands.deathStick}'s direct construction.
+ * {@code /admin deathstick}'s direct construction.
  */
 public class DeathTouchEnchantment extends Enchantment {
 
@@ -43,7 +44,7 @@ public class DeathTouchEnchantment extends Enchantment {
      * Deep enough into the Exterior, Frontier Sickness's Weakness effect floors the attribute
      * contribution to 0 -- with no enchant bonus either, vanilla's check fails and
      * {@code target.hurt()} (and so {@code LivingHurtEvent}, the actual kill mechanism in
-     * {@link AdminToolsModule.Listener#onLivingHurt}) never fires at all, silently no-op'ing the
+     * {@code AdminToolHandlers#onLivingHurt}) never fires at all, silently no-op'ing the
      * whole enchant. A flat, level/mob-type-independent bonus just needs to clear that gate --
      * the real kill still happens entirely through {@code onLivingHurt}'s
      * {@code Float.MAX_VALUE} override, never through this bonus actually landing as damage.

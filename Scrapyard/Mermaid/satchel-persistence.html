@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Persistence</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Satchel Persistence</h1>
+<p>How a bundle's fixtures reach disk and come back. Server only. There is one vanilla <code>SavedData</code> per bundle key, stored in the scope's reference level. Satchel writes the snapshot into it and marks it dirty; vanilla's own world save writes the file, unless a caller forces an immediate save.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>Forge / Minecraft</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel class / call</span>
+<span><i style="border-color:#5fae7b"></i>state / data</span>
+<span><i style="border-color:#c9a14a"></i>gate / decision</span>
+<span><i style="border-color:#a57fc9"></i>consumer module or other page</span>
+</div>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>server/jig/guts/ScopeEngine_Server.java</code></li>
+<li><code>common/persistence/{BundleSavedData,SavedDataEgressSink,SavedDataHydrationSource,NbtFixtureHydrationSource,FixtureHydrator,WorldIdentitySavedData}.java</code></li>
+<li><code>common/bundle/SatchelBundle.java</code></li>
+<li><code>common/fixture/SatchelFixture.java</code></li>
+<li><code>common/jig/config/JigPolicies.java</code></li>
+</ul>
+</details>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    EP["<b>server execution pulse</b><br/>flushIfDirty per bundle"]
+    UNLOAD["<b>engine.unload</b><br/>terminal flush"]
+    FORCE["<b>bundle.forceWriteToDisk()</b><br/>flush delegate"]
+    GATE["<b>flush gates</b><br/>bundle dirty · required() has PERSISTENCE<br/>FlushPolicy NONE: skip · UNLOAD: terminal only · EXECUTION_PULSE: every pulse"]
+    LEVEL["<b>resolveServerLevel</b><br/>jig must allow persistence<br/>ScopeInfo.referenceLevel()"]
+    SINK["<b>SavedDataEgressSink.store(bundle.saveAll())</b><br/>setFixtures + mark SavedData dirty · bundle.clearDirty"]
+    BSD["<b>BundleSavedData</b> — vanilla SavedData<br/>satchel_bundle_&lt;bundleKey id&gt;<br/>in the reference level's DimensionDataStorage<br/>key UUID + name + fixtures tag"]
+    VAN["<b>vanilla world save</b><br/>writes dirty SavedData"]
+    NOW["<b>level.getDataStorage().save()</b><br/>immediate, forceWriteToDisk only"]
+
+    CREATE["<b>engine.create → hydrateBundle</b><br/>required() has PERSISTENCE"]
+    SRC["<b>SavedDataHydrationSource.forBundle</b><br/>BundleSavedData.getForRead<br/>stored key UUID + name must match"]
+    MISS["<b>MissingDataPolicy</b><br/>IGNORE / WARN → empty tag<br/>ERROR → AccessFailed"]
+    NBT["<b>NbtFixtureHydrationSource</b><br/>fixture tag by FixtureKey → hydrateFromNBT"]
+    FIXT["<b>SatchelFixture fields</b><br/>registerInt / Long / UUID / Custom<br/>saveToNBT · hydrateFromNBT"]
+    WID["<b>WorldIdentitySavedData</b> — overworld<br/>stable world token → WorldIdentityContext<br/>feeds LevelScope UUIDs"]
+
+    EP --> GATE
+    UNLOAD --> GATE
+    GATE --> LEVEL
+    FORCE --> LEVEL
+    LEVEL --> SINK
+    SINK --> BSD
+    BSD --> VAN
+    FORCE --> NOW
+    NOW --> BSD
+    CREATE --> LEVEL
+    CREATE --> SRC
+    SRC --> BSD
+    SRC -->|"no data"| MISS
+    SRC --> NBT
+    MISS --> NBT
+    NBT --> FIXT
+    SINK -.->|"saveAll"| FIXT
+
+    class VAN,NOW forge
+    class EP,UNLOAD,FORCE,LEVEL,SINK,CREATE,SRC,NBT sat
+    class BSD,FIXT,WID state
+    class GATE,MISS gate
+
+    classDef forge fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef gate fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

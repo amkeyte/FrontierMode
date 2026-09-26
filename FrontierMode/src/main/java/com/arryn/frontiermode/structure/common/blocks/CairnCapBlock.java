@@ -1,7 +1,9 @@
 package com.arryn.frontiermode.structure.common.blocks;
 
 import com.arryn.frontiermode.structure.StructureModule;
+import com.arryn.frontiermode.structure.client.CairnAmbientClient;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -12,6 +14,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -41,6 +45,18 @@ public class CairnCapBlock extends Block {
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(POWERED);
+    }
+
+    /**
+     * The ambient signal: vanilla calls this on the client, at a random rate, for blocks near the
+     * player. The drawing is {@code CairnAmbientClient}, a client class only ever reached from here.
+     */
+    @Override
+    @OnlyIn(Dist.CLIENT)
+    public void animateTick(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull RandomSource random) {
+        if (level.isClientSide) {
+            CairnAmbientClient.emit(level, pos, random);
+        }
     }
 
     @Override
