@@ -67,6 +67,8 @@ final class BossJigHandlers {
         BossBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
+        GuardianJigHandlers.onBossTick(level, bundle);
+
         // FRO_108: fires any delayed force-flush a defeat cascade scheduled -- see
         // boss.md's "Cascade durability".
         fixture.pollForceFlush();

@@ -9,6 +9,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * FRO_081: Boss's pluggable-strategy facet, mirroring {@code BordersRulesFacet}'s shape -- wraps
@@ -145,18 +146,69 @@ public final class BossRulesFacet {
         return RULES.guardianPlacementRadiusFraction();
     }
 
-    /**
-     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianTier(double)}.
-     */
-    public int guardianTier(double difficultyIntensity) {
-        return RULES.guardianTier(difficultyIntensity);
+    /** See {@link BossRules#guardianTargetScale(int)}. */
+    public double guardianTargetScale(int layer) {
+        return RULES.guardianTargetScale(layer);
     }
 
-    /**
-     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tagGuardian(Mob, int, double, ServerLevel)}.
-     */
-    public void tagGuardian(Mob mob, int tier, double difficultyIntensity, ServerLevel level) {
-        RULES.tagGuardian(mob, tier, difficultyIntensity, level);
+    /** See {@link BossRules#guardianMaxScale()}. */
+    public double guardianMaxScale() {
+        return RULES.guardianMaxScale();
+    }
+
+    /** See {@link BossRules#guardianFitStep()}. */
+    public double guardianFitStep() {
+        return RULES.guardianFitStep();
+    }
+
+    /** See {@link BossRules#guardianAddCost()}. */
+    public double guardianAddCost() {
+        return RULES.guardianAddCost();
+    }
+
+    /** See {@link BossRules#guardianMaxAddsPerSpawn()}. */
+    public int guardianMaxAddsPerSpawn() {
+        return RULES.guardianMaxAddsPerSpawn();
+    }
+
+    /** See {@link BossRules#guardianAddScatterRadius()}. */
+    public int guardianAddScatterRadius() {
+        return RULES.guardianAddScatterRadius();
+    }
+
+    /** See {@link BossRules#joinGuardianTeam(Mob, ServerLevel)}. */
+    public void joinGuardianTeam(Mob mob, ServerLevel level) {
+        RULES.joinGuardianTeam(mob, level);
+    }
+
+    /** See {@link BossRules#leaveGuardianTeam(UUID, ServerLevel)}. */
+    public void leaveGuardianTeam(UUID mobUuid, ServerLevel level) {
+        RULES.leaveGuardianTeam(mobUuid, level);
+    }
+
+    /** See {@link BossRules#trailIntervalTicks()}. */
+    public int trailIntervalTicks() {
+        return RULES.trailIntervalTicks();
+    }
+
+    /** See {@link BossRules#trailLifetimeTicks()}. */
+    public int trailLifetimeTicks() {
+        return RULES.trailLifetimeTicks();
+    }
+
+    /** See {@link BossRules#trailRadius()}. */
+    public int trailRadius() {
+        return RULES.trailRadius();
+    }
+
+    /** See {@link BossRules#equipSunWard(Mob)}. */
+    public void equipSunWard(Mob mob) {
+        RULES.equipSunWard(mob);
+    }
+
+    /** See {@link BossRules#applyGlow(Mob)}. */
+    public void applyGlow(Mob mob) {
+        RULES.applyGlow(mob);
     }
 
     /**

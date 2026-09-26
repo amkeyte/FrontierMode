@@ -13,6 +13,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -127,9 +128,6 @@ public final class BossAPI {
     }
 
     /**
-     * RM_FRO_029 (Gloria): resolves {@link BossGuardiansFixture} for {@code level} -- same
-     * "standby, don't crash" discipline as {@link #bosses(Level)}, mirroring {@link #bossTells}
-     * exactly. Used by {@code BossModule.onMobSpawnFinalize}.
      * FRO_121 (Intuition/Resonance): resolves the boss identity at the level's current
      * {@code BordersPathFacet} tip -- "Intuition/Resonance resolve 'the current Path Tip'
      * exactly once, at lock time, to get a boss identity" per special-compass.md's "One shared
@@ -228,6 +226,11 @@ public final class BossAPI {
         }
     }
 
+    /**
+     * Resolves {@link BossGuardiansFixture} for {@code level} -- same "standby, don't crash"
+     * discipline as {@link #bosses(Level)}, mirroring {@link #bossTells} exactly. Used by
+     * {@code BossModule.onMobSpawnFinalize}.
+     */
     public static Optional<BossGuardiansFixture> guardians(Level level) {
         if (!Satchel.isReady()) {
             OUT.debug("[BossAPI] guardians(): Satchel not ready yet -> Optional.empty level="
@@ -253,6 +256,47 @@ public final class BossAPI {
         } catch (RuntimeException e) {
             throw new SatchelException.AccessFailed(
                     "Failed to resolve BossGuardiansFixture for level " + level.dimension().location(), e);
+        }
+    }
+
+    /**
+     * {@link #guardians(Level)} for hot paths -- the hitbox {@code Size} handler runs for every
+     * entity's dimension refresh, including from the {@code Entity} constructor. Never logs, never
+     * throws; empty for anything not resolvable yet.
+     */
+    public static Optional<BossGuardiansFixture> guardiansQuiet(Level level) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+        LevelScope scope = new LevelScope(level);
+        if (Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope).isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return levelJig().getOrCreate(scope, FrontierKeys.BOSS_BUNDLE).get(FrontierKeys.BOSS_GUARDIANS);
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * The client-visible guardian record on either side. Like {@link #publicMarkers(Level)}: never
+     * logs, never throws -- "not ready yet" is the normal state for the first moments after joining
+     * a world, and this is called from render and tick paths.
+     */
+    public static Optional<GuardianPublicFixture> guardianMarkers(Level level) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+        LevelScope scope = new LevelScope(level);
+        if (Satchel.tryReadyScopeInfo(FrontierKeys.GUARDIAN_PUBLIC_JIG, scope).isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.GUARDIAN_PUBLIC_JIG).jig;
+            return jig.getOrCreate(scope, FrontierKeys.GUARDIAN_PUBLIC_BUNDLE).get(FrontierKeys.GUARDIAN_PUBLIC);
+        } catch (RuntimeException e) {
+            return Optional.empty();
         }
     }
 

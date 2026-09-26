@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -15,9 +16,12 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.scores.PlayerTeam;
@@ -26,6 +30,7 @@ import net.minecraft.world.scores.Scoreboard;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Default, opinionated implementation of {@link BossRules} -- a safe baseline meant to be
@@ -339,10 +344,10 @@ public final class DefaultBossRules implements BossRules {
 
     // Project owner request (2026-09-08): live debug toggle for Boss/Guardian glow -- see
     // BossRules#glowEnabled's own doc for why this is mutable state on an otherwise
-    // strategy/baseline interface. Not persisted -- resets to true (the pre-toggle default) on
+    // strategy/baseline interface. Not persisted -- resets to false on
     // server restart, same "off/on signal" ephemeral-state discipline as every other debug-only
     // flag in this codebase (WorldBordersRenderer.visible, BossTellFixture's rotation maps, etc.).
-    private boolean glowEnabled = true;
+    private boolean glowEnabled = false;
 
     @Override
     public boolean glowEnabled() {
@@ -424,14 +429,11 @@ public final class DefaultBossRules implements BossRules {
     // RM_FRO_029 (Gloria): BossGuardiansFixture tunable baseline values
     // ------------------------------------------------------------------
 
-    // FRO_142: GUARDIAN_PLACEMENT_COEFFICIENT/_RADIUS_FRACTION/_TIER_COUNT/_HEALTH_SCALE are now
-    // Tunable-backed (SAT_074), constructed inside their own accessor methods below rather than
-    // cached as fields -- a Tunable is constructed fresh at point of use, not held onto (see that
-    // class's own doc). GUARDIAN_TEAM_NAME (String) below is Tunable-backed too;
-    // GUARDIAN_TEAM_COLOR stays a plain field -- an enum isn't representable by Tunable's
-    // float/int/String shape.
+    // The guardian numbers are Tunable-backed, constructed inside their own accessor methods rather
+    // than cached as fields. GUARDIAN_TEAM_COLOR stays a plain field -- an enum isn't
+    // representable by Tunable's float/int/String shape.
 
-    // Single shared team every guardian regardless of tier joins -- see
+    // Single shared team every guardian joins -- see
     // wiki/frontiermode/architecture/effects.md#team-assignment-persistent-visual-state. Dark, to
     // read as distinct from Boss's own unteamed (vanilla white) glow at a glance, especially
     // underground. Safe baseline; playtest territory.
@@ -460,34 +462,89 @@ public final class DefaultBossRules implements BossRules {
         return new Tunable("guardianPlacementRadiusFraction", 0f, 1f, 0.5f).floatValue();
     }
 
+    // Guardian size and adds: starting values for playtest (guardian-mobs.md, "Size and adds").
     @Override
-    public int guardianTier(double difficultyIntensity) {
-        // Difficulty-intensity tier bucket count -- difficultyIntensity in [0,1] split evenly into
-        // this many tiers (0..tierCount-1). Safe baseline, same "flat table" framing as LAYER_MOBS
-        // above. Read once per call, not per Math.floor/Math.min below, to avoid constructing two
-        // separate Tunables for the same logical value in one invocation.
-        int tierCount = new Tunable("guardianTierCount", 1, 20, 4).intValue();
-        double d = Math.max(0.0, Math.min(1.0, difficultyIntensity));
-        int tier = (int) Math.floor(d * tierCount);
-        return Math.min(tier, tierCount - 1);
+    public double guardianTargetScale(int layer) {
+        double ratio = new Tunable("guardianScaleRatio", 0f, 1f, 0.5f).floatValue();
+        return 1.0 + (scaleForLayer(layer) - 1.0) * ratio;
     }
 
     @Override
-    public void tagGuardian(Mob mob, int tier, double difficultyIntensity, ServerLevel level) {
-        mob.setCustomName(Component.literal(
-                "GM-" + tier + "[" + Math.round(difficultyIntensity * 100) + "%]"));
-        mob.setCustomNameVisible(true);
+    public double guardianMaxScale() {
+        return new Tunable("guardianMaxScale", 1f, 5f, 1.5f).floatValue();
+    }
 
-        // EffectsAPI.assignToTeam takes the Scoreboard explicitly rather than reading it off the
-        // entity -- Entity has no getScoreboard() accessor in the real 1.20.1 API (checked against
-        // real Forge/Mojang-mapped sources; the wiki page's own sketch assumed one existed via
-        // entity.getScoreboard(), which doesn't compile).
+    @Override
+    public double guardianFitStep() {
+        return new Tunable("guardianFitStep", 0.01f, 1f, 0.1f).floatValue();
+    }
+
+    @Override
+    public double guardianAddCost() {
+        return new Tunable("guardianAddCost", 0.05f, 10f, 0.5f).floatValue();
+    }
+
+    @Override
+    public int guardianMaxAddsPerSpawn() {
+        return new Tunable("guardianMaxAddsPerSpawn", 0, 20, 3).intValue();
+    }
+
+    @Override
+    public int guardianAddScatterRadius() {
+        return new Tunable("guardianAddScatterRadius", 1, 32, 4).intValue();
+    }
+
+    @Override
+    public void joinGuardianTeam(Mob mob, ServerLevel level) {
+        // EffectsAPI.assignToTeam takes the Scoreboard explicitly -- Entity has no getScoreboard().
         Scoreboard scoreboard = level.getScoreboard();
-        String teamName = new Tunable("guardianTeamName", "guardian").stringValue();
-        PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, teamName, GUARDIAN_TEAM_COLOR);
+        PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, guardianTeamName(), GUARDIAN_TEAM_COLOR);
         EffectsAPI.assignToTeam(mob, scoreboard, team);
+    }
 
+    @Override
+    public void leaveGuardianTeam(UUID mobUuid, ServerLevel level) {
+        Scoreboard scoreboard = level.getScoreboard();
+        PlayerTeam team = scoreboard.getPlayerTeam(guardianTeamName());
+        if (team != null) {
+            EffectsAPI.removeFromTeam(scoreboard, mobUuid.toString(), team);
+        }
+    }
+
+    // The trail's three numbers. Tunables are server-only, so BOSS_JIG's tick copies them into
+    // GuardianPublicFixture, the one channel from server to client for guardians.
+    @Override
+    public int trailIntervalTicks() {
+        return new Tunable("trailIntervalTicks", 1, 200, 4).intValue();
+    }
+
+    @Override
+    public int trailLifetimeTicks() {
+        return new Tunable("trailLifetimeTicks", 1, 600, 30).intValue();
+    }
+
+    @Override
+    public int trailRadius() {
+        return new Tunable("trailRadius", 1, 128, 24).intValue();
+    }
+
+    @Override
+    public void equipSunWard(Mob mob) {
+        ItemStack ward = new ItemStack(BossModule.SUN_WARD.get());
+        // Mob#canReplaceCurrentItem refuses to replace an item with Curse of Binding, so a
+        // guardian that picks up a real helmet keeps the ward.
+        ward.enchant(Enchantments.BINDING_CURSE, 1);
+        mob.setItemSlot(EquipmentSlot.HEAD, ward);
+        mob.setDropChance(EquipmentSlot.HEAD, 0.0F);
+    }
+
+    @Override
+    public void applyGlow(Mob mob) {
         mob.setGlowingTag(glowEnabled);
+    }
+
+    private static String guardianTeamName() {
+        return new Tunable("guardianTeamName", "guardian").stringValue();
     }
 
     @Override

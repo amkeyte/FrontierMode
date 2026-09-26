@@ -29,14 +29,8 @@ public final class BossMarkers {
             EntityType.ZOMBIFIED_PIGLIN, EntityType.PILLAGER, EntityType.VINDICATOR,
             EntityType.RAVAGER);
 
-    // Client-side only: resolving the fixture goes through Satchel scope lookup, too much for every
-    // zombie on every frame. Cached per level, and retried at most once a second while unresolved
-    // (the normal state for the first moments after joining, before the first parcel lands). The
-    // server side isn't cached -- it only asks on dimension refresh, not per frame.
-    private static final long RETRY_TICKS = 20;
-    private static Level cachedLevel;
-    private static BossPublicFixture cachedFixture;
-    private static long nextResolveTick;
+    private static final ClientFixtureCache<BossPublicFixture> CLIENT_FIXTURE =
+            new ClientFixtureCache<>(BossAPI::publicMarkers);
 
     private BossMarkers() {
     }
@@ -61,26 +55,8 @@ public final class BossMarkers {
         return fixture(entity.level()).map(f -> f.scaleOf(entity.getUUID())).orElse(1.0F);
     }
 
+    // The server side isn't cached -- it only asks on dimension refresh, not per frame.
     private static Optional<BossPublicFixture> fixture(Level level) {
-        if (!level.isClientSide) {
-            return BossAPI.publicMarkers(level);
-        }
-        if (level != cachedLevel) {
-            cachedLevel = level;
-            cachedFixture = null;
-            nextResolveTick = 0;
-        }
-        if (cachedFixture == null) {
-            long now = level.getGameTime();
-            if (now < nextResolveTick) {
-                return Optional.empty();
-            }
-            cachedFixture = BossAPI.publicMarkers(level).orElse(null);
-            if (cachedFixture == null) {
-                nextResolveTick = now + RETRY_TICKS;
-                return Optional.empty();
-            }
-        }
-        return Optional.of(cachedFixture);
+        return level.isClientSide ? CLIENT_FIXTURE.get(level) : BossAPI.publicMarkers(level);
     }
 }

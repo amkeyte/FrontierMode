@@ -6,6 +6,7 @@ import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.server.commands.FeralCommands;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
+import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
@@ -39,7 +40,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Slime;
@@ -51,7 +51,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
-import net.minecraftforge.event.ForgeEventFactory;
 import net.minecraftforge.event.RegisterCommandsEvent;
 
 import java.util.ArrayList;
@@ -59,6 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -121,6 +121,9 @@ public final class FeralModule {
     // Shared, not-persisted RNG -- same static-field shape BossTellFixture.RNG/
     // BossGuardiansFixture.RNG/BorderModule.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
+
+    // Candidate spots MobSpawns.scatter tries for one density companion.
+    private static final int DENSITY_SCATTER_TRIES = 4;
 
     // FRO_111: per-level cadence gate for the re-entry sweep, same TickThrottler(intervalTicks,
     // level::getGameTime)-keyed-by-object-identity shape BordersRevisionMonitor already
@@ -455,9 +458,9 @@ public final class FeralModule {
     }
 
     /**
-     * Force-spawns one hostile ahead of {@code player}, via the same real
-     * {@code ForgeEventFactory.onFinalizeSpawn} dispatch {@code FeralCommandHandler
-     * .spawnTestHostiles} already uses (unlike {@code /summon}, this still fires
+     * Force-spawns one hostile ahead of {@code player} with {@code DISPATCHED} setup, the same real
+     * Forge finalize-spawn dispatch {@code FeralCommandHandler
+     * .spawnTestHostiles} uses (unlike {@code /summon}, this still fires
      * {@code MobSpawnEvent.FinalizeSpawn}, so it stays fully integrated with everything else on
      * that touch point -- the Exterior-only Slime/MagmaCube deny in {@code BossJigHandlers
      * .onMobSpawnFinalize} (FRO_154) and Guardian conversion both still apply normally, and
@@ -504,23 +507,14 @@ public final class FeralModule {
             return;
         }
 
-        Mob mob = EntityType.ZOMBIE.create(level);
-        if (mob == null) {
-            return;
-        }
-
         // Marked before it ever joins the level -- see PACK_MEMBER_TAG's own doc for why this
         // distinction matters (countAlivePackMembers, maxAlivePackMembers()).
-        mob.getPersistentData().putBoolean(PACK_MEMBER_TAG, true);
-
-        mob.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
-        ForgeEventFactory.onFinalizeSpawn(
-                mob, level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
-
-        if (!level.addFreshEntity(mob)) {
-            OUT.warn("[Feral] spawnPackMember(): addFreshEntity failed near " + player.getGameProfile().getName());
+        Optional<Mob> spawned = MobSpawns.spawn(level, EntityType.ZOMBIE, ground, MobSpawns.Setup.DISPATCHED,
+                mob -> mob.getPersistentData().putBoolean(PACK_MEMBER_TAG, true));
+        if (spawned.isEmpty()) {
             return;
         }
+        Mob mob = spawned.get();
 
         applyPackSpeedBoost(mob);
         applyPackFollowRange(mob);
@@ -1069,13 +1063,7 @@ public final class FeralModule {
             return;
         }
 
-        int guaranteed = (int) Math.floor(expected);
-        double fractional = expected - guaranteed;
-        int densityMaxPerEvent = FeralRules.densityMaxPerEvent();
-        int count = Math.min(guaranteed, densityMaxPerEvent);
-        if (count < densityMaxPerEvent && RNG.nextDouble() < fractional) {
-            count++;
-        }
+        int count = MobSpawns.rollCount(expected, FeralRules.densityMaxPerEvent(), RNG);
 
         // FRO_128 follow-up (project owner, 2026-09-21): clamp to remaining room under
         // FeralRules.maxAliveFeral() -- the density mechanic, not natural spawns/tagging, is what
@@ -1139,58 +1127,34 @@ public final class FeralModule {
     }
 
     /**
-     * Spawns one extra copy of {@code mob}'s own type near {@code spawnPos} -- previously mirrored
-     * {@code BorderModule.spawnDensityCompanion} exactly, including its hardcoded {@code ±3}
-     * spread; no longer does, per playtest feedback below, and {@code BorderModule}'s own copy
-     * (Sick Wildlife's density boost) wasn't touched -- that complaint was about the Feral swarm
-     * specifically. Calls {@link Mob#finalizeSpawn} directly (not through Forge's event bus again)
-     * so this never re-enters {@link #onMobSpawnFinalize} for the companion it creates -- but
-     * {@link #onEntityJoinLevel} still catches it via {@code level.addFreshEntity} below and tags
-     * it there, so no explicit tag call is needed here anymore.
+     * Spawns one extra copy of {@code mob}'s own type near {@code nearPos}, with {@code VANILLA}
+     * setup: vanilla's {@code Mob#finalizeSpawn} runs but the Forge event doesn't, so this never
+     * re-enters {@link #onMobSpawnFinalize} for the companion it creates.
+     * {@link #onEntityJoinLevel} still catches it on join and tags it, so no explicit tag call is
+     * needed here.
      */
-    @SuppressWarnings("deprecation")
     private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
-        Entity created = mob.getType().create(level);
-        if (!(created instanceof Mob companion)) {
+        // Spread across ground the player has to maneuver through, not one dodge-able clump on the
+        // original spawn -- see FeralRules.DENSITY_COMPANION_SPREAD_RADIUS.
+        BlockPos spot = MobSpawns.scatter(
+                level, mob, nearPos, FeralRules.DENSITY_COMPANION_SPREAD_RADIUS, 1.0F, DENSITY_SCATTER_TRIES);
+
+        // The spread can cross back over a border edge, especially against a border that hasn't grown
+        // large yet. Skip rather than place an extra, permanently-untagged hostile inside the
+        // player's own safe zone (see this class's re-entry-kill doc).
+        if (BorderAPI.frontierDistanceAt(level, spot) <= 0) {
             return;
         }
 
-        // FRO_128 follow-up (playtest, 2026-09-21): a tight ±3 packed every companion into one
-        // dodge-able clump right on top of the original spawn -- widened via
-        // FeralRules.DENSITY_COMPANION_SPREAD_RADIUS so a dense event actually spreads across
-        // ground the player has to maneuver through.
-        int radius = FeralRules.DENSITY_COMPANION_SPREAD_RADIUS;
-        int dx = RNG.nextInt(radius * 2 + 1) - radius;
-        int dz = RNG.nextInt(radius * 2 + 1) - radius;
-        BlockPos offset = nearPos.offset(dx, 0, dz);
-        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, offset);
-
-        // A ±3 spread never realistically crossed back over a border edge; ±24 (or whatever
-        // DENSITY_COMPANION_SPREAD_RADIUS is tuned to) can, especially against a border that
-        // hasn't grown large yet. Skip rather than place an extra, permanently-untagged hostile
-        // inside the player's own safe zone -- the entire point of the Frontier being safe from
-        // Feral in the first place (see this class's re-entry-kill doc).
-        if (BorderAPI.frontierDistanceAt(level, ground) <= 0) {
-            return;
-        }
-
-        companion.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
-        //[Arryn] This is deprecated. look into it if porting.
-        companion.finalizeSpawn(level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
-
-        if (!level.addFreshEntity(companion)) {
-            OUT.warn("[Feral] spawnDensityCompanion(): addFreshEntity failed for " + mob.getType() + " near " + nearPos);
-        }
+        MobSpawns.spawn(level, mob.getType(), spot, MobSpawns.Setup.VANILLA);
     }
 
     /**
-     * Name tag + a shared {@code feral} scoreboard team, mirroring
-     * {@code DefaultBossRules.tagGuardian}'s shape directly. The tag shows the raw
-     * frontier-distance {@code mob} spawned at, not a bucketed tier -- per the design page's
-     * explicit "no bucketed tiers picked from a table, just steadily more twisted," a continuous
-     * number is the honest readout here, the same way Guardian's own tag is "a direct readout of
-     * what the mob actually got." Team color proposed as {@code DARK_GREEN} for the design page's
-     * "sickly green," distinct from Guardian's {@code DARK_PURPLE} and Boss's unteamed white glow.
+     * Name tag + a shared {@code feral} scoreboard team. The tag shows the raw frontier-distance
+     * {@code mob} spawned at, not a bucketed tier -- per the design page's explicit "no bucketed
+     * tiers picked from a table, just steadily more twisted." Team color is {@code DARK_GREEN} for
+     * the design page's "sickly green," distinct from Guardian's {@code DARK_PURPLE} and Boss's
+     * unteamed white glow.
      */
     private static void tagFeral(Mob mob, int frontierDistance, ServerLevel level) {
         mob.setCustomName(Component.literal("Feral [" + frontierDistance + "]"));

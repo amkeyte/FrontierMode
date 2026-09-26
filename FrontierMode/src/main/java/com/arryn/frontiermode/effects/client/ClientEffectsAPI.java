@@ -2,7 +2,9 @@ package com.arryn.frontiermode.effects.client;
 
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.common.util.SimParity;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -90,5 +92,22 @@ public final class ClientEffectsAPI {
             return;
         }
         level.playLocalSound(x, y, z, sound, category, volume, pitch, false);
+    }
+
+    /**
+     * Spawns one client-local particle that lives {@code lifetimeTicks} ticks, not the particle's
+     * own default. Not the parity-roll method: nothing here needs two clients to agree tick for tick.
+     * A no-op if the particle engine declines to create it.
+     */
+    public static void spawnParticleWithLifetime(
+            ClientLevel level,
+            ParticleOptions particle,
+            double x, double y, double z,
+            int lifetimeTicks
+    ) {
+        Particle created = Minecraft.getInstance().particleEngine.createParticle(particle, x, y, z, 0.0, 0.0, 0.0);
+        if (created != null) {
+            created.setLifetime(lifetimeTicks);
+        }
     }
 }

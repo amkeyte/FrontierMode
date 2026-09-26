@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.boss.client;
 
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.boss.BossMarkers;
+import com.arryn.frontiermode.boss.EntityScales;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLivingEvent;
@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * FRO_148: the client half of boss scale -- the render transform, and the dimension refresh that
+ * FRO_148: the client half of boss (and guardian) scale -- the render transform, and the dimension refresh that
  * makes the client's own hitbox catch up once the marker's scale arrives.
  *
  * <p>The hitbox scale itself is {@code BossScaleEvents}' {@code Size} handler (both sides). This
@@ -36,10 +36,10 @@ public final class BossScaleClientEvents {
     @SubscribeEvent
     public static void onLivingTick(LivingEvent.LivingTickEvent event) {
         LivingEntity entity = event.getEntity();
-        if (!entity.level().isClientSide || !BossMarkers.isEligible(entity)) {
+        if (!entity.level().isClientSide || !EntityScales.canBeScaled(entity)) {
             return;
         }
-        float scale = BossMarkers.scaleOf(entity);
+        float scale = EntityScales.scaleOf(entity);
         if (scale != APPLIED.getOrDefault(entity, 1.0F)) {
             APPLIED.put(entity, scale);
             entity.refreshDimensions();
@@ -48,7 +48,7 @@ public final class BossScaleClientEvents {
 
     @SubscribeEvent
     public static void onRenderPre(RenderLivingEvent.Pre<?, ?> event) {
-        float scale = BossMarkers.scaleOf(event.getEntity());
+        float scale = EntityScales.scaleOf(event.getEntity());
         if (scale != 1.0F) {
             event.getPoseStack().pushPose();
             event.getPoseStack().scale(scale, scale, scale);
@@ -57,7 +57,7 @@ public final class BossScaleClientEvents {
 
     @SubscribeEvent
     public static void onRenderPost(RenderLivingEvent.Post<?, ?> event) {
-        if (BossMarkers.scaleOf(event.getEntity()) != 1.0F) {
+        if (EntityScales.scaleOf(event.getEntity()) != 1.0F) {
             event.getPoseStack().popPose();
         }
     }

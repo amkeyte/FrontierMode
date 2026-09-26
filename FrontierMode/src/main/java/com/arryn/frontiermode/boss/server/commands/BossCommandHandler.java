@@ -11,6 +11,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
+import com.arryn.satchel.Satchel;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -20,10 +21,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.scores.Team;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -452,24 +449,19 @@ public final class BossCommandHandler {
             updatedBosses++;
         }
 
-        // Guardian Mobs have no fixture/record to look already-spawned entities back up in
-        // (BossGuardiansFixture tags them once at spawn, a raw MobSpawnEvent.FinalizeSpawn
-        // listener, and keeps no list afterward) -- but DefaultBossRules.tagGuardian does put
-        // every guardian on a shared "guardian" scoreboard team, so the same live-scan-by-team
-        // pattern FeralCommandHandler.setGlow uses for Feral (which has the identical "no
-        // fixture" shape) closes this gap without needing one: resolve membership live instead
-        // of needing a tracked list.
+        // Guardians: walk the records, resolve each present entity through Satchel's egress lookup
+        // (the one MobJig's poll uses). One that isn't present picks up the current setting when it
+        // next gains interest, so every guardian matches the toggle without scanning the level.
         int updatedGuardians = 0;
-        for (Entity candidate : level.getAllEntities()) {
-            if (!(candidate instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
-                continue;
+        var guardians = BossAPI.guardians(level);
+        if (guardians.isPresent()) {
+            for (var record : guardians.get().all()) {
+                var entity = Satchel.require().egress().getEntity(level, record.mobUuid());
+                if (entity.isPresent()) {
+                    entity.get().setGlowingTag(value);
+                    updatedGuardians++;
+                }
             }
-            Team team = mob.getTeam();
-            if (team == null || !"guardian".equals(team.getName())) {
-                continue;
-            }
-            mob.setGlowingTag(value);
-            updatedGuardians++;
         }
 
         int finalUpdatedBosses = updatedBosses;

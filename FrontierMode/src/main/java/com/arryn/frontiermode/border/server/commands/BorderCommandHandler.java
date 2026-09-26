@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.border.server.commands;
 
+import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
@@ -15,10 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraftforge.event.ForgeEventFactory;
 
 import java.util.UUID;
 
@@ -400,17 +398,12 @@ public final class BorderCommandHandler {
     }
 
     // ------------------------------------------------------------------
-    // RM_FRO_037 ("Brenda") test aid: unlike /summon (which loads a raw entity from NBT and
-    // never touches Mob#finalizeSpawn at all), this routes each spawned rabbit through the real
-    // Forge dispatch -- ForgeEventFactory.onFinalizeSpawn constructs and posts the actual
-    // MobSpawnEvent.FinalizeSpawn, then calls finalizeSpawn itself if nothing cancels it. That's
-    // the same event Satchel's ServerSpawnIngress wraps into MobSpawnFinalizeSignal (FRO_107), which
-    // BossJigHandlers.onMobSpawnFinalize fans out to BorderModule (Sick Wildlife's density hook)
-    // and BossModule -- so this is a deterministic way to exercise that hook on demand instead of
-    // waiting on natural spawn RNG. Deliberately not the
-    // DefaultBossRules.materialize()/spawnDensityCompanion() pattern -- those call
-    // Mob#finalizeSpawn directly precisely to AVOID re-entering the event bus; this command wants
-    // the opposite.
+    // RM_FRO_037 ("Brenda") test aid: unlike /summon (which loads a raw entity from NBT and never
+    // touches Mob#finalizeSpawn at all), this spawns each rabbit with DISPATCHED setup -- the real
+    // Forge finalize-spawn event, which Satchel's ServerSpawnIngress wraps into
+    // MobSpawnFinalizeSignal, which BossJigHandlers.onMobSpawnFinalize fans out to BorderModule
+    // (Sick Wildlife's density hook) and BossModule. A deterministic way to exercise that hook on
+    // demand instead of waiting on natural spawn RNG.
     // ------------------------------------------------------------------
     private static final RandomSource DEBUG_RNG = RandomSource.create();
 
@@ -420,23 +413,13 @@ public final class BorderCommandHandler {
 
         int spawned = 0;
         for (int i = 0; i < count; i++) {
-            Mob mob = EntityType.RABBIT.create(level);
-            if (mob == null) {
-                continue;
-            }
-
             int dx = DEBUG_RNG.nextInt(29) - 14;
             int dz = DEBUG_RNG.nextInt(29) - 14;
             BlockPos ground = level.getHeightmapPos(
                     Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     player.blockPosition().offset(dx, 0, dz));
 
-            mob.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, DEBUG_RNG.nextFloat() * 360.0F, 0.0F);
-
-            ForgeEventFactory.onFinalizeSpawn(
-                    mob, level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
-
-            if (level.addFreshEntity(mob)) {
+            if (MobSpawns.spawn(level, EntityType.RABBIT, ground, MobSpawns.Setup.DISPATCHED).isPresent()) {
                 spawned++;
             }
         }

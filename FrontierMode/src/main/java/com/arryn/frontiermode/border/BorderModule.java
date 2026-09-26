@@ -3,6 +3,7 @@ package com.arryn.frontiermode.border;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.Rendering;
+import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.frontiermode.border.common.FrontierSicknessLogic;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.Border;
@@ -38,11 +39,8 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 
@@ -506,39 +504,19 @@ public final class BorderModule {
         spawnDensityCompanion(mob, level, spawnPos);
     }
 
-    /**
-     * Spawns one extra copy of {@code mob}'s own type near {@code spawnPos} -- an approximation
-     * of a true spawn-rate multiplier, since {@code MobSpawnEvent.FinalizeSpawn} fires per
-     * already-decided spawn attempt rather than controlling how many attempts vanilla makes.
-     * Calls {@link Mob#finalizeSpawn} directly (not through Forge's event bus again) -- the exact
-     * same "construct, finalizeSpawn, addFreshEntity" sequence
-     * {@code DefaultBossRules.materialize} already uses -- so this never re-enters this class's
-     * own {@link #onMobSpawnFinalize} handler for the companion it creates.
+    // Sick Wildlife's companion spread, and the candidate spots MobSpawns.scatter tries for one.
+    private static final int DENSITY_SCATTER_RADIUS = 3;
+    private static final int DENSITY_SCATTER_TRIES = 4;
 
-     * [Arryn] re-evaluate this sequence as it may have a bad interaction with unrelated code. Probably source of inconsistent behavior.
-     *
+    /**
+     * Spawns one extra copy of {@code mob}'s own type near {@code nearPos} -- an approximation of a
+     * true spawn-rate multiplier, since {@code MobSpawnEvent.FinalizeSpawn} fires per already-decided
+     * spawn attempt rather than controlling how many attempts vanilla makes. {@code VANILLA} setup:
+     * vanilla's {@code Mob#finalizeSpawn} runs but the Forge event doesn't, so this never re-enters
+     * {@link #onMobSpawnFinalize} for the companion it creates.
      */
     private static void spawnDensityCompanion(Mob mob, ServerLevel level, BlockPos nearPos) {
-        Entity created = mob.getType().create(level);
-        if (!(created instanceof Mob companion)) {
-            return;
-        }
-
-        int dx = RNG.nextInt(7) - 3;
-        int dz = RNG.nextInt(7) - 3;
-        BlockPos offset = nearPos.offset(dx, 0, dz);
-        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, offset);
-
-        companion.moveTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, RNG.nextFloat() * 360.0F, 0.0F);
-
-
-
-
-
-        companion.finalizeSpawn(level, level.getCurrentDifficultyAt(ground), MobSpawnType.EVENT, null, null);
-
-        if (!level.addFreshEntity(companion)) {
-            OUT.warn("[Border] spawnDensityCompanion(): addFreshEntity failed for " + mob.getType() + " near " + nearPos);
-        }
+        BlockPos spot = MobSpawns.scatter(level, mob, nearPos, DENSITY_SCATTER_RADIUS, 1.0F, DENSITY_SCATTER_TRIES);
+        MobSpawns.spawn(level, mob.getType(), spot, MobSpawns.Setup.VANILLA);
     }
 }

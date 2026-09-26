@@ -13,7 +13,9 @@ import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.bundle.GuardianPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
+import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
@@ -193,6 +195,37 @@ public final class FrontierKeys {
             new FixtureKey<>(
                     "frontiermode:boss_guardians_fixture",
                     BossGuardiansFixture.class
+            );
+
+
+    // FRO_167: the client-visible guardian record -- its own BOTH-applicability bundle and jig so
+    // guardian churn never resends the boss records. See BossModule.registerGuardianPublicJig().
+
+    public static final BundleKey<GuardianPublicBundle> GUARDIAN_PUBLIC_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:guardian_public_bundle",
+                    GuardianPublicBundle.class
+            );
+
+    public static final FixtureKey<GuardianPublicFixture> GUARDIAN_PUBLIC =
+            new FixtureKey<>(
+                    "frontiermode:guardian_public_fixture",
+                    GuardianPublicFixture.class
+            );
+
+    public static final JigKey<LevelJig> GUARDIAN_PUBLIC_JIG =
+            new JigKey<>(
+                    "frontiermode:guardian_public_jig",
+                    LevelJig.class
+            );
+
+    // FRO_167: MobJig tracking the guardian entities named by BossGuardiansFixture's records. No
+    // bundle -- there is no per-mob state. See BossModule.registerGuardianMobJig().
+
+    public static final JigKey<MobJig> GUARDIAN_MOB_JIG =
+            new JigKey<>(
+                    "frontiermode:guardian_mob_jig",
+                    MobJig.class
             );
 
 
