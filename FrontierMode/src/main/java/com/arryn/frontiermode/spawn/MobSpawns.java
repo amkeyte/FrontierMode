@@ -146,6 +146,14 @@ public final class MobSpawns {
     }
 
     /**
+     * {@code Mob#checkSpawnObstruction}: no liquid or entity in the way of {@code mob}'s box. For any
+     * handler that {@code allow()}s a position check, which bypasses this test along with the light one.
+     */
+    public static boolean obstructionClear(ServerLevel level, Mob mob) {
+        return mob.checkSpawnObstruction(level);
+    }
+
+    /**
      * {@code Mob.checkMobSpawnRules}: the block below {@code pos} is a valid spawn surface. For any
      * handler that {@code allow()}s a spawn and so bypasses vanilla's own predicate.
      */

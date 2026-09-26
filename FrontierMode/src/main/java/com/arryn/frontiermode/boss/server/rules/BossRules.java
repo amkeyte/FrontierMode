@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss.server.rules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -186,6 +187,15 @@ public interface BossRules {
      * every other value in this cluster -- this one moved twice in one playtest session already.
      */
     double guardianPlacementRadiusFraction();
+
+    /**
+     * Whether a spawn of {@code type} can become a guardian, and so whether the daylight gates may
+     * lift for it. {@code MobCategory.MONSTER} is the base test (not {@code instanceof Monster}: Slime
+     * and MagmaCube are {@code MONSTER}-category hostiles that don't extend it). Excluded: Phantom,
+     * which ignites in sunlight with no helmet check so the sun ward can't protect it; and Slime and
+     * MagmaCube, which split on death and would crowd the hostile cap.
+     */
+    boolean canBeGuardian(EntityType<?> type);
 
     /**
      * A guardian's uncapped target scale for its boss's {@code layer}:

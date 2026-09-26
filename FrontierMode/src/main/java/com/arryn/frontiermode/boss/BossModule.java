@@ -32,6 +32,7 @@ import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
+import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
@@ -269,6 +270,7 @@ public final class BossModule {
                         // closest config, not a claim they are GUARDIAN_MOB_JIG-scoped.
                         .on(EntityJoinLevelSignal.class, GuardianJigHandlers::onEntityJoinLevel)
                         .on(SpawnPlacementCheckSignal.class, GuardianJigHandlers::onSpawnPlacementCheck)
+                        .on(SpawnPositionCheckSignal.class, GuardianJigHandlers::onSpawnPositionCheck)
                         .on(MobDied.class, GuardianJigHandlers::onMobDied)
                         .build();
 

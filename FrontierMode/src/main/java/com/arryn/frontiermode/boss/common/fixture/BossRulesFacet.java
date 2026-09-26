@@ -5,6 +5,7 @@ import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -144,6 +145,11 @@ public final class BossRulesFacet {
      */
     public double guardianPlacementRadiusFraction() {
         return RULES.guardianPlacementRadiusFraction();
+    }
+
+    /** See {@link BossRules#canBeGuardian(EntityType)}. */
+    public boolean canBeGuardian(EntityType<?> type) {
+        return RULES.canBeGuardian(type);
     }
 
     /** See {@link BossRules#guardianTargetScale(int)}. */
