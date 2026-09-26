@@ -61,6 +61,11 @@ public class BossCrudFacet {
         return fixture.finalizePosition(bossId, resolvedPosition);
     }
 
+    /** See {@link BossFixture#setPlatform(UUID, BlockPos)}. */
+    public boolean setPlatform(UUID bossId, BlockPos platformPos) {
+        return fixture.setPlatform(bossId, platformPos);
+    }
+
     /**
      * See {@link BossFixture#materialize(UUID, UUID)}.
      *

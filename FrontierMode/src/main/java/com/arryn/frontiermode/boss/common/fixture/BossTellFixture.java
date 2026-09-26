@@ -37,24 +37,18 @@ import java.util.UUID;
 /**
  * Sibling fixture to {@link BossFixture} inside
  * {@link com.arryn.frontiermode.boss.common.bundle.BossBundle} -- drives the per-boss
- * environmental tells (particle and sound) and the 3×3 bedrock platform, per
- * wiki/frontiermode/architecture/discovery-systems.md#environmental-tells.
+ * environmental tells (particle and sound), per
+ * wiki/frontiermode/architecture/discovery-systems.md#environmental-tells. Tells only: the boss's
+ * spawn platform is Boss's own ({@link com.arryn.frontiermode.boss.common.BossPlatform}).
  *
- * <p><b>Two jobs, one tick:</b>
- * <ol>
- *   <li><b>Platform pass (every tick):</b> for any boss record without a platform whose boss
- *       position is known and chunk-loaded, places a 3×3 bedrock platform one block below the
- *       boss and clears {@value #AIR_CLEARANCE} blocks of air above it to prevent mobs spawning
- *       into tree foliage. Once placed the record is stamped and this pass skips it forever.
- *   <li><b>Tell pass (cadence-gated via {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}):</b>
- *       for each server player on this level, finds the nearest alive+positioned boss with a
- *       borderId, resolves its {@code "tell"}-purpose {@link BorderCurve} (LOG shape), computes
- *       intensity from distance-to-boss (normalized by that boss' border's radius) via
- *       {@link BorderMath#intensityAt(BorderCurve, double)}, then makes two <em>independent</em>
- *       probability rolls: one for a particle spawn near the boss, one for an ambient sound
- *       broadcast. Stateless: no attunement state, always "nearest right now" per player per
- *       interval.
- * </ol>
+ * <p><b>Tell pass (cadence-gated via {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}):</b>
+ * for each server player on this level, finds the nearest alive+positioned boss with a
+ * borderId, resolves its {@code "tell"}-purpose {@link BorderCurve} (LOG shape), computes
+ * intensity from distance-to-boss (normalized by that boss' border's radius) via
+ * {@link BorderMath#intensityAt(BorderCurve, double)}, then makes two <em>independent</em>
+ * probability rolls: one for a particle spawn near the boss, one for an ambient sound
+ * broadcast. Stateless: no attunement state, always "nearest right now" per player per
+ * interval.
  *
  * <p>The fixture calls {@link BorderMath#intensityAt} directly rather than through
  * {@code BorderAPI.MATH} -- both are equivalent now that FRO_088 fixed {@code BorderAPI.MATH}'s
@@ -76,7 +70,6 @@ public final class BossTellFixture extends SatchelFixture {
         });
     }
 
-    private static final String KEY_TELLS = "tells";
 
     // Shared RNG -- same static-field shape BossRulesFacet.RULES already uses (one instance
     // shared across every level's BossTellFixture). Not persisted; resets on server restart,
@@ -153,53 +146,9 @@ public final class BossTellFixture extends SatchelFixture {
     private static final double PARTICLE_OFFSET_XZ = 0.9;
     private static final double PARTICLE_OFFSET_Y = 0.4;
 
-    // How many blocks of air to clear directly above each bedrock cell in the platform.
-    // Prevents mobs from spawning into tree foliage that can sit at ground level.
-    private static final int AIR_CLEARANCE = 4;
-    private final List<BossTellRecord> records = new ArrayList<>();
     // Non-persisted tell-pass cadence counter. Resets on server restart; the first partial
     // interval is silently skipped -- "off/on signal" discipline, no harm done.
     private int tickCounter = 0;
-
-    public BossTellFixture() {
-        registerCustom(KEY_TELLS, this::saveTells, this::loadTells);
-    }
-
-    /**
-     * FRO_148: half-width of the square bedrock platform for a boss of the given size multiplier
-     * (boss.md's "Spawn platform"): the base 3x3 (half-width 1) scaled by the same multiplier that
-     * scales the boss's own hitbox, kept odd-sized so it stays centered. Public because the
-     * Amethyst Compass's pad detection has to match the same footprint.
-     */
-    public static int platformHalfWidth(float scale) {
-        return Math.max(1, Math.round((3.0F * scale - 1.0F) / 2.0F));
-    }
-
-    /**
-     * Places a square bedrock layer at {@code bossPos.below()} and clears air above each bedrock
-     * cell. Footprint and clearance height both scale by the boss's size multiplier (FRO_148,
-     * boss.md's "Spawn platform"): a base 3x3 and {@value #AIR_CLEARANCE} blocks of air at scale
-     * 1.0.
-     *
-     * <p>{@code bossPos} is the boss's standing position (the air block the mob is at, per
-     * {@code MOTION_BLOCKING_NO_LEAVES} heightmap semantics). The bedrock goes one block below
-     * that, the air clearance runs from bossPos upward.
-     */
-    private static void placePlatform(Level level, BlockPos bossPos, float scale) {
-        int half = platformHalfWidth(scale);
-        int clearance = Math.max(AIR_CLEARANCE, (int) Math.ceil(AIR_CLEARANCE * scale));
-        for (int dx = -half; dx <= half; dx++) {
-            for (int dz = -half; dz <= half; dz++) {
-                // Bedrock cell: one below boss standing position.
-                BlockPos bedrockCell = bossPos.offset(dx, -1, dz);
-                level.setBlock(bedrockCell, Blocks.BEDROCK.defaultBlockState(), 3);
-                // Air clearance above the platform (boss Y through boss Y + clearance - 1).
-                for (int dy = 0; dy < clearance; dy++) {
-                    level.setBlock(bedrockCell.above(dy + 1), Blocks.AIR.defaultBlockState(), 3);
-                }
-            }
-        }
-    }
 
     /**
      * Spawns {@code bursts} small smoke bursts at independently randomized positions around
@@ -241,79 +190,6 @@ public final class BossTellFixture extends SatchelFixture {
         }
     }
 
-    private void saveTells(CompoundTag root) {
-        Satchel.requireServer();
-        ListTag list = new ListTag();
-        for (BossTellRecord r : records) {
-            list.add(BossTellRecord.save(r));
-        }
-        root.put(KEY_TELLS, list);
-    }
-
-    // ------------------------------------------------------------------
-    // Mutations
-    // ------------------------------------------------------------------
-
-    private void loadTells(CompoundTag root) {
-        records.clear();
-        if (!root.contains(KEY_TELLS, Tag.TAG_LIST)) {
-            return;
-        }
-        ListTag list = root.getList(KEY_TELLS, Tag.TAG_COMPOUND);
-        for (Tag t : list) {
-            // Same skip-malformed discipline BossFixture.loadBosses already establishes.
-            try {
-                records.add(BossTellRecord.load((CompoundTag) t));
-            } catch (RuntimeException e) {
-                OUT.warn("[BossTell] Skipping malformed tell record during load: " + e);
-            }
-        }
-    }
-
-    @Override
-    public void onLoaded() {
-        super.onLoaded();
-        OUT.info("            BossTellRecords loaded: " + records.size());
-    }
-
-    // ------------------------------------------------------------------
-    // Tick (called from BossModule.onBossJigTick every server tick)
-    // ------------------------------------------------------------------
-
-    /**
-     * Seeds a new tell record for {@code bossId} with a null platform -- called at boss creation
-     * time. The platform itself is placed later by this fixture's own tick, once the boss's chunk
-     * is loaded. Idempotent: a duplicate call for the same {@code bossId} is a logged no-op, not
-     * an error.
-     */
-    public void createRecord(UUID bossId) {
-        Satchel.requireServer();
-        boolean exists = records.stream().anyMatch(r -> r.bossId().equals(bossId));
-        if (exists) {
-            OUT.warn("[BossTell] createRecord(): record already exists for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return;
-        }
-        records.add(new BossTellRecord(bossId, null));
-        markDirty();
-    }
-
-    // ------------------------------------------------------------------
-    // Platform building
-    // ------------------------------------------------------------------
-
-    private void setPlatformPos(UUID bossId, BlockPos pos) {
-        Satchel.requireServer();
-        Optional<BossTellRecord> existing = records.stream().filter(r -> r.bossId().equals(bossId)).findFirst();
-        if (existing.isEmpty()) {
-            OUT.warn("[BossTell] setPlatformPos(): no tell record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return;
-        }
-        // Immutable swap -- same remove-then-add-back shape BossFixture's own mutations use.
-        records.removeIf(r -> r.bossId().equals(bossId));
-        records.add(existing.get().withPlatform(pos));
-        markDirty();
-    }
-
     // ------------------------------------------------------------------
     // Lifecycle
     // ------------------------------------------------------------------
@@ -330,9 +206,6 @@ public final class BossTellFixture extends SatchelFixture {
     private void tick(Level level, BossFixture bossFixture, BorderCurveFixture curveFixture) {
         Satchel.requireServer();
 
-        // Platform pass runs every tick -- chunk-load timing is the gating signal.
-        buildPendingPlatforms(level, bossFixture);
-
         // Tell pass is cadence-gated.
         tickCounter++;
         int interval = bossFixture.RULES.tellTickInterval();
@@ -343,7 +216,7 @@ public final class BossTellFixture extends SatchelFixture {
 
         // Tell pass needs a ServerLevel (EffectsAPI's targeted-particle path needs ServerPlayer,
         // which only comes off a real ServerLevel's player list) -- same warn-and-return
-        // discipline as this fixture's other defensive guards (e.g. setPlatformPos).
+        // discipline as this fixture's other defensive guards (e.g. the ServerLevel check).
         if (!(level instanceof ServerLevel serverLevel)) {
             OUT.warn("[BossTell] tick(): level is not a ServerLevel -- skipping tell pass.");
             return;
@@ -354,33 +227,6 @@ public final class BossTellFixture extends SatchelFixture {
     // ------------------------------------------------------------------
     // Tell pass
     // ------------------------------------------------------------------
-
-    private void buildPendingPlatforms(Level level, BossFixture bossFixture) {
-        for (BossTellRecord tellRecord : List.copyOf(records)) {
-            if (tellRecord.hasPlatform()) {
-                continue;
-            }
-
-            // The boss record's position is null until border pregeneration finishes and
-            // BOSS_JIG's own tick finalizes it -- skip until that point.
-            Optional<BossRecord> bossRecord = bossFixture.get(tellRecord.bossId());
-            if (bossRecord.isEmpty() || !bossRecord.get().positioned()) {
-                continue;
-            }
-
-            BlockPos bossPos = bossRecord.get().position();
-            if (!level.isLoaded(bossPos)) {
-                // "All a Tell needs to know is off or on." -- arch page's own framing.
-                // No-op this tick; retried automatically next tick.
-                continue;
-            }
-
-            placePlatform(level, bossPos, bossFixture.RULES.scaleForLayer(bossRecord.get().layer()));
-            // Record the base of the bedrock layer (one below the boss standing position).
-            setPlatformPos(tellRecord.bossId(), bossPos.below());
-            OUT.info("[BossTell] Built bedrock platform for bossId=" + Ids.shortId(tellRecord.bossId()) + " centered at " + bossPos.below());
-        }
-    }
 
     private void runTellsForPlayers(ServerLevel level, BossFixture bossFixture, BorderCurveFixture curveFixture) {
 

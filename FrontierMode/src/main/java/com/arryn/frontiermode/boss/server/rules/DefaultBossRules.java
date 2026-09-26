@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss.server.rules;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.boss.common.BossMobTypes;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -42,21 +43,6 @@ import java.util.UUID;
  * framing as {@code DefaultBorderRules.GROWTH_FACTOR}.
  */
 public final class DefaultBossRules implements BossRules {
-
-    // Placeholder tier -> mob type table (boss.md "Spawn algorithm"). Ordered as a ramp in what a
-    // player has to deal with: passive (Rabbit), conditional (Spider), always-hostile melee
-    // (Zombie), ranged (Skeleton), then the rest. Indexed by tier, not layer -- see
-    // mobTypeForLayer(). Not a locked curve.
-    private static final List<EntityType<? extends Mob>> LAYER_MOBS = List.of(
-            EntityType.RABBIT,
-            EntityType.SPIDER,
-            EntityType.ZOMBIE,
-            EntityType.SKELETON,
-            EntityType.ZOMBIFIED_PIGLIN,
-            EntityType.PILLAGER,
-            EntityType.VINDICATOR,
-            EntityType.RAVAGER
-    );
 
     // Border Pregeneration: how many candidate chunk-center positions choosePosition() scores
     // before picking a winner -- a tuning number ("safe baseline, replace later"), not settled by
@@ -284,6 +270,9 @@ public final class DefaultBossRules implements BossRules {
                     mob.setPersistenceRequired();
                     applyStatScaling(mob, layer);
                     makeFireImmune(mob);
+                    // Fire immunity stops the damage; the sun ward stops the ignition itself, so a
+                    // Zombie or Skeleton boss doesn't visibly burn in daylight.
+                    equipSunWard(mob);
                     tagVisibly(mob, layer);
                 });
         if (spawned.isEmpty()) {
@@ -297,8 +286,8 @@ public final class DefaultBossRules implements BossRules {
     // health/damage scale in applyStatScaling() is the separate difficulty dial.
     private EntityType<? extends Mob> mobTypeForLayer(int layer) {
         int bandWidth = Math.max(1, new Tunable("mobTierBandWidth", 1, 20, 3).intValue());
-        int tier = layer <= 1 ? 0 : Math.min(1 + (layer - 2) / bandWidth, LAYER_MOBS.size() - 1);
-        return LAYER_MOBS.get(tier);
+        int tier = layer <= 1 ? 0 : Math.min(1 + (layer - 2) / bandWidth, BossMobTypes.ORDERED.size() - 1);
+        return BossMobTypes.ORDERED.get(tier);
     }
 
     // Boss invariant (boss.md Scope): no fire damage for any boss. A permanent Fire Resistance

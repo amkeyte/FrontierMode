@@ -307,7 +307,8 @@ public final class BossFixture extends SatchelFixture {
                 layer,
                 null,
                 true,
-                borderId
+                borderId,
+                null
         );
 
         bosses.add(record);
@@ -340,6 +341,32 @@ public final class BossFixture extends SatchelFixture {
         }
 
         BossRecord updated = record.finalizedAt(resolvedPosition);
+        bosses.removeIf(r -> r.bossId().equals(bossId));
+        bosses.add(updated);
+        markDirty();
+        return true;
+    }
+
+    /**
+     * Records that the boss's spawn platform is built, with its base position. Once per record: a
+     * second call for a record that already has one is a logged no-op, so a respawned boss returns
+     * onto the platform already there and it is never re-carved.
+     */
+    public boolean setPlatform(UUID bossId, BlockPos platformPos) {
+        Satchel.requireServer();
+        Objects.requireNonNull(platformPos, "platformPos");
+
+        Optional<BossRecord> existing = get(bossId);
+        if (existing.isEmpty()) {
+            OUT.warn("[Boss] setPlatform(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
+            return false;
+        }
+        if (existing.get().platformBuilt()) {
+            OUT.warn("[Boss] setPlatform(): bossId=" + Ids.shortId(bossId) + " already has a platform -- ignoring.");
+            return false;
+        }
+
+        BossRecord updated = existing.get().withPlatform(platformPos);
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         markDirty();

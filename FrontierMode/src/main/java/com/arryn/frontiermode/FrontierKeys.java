@@ -291,6 +291,15 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
+    // FRO_166: SpawnCoordinator's own tick-free signal subscription point -- no bundle/fixture,
+    // same shape as FERAL_LEVEL_JIG/ADMIN_TOOLS_JIG. See SpawnCoordinator.init() for the wiring.
+
+    public static final JigKey<LevelJig> SPAWN_COORDINATOR_JIG =
+            new JigKey<>(
+                    "frontiermode:spawn_coordinator_jig",
+                    LevelJig.class
+            );
+
     // FRO_149: AdminToolsModule's own tick-free signal subscription point -- no bundle/fixture,
     // same "exists purely to get a signal subscription point" shape as FERAL_PLAYER_JIG/
     // FERAL_LEVEL_JIG (FRO_146). See AdminToolsModule.init() for the schema/config wiring.

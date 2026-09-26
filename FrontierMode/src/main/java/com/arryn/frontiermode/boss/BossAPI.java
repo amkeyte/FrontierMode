@@ -521,18 +521,11 @@ public final class BossAPI {
 
         Optional<BossRecord> nextBoss = createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
-        // FRO_087 fix: this cascade skipped tell-record creation that the other two
-        // paired-creation call sites (BossJigHandlers.onBordersScopeLoaded/onMobDied) both
-        // already do -- without it, a boss produced via /boss transform defeat never got a
-        // BossTellRecord, so it never got its 3x3 bedrock platform (ambient particle/sound
-        // tells still worked, since those read BossFixture directly, not this record).
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline -- this is one of the three call
         // sites ensureGuardianCurves runs from (the other two are
         // BossJigHandlers.onBordersScopeLoaded/onMobDied).
         BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
-        nextBoss.ifPresent(rec ->
-                bossTells(level).ifPresent(tell -> tell.createRecord(rec.bossId())));
         return new DefeatOutcome(result, nextBoss, false);
     }
 }

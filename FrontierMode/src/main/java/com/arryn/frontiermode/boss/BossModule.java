@@ -30,7 +30,6 @@ import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.MobRemoved;
-import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
@@ -87,10 +86,8 @@ public final class BossModule {
     }
 
     /**
-     * RM_FRO_029 (Gloria): delegate target for {@code FrontierMode.onMobSpawnFinalize}
-     * (FRO_107: now a {@code MobSpawnFinalizeSignal} subscriber, not a raw Forge
-     * {@code @SubscribeEvent} -- {@code FrontierMode.java} still does the fan-out, by name, to a
-     * module static method, just off Satchel's own signal now instead of the raw Forge event).
+     * Guardian conversion's entry point: called by {@code SpawnCoordinator}, the one subscriber to
+     * {@code MobSpawnFinalizeSignal}, in its fixed order after Feral's Slime/MagmaCube deny.
      *
      * <p>Never cancels the spawn either way -- Guardian Mobs is a modifier on an already-happening
      * spawn, not a summon. "Standby, don't crash": a {@link BossGuardiansFixture} that isn't
@@ -147,12 +144,6 @@ public final class BossModule {
                         .on(ScopeEvent.Tick.class, BossJigHandlers::onTick)
                         .on(ScopeEvent.Loaded.class, BossJigHandlers::onBordersScopeLoaded)
                         .on(MobDied.class, BossJigHandlers::onMobDied)
-                        // FRO_107: bare, unscoped signal (SAT_076) -- declaring it here is only
-                        // where installation happens to occur, not a claim this is BOSS_JIG-scoped.
-                        // BossJigHandlers::onMobSpawnFinalize is the cross-module fan-out (Slime
-                        // deny, then Boss/Border/Feral in sequence), same role FrontierMode.java's
-                        // raw @SubscribeEvent played before this signal existed.
-                        .on(MobSpawnFinalizeSignal.class, BossJigHandlers::onMobSpawnFinalize)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);
@@ -214,9 +205,13 @@ public final class BossModule {
                         JigPolicies.FlushPolicy.EXECUTION_PULSE,
                         JigPolicies.MissingDataPolicy.WARN));
         // withExecutionPulse(true): persistence flush and client sync only ever run from the
-        // execution pulse (the FRO_018 lesson) -- no tick handler needed, this jig has no logic.
+        // execution pulse (the FRO_018 lesson). The tick is client-side only, for the boss's
+        // close-range flash.
         config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withExecutionPulse(true));
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
+                .eventHandlers(EventHandlers.builder()
+                        .on(ScopeEvent.Tick.class, BossPublicJigHandlers::onTick)
+                        .build());
 
         Satchel.registerJigConfig(config);
     }
