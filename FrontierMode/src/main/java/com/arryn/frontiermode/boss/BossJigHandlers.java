@@ -237,6 +237,9 @@ final class BossJigHandlers {
             return;
         }
 
+        // The boss's guardians die with it, staggered; see guardian-mobs.md's "When the boss is defeated".
+        GuardianJigHandlers.onBossDefeated(level, bossId.get(), credited.getUUID());
+
         // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
         // gating below stops growth right here -- see boss.md's "Cascade durability".
         fixture.scheduleForceFlush();

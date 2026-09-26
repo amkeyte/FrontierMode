@@ -4,7 +4,7 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
 import com.arryn.frontiermode.border.common.navigator.TargetType;
-import com.arryn.frontiermode.boss.common.SunWardItem;
+import com.arryn.frontiermode.boss.common.items.SunWardItem;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;

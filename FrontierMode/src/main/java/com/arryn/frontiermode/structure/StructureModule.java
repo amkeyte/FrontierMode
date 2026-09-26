@@ -8,8 +8,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossPositionListeners;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
-import com.arryn.frontiermode.structure.common.CairnCapBlock;
+import com.arryn.frontiermode.structure.common.blocks.CairnCapBlock;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnRecord;
 import com.arryn.frontiermode.structure.common.StructureBundle;
@@ -26,7 +25,6 @@ import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -34,7 +32,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -341,44 +338,7 @@ public final class StructureModule {
             target = randomPointInSphere(RNG, anchorPos, DEAD_SPHERE_RADIUS);
         }
 
-        firePulseParticles(serverLevel, capPos, target);
-    }
-
-    /**
-     * Vertical launch (3-7 blocks) then a 3D bee-line (5-15 blocks) toward {@code target}'s
-     * bearing -- both rolled fresh every trigger, per cairn.md's own visual spec. The raw
-     * {@code target} coordinate itself never reaches the client -- only these already-resolved
-     * particle points do, same secrecy rule as Boss's own position (boss.md § Module wiring).
-     */
-    private static void firePulseParticles(ServerLevel level, BlockPos capPos, BlockPos target) {
-        double launchHeight = 3.0 + RNG.nextDouble() * 4.0;
-        double beelineLength = 5.0 + RNG.nextDouble() * 10.0;
-
-        double startX = capPos.getX() + 0.5;
-        double startY = capPos.getY() + 1.0;
-        double startZ = capPos.getZ() + 0.5;
-
-        int launchSteps = (int) Math.ceil(launchHeight);
-        for (int i = 1; i <= launchSteps; i++) {
-            double y = startY + launchHeight * i / launchSteps;
-            EffectsAPI.broadcastParticle(level, ParticleTypes.WITCH, startX, y, startZ, 1, 0, 0, 0, 0);
-        }
-
-        double apexY = startY + launchHeight;
-        Vec3 dir = new Vec3(
-                target.getX() + 0.5 - startX,
-                target.getY() - apexY,
-                target.getZ() + 0.5 - startZ
-        ).normalize();
-
-        int beelineSteps = (int) Math.ceil(beelineLength);
-        for (int i = 1; i <= beelineSteps; i++) {
-            double dist = beelineLength * i / beelineSteps;
-            double x = startX + dir.x * dist;
-            double y = apexY + dir.y * dist;
-            double z = startZ + dir.z * dist;
-            EffectsAPI.broadcastParticle(level, ParticleTypes.WITCH, x, y, z, 1, 0, 0, 0, 0);
-        }
+        CairnPulse.fire(serverLevel, capPos, target);
     }
 
     /** Uniform random point within a sphere of {@code radius} centered on {@code center}. */

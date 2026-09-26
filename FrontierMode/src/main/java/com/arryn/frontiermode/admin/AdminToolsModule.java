@@ -2,6 +2,7 @@ package com.arryn.frontiermode.admin;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.FrontierMode;
+import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
@@ -18,7 +19,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -106,7 +106,7 @@ public final class AdminToolsModule {
         List<ItemStack> stashed = new ArrayList<>();
         signal.drops().removeIf(itemEntity -> {
             ItemStack stack = itemEntity.getItem();
-            if (EnchantmentHelper.getTagEnchantmentLevel(DEATH_TOUCH.get(), stack) <= 0) {
+            if (StackData.enchantmentLevel(stack, DEATH_TOUCH.get()) <= 0) {
                 return false;
             }
             stashed.add(stack);
@@ -140,8 +140,8 @@ public final class AdminToolsModule {
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
         ItemStack stick = new ItemStack(Items.STICK);
-        stick.enchant(DEATH_TOUCH.get(), 1);
-        stick.setHoverName(Component.literal("Death Stick"));
+        StackData.enchant(stick, DEATH_TOUCH.get(), 1);
+        StackData.setCustomName(stick, Component.literal("Death Stick"));
 
         if (!sp.getInventory().add(stick)) {
             sp.drop(stick, false);
@@ -171,7 +171,7 @@ public final class AdminToolsModule {
             if (!(event.getSource().getEntity() instanceof LivingEntity attacker)) {
                 return;
             }
-            if (EnchantmentHelper.getTagEnchantmentLevel(DEATH_TOUCH.get(), attacker.getMainHandItem()) <= 0) {
+            if (StackData.enchantmentLevel(attacker.getMainHandItem(), DEATH_TOUCH.get()) <= 0) {
                 return;
             }
             event.setAmount(Float.MAX_VALUE);
@@ -190,7 +190,7 @@ public final class AdminToolsModule {
                 return;
             }
             ItemStack stack = event.getEntity().getItem();
-            if (EnchantmentHelper.getTagEnchantmentLevel(DEATH_TOUCH.get(), stack) <= 0) {
+            if (StackData.enchantmentLevel(stack, DEATH_TOUCH.get()) <= 0) {
                 return;
             }
 

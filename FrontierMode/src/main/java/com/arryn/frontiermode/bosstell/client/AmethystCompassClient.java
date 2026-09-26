@@ -2,10 +2,10 @@ package com.arryn.frontiermode.bosstell.client;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.satchel.common.util.StackData;
 import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.CompassItem;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
@@ -19,7 +19,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
  * system is registered per exact {@code Item} instance
  * ({@code ItemProperties.register(Items.COMPASS, "angle", ...)}, a {@code Map<Item, ...>} keyed
  * by reference), never for "anything {@code instanceof CompassItem}." Extending
- * {@link CompassItem} in Java gives {@code AmethystCompassItem} the NBT helpers
+ * {@code CompassItem} in Java gives {@code AmethystCompassItem} the NBT helpers
  * ({@code isLodestoneCompass}/{@code getLodestonePosition}) and vanilla's default interaction
  * behavior, but not the rendering -- that has to be registered separately, for this exact item,
  * which is what this class does.
@@ -58,9 +58,7 @@ public final class AmethystCompassClient {
                 BossTellModule.AMETHYST_COMPASS.get(),
                 ResourceLocation.withDefaultNamespace("angle"),
                 new CompassItemPropertyFunction((level, stack, entity) ->
-                        CompassItem.isLodestoneCompass(stack)
-                                ? CompassItem.getLodestonePosition(stack.getOrCreateTag())
-                                : null)
+                        StackData.lodestonePosition(stack).orElse(null))
         );
     }
 

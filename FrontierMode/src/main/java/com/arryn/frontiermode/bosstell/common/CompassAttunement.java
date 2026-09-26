@@ -1,7 +1,10 @@
 package com.arryn.frontiermode.bosstell.common;
 
+import com.arryn.frontiermode.FrontierMode;
+import com.arryn.satchel.common.util.StackData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Objects;
@@ -9,12 +12,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Thin managed wrapper around the compass item's own NBT access -- the item-carried half of
- * Attunement, per
- * wiki/frontiermode/architecture/special-compass.md#the-item-nbt-attunement-wrapper. Grouped
- * under one nested compound tag rather than flat top-level keys, so it can't collide with
- * vanilla's own {@code LodestonePos}/{@code LodestoneDimension}/{@code LodestoneTracked} fields
- * on the same stack (see {@code AmethystCompassItem}, which writes those directly).
+ * The compass's attunement data on its item stack, per
+ * wiki/frontiermode/architecture/special-compass.md#the-item-nbt-attunement-wrapper. It lives in one
+ * namespaced compound ({@link #NAMESPACE}) read and written only through Satchel's {@link StackData}
+ * -- nothing outside this class sees a key or a tag, so the vanilla lodestone fields
+ * ({@code AmethystCompassItem} writes those through {@code StackData} too) can't collide with it.
  *
  * <p>Two cases, per special-compass.md's own table: a <b>live</b> case (a boss UUID -- the admin
  * path, and later Resonance) and a <b>frozen</b> case (a raw {@code BlockPos}, no boss
@@ -29,7 +31,8 @@ import java.util.UUID;
  */
 public final class CompassAttunement {
 
-    private static final String ROOT_TAG = "frontiermode_compass_attunement";
+    private static final ResourceLocation NAMESPACE =
+            ResourceLocation.fromNamespaceAndPath(FrontierMode.MODID, "compass");
     private static final String KEY_BOSS_ID = "bossId";
     private static final String KEY_FROZEN_POS = "frozenPos";
     private static final String KEY_ADMIN = "admin";
@@ -54,7 +57,7 @@ public final class CompassAttunement {
         root.putUUID(KEY_OWNER_ID, ownerId);
         root.putBoolean(KEY_ADMIN, admin);
         preserveLockedEnchantLevel(stack, root);
-        stack.getOrCreateTag().put(ROOT_TAG, root);
+        StackData.write(stack, NAMESPACE, root);
     }
 
     /**
@@ -71,13 +74,13 @@ public final class CompassAttunement {
         root.putUUID(KEY_OWNER_ID, ownerId);
         root.putBoolean(KEY_ADMIN, false);
         preserveLockedEnchantLevel(stack, root);
-        stack.getOrCreateTag().put(ROOT_TAG, root);
+        StackData.write(stack, NAMESPACE, root);
     }
 
     /** Carries the old locked-enchant-level forward across a re-lock -- see class doc. */
     private static void preserveLockedEnchantLevel(ItemStack stack, CompoundTag newRoot) {
-        CompoundTag old = root(stack);
-        if (old != null && old.contains(KEY_LOCKED_ENCHANT_LEVEL)) {
+        CompoundTag old = StackData.read(stack, NAMESPACE);
+        if (old.contains(KEY_LOCKED_ENCHANT_LEVEL)) {
             newRoot.putInt(KEY_LOCKED_ENCHANT_LEVEL, old.getInt(KEY_LOCKED_ENCHANT_LEVEL));
         }
     }
@@ -88,26 +91,20 @@ public final class CompassAttunement {
      * write it).
      */
     public static Optional<UUID> ownerId(ItemStack stack) {
-        CompoundTag root = root(stack);
-        if (root == null || !root.hasUUID(KEY_OWNER_ID)) {
-            return Optional.empty();
-        }
-        return Optional.of(root.getUUID(KEY_OWNER_ID));
+        CompoundTag root = StackData.read(stack, NAMESPACE);
+        return root.hasUUID(KEY_OWNER_ID) ? Optional.of(root.getUUID(KEY_OWNER_ID)) : Optional.empty();
     }
 
     /** Empty unless this stack is in the live case. */
     public static Optional<UUID> bossId(ItemStack stack) {
-        CompoundTag root = root(stack);
-        if (root == null || !root.hasUUID(KEY_BOSS_ID)) {
-            return Optional.empty();
-        }
-        return Optional.of(root.getUUID(KEY_BOSS_ID));
+        CompoundTag root = StackData.read(stack, NAMESPACE);
+        return root.hasUUID(KEY_BOSS_ID) ? Optional.of(root.getUUID(KEY_BOSS_ID)) : Optional.empty();
     }
 
     /** Empty unless this stack is in the frozen case. */
     public static Optional<BlockPos> frozenPos(ItemStack stack) {
-        CompoundTag root = root(stack);
-        if (root == null || !root.contains(KEY_FROZEN_POS)) {
+        CompoundTag root = StackData.read(stack, NAMESPACE);
+        if (!root.contains(KEY_FROZEN_POS)) {
             return Optional.empty();
         }
         int[] xyz = root.getIntArray(KEY_FROZEN_POS);
@@ -118,39 +115,30 @@ public final class CompassAttunement {
     }
 
     public static boolean isAdmin(ItemStack stack) {
-        CompoundTag root = root(stack);
-        return root != null && root.getBoolean(KEY_ADMIN);
+        return StackData.read(stack, NAMESPACE).getBoolean(KEY_ADMIN);
     }
 
     public static boolean isAttuned(ItemStack stack) {
-        return root(stack) != null;
+        return !StackData.read(stack, NAMESPACE).isEmpty();
     }
 
     /** 0 if never locked against any enchant level yet. */
     public static int lockedEnchantLevel(ItemStack stack) {
-        CompoundTag root = root(stack);
-        return root == null ? 0 : root.getInt(KEY_LOCKED_ENCHANT_LEVEL);
+        return StackData.read(stack, NAMESPACE).getInt(KEY_LOCKED_ENCHANT_LEVEL);
     }
 
     /**
-     * Updates just the locked-enchant-level bookkeeping in place, without touching the live/
-     * frozen target itself -- the detection mechanism's own write, separate from actually
-     * re-rolling/re-locking the target (that's the caller's job, via {@link #setLive}/
-     * {@link #setFrozen} immediately after reading the new level off the stack).
+     * Updates just the locked-enchant-level bookkeeping, without touching the live/frozen target
+     * itself -- the detection mechanism's own write, separate from actually re-rolling/re-locking
+     * the target (that's the caller's job, via {@link #setLive}/{@link #setFrozen} immediately
+     * after reading the new level off the stack). A no-op on a stack with no attunement.
      */
     public static void setLockedEnchantLevel(ItemStack stack, int level) {
-        CompoundTag root = root(stack);
-        if (root == null) {
+        CompoundTag root = StackData.read(stack, NAMESPACE);
+        if (root.isEmpty()) {
             return;
         }
         root.putInt(KEY_LOCKED_ENCHANT_LEVEL, level);
-    }
-
-    private static CompoundTag root(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
-        if (tag == null || !tag.contains(ROOT_TAG)) {
-            return null;
-        }
-        return tag.getCompound(ROOT_TAG);
+        StackData.write(stack, NAMESPACE, root);
     }
 }

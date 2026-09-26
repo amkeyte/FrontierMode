@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss.server.rules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -187,6 +188,29 @@ public interface BossRules {
      * every other value in this cluster -- this one moved twice in one playtest session already.
      */
     double guardianPlacementRadiusFraction();
+
+    /**
+     * Heals {@code mob}, a guardian that just joined the level, to its full maximum health. Stat
+     * scaling runs before vanilla's own setup, which can raise max health without healing (a leader
+     * zombie), so the join is the first point at which the final maximum is known.
+     */
+    void healGuardian(Mob mob);
+
+    /** How many of a defeated boss's guardians die per {@code BOSS_JIG} tick, so their loot doesn't land in one tick. */
+    int guardianDefeatKillsPerTick();
+
+    /**
+     * Kills {@code mob}, a guardian of a defeated boss, as a real vanilla death: ordinary drops
+     * always. With a {@code credited} player it is marked as recently hurt by them first, so
+     * experience and player-only drops follow; {@code null} kills it uncredited (drops, no XP).
+     */
+    void killGuardian(Mob mob, ServerPlayer credited);
+
+    /**
+     * Removes {@code mob}, a doomed guardian that loaded after its boss was defeated, with vanilla's
+     * death puff and nothing else: no drops, no XP, no death event.
+     */
+    void dismissGuardian(Mob mob);
 
     /**
      * Whether a spawn of {@code type} can become a guardian, and so whether the daylight gates may
