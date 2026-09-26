@@ -122,18 +122,17 @@ repositories {
 
     // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
-    // TODO(debt, FRO_004): hardcoded absolute path, breaks on any machine where this repo isn't
-    // checked out at exactly C:/_local/mcRepos. FrontierMode's dependency on Satchel itself is
-    // legitimate (mods.toml declares it mandatory, AFTER) -- what needs fixing is the mechanism,
-    // e.g. a real Gradle project/module reference or a relative/composite build setup, instead
-    // of a flatDir repo pointing at a machine-specific path. See backhaul/wiki/plans/strip-down.md.
+    // Path is relative to this project (Satchel is expected as a sibling of FrontierMode), so a
+    // clone or move of the whole repo works. FrontierMode's dependency on Satchel itself is
+    // legitimate (mods.toml declares it mandatory, AFTER); a real Gradle project/module reference
+    // would still be a cleaner mechanism than a flatDir. See backhaul/wiki/plans/strip-down.md.
     flatDir {
-        dir 'C:/_local/mcRepos/Satchel/build/libs/'
+        dir "${projectDir}/../Satchel/build/libs"
     }
 }
 
-// TODO(debt, FRO_004): same hardcoded-path issue as the flatDir repo above.
-def satchelLibDir = file("C:/_local/mcRepos/Satchel/build/libs")
+// Same sibling-relative path as the flatDir repo above.
+def satchelLibDir = file("${projectDir}/../Satchel/build/libs")
 
 // Fails fast with an actionable message instead of NPE'ing when Satchel hasn't been built yet
 // (e.g. a fresh checkout, or after `./gradlew clean`). FrontierMode's mods.toml declares Satchel
@@ -257,17 +256,17 @@ reobf {
 }
 
 // ------------------------------------------------------------
-// Release: reobfuscate and copy to C:/_local/mcRepos/Release/<version>/
+// Release: reobfuscate and copy to <repo root>/Release/<version>/ (sibling of FrontierMode)
 // Run: ./gradlew release
 // This is the ONLY place reobfJar is triggered; normal `jar` builds stay
 // non-obf so they work correctly in dev run/mods directories.
 // ------------------------------------------------------------
 tasks.register('release', Copy) {
     group = 'frontiermode'
-    description = "Reobfuscates and copies the release jar to C:/_local/mcRepos/Release/${mod_version}/ for GitHub upload."
+    description = "Reobfuscates and copies the release jar to ../Release/${mod_version}/ for GitHub upload."
     dependsOn tasks.named('reobfJar')
 
-    def releaseDir = file("C:/_local/mcRepos/Release/${mod_version}")
+    def releaseDir = file("${projectDir}/../Release/${mod_version}")
 
     doFirst {
         releaseDir.mkdirs()

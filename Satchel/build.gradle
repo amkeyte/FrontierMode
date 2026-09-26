@@ -225,17 +225,17 @@ tasks.register('copyToFrontierMode', Copy) {
 }
 
 // ------------------------------------------------------------
-// Release: reobfuscate and copy to C:/_local/mcRepos/Release/<version>/
+// Release: reobfuscate and copy to <repo root>/Release/<version>/ (sibling of Satchel)
 // Run: ./gradlew release
 // This is the ONLY place reobfJar is triggered; normal `jar` and
 // `copyToFrontierMode` produce non-obf dev jars.
 // ------------------------------------------------------------
 tasks.register('release', Copy) {
     group = 'satchel'
-    description = "Reobfuscates and copies the release jar to C:/_local/mcRepos/Release/${mod_version}/ for GitHub upload."
+    description = "Reobfuscates and copies the release jar to ../Release/${mod_version}/ for GitHub upload."
     dependsOn tasks.named('reobfJar')
 
-    def releaseDir = file("C:/_local/mcRepos/Release/${mod_version}")
+    def releaseDir = file("${projectDir}/../Release/${mod_version}")
 
     doFirst {
         releaseDir.mkdirs()
