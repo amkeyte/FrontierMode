@@ -102,6 +102,12 @@ public final class FrontierMode {
                     "boss_tell_5",
                     () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "boss_tell_5")));
 
+    // The Cairn pulse's ping. Same registration shape as the sounds above.
+    public static final RegistryObject<SoundEvent> CAIRN_PING =
+            SOUND_EVENTS.register(
+                    "cairn_ping",
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "cairn_ping")));
+
     // ------------------------------------------------------------
     // Constructor – module bootstrap
     // ------------------------------------------------------------

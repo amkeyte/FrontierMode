@@ -49,5 +49,11 @@
         "stream": true
       }
     ]
+  },
+  "cairn_ping": {
+    "subtitle": "subtitles.frontiermode.cairn_ping",
+    "sounds": [
+      "frontiermode:cairn_ping"
+    ]
   }
 }

@@ -31,9 +31,7 @@ public final class MobSpawns {
          */
         DISPATCHED,
         /** Vanilla's {@code Mob#finalizeSpawn} only: no Forge event, so no module sees the spawn. */
-        VANILLA,
-        /** Neither. */
-        NONE
+        VANILLA
     }
 
     // How far above and below a scatter candidate's center height to look for a standable floor.
@@ -43,12 +41,13 @@ public final class MobSpawns {
     }
 
     /**
-     * Creates a {@code type} mob at {@code pos}, runs {@code preSetup} (a caller staging state
-     * before anything else sees the mob), runs {@code setup}, and adds it to the level. Empty if the
-     * type isn't a {@link Mob}, can't be created, or the level refuses it.
+     * Creates a {@code type} mob at {@code pos}, runs {@code preSetup} (a caller staging state before
+     * anything else sees the mob), runs {@code setup}, runs {@code postSetup} (a caller adjusting what
+     * setup produced -- setup can change max health, so scaling belongs here), and adds it to the
+     * level. Empty if the type isn't a {@link Mob}, can't be created, or the level refuses it.
      */
     public static Optional<Mob> spawn(ServerLevel level, EntityType<?> type, BlockPos pos, Setup setup,
-                                      Consumer<Mob> preSetup) {
+                                      Consumer<Mob> preSetup, Consumer<Mob> postSetup) {
         Entity created = type.create(level);
         if (!(created instanceof Mob mob)) {
             return Optional.empty();
@@ -57,6 +56,7 @@ public final class MobSpawns {
         mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, level.getRandom().nextFloat() * 360.0F, 0.0F);
         preSetup.accept(mob);
         runSetup(mob, level, pos, setup);
+        postSetup.accept(mob);
 
         if (!level.addFreshEntity(mob)) {
             OUT.warn("[MobSpawns] spawn(): addFreshEntity failed for " + type + " at " + pos);
@@ -65,7 +65,14 @@ public final class MobSpawns {
         return Optional.of(mob);
     }
 
-    /** {@link #spawn(ServerLevel, EntityType, BlockPos, Setup, Consumer)} with nothing to stage. */
+    /** {@link #spawn(ServerLevel, EntityType, BlockPos, Setup, Consumer, Consumer)} with nothing to run after setup. */
+    public static Optional<Mob> spawn(ServerLevel level, EntityType<?> type, BlockPos pos, Setup setup,
+                                      Consumer<Mob> preSetup) {
+        return spawn(level, type, pos, setup, preSetup, mob -> {
+        });
+    }
+
+    /** {@link #spawn(ServerLevel, EntityType, BlockPos, Setup, Consumer, Consumer)} with nothing to stage or adjust. */
     public static Optional<Mob> spawn(ServerLevel level, EntityType<?> type, BlockPos pos, Setup setup) {
         return spawn(level, type, pos, setup, mob -> {
         });
@@ -78,8 +85,6 @@ public final class MobSpawns {
                     mob, level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null, null);
             case VANILLA -> mob.finalizeSpawn(
                     level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null, null);
-            case NONE -> {
-            }
         }
     }
 

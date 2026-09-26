@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Satchel Subsystems</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 16px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 22px; }
+</style>
+</head>
+<body>
+<h1>Satchel Subsystems</h1>
+<p>Top-level map of Satchel's main subsystems as built. Raw Forge events enter through the ingress
+classes. Each logical side has its own <code>LogicalFoundation</code>, built by that side's booter
+from compiled <code>JigConfig</code>s. The per-tick pulse drives jigs, couplers and scope engines.
+Engines own the bundles and fixtures, persist them server-side and push them to the client as
+parcels. Everything a consumer module reacts to arrives on <code>SatchelEventBus</code>.</p>
+<details>
+<summary>Derived from (Satchel/src/main/java/com/arryn/satchel/)</summary>
+<ul>
+<li><code>SatchelMod</code>, <code>Satchel</code></li>
+<li><code>server/lifecycle/{ServerForgeIngress,ServerSpawnIngress,ServerForgeEgress}</code>, <code>client/lifecycle/{ClientForgeIngress,ClientForgeEgress}</code></li>
+<li><code>server/jig/guts/{ServerFoundationBooter,ScopeEngine_Server}</code>, <code>client/jig/guts/{ClientFoundationBooter,ScopeEngine_Client}</code></li>
+<li><code>common/jig/guts/*</code> (LogicalFoundation, LogicalSideContext, JigInfo, ScopeInfo, ASatchelJig, AScopeCoupler, ScopeEngine, ForgeEgress)</li>
+<li><code>common/jig/config/*</code>, <code>common/jig/{level,player,mob}/*</code></li>
+<li><code>common/lifecycle/*</code> (dispatchers, SatchelEventBus, EventHandlers, ScopeEvent, BundleEvent, SatchelEvent, signals)</li>
+<li><code>common/bundle/*</code>, <code>common/fixture/SatchelFixture</code>, <code>common/persistence/*</code>, <code>common/net/*</code></li>
+<li><code>common/tunable/*</code>, <code>common/tracking/*</code>, <code>server/commands/MobTrackCommands</code>, <code>common/util/**</code></li>
+</ul>
+<p><code>BundleFactories</code>/<code>common/bundle/builder/*</code> and <code>ParcelHydrationSource</code> have no callers and are left off the map.</p>
+</details>
+
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 60, 'rankSpacing': 90, 'wrappingWidth': 600}}}%%
+flowchart TB
+    FORGE["<b>Minecraft / Forge — in</b><br/>Forge event bus · live world"]
+    FOUT["<b>Minecraft / Forge — out</b><br/>vanilla SavedData · SimpleChannel"]
+    MOD["<b>SatchelMod</b><br/>SatchelConfig · SatchelNetwork.register ·<br/>SatchelHealth.init · /satchel mobtrack"]
+    CREG["<b>Consumer mod init</b><br/>e.g. FrontierMode modules<br/>build JigConfigs"]
+    CRUN["<b>Consumer mod runtime</b><br/>event handlers · fixture facet reads/writes"]
+
+    ING["<b>Forge boundary</b><br/>ServerForgeIngress — level/player discovery,<br/>server tick, MobDied, MobRemoved, bare signals<br/>ServerSpawnIngress — MobSpawnEvent, EntityJoinLevel<br/>ClientForgeIngress — client discovery + tick"]
+
+    CFG["<b>Registration</b><br/>JigConfig — Level / Player / MobJigConfig<br/>lenses: binding · bundles · policies · execution<br/>JigConfigCompiler · JigConfigValidator<br/>→ CompiledJigConfig per side"]
+
+    FND["<b>Foundation — one per LogicalSide</b><br/>Satchel facade — FOUNDATIONS · require() · ask/get<br/>LogicalSideContext — ThreadLocal side<br/>Server / ClientFoundationBooter<br/>LogicalFoundation — JigInfo registry<br/>FoundationLifecycleDispatcher — pulse()"]
+
+    JIG["<b>Jig runtime</b><br/>JigInfo · ScopeInfo — phase NEW → LOADED<br/>ASatchelJig — LevelJig · PlayerJig · MobJig<br/>AScopeCoupler — Level · Player · Mob<br/>SatchelScope — LevelScope · PlayerScope · MobScope<br/>MobInterestRegistry · MobReconcileLogic —<br/>MobJig resolves mobs via ForgeEgress"]
+
+    ENG["<b>Scope engines</b><br/>ScopeEngine_Server — hydrate · flush · sync<br/>ScopeEngine_Client — apply incoming parcels<br/>active bundles per scope"]
+
+    DATA["<b>Bundles &amp; fixtures</b><br/>SatchelBundle — fixtures · dirty flag ·<br/>sync / flush delegates · LifecycleState<br/>SatchelFixture — modder-facing state + facets<br/>BundleKey · FixtureKey · JigKey · stitches"]
+
+    PER["<b>Persistence — server</b><br/>SavedDataEgressSink → BundleSavedData<br/>SavedDataHydrationSource · FixtureHydrator ·<br/>NbtFixtureHydrationSource<br/>WorldIdentitySavedData · WorldIdentityContext"]
+
+    NET["<b>Networking — server to client</b><br/>ParcelEgressSink → SatchelNetwork<br/>S2cBundleParcel · S2cWorldIdentityToken<br/>→ ParcelInbox"]
+
+    EVT["<b>Event delivery</b><br/>ScopeLifecycleDispatcher — ScopeEvent<br/>BundleLifecycleDispatcher — BundleEvent<br/>SatchelEventBus — synchronous, class-keyed<br/>EventHandlers — one set per JigConfig"]
+
+    TUN["<b>Tunables</b><br/>Tunable · TunableManager<br/>satchel-tunables.csv"]
+    HEALTH["<b>SatchelHealth</b><br/>Level / Player / Mob health checks<br/>tracker bundles + fixture"]
+    UTIL["<b>Utilities</b><br/>OUT · Tracer · TickThrottler · TickDelay ·<br/>SchedulerClock · SideToken · SimParity · Ids"]
+
+    FORGE -->|"Forge events"| ING
+    FORGE -->|"ServerStarting / Stopping"| TUN
+    MOD -->|"register channel"| NET
+    MOD -->|"init"| HEALTH
+
+    ING -->|"bind side · boot on first level ·<br/>introduce / remove source · tick"| FND
+    CREG -->|"registerJigConfig"| CFG
+    HEALTH -->|"registerJigConfig"| CFG
+    CFG -->|"installConfigs"| FND
+    FND -->|"JigInfo per config ·<br/>pulse every tick"| JIG
+    JIG -->|"coupler hooks"| ENG
+    ENG -->|"create · hydrate · tick · unload"| DATA
+    ENG -->|"hydrate · flush dirty"| PER
+    ENG -->|"sync · drain parcels"| NET
+    PER -->|"SavedData"| FOUT
+    NET -->|"SimpleChannel"| FOUT
+    ING -->|"world-identity token"| PER
+
+    ING -->|"MobDied · MobRemoved ·<br/>SatchelSignals"| EVT
+    JIG -->|"ScopeEvent Loaded / Tick / Unloaded ·<br/>MobGained / LostInterest"| EVT
+    ENG -->|"BundleEvent"| EVT
+    FND -->|"SatchelEvent Started / Stopped ·<br/>installs EventHandlers"| EVT
+    EVT -->|"handlers"| CRUN
+    DATA -->|"fixture facets"| CRUN
+    TUN -.-> CRUN
+    UTIL -.-> CRUN
+
+    classDef ext fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef core fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    class FORGE,FOUT,CREG,CRUN ext
+    class MOD,ING,CFG,FND,JIG,ENG,DATA,PER,NET,EVT,TUN,HEALTH,UTIL core
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

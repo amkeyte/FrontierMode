@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Border on Satchel</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Border on Satchel</h1>
+<p>How Border rides Satchel. There are two jigs: a world-scoped <code>LevelJig</code> that holds the persisted, client-synced border set, and a <code>PlayerJig</code> that recomputes each player's border status and Frontier Sickness every tick. <code>BorderAPI</code> is the one way into that state, for Border itself and for every other module.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>module registration (JigConfig)</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel runtime</span>
+<span><i style="border-color:#5fae7b"></i>bundle / fixture state</span>
+<span><i style="border-color:#c9a14a"></i>module handler / logic</span>
+<span><i style="border-color:#a57fc9"></i>outside this module</span>
+</div>
+<details>
+<summary>How to read it</summary>
+<p>How to read it: the module's <code>init()</code> hands each <code>JigConfig</code> to
+<code>Satchel.registerJigConfig</code>. Satchel builds the jig on each side the config applies to
+and opens one scope per level or player. The scope engine creates the bundle and its fixtures,
+calls each fixture's <code>onJigTick</code> every tick, and on each execution pulse flushes dirty
+bundles to SavedData or sends them to the client, if the config allows it. Handlers are attached to
+<code>SatchelEventBus</code>, which is shared by every jig, so each <code>ScopeEvent</code> handler
+checks the jig key before doing anything. Signals are bare Forge events that a Satchel ingress
+class re-posts on the same bus. "Serialized" fixtures register NBT fields, so they're what gets
+persisted and synced. "Live only" fixtures register none.</p>
+</details>
+<details>
+<summary>Derived from (FrontierMode/src/main/java/com/arryn/frontiermode/)</summary>
+<ul>
+<li><code>border/BorderModule.java</code></li>
+<li><code>border/BorderAPI.java</code></li>
+<li><code>border/common/bundle/BordersBundle.java</code></li>
+<li><code>border/common/fixture/{BordersFixture,NavigatorFixture,BorderCurveFixture,BorderPregenFixture}.java</code></li>
+<li><code>border/common/player/{BorderPlayerBundle,BorderPlayerStatusFixture,ExteriorTellFixture}.java</code></li>
+<li><code>Rendering.java</code></li>
+<li><code>FrontierMode.java (onPlayerRespawn)</code></li>
+<li><code>boss/BossJigHandlers.java (onMobSpawnFinalize)</code></li>
+</ul>
+</details>
+
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    INIT["<b>BorderModule.init()</b>"]
+
+    C1["<b>BORDERS_JIG</b><br/>LevelJigConfig · side BOTH<br/>capabilities: persistence + networking<br/>persistence: flush EXECUTION_PULSE · missing WARN<br/>lifecycle: tick + executionPulse<br/>→ LevelJig · one LevelScope per level, each side"]
+    C2["<b>BORDER_PLAYER_JIG</b><br/>PlayerJigConfig · side SERVER<br/>not persisted · not networked<br/>lifecycle: tick<br/>→ PlayerJig · one PlayerScope per player"]
+
+    B1["<b>BordersBundle</b><br/>required: PERSISTENCE + NETWORKING"]
+    F11["<b>BordersFixture</b> — serialized<br/>facets PATH · CRUD · RULES · INFO<br/>proposals checked by BorderRules.ACTIVE"]
+    F12["<b>NavigatorFixture</b> — live only<br/>target resolution"]
+    F13["<b>BorderCurveFixture</b> — serialized<br/>named distance curves"]
+    F14["<b>BorderPregenFixture</b> — serialized<br/>onJigTick: throttled chunk pregeneration"]
+
+    B2["<b>BorderPlayerBundle</b>"]
+    F21["<b>BorderPlayerStatusFixture</b> — live only<br/>nearest border · frontier distance ·<br/>sickness severity"]
+    F22["<b>ExteriorTellFixture</b> — live only<br/>onJigTick: Sick Wildlife tell on nearby animals"]
+
+    PERS["<b>Satchel persistence</b><br/>BundleSavedData → level SavedData"]
+    SYNC["<b>Satchel parcel sync</b><br/>client-side BordersBundle copy"]
+    UNL["<b>ScopeEvent.Unloaded</b><br/>any LevelJig scope"]
+    TICK["<b>ScopeEvent.Tick</b><br/>every jig's scopes"]
+
+    H1["<b>Rendering.onClientUnload</b><br/>client only · evicts ring render cache"]
+    H2["<b>BorderModule.onPlayerScopeTick</b><br/>filters BORDER_PLAYER_JIG<br/>status.accept(borders, position)<br/>→ Entry Cue sound · Frontier Sickness effects"]
+    API["<b>BorderAPI</b><br/>Satchel.tryReadyScopeInfo → jig.getOrCreate(bundle)<br/>→ bundle.get(fixture)<br/>PATH · CRUD · RULES · INFO · CURVE · grow ·<br/>startPregeneration · frontierDistanceAt · playerStatus"]
+
+    X_CMD["<b>/border commands</b>"]
+    X_CLI["<b>Client ring rendering</b><br/>RenderContext · WorldBordersRenderer"]
+    X_MOD["<b>Boss · Feral · Structure</b><br/>grow · pregen · frontierDistanceAt · CRUD"]
+    X_RESP["<b>Raw Forge — FrontierMode</b><br/>PlayerRespawnEvent → clear sickness effects ·<br/>resetSicknessSeverity"]
+    X_SPAWN["<b>Boss's MobSpawnFinalizeSignal fan-out</b><br/>→ BorderModule.onMobSpawnFinalize<br/>Sick Wildlife density companion"]
+
+    INIT -->|"registerJigConfig"| C1
+    INIT -->|"registerJigConfig"| C2
+    C1 -->|"engine creates"| B1
+    C2 -->|"engine creates"| B2
+    B1 --> F11
+    B1 --> F12
+    B1 --> F13
+    B1 --> F14
+    B2 --> F21
+    B2 --> F22
+    B1 -.->|"dirty, on pulse"| PERS
+    B1 -.->|"on pulse"| SYNC
+    C1 --> UNL
+    C2 --> TICK
+    UNL --> H1
+    TICK --> H2
+    H2 --> F21
+    H2 -->|"CRUD.all"| API
+    API --> B1
+    API --> B2
+    X_CMD --> API
+    SYNC --> X_CLI
+    X_CLI --> API
+    X_MOD --> API
+    X_RESP --> API
+    X_SPAWN -->|"frontierDistanceAt"| API
+
+    class INIT,C1,C2 cfg
+    class PERS,SYNC,UNL,TICK sat
+    class B1,B2,F11,F12,F13,F14,F21,F22 state
+    class H1,H2,API handler
+    class X_CMD,X_CLI,X_MOD,X_RESP,X_SPAWN ext
+
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef cfg fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef handler fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

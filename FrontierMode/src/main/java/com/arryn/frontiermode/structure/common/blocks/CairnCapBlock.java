@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.structure.common;
+package com.arryn.frontiermode.structure.common.blocks;
 
 import com.arryn.frontiermode.structure.StructureModule;
 import net.minecraft.core.BlockPos;

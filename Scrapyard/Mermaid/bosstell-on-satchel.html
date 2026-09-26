@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BossTell on Satchel</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>BossTell on Satchel</h1>
+<p>How BossTell (the Amethyst Compass) rides Satchel: one server-side <code>PlayerJig</code> whose live-only fixture refreshes the compasses a player is holding each tick, plus an <code>ItemPickupSignal</code> veto that stops anyone but the owner from picking up an attuned compass. Its compass state lives on the item stack, not in Satchel.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>module registration (JigConfig)</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel runtime</span>
+<span><i style="border-color:#5fae7b"></i>bundle / fixture state</span>
+<span><i style="border-color:#c9a14a"></i>module handler / logic</span>
+<span><i style="border-color:#a57fc9"></i>outside this module</span>
+</div>
+<details>
+<summary>How to read it</summary>
+<p>How to read it: the module's <code>init()</code> hands each <code>JigConfig</code> to
+<code>Satchel.registerJigConfig</code>. Satchel builds the jig on each side the config applies to
+and opens one scope per level or player. The scope engine creates the bundle and its fixtures,
+calls each fixture's <code>onJigTick</code> every tick, and on each execution pulse flushes dirty
+bundles to SavedData or sends them to the client, if the config allows it. Handlers are attached to
+<code>SatchelEventBus</code>, which is shared by every jig, so each <code>ScopeEvent</code> handler
+checks the jig key before doing anything. Signals are bare Forge events that a Satchel ingress
+class re-posts on the same bus. "Serialized" fixtures register NBT fields, so they're what gets
+persisted and synced. "Live only" fixtures register none.</p>
+</details>
+<details>
+<summary>Derived from (FrontierMode/src/main/java/com/arryn/frontiermode/)</summary>
+<ul>
+<li><code>bosstell/BossTellModule.java</code></li>
+<li><code>bosstell/common/{CompassPlayerBundle,CompassPlayerFixture,AmethystCompassItem,CompassAttunement}.java</code></li>
+<li><code>bosstell/{ResonanceTrade}.java</code></li>
+<li><code>bosstell/client/AmethystCompassClient.java</code></li>
+<li><code>bosstell/server/commands/BossTellCommands.java</code></li>
+</ul>
+</details>
+
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    INIT["<b>BossTellModule.init()</b><br/>also: AMETHYST_COMPASS item ·<br/>Intuition + Resonance enchantments"]
+    C["<b>COMPASS_PLAYER_JIG</b><br/>PlayerJigConfig · side SERVER<br/>not persisted · not networked<br/>lifecycle: tick<br/>→ PlayerJig · one PlayerScope per player"]
+    B["<b>CompassPlayerBundle</b>"]
+    F["<b>CompassPlayerFixture</b> — live only<br/>throttled refresh of held compasses"]
+
+    TICK["<b>ScopeEvent.Tick</b>"]
+    PICK["<b>ItemPickupSignal</b><br/>ServerForgeIngress"]
+
+    H1["<b>BossTellModule.onCompassPlayerTick</b><br/>filters COMPASS_PLAYER_JIG<br/>getOrCreate → fixture.tick(player)"]
+    H2["<b>BossTellModule.onItemPickup</b><br/>attuned Amethyst Compass, not owner<br/>→ signal.cancel()"]
+    ITEM["<b>AmethystCompassItem</b><br/>refresh / relock target on the stack"]
+    ATT["<b>CompassAttunement</b><br/>owner + target in stack NBT"]
+
+    X_BOSS["<b>BossAPI</b><br/>bosses · pathTipBossId · resolveLivePosition"]
+    X_MATH["<b>BorderMath</b><br/>randomPointInAnnulus"]
+    X_FORGE["<b>Raw Forge</b><br/>ResonanceTrade — VillagerTradesEvent<br/>AmethystCompassClient — client setup · creative tab"]
+    X_CMD["<b>/boss debug compass</b>"]
+
+    INIT -->|"registerJigConfig"| C
+    C -->|"engine creates"| B
+    B --> F
+    C --> TICK
+    TICK --> H1
+    PICK --> H2
+    H1 --> F
+    F --> ITEM
+    ITEM --> ATT
+    H2 --> ATT
+    ITEM --> X_BOSS
+    ITEM --> X_MATH
+    X_CMD --> ITEM
+
+    class INIT,C cfg
+    class TICK,PICK sat
+    class B,F state
+    class H1,H2,ITEM,ATT handler
+    class X_BOSS,X_MATH,X_FORGE,X_CMD ext
+
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef cfg fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef handler fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

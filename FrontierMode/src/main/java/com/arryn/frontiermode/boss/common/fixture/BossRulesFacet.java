@@ -5,6 +5,7 @@ import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -145,6 +146,26 @@ public final class BossRulesFacet {
      */
     public double guardianPlacementRadiusFraction() {
         return RULES.guardianPlacementRadiusFraction();
+    }
+
+    /** See {@link BossRules#healGuardian(Mob)}. */
+    public void healGuardian(Mob mob) {
+        RULES.healGuardian(mob);
+    }
+
+    /** See {@link BossRules#guardianDefeatKillsPerTick()}. */
+    public int guardianDefeatKillsPerTick() {
+        return RULES.guardianDefeatKillsPerTick();
+    }
+
+    /** See {@link BossRules#killGuardian(Mob, ServerPlayer)}. */
+    public void killGuardian(Mob mob, ServerPlayer credited) {
+        RULES.killGuardian(mob, credited);
+    }
+
+    /** See {@link BossRules#dismissGuardian(Mob)}. */
+    public void dismissGuardian(Mob mob) {
+        RULES.dismissGuardian(mob);
     }
 
     /** See {@link BossRules#canBeGuardian(EntityType)}. */

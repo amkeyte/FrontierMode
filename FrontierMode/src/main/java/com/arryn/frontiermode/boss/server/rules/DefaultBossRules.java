@@ -4,7 +4,9 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.common.tunable.Tunable;
+import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.ChatFormatting;
@@ -12,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -266,42 +269,27 @@ public final class DefaultBossRules implements BossRules {
         // or liquid-column check left to do here. See border-pregeneration.md's "Worked example:
         // Boss placement, revised" and "What this changes in Boss" sections.
         EntityType<? extends Mob> type = mobTypeForLayer(layer);
-        Mob mob = type.create(level);
-        if (mob == null) {
-            OUT.warn("[Boss] materialize(): EntityType.create returned null for " + type + " at " + position);
-            return Optional.empty();
-        }
-
-
-
-        mob.moveTo(position.getX() + 0.5, position.getY(), position.getZ() + 0.5, rng.nextFloat() * 360.0F, 0.0F);
         if (!(level instanceof ServerLevel serverLevel)) {
             throw new IllegalStateException("Non server level");
         }
 
-        mob.finalizeSpawn(serverLevel, level.getCurrentDifficultyAt(position), MobSpawnType.EVENT, null, null);
-
-        // Never set anywhere for boss mobs until now -- a plain vanilla Mob spawned via
-        // finalizeSpawn is still subject to natural despawn (instant if far from every player,
-        // otherwise a random roll every so often) unless persistence is explicitly required.
-        // Border Pregeneration alone can now run multiple real minutes before this method is
-        // even reachable, and the player then still has to travel to find the boss -- more than
-        // enough idle time for that despawn roll to claim it before anyone arrives. Same fix
-        // Satchel's own health-check canary already uses (SatchelHealth's
-        // setPersistenceRequired() call) for the identical reason: "deliberately never killable
-        // or wandering off."
-        mob.setPersistenceRequired();
-
-        applyStatScaling(mob, layer);
-        makeFireImmune(mob);
-        tagVisibly(mob, layer);
-
-        if (!level.addFreshEntity(mob)) {
-            OUT.warn("[Boss] materialize(): addFreshEntity failed for " + type + " at " + position);
-            return Optional.empty();
+        // VANILLA setup: it is what arms a boss (a Skeleton's bow, a Pillager's crossbow). The boss's
+        // own steps run after it, because setup can change max health (a leader zombie multiplies it
+        // without healing), so scaling first would leave that boss at a fraction of its health.
+        Optional<Mob> spawned = MobSpawns.spawn(serverLevel, type, position, MobSpawns.Setup.VANILLA,
+                mob -> {
+                }, mob -> {
+                    // A plain vanilla Mob is still subject to natural despawn unless persistence is
+                    // required, and Border Pregeneration can run minutes before a player arrives.
+                    mob.setPersistenceRequired();
+                    applyStatScaling(mob, layer);
+                    makeFireImmune(mob);
+                    tagVisibly(mob, layer);
+                });
+        if (spawned.isEmpty()) {
+            OUT.warn("[Boss] materialize(): spawn failed for " + type + " at " + position);
         }
-
-        return Optional.of(mob);
+        return spawned;
     }
 
     // Tier 0 covers layers 0-1; from layer 2 on the tier steps every bandWidth layers, capped at
@@ -464,6 +452,31 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
+    public void healGuardian(Mob mob) {
+        mob.setHealth(mob.getMaxHealth());
+    }
+
+    @Override
+    public int guardianDefeatKillsPerTick() {
+        return new Tunable("guardianDefeatKillsPerTick", 1, 100, 5).intValue();
+    }
+
+    @Override
+    public void killGuardian(Mob mob, ServerPlayer credited) {
+        if (credited != null) {
+            mob.setLastHurtByPlayer(credited);
+        }
+        mob.kill();
+    }
+
+    @Override
+    public void dismissGuardian(Mob mob) {
+        // Entity event 60: vanilla's death puff.
+        mob.level().broadcastEntityEvent(mob, (byte) 60);
+        mob.discard();
+    }
+
+    @Override
     public boolean canBeGuardian(EntityType<?> type) {
         return type.getCategory() == MobCategory.MONSTER
                 && type != EntityType.PHANTOM
@@ -542,7 +555,7 @@ public final class DefaultBossRules implements BossRules {
         ItemStack ward = new ItemStack(BossModule.SUN_WARD.get());
         // Mob#canReplaceCurrentItem refuses to replace an item with Curse of Binding, so a
         // guardian that picks up a real helmet keeps the ward.
-        ward.enchant(Enchantments.BINDING_CURSE, 1);
+        StackData.enchant(ward, Enchantments.BINDING_CURSE, 1);
         mob.setItemSlot(EquipmentSlot.HEAD, ward);
         mob.setDropChance(EquipmentSlot.HEAD, 0.0F);
     }

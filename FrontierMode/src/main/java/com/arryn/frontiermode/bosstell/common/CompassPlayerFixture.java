@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.bosstell.common;
 
+import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.server.level.ServerPlayer;

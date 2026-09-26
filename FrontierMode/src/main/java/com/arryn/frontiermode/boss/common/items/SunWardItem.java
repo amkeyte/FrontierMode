@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss.common;
+package com.arryn.frontiermode.boss.common.items;
 
 import net.minecraft.world.item.Item;
 

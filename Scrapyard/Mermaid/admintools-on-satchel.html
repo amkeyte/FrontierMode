@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdminTools on Satchel</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>AdminTools on Satchel</h1>
+<p>How AdminTools rides Satchel, as thinly as a module can: one server-side <code>LevelJig</code> with no bundles and no tick, registered only to receive <code>LivingDropsSignal</code>. Everything else the Death Stick needs comes from raw Forge subscriptions.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>module registration (JigConfig)</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel runtime</span>
+<span><i style="border-color:#5fae7b"></i>bundle / fixture state</span>
+<span><i style="border-color:#c9a14a"></i>module handler / logic</span>
+<span><i style="border-color:#a57fc9"></i>outside this module</span>
+</div>
+<details>
+<summary>How to read it</summary>
+<p>How to read it: the module's <code>init()</code> hands each <code>JigConfig</code> to
+<code>Satchel.registerJigConfig</code>. Satchel builds the jig on each side the config applies to
+and opens one scope per level or player. The scope engine creates the bundle and its fixtures,
+calls each fixture's <code>onJigTick</code> every tick, and on each execution pulse flushes dirty
+bundles to SavedData or sends them to the client, if the config allows it. Handlers are attached to
+<code>SatchelEventBus</code>, which is shared by every jig, so each <code>ScopeEvent</code> handler
+checks the jig key before doing anything. Signals are bare Forge events that a Satchel ingress
+class re-posts on the same bus. "Serialized" fixtures register NBT fields, so they're what gets
+persisted and synced. "Live only" fixtures register none.</p>
+</details>
+<details>
+<summary>Derived from (FrontierMode/src/main/java/com/arryn/frontiermode/)</summary>
+<ul>
+<li><code>admin/AdminToolsModule.java</code></li>
+<li><code>admin/DeathTouchEnchantment.java</code></li>
+</ul>
+</details>
+
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    INIT["<b>AdminToolsModule.init()</b><br/>also: DEATH_TOUCH enchantment"]
+    C["<b>ADMIN_TOOLS_JIG</b><br/>LevelJigConfig · side SERVER<br/>empty bundle schema · tick off<br/>exists to receive signals"]
+    DROPS["<b>LivingDropsSignal</b><br/>ServerForgeIngress"]
+    H["<b>AdminToolsModule.onLivingDrops</b><br/>pull Death Stick out of a dying<br/>player's drops · stash it"]
+    STASH["<b>in-memory stash</b><br/>player → stacks"]
+
+    X_HURT["<b>Raw Forge — LivingHurtEvent</b><br/>Death Touch hit → lethal damage"]
+    X_TOSS["<b>Raw Forge — ItemTossEvent</b><br/>soulbound: cancel toss, return stack"]
+    X_RESP["<b>Raw Forge — PlayerRespawnEvent</b><br/>hand stashed stacks back"]
+    X_CMD["<b>/admin deathstick</b><br/>enchanted, named vanilla stick"]
+
+    INIT -->|"registerJigConfig"| C
+    C -.->|"handlers on SatchelEventBus"| DROPS
+    DROPS --> H
+    H --> STASH
+    X_RESP --> STASH
+
+    class INIT,C cfg
+    class DROPS sat
+    class STASH state
+    class H handler
+    class X_HURT,X_TOSS,X_RESP,X_CMD ext
+
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef cfg fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef handler fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

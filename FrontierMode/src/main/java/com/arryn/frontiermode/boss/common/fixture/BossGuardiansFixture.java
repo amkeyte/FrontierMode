@@ -15,15 +15,18 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -54,9 +57,11 @@ public final class BossGuardiansFixture extends SatchelFixture {
 
     /**
      * One guardian. {@code bossId} never leaves the server; {@code scale} is fixed at conversion.
-     * New per-guardian facts are added here as fields.
+     * {@code doomed} is set when its boss is defeated: the guardian dies with it, and one that wasn't
+     * present at that moment is removed the moment it next loads. New per-guardian facts are added
+     * here as fields.
      */
-    public record GuardianRecord(UUID mobUuid, UUID bossId, float scale) {
+    public record GuardianRecord(UUID mobUuid, UUID bossId, float scale, boolean doomed) {
     }
 
     private static final String KEY_GUARDIANS = "guardians";
@@ -79,6 +84,13 @@ public final class BossGuardiansFixture extends SatchelFixture {
     // Transient. Spawned on the tick, never inside the finalize-spawn dispatch that queued them.
     private final List<PendingAdd> pendingAdds = new ArrayList<>();
 
+    /** A doomed guardian queued for its staggered kill, and the player credited with it (null: uncredited). */
+    private record PendingKill(UUID mobUuid, UUID creditedPlayer) {
+    }
+
+    // Transient: doomed on the record is what survives a restart or an unload before a guardian's turn.
+    private final Deque<PendingKill> pendingKills = new ArrayDeque<>();
+
     // Candidate spots MobSpawns.scatter tries for one extra guardian.
     private static final int ADD_SCATTER_TRIES = 4;
 
@@ -93,6 +105,7 @@ public final class BossGuardiansFixture extends SatchelFixture {
             tag.putUUID("mobUuid", r.mobUuid);
             tag.putUUID("bossId", r.bossId);
             tag.putFloat("scale", r.scale);
+            tag.putBoolean("doomed", r.doomed);
             list.add(tag);
         }
         root.put(KEY_GUARDIANS, list);
@@ -109,7 +122,8 @@ public final class BossGuardiansFixture extends SatchelFixture {
                 continue;
             }
             UUID mobUuid = tag.getUUID("mobUuid");
-            records.put(mobUuid, new GuardianRecord(mobUuid, tag.getUUID("bossId"), tag.getFloat("scale")));
+            records.put(mobUuid, new GuardianRecord(
+                    mobUuid, tag.getUUID("bossId"), tag.getFloat("scale"), tag.getBoolean("doomed")));
         }
     }
 
@@ -169,8 +183,28 @@ public final class BossGuardiansFixture extends SatchelFixture {
         return Optional.ofNullable(r);
     }
 
+    /**
+     * The boss {@code bossId} was defeated: marks every one of its guardian records doomed and queues
+     * them for a staggered kill on this fixture's tick. {@code creditedPlayer} is the player who
+     * defeated it, so experience and player-only drops follow; {@code null} (a forced defeat) kills
+     * uncredited. Only this boss's own guardians, whether or not its siblings still stand.
+     */
+    public void doomGuardiansOf(UUID bossId, UUID creditedPlayer) {
+        boolean changed = false;
+        for (GuardianRecord r : records.values()) {
+            if (r.bossId.equals(bossId) && !r.doomed) {
+                records.put(r.mobUuid, new GuardianRecord(r.mobUuid, r.bossId, r.scale, true));
+                pendingKills.add(new PendingKill(r.mobUuid, creditedPlayer));
+                changed = true;
+            }
+        }
+        if (changed) {
+            markDirty();
+        }
+    }
+
     private void stage(UUID mobUuid, UUID bossId, float scale) {
-        staged.put(mobUuid, new GuardianRecord(mobUuid, bossId, scale));
+        staged.put(mobUuid, new GuardianRecord(mobUuid, bossId, scale, false));
     }
 
     // ── lifted spawn positions ───────────────────────────────────────────────
@@ -197,8 +231,40 @@ public final class BossGuardiansFixture extends SatchelFixture {
     @Override
     public void onJigTick() {
         spawnPendingAdds();
+        killDoomed();
         staged.clear();
         liftedPositions.clear();
+    }
+
+    /**
+     * Kills up to {@code guardianDefeatKillsPerTick} of the queued doomed guardians that are present.
+     * One that isn't present (unloaded) is skipped and costs nothing: its record stays doomed, and it
+     * is removed when it next loads.
+     */
+    private void killDoomed() {
+        if (pendingKills.isEmpty()) {
+            return;
+        }
+        BossBundle bundle = getBundle();
+        ServerLevel level = (ServerLevel) bundle.level();
+        Optional<BossFixture> bossOpt = bundle.boss();
+        if (bossOpt.isEmpty()) {
+            return;
+        }
+        BossFixture boss = bossOpt.get();
+        int budget = boss.RULES.guardianDefeatKillsPerTick();
+        while (budget > 0 && !pendingKills.isEmpty()) {
+            PendingKill kill = pendingKills.poll();
+            Optional<Entity> entity = Satchel.require().egress().getEntity(level, kill.mobUuid);
+            if (entity.isEmpty() || !(entity.get() instanceof Mob mob) || !mob.isAlive()) {
+                continue;
+            }
+            // A credited player who has left the level by now: the guardian dies uncredited.
+            ServerPlayer credited = kill.creditedPlayer != null
+                    && level.getPlayerByUUID(kill.creditedPlayer) instanceof ServerPlayer player ? player : null;
+            boss.RULES.killGuardian(mob, credited);
+            budget--;
+        }
     }
 
     private void spawnPendingAdds() {
@@ -218,7 +284,8 @@ public final class BossGuardiansFixture extends SatchelFixture {
         for (PendingAdd add : adds) {
             // Only if the parent actually joined the level: a parent that never made it in brings
             // no adds. Resolved through Satchel's egress, the lookup MobJig's poll uses.
-            if (!records.containsKey(add.parentUuid)) {
+            GuardianRecord parentRecord = records.get(add.parentUuid);
+            if (parentRecord == null || parentRecord.doomed) {
                 continue;
             }
             Optional<Entity> parent = Satchel.require().egress().getEntity(level, add.parentUuid);

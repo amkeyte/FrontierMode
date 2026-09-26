@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FrontierMode Subsystems</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 16px; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 22px; }
+</style>
+</head>
+<body>
+<h1>FrontierMode Subsystems</h1>
+<p>Top-level map of FrontierMode's modules as built. Each module box lists its Satchel jigs: key,
+jig kind, side, capabilities, bundle and fixtures, and the Satchel events it handles. Double-ended
+dotted arrows to Satchel mean the module registers its jigs there and receives Satchel's events
+back. Solid arrows are real cross-module API calls, pointing from caller to callee. Plain dotted
+arrows go to the shared helpers. "Raw Forge" lines are the places that subscribe to Forge directly
+instead of going through Satchel.</p>
+<details>
+<summary>Derived from (FrontierMode/src/main/java/com/arryn/frontiermode/)</summary>
+<ul>
+<li><code>FrontierMode</code>, <code>FrontierKeys</code>, <code>Rendering</code>, <code>Config</code>, <code>LogFilters</code></li>
+<li><code>border/{BorderModule,BorderAPI}</code>, <code>border/common/{bundle,fixture,player,navigator}/*</code>, <code>border/server/{rules,commands}/*</code>, <code>border/client/render/level/*</code></li>
+<li><code>boss/{BossModule,BossAPI,BossJigHandlers,BossMobJigHandlers,GuardianJigHandlers,BossPositionListeners,BossScaleEvents}</code>, <code>boss/common/{bundle,fixture}/*</code>, <code>boss/client/*</code>, <code>boss/server/*</code></li>
+<li><code>bosstell/*</code>, <code>structure/*</code>, <code>feral/*</code>, <code>admin/*</code>, <code>effects/*</code>, <code>spawn/MobSpawns</code></li>
+</ul>
+<p>Cross-module edges come from each package's <code>com.arryn.frontiermode.*</code> imports and the
+call sites behind them.</p>
+</details>
+
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 60, 'rankSpacing': 110, 'wrappingWidth': 1000}}}%%
+flowchart TB
+    FMM["<b>FrontierMode — @Mod</b><br/>DeferredRegisters: arg types · sounds · items · enchantments · blocks<br/>init(): Border → Boss → BossTell → Structure → AdminTools → Effects → Feral<br/>Raw Forge: RegisterCommandsEvent → every module's commands<br/>&nbsp;&nbsp;&nbsp;PlayerRespawnEvent → Border (clear sickness)<br/>FrontierKeys — every jig / bundle / fixture key"]
+
+    BOSSTELL["<b>BossTell</b><br/>COMPASS_PLAYER_JIG — PlayerJig · SERVER<br/>&nbsp;&nbsp;&nbsp;CompassPlayerBundle: CompassPlayerFixture<br/>&nbsp;&nbsp;&nbsp;handles Tick · ItemPickupSignal<br/>AmethystCompassItem · CompassAttunement<br/>Intuition + Resonance enchantments<br/>Raw Forge: VillagerTradesEvent — ResonanceTrade<br/>client compass · /boss debug compass"]
+
+    STRUCTURE["<b>Structure</b><br/>STRUCTURE_JIG — LevelJig · SERVER · persist<br/>&nbsp;&nbsp;&nbsp;StructureBundle: CairnFixture<br/>&nbsp;&nbsp;&nbsp;handles Tick · BlockBreakSignal<br/>CairnCapBlock · /structure commands"]
+
+    ADMIN["<b>AdminTools</b><br/>ADMIN_TOOLS_JIG — LevelJig · SERVER<br/>&nbsp;&nbsp;&nbsp;handles LivingDropsSignal<br/>DeathTouchEnchantment — Death Stick<br/>Raw Forge: LivingHurt · ItemToss · PlayerRespawn<br/>/admin deathstick"]
+
+    BOSS["<b>Boss</b><br/>BOSS_JIG — LevelJig · SERVER · persist<br/>&nbsp;&nbsp;&nbsp;BossBundle: BossFixture (CRUD · INFO · RULES · SPAWN) ·<br/>&nbsp;&nbsp;&nbsp;BossTellFixture · BossGuardiansFixture<br/>&nbsp;&nbsp;&nbsp;handles Loaded (first border + boss) · MobDied (defeat) ·<br/>&nbsp;&nbsp;&nbsp;Tick · MobSpawnFinalizeSignal (spawn fan-out)<br/>BOSS_PUBLIC_JIG — LevelJig · BOTH · persist + net<br/>&nbsp;&nbsp;&nbsp;BossPublicBundle: BossPublicFixture<br/>BOSS_MOB_JIG — MobJig · SERVER · interest: BossInterests<br/>&nbsp;&nbsp;&nbsp;BossMobBundle: BossMobFixture · handles MobGained / LostInterest<br/>GUARDIAN_MOB_JIG — MobJig · SERVER · interest: GuardianInterests · no bundle<br/>&nbsp;&nbsp;&nbsp;handles MobGained / LostInterest · spawn signals · MobDied · MobRemoved<br/>GUARDIAN_PUBLIC_JIG — LevelJig · BOTH · net<br/>&nbsp;&nbsp;&nbsp;GuardianPublicBundle: GuardianPublicFixture · Tick → client trail<br/>BossAPI · BossRules · BossPositionListeners · SunWardItem<br/>Raw Forge: EntityEvent.Size · client eyes layer + scale render<br/>/boss commands"]
+
+    FERAL["<b>Feral</b><br/>FERAL_PLAYER_JIG — PlayerJig · SERVER · handles Tick<br/>FERAL_LEVEL_JIG — LevelJig · SERVER<br/>&nbsp;&nbsp;&nbsp;handles Tick · LivingDrops · LivingExperienceDrop ·<br/>&nbsp;&nbsp;&nbsp;SpawnPlacementCheck · EntityJoinLevel<br/>no bundles · FeralLogic · FeralRules<br/>/feral commands"]
+
+    BORDER["<b>Border</b><br/>BORDERS_JIG — LevelJig · BOTH · persist + net<br/>&nbsp;&nbsp;&nbsp;BordersBundle: BordersFixture (PATH · CRUD · RULES · INFO) ·<br/>&nbsp;&nbsp;&nbsp;NavigatorFixture · BorderCurveFixture · BorderPregenFixture<br/>&nbsp;&nbsp;&nbsp;handles Unloaded (client render cache)<br/>BORDER_PLAYER_JIG — PlayerJig · SERVER<br/>&nbsp;&nbsp;&nbsp;BorderPlayerBundle: BorderPlayerStatusFixture · ExteriorTellFixture<br/>&nbsp;&nbsp;&nbsp;handles Tick → player status + Frontier Sickness<br/>BorderAPI · BorderRules.ACTIVE · PlayerRules · BorderMath<br/>Navigator — TargetResolverRegistry<br/>/border commands · client ring rendering"]
+
+    EFFECTS["<b>Effects</b><br/>EffectsAPI — particles · sounds · teams<br/>ClientEffectsAPI — parity particles / sounds"]
+    SPAWN["<b>Spawn</b><br/>MobSpawns — spawn · scatter ·<br/>fits · surfaceAllows"]
+    SAT["<b>Satchel</b><br/>registerJigConfig · SatchelEventBus<br/>ScopeEvents + signals · MobInterestRegistry"]
+
+    BOSSTELL -->|"bosses · resolveLivePosition"| BOSS
+    STRUCTURE -->|"bosses · isBossAlive · resolveLivePosition ·<br/>BossPositionListeners.register"| BOSS
+    BOSS -->|"grow · startPregeneration · frontierDistanceAt ·<br/>BOSS navigator resolver · Sick Wildlife spawn hook"| BORDER
+    BOSS -->|"onMobSpawnFinalize"| FERAL
+    FERAL -->|"frontierDistanceAt"| BORDER
+    STRUCTURE -->|"CRUD · BorderMath"| BORDER
+    BOSSTELL -->|"BorderMath"| BORDER
+    BORDER -->|"/border path grow →<br/>addPendingAttach"| BOSS
+
+    BORDER -.-> EFFECTS
+    BOSS -.-> EFFECTS
+    FERAL -.-> EFFECTS
+    STRUCTURE -.-> EFFECTS
+    BORDER -.-> SPAWN
+    BOSS -.-> SPAWN
+    FERAL -.-> SPAWN
+
+    BORDER <-.->|"jigs · events"| SAT
+    BOSS <-.-> SAT
+    FERAL <-.-> SAT
+    STRUCTURE <-.-> SAT
+    BOSSTELL <-.-> SAT
+    ADMIN <-.->|"jigs · events"| SAT
+
+    classDef ext fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef mod fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef helper fill:#23201a,stroke:#b09a5b,color:#e6e6e6
+    class FMM,SAT ext
+    class BOSSTELL,STRUCTURE,ADMIN,BOSS,FERAL,BORDER mod
+    class EFFECTS,SPAWN helper
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

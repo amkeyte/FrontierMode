@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Structure on Satchel</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Structure on Satchel</h1>
+<p>How Structure (Cairn) rides Satchel: one persisted, server-side <code>LevelJig</code> holding Cairn records. A record is created when Boss reports a positioned boss on a large enough border, placed on a later tick, and punished with an explosion when its cap is broken. <code>BlockBreakSignal</code> is the only Forge signal it handles.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>module registration (JigConfig)</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel runtime</span>
+<span><i style="border-color:#5fae7b"></i>bundle / fixture state</span>
+<span><i style="border-color:#c9a14a"></i>module handler / logic</span>
+<span><i style="border-color:#a57fc9"></i>outside this module</span>
+</div>
+<details>
+<summary>How to read it</summary>
+<p>How to read it: the module's <code>init()</code> hands each <code>JigConfig</code> to
+<code>Satchel.registerJigConfig</code>. Satchel builds the jig on each side the config applies to
+and opens one scope per level or player. The scope engine creates the bundle and its fixtures,
+calls each fixture's <code>onJigTick</code> every tick, and on each execution pulse flushes dirty
+bundles to SavedData or sends them to the client, if the config allows it. Handlers are attached to
+<code>SatchelEventBus</code>, which is shared by every jig, so each <code>ScopeEvent</code> handler
+checks the jig key before doing anything. Signals are bare Forge events that a Satchel ingress
+class re-posts on the same bus. "Serialized" fixtures register NBT fields, so they're what gets
+persisted and synced. "Live only" fixtures register none.</p>
+</details>
+<details>
+<summary>Derived from (FrontierMode/src/main/java/com/arryn/frontiermode/)</summary>
+<ul>
+<li><code>structure/StructureModule.java</code></li>
+<li><code>structure/common/{StructureBundle,CairnFixture,CairnRecord,CairnCapBlock}.java</code></li>
+<li><code>structure/server/commands/StructureCommands.java</code></li>
+<li><code>boss/BossPositionListeners.java</code></li>
+</ul>
+</details>
+
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    INIT["<b>StructureModule.init()</b><br/>also: CAIRN_CAP block"]
+    C["<b>STRUCTURE_JIG</b><br/>LevelJigConfig · side SERVER<br/>capabilities: persistence<br/>flush EXECUTION_PULSE<br/>lifecycle: tick + executionPulse<br/>→ LevelJig · one LevelScope per level"]
+    B["<b>StructureBundle</b><br/>required: PERSISTENCE"]
+    F["<b>CairnFixture</b> — serialized<br/>CairnRecord per boss · placed flag"]
+    PERS["<b>Satchel persistence</b><br/>level SavedData"]
+
+    TICK["<b>ScopeEvent.Tick</b>"]
+    BRK["<b>BlockBreakSignal</b><br/>ServerForgeIngress"]
+
+    RES["<b>StructureModule.cairnFixture(level)</b><br/>tryReadyScopeInfo → getOrCreate → get"]
+    H0["<b>onBossPositioned</b><br/>border radius above threshold<br/>→ createIfAbsent(bossId, position)"]
+    H1["<b>StructureModule.onTick</b><br/>filters STRUCTURE_JIG · server only<br/>unplaced records → attemptPlacement"]
+    H2["<b>StructureModule.onBlockBreak</b><br/>tracked Cairn cap → explosion,<br/>no block damage"]
+    CAP["<b>CairnCapBlock</b><br/>right-click / redstone → triggerPulse"]
+    PULSE["<b>triggerPulse</b><br/>particles toward boss live position<br/>or a random direction"]
+
+    X_BOSSL["<b>BossPositionListeners</b><br/>Boss fires on positioned boss"]
+    X_BOSS["<b>BossAPI</b><br/>bosses · isBossAlive · resolveLivePosition"]
+    X_BORDER["<b>BorderAPI.CRUD</b>"]
+    X_FX["<b>EffectsAPI</b>"]
+    X_CMD["<b>/structure commands</b>"]
+
+    INIT -->|"registerJigConfig"| C
+    INIT -->|"register listener"| X_BOSSL
+    C -->|"engine creates"| B
+    B --> F
+    B -.->|"dirty, on pulse"| PERS
+    C --> TICK
+    TICK --> H1
+    BRK --> H2
+    X_BOSSL --> H0
+    H0 --> X_BORDER
+    H0 --> RES
+    H1 --> F
+    H2 --> RES
+    RES --> F
+    CAP --> PULSE
+    PULSE --> X_BOSS
+    PULSE --> X_FX
+    X_CMD --> RES
+
+    class INIT,C cfg
+    class TICK,BRK,PERS sat
+    class B,F state
+    class RES,H0,H1,H2,CAP,PULSE handler
+    class X_BOSSL,X_BOSS,X_BORDER,X_FX,X_CMD ext
+
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef cfg fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef handler fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

@@ -2,12 +2,12 @@ package com.arryn.frontiermode.bosstell;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.bosstell.common.AmethystCompassItem;
+import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
-import com.arryn.frontiermode.bosstell.common.IntuitionEnchantment;
-import com.arryn.frontiermode.bosstell.common.ResonanceEnchantment;
+import com.arryn.frontiermode.bosstell.common.enchantments.IntuitionEnchantment;
+import com.arryn.frontiermode.bosstell.common.enchantments.ResonanceEnchantment;
 import com.arryn.frontiermode.bosstell.server.commands.BossTellCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boss on Satchel</title>
+<style>
+  :root { color-scheme: dark; --bg: #0f1115; --fg: #e6e6e6; --muted: #9aa3ad; --rule: #2a2f38; }
+  body { margin: 0; padding: 24px 32px 48px; background: var(--bg); color: var(--fg);
+         font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  p, li { max-width: 110ch; color: var(--muted); }
+  code { color: var(--fg); font-size: 15px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 0; color: var(--muted); font-size: 15px; }
+  .legend i { display: inline-block; width: 14px; height: 14px; border: 2px solid; border-radius: 3px;
+              margin-right: 6px; vertical-align: -2px; }
+  .diagram { margin-top: 24px; overflow: auto; border-top: 1px solid var(--rule); padding-top: 24px; }
+  details { margin-top: 12px; }
+  h2 { font-size: 22px; margin: 32px 0 0; }
+  .mermaid .nodeLabel { text-align: left; }
+  .mermaid .nodeLabel b { display: block; text-align: center; font-size: 21px; }
+</style>
+</head>
+<body>
+<h1>Boss on Satchel</h1>
+<p>How Boss rides Satchel, with five jigs, drawn as two diagrams. Boss records: <code>BOSS_JIG</code> holds the persisted boss records, <code>BOSS_PUBLIC_JIG</code> pushes boss markers to the client, and <code>BOSS_MOB_JIG</code> tracks the live boss entities through an interest map Boss feeds itself. Boss also handles <code>BORDERS_JIG</code>'s <code>Loaded</code> event to start the first border, and owns the shared spawn-finalize fan-out. Guardians: records live in <code>BOSS_JIG</code>'s bundle, <code>GUARDIAN_MOB_JIG</code> tracks their entities, and <code>GUARDIAN_PUBLIC_JIG</code> syncs markers and trail settings to the client.</p>
+<div class="legend">
+<span><i style="border-color:#8a93a0"></i>module registration (JigConfig)</span>
+<span><i style="border-color:#5b8bd0"></i>Satchel runtime</span>
+<span><i style="border-color:#5fae7b"></i>bundle / fixture state</span>
+<span><i style="border-color:#c9a14a"></i>module handler / logic</span>
+<span><i style="border-color:#a57fc9"></i>outside this module</span>
+</div>
+<details>
+<summary>How to read it</summary>
+<p>How to read it: the module's <code>init()</code> hands each <code>JigConfig</code> to
+<code>Satchel.registerJigConfig</code>. Satchel builds the jig on each side the config applies to
+and opens one scope per level or player. The scope engine creates the bundle and its fixtures,
+calls each fixture's <code>onJigTick</code> every tick, and on each execution pulse flushes dirty
+bundles to SavedData or sends them to the client, if the config allows it. Handlers are attached to
+<code>SatchelEventBus</code>, which is shared by every jig, so each <code>ScopeEvent</code> handler
+checks the jig key before doing anything. Signals are bare Forge events that a Satchel ingress
+class re-posts on the same bus. "Serialized" fixtures register NBT fields, so they're what gets
+persisted and synced. "Live only" fixtures register none.</p>
+</details>
+<details>
+<summary>Derived from (FrontierMode/src/main/java/com/arryn/frontiermode/)</summary>
+<ul>
+<li><code>boss/BossModule.java</code></li>
+<li><code>boss/BossAPI.java</code></li>
+<li><code>boss/{BossJigHandlers,BossMobJigHandlers,GuardianJigHandlers}.java</code></li>
+<li><code>boss/{BossInterests,GuardianInterests,BossMarkers,GuardianMarkers,ClientFixtureCache,BossScaleEvents}.java</code></li>
+<li><code>boss/common/bundle/*</code></li>
+<li><code>boss/common/fixture/{BossFixture,BossTellFixture,BossGuardiansFixture,BossPublicFixture,BossMobFixture,GuardianPublicFixture}.java</code></li>
+<li><code>boss/client/*</code></li>
+</ul>
+</details>
+
+<h2>Boss records</h2>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    INIT["<b>BossModule.init()</b><br/>also: SunWard item · BOSS navigator resolver"]
+
+    CB["<b>BOSS_JIG</b><br/>LevelJigConfig · side SERVER<br/>capabilities: persistence<br/>flush EXECUTION_PULSE<br/>lifecycle: tick + executionPulse"]
+    CP["<b>BOSS_PUBLIC_JIG</b><br/>LevelJigConfig · side BOTH<br/>capabilities: persistence + networking<br/>lifecycle: executionPulse"]
+    CM["<b>BOSS_MOB_JIG</b><br/>MobJigConfig · side SERVER · tick<br/>interest: BossInterests.MAP"]
+
+    BB["<b>BossBundle</b><br/>required: PERSISTENCE"]
+    FB["<b>BossFixture</b> — serialized<br/>facets CRUD · INFO · RULES · SPAWN"]
+    FT["<b>BossTellFixture</b> — serialized<br/>onJigTick: build platforms · tell pass"]
+    FG["<b>BossGuardiansFixture</b> — serialized<br/>see Guardians diagram"]
+    BP["<b>BossPublicBundle</b><br/>BossPublicFixture — serialized · boss markers"]
+    BM["<b>BossMobBundle</b><br/>BossMobFixture — live only · attached bossId"]
+
+    INTB["<b>BossInterests.MAP</b><br/>level → boss entity UUIDs"]
+    MIR["<b>Satchel MobInterestRegistry</b><br/>MobJig reconcile poll"]
+    PERS["<b>Satchel persistence</b><br/>level SavedData"]
+    SYNC["<b>Satchel parcel sync</b><br/>client BossPublicBundle"]
+
+    E_TICK["<b>ScopeEvent.Tick</b><br/>BOSS_JIG"]
+    E_LOAD["<b>ScopeEvent.Loaded</b><br/>of BORDERS_JIG"]
+    E_MOB["<b>MobGained / MobLostInterest</b><br/>BOSS_MOB_JIG"]
+    E_DIED["<b>MobDied</b><br/>ServerForgeIngress"]
+    E_FIN["<b>MobSpawnFinalizeSignal</b><br/>ServerSpawnIngress"]
+
+    H_TICK["<b>BossJigHandlers.onTick</b><br/>guardian upkeep · pollForceFlush ·<br/>SPAWN finalize + materialize → BossInterests ·<br/>reconcile path vs records"]
+    H_LOAD["<b>BossJigHandlers.onBordersScopeLoaded</b><br/>overworld, server · re-add materialized bosses ·<br/>unseeded: grow → createBoss →<br/>startPregeneration → tell curve + record"]
+    H_DIED["<b>BossJigHandlers.onMobDied</b><br/>markDead · markDefeated · guardians doomed ·<br/>last standing: loot → grow at death spot →<br/>createBoss → startPregeneration"]
+    H_FIN["<b>BossJigHandlers.onMobSpawnFinalize</b><br/>deny Exterior slimes, then fan out"]
+    H_BM["<b>BossMobJigHandlers</b><br/>gained: attach BossMobFixture · layer scale<br/>lost: detach"]
+    API["<b>BossAPI</b><br/>tryReadyScopeInfo → getOrCreate → get<br/>bosses · CRUD · INFO · RULES · createBoss ·<br/>forceDefeat · resolveLivePosition · publicMarkers"]
+
+    X_BORDER["<b>BorderAPI</b><br/>INFO.seeded · grow · startPregeneration · CURVE"]
+    X_FAN["<b>fan-out targets</b><br/>BossModule → guardian conversion<br/>BorderModule · FeralModule"]
+    X_CALL["<b>Callers</b><br/>/boss commands · BossTell · Structure ·<br/>/border path grow"]
+    X_CLI["<b>Client visuals</b><br/>BossMarkers via ClientFixtureCache ·<br/>BossEyesLayer · BossScaleClientEvents"]
+    X_FORGE["<b>Raw Forge</b><br/>BossScaleEvents — EntityEvent.Size"]
+
+    INIT -->|"registerJigConfig"| CB
+    INIT --> CP
+    INIT --> CM
+    CB -->|"engine creates"| BB
+    BB --> FB
+    BB --> FT
+    BB --> FG
+    CP --> BP
+    CM --> BM
+    CM -.-> INTB
+    INTB --> MIR
+    MIR --> E_MOB
+    BB -.->|"dirty, on pulse"| PERS
+    BP -.-> PERS
+    BP -.->|"on pulse"| SYNC
+    SYNC --> X_CLI
+    X_FORGE --> X_CLI
+
+    CB --> E_TICK
+    E_TICK --> H_TICK
+    E_LOAD --> H_LOAD
+    E_DIED --> H_DIED
+    E_FIN --> H_FIN
+    E_MOB --> H_BM
+
+    H_TICK --> FB
+    H_TICK --> INTB
+    H_LOAD --> X_BORDER
+    H_LOAD --> API
+    H_DIED --> API
+    H_DIED --> X_BORDER
+    H_FIN --> X_FAN
+    H_BM --> BM
+    API --> BB
+    API --> BP
+    X_CALL --> API
+
+    class INIT,CB,CP,CM cfg
+    class MIR,PERS,SYNC,E_TICK,E_LOAD,E_MOB,E_DIED,E_FIN sat
+    class BB,FB,FT,FG,BP,BM,INTB state
+    class H_TICK,H_LOAD,H_DIED,H_FIN,H_BM,API handler
+    class X_BORDER,X_FAN,X_CALL,X_CLI,X_FORGE ext
+
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef cfg fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef handler fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+<h2>Guardians</h2>
+<div class="diagram">
+<pre class="mermaid">
+%%{init: {'theme': 'dark', 'themeVariables': {'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false, 'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 45, 'rankSpacing': 80, 'wrappingWidth': 1000}}}%%
+flowchart LR
+    INIT["<b>BossModule.init()</b>"]
+    CG["<b>GUARDIAN_MOB_JIG</b><br/>MobJigConfig · side SERVER · tick<br/>interest: GuardianInterests.MAP<br/>no bundles"]
+    CGP["<b>GUARDIAN_PUBLIC_JIG</b><br/>LevelJigConfig · side BOTH<br/>capabilities: networking<br/>lifecycle: tick + executionPulse"]
+    CB["<b>BOSS_JIG</b><br/>see Boss records diagram"]
+
+    FG["<b>BossGuardiansFixture</b> — serialized<br/>in BossBundle · guardian records · staged · lifted<br/>onJigTick: spawn queued adds · kill doomed"]
+    BGP["<b>GuardianPublicBundle</b><br/>GuardianPublicFixture — serialized<br/>guardian markers + trail settings<br/>onJigTick: coalesced forceSync"]
+    INTG["<b>GuardianInterests.MAP</b><br/>level → guardian record UUIDs"]
+
+    MIR["<b>Satchel MobInterestRegistry</b><br/>MobJig reconcile poll"]
+    SYNC["<b>Satchel parcel sync</b><br/>client GuardianPublicBundle"]
+
+    E_BT["<b>ScopeEvent.Tick</b><br/>BOSS_JIG"]
+    E_GT["<b>ScopeEvent.Tick</b><br/>GUARDIAN_PUBLIC_JIG"]
+    E_MOB["<b>MobGained / MobLostInterest</b><br/>GUARDIAN_MOB_JIG"]
+    E_GATE["<b>SpawnPlacementCheck ·<br/>SpawnPositionCheck</b><br/>ServerSpawnIngress"]
+    E_JOIN["<b>EntityJoinLevelSignal</b><br/>ServerSpawnIngress"]
+    E_GONE["<b>MobDied · MobRemoved</b><br/>ServerForgeIngress"]
+    E_FIN["<b>MobSpawnFinalizeSignal</b><br/>via Boss fan-out"]
+
+    H_BT["<b>GuardianJigHandlers.onBossTick</b><br/>publish record UUIDs to GuardianInterests ·<br/>push trail settings"]
+    H_GATE["<b>onSpawnPlacementCheck · onSpawnPositionCheck</b><br/>daylight lift inside a boss's guardian radius,<br/>inside the Frontier only · record lifted spot"]
+    H_CONV["<b>BossGuardiansFixture.onMobSpawnFinalize</b><br/>convert hostile near boss · stage record ·<br/>queue extra adds"]
+    H_JOIN["<b>GuardianJigHandlers.onEntityJoinLevel</b><br/>promote staged → record · heal · publish marker"]
+    H_MOB["<b>GuardianJigHandlers — interest</b><br/>gained: publish marker + glow, or dismiss doomed<br/>lost: unpublish marker"]
+    H_GONE["<b>GuardianJigHandlers — died / removed</b><br/>delete guardian record + marker"]
+    H_GT["<b>onGuardianPublicTick</b> — client only<br/>GuardianTrailClient draws trail"]
+
+    X_API["<b>BossAPI</b><br/>guardians · guardiansQuiet · guardianMarkers ·<br/>bosses → RULES"]
+    X_BORDER["<b>BorderAPI.frontierDistanceAt</b>"]
+    X_CLI["<b>Client</b><br/>GuardianMarkers via ClientFixtureCache"]
+
+    INIT -->|"registerJigConfig"| CG
+    INIT -->|"registerJigConfig"| CGP
+    CB --> FG
+    CGP -->|"engine creates"| BGP
+    CG -.-> INTG
+    INTG --> MIR
+    MIR --> E_MOB
+    BGP -.->|"on pulse / forceSync"| SYNC
+    SYNC --> X_CLI
+
+    CB --> E_BT
+    CGP --> E_GT
+    E_BT --> H_BT
+    E_GT --> H_GT
+    E_GATE --> H_GATE
+    E_FIN --> H_CONV
+    E_JOIN --> H_JOIN
+    E_MOB --> H_MOB
+    E_GONE --> H_GONE
+
+    H_BT --> INTG
+    H_BT --> X_API
+    H_GATE --> X_BORDER
+    H_GATE --> FG
+    H_CONV --> FG
+    H_JOIN --> X_API
+    H_MOB --> X_API
+    H_GONE --> X_API
+    H_GT --> X_CLI
+    X_API --> FG
+    X_API --> BGP
+
+    class INIT,CG,CGP,CB cfg
+    class MIR,SYNC,E_BT,E_GT,E_MOB,E_GATE,E_JOIN,E_GONE,E_FIN sat
+    class FG,BGP,INTG state
+    class H_BT,H_GATE,H_CONV,H_JOIN,H_MOB,H_GONE,H_GT handler
+    class X_API,X_BORDER,X_CLI ext
+
+    classDef sat fill:#1d2a3a,stroke:#5b8bd0,color:#e6e6e6
+    classDef cfg fill:#1f2227,stroke:#8a93a0,color:#e6e6e6
+    classDef state fill:#1a2a21,stroke:#5fae7b,color:#e6e6e6
+    classDef handler fill:#2a2418,stroke:#c9a14a,color:#e6e6e6
+    classDef ext fill:#271f2e,stroke:#a57fc9,color:#e6e6e6
+
+</pre>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+</script>
+</body>
+</html>

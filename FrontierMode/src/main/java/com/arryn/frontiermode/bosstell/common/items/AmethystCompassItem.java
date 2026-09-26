@@ -1,15 +1,16 @@
-package com.arryn.frontiermode.bosstell.common;
+package com.arryn.frontiermode.bosstell.common.items;
 
+import com.arryn.frontiermode.bosstell.common.CompassAttunement;
+import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.NbtUtils;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,7 +23,6 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentCategory;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
@@ -121,12 +121,7 @@ public class AmethystCompassItem extends CompassItem {
      * and the frozen-lock path (written once, at lock time, then never touched again).
      */
     private static void writeLodestoneFields(ItemStack stack, Level level, BlockPos pos) {
-        CompoundTag tag = stack.getOrCreateTag();
-        tag.put(TAG_LODESTONE_POS, NbtUtils.writeBlockPos(pos));
-        Level.RESOURCE_KEY_CODEC.encodeStart(NbtOps.INSTANCE, level.dimension())
-                .resultOrPartial(OUT::warn)
-                .ifPresent(encoded -> tag.put(TAG_LODESTONE_DIMENSION, encoded));
-        tag.putBoolean(TAG_LODESTONE_TRACKED, false);
+        StackData.writeLodestone(stack, GlobalPos.of(level.dimension(), pos), false);
     }
 
     /**
@@ -160,8 +155,8 @@ public class AmethystCompassItem extends CompassItem {
 
         enforceSingleEnchant(stack);
 
-        int intuitionLevel = EnchantmentHelper.getTagEnchantmentLevel(BossTellModule.INTUITION.get(), stack);
-        int resonanceLevel = EnchantmentHelper.getTagEnchantmentLevel(BossTellModule.RESONANCE.get(), stack);
+        int intuitionLevel = StackData.enchantmentLevel(stack, BossTellModule.INTUITION.get());
+        int resonanceLevel = StackData.enchantmentLevel(stack, BossTellModule.RESONANCE.get());
         // Mutually exclusive by checkCompatibility(); Resonance wins if somehow both are present.
         int currentCode = resonanceLevel > 0 ? RESONANCE_CODE : intuitionLevel;
 
@@ -194,37 +189,16 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * Playtest report: enchantments duplicating on one compass. Checked the real
-     * {@code ItemStack.enchant(Enchantment, int)} -- it unconditionally {@code ListTag.add()}s a
-     * new NBT entry with no check for an existing one of the same enchantment, so calling it
-     * twice for the same enchantment (at any level) leaves both entries in the list, and the
-     * tooltip renders all of them. Vanilla's own anvil combine path is <em>not</em> the source
-     * of this -- checked {@code AnvilMenu.createResult()} directly: it merges into a
-     * {@code Map<Enchantment, Integer>} first (which can't hold two entries for the same key by
-     * construction) and applies it via {@code EnchantmentHelper.setEnchantments}, which rebuilds
-     * the whole tag fresh rather than appending. The duplicate is coming from somewhere else --
-     * creative mode's own enchantment-editing screen, or hand-authored `/give` NBT, are the
-     * likely candidates, neither of which goes through the anvil's own safe path.
-     *
-     * <p>Rather than chase every possible entry point, this compass enforces its own
-     * single-enchantment invariant on every throttled refresh, regardless of how a duplicate
-     * got there: keeps exactly one (Resonance over Intuition, matching {@link #refreshOrRelock}'s
-     * own precedence; the higher level if somehow more than one of the same kind is present) and
-     * rewrites the tag via {@code EnchantmentHelper.setEnchantments} -- the same safe,
-     * whole-tag-replace call the anvil itself uses, not another {@code enchant()} append.
-     *
-     * <p><b>Bug in this method's own first version, found via playtest screenshot:</b> it
-     * bailed early whenever {@code EnchantmentHelper.getEnchantments(stack).size() <= 1} --
-     * but that method builds a {@code Map}, and {@code Map.put()} silently collapses two raw
-     * NBT entries for the <em>same</em> enchantment (e.g. "Intuition II" appearing twice) down
-     * to one key. So a same-enchantment duplicate never tripped the size check at all, and the
-     * underlying list -- which the tooltip renders directly, duplicates included -- was never
-     * touched. Fix: rewrite unconditionally whenever anything is present, not just when the
-     * *map's* size looks wrong; {@code setEnchantments} rebuilding the whole tag fresh is what
-     * actually clears a same-key duplicate, regardless of what the map's own size suggested.
+     * The compass carries at most one enchantment, however it got more (creative-mode editing and
+     * hand-authored {@code /give} data bypass the anvil's own merge): keeps exactly one -- Resonance
+     * over Intuition, matching {@link #refreshOrRelock}'s own precedence, or the highest level if
+     * somehow more than one of the same kind is present -- and rewrites the whole enchantment list
+     * through {@link StackData#setEnchantments}. That rewrite runs whenever anything is present, not
+     * only when the map looks wrong: the map collapses two raw entries for the same enchantment into
+     * one key, so its size can't reveal a same-enchantment duplicate, but rebuilding the list clears it.
      */
     private static void enforceSingleEnchant(ItemStack stack) {
-        Map<Enchantment, Integer> current = EnchantmentHelper.getEnchantments(stack);
+        Map<Enchantment, Integer> current = StackData.enchantments(stack);
         if (current.isEmpty()) {
             return;
         }
@@ -247,7 +221,7 @@ public class AmethystCompassItem extends CompassItem {
             }
         }
 
-        EnchantmentHelper.setEnchantments(keep == null ? Map.of() : Map.of(keep, keepLevel), stack);
+        StackData.setEnchantments(stack, keep == null ? Map.of() : Map.of(keep, keepLevel));
     }
 
     /**

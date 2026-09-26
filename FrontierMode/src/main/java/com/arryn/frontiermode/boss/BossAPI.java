@@ -484,6 +484,9 @@ public final class BossAPI {
                     Optional.empty(), false);
         }
 
+        // A forced defeat kills the boss's guardians uncredited: drops, no XP.
+        GuardianJigHandlers.onBossDefeated(level, bossId, null);
+
         // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
         // gating below stops growth right here -- see boss.md's "Cascade durability".
         fixture.scheduleForceFlush();

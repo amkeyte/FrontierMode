@@ -67,7 +67,7 @@ final class GuardianJigHandlers {
         GuardianMarkers.clientFixture(level).ifPresent(fixture -> GuardianTrailClient.tick(level, fixture));
     }
 
-    /** A fresh join promotes a staged entry to a record and publishes it to clients. */
+    /** A fresh join promotes a staged entry to a record, heals it to full, and publishes it to clients. */
     static void onEntityJoinLevel(EntityJoinLevelSignal signal) {
         if (signal.loadedFromDisk()
                 || !(signal.level() instanceof ServerLevel level)
@@ -77,8 +77,11 @@ final class GuardianJigHandlers {
         }
         BossAPI.guardiansQuiet(level)
                 .flatMap(guardians -> guardians.promote(mob.getUUID()))
-                .ifPresent(record -> BossAPI.guardianMarkers(level)
-                        .ifPresent(pub -> pub.add(record.mobUuid(), record.scale())));
+                .ifPresent(record -> {
+                    // Vanilla setup has run by now and can raise max health without healing.
+                    BossAPI.bosses(level).ifPresent(boss -> boss.RULES.healGuardian(mob));
+                    BossAPI.guardianMarkers(level).ifPresent(pub -> pub.add(record.mobUuid(), record.scale()));
+                });
     }
 
     /**
@@ -138,7 +141,17 @@ final class GuardianJigHandlers {
     }
 
     /**
-     * Interest gained: the path a guardian loaded back from disk takes. Publishes it (idempotent),
+     * A boss was defeated (a player kill or a forced defeat): dooms its guardians. {@code
+     * creditedPlayer} is null for a forced defeat. Called from both defeat paths right after
+     * {@code markDefeated} returns true; a non-player boss death runs neither.
+     */
+    static void onBossDefeated(Level level, UUID bossId, UUID creditedPlayer) {
+        BossAPI.guardiansQuiet(level).ifPresent(g -> g.doomGuardiansOf(bossId, creditedPlayer));
+    }
+
+    /**
+     * Interest gained: the path a guardian loaded back from disk takes. A doomed one is removed
+     * first. Otherwise publishes it (idempotent),
      * refreshes its dimensions -- loading an entity never recomputes its hitbox -- and applies the
      * glow toggle's current state.
      */
@@ -150,6 +163,15 @@ final class GuardianJigHandlers {
         UUID uuid = mob.getUUID();
 
         BossAPI.guardiansQuiet(level).flatMap(g -> g.record(uuid)).ifPresent(record -> {
+            if (record.doomed()) {
+                // Its boss was defeated while it was unloaded: removed on the spot with nothing, and
+                // it never joins the public fixture, so it never shows a trail.
+                BossAPI.bosses(level).ifPresent(boss -> boss.RULES.dismissGuardian(mob));
+                if (level instanceof ServerLevel serverLevel) {
+                    deleteGuardian(serverLevel, uuid);
+                }
+                return;
+            }
             BossAPI.guardianMarkers(level).ifPresent(pub -> pub.add(uuid, record.scale()));
             mob.refreshDimensions();
             BossAPI.bosses(level).ifPresent(boss -> boss.RULES.applyGlow(mob));

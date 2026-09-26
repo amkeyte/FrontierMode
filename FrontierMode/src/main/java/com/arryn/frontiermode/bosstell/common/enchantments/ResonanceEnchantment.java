@@ -1,5 +1,6 @@
-package com.arryn.frontiermode.bosstell.common;
+package com.arryn.frontiermode.bosstell.common.enchantments;
 
+import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.enchantment.Enchantment;
 import org.jetbrains.annotations.NotNull;
