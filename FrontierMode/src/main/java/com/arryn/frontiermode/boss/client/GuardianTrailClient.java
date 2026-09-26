@@ -2,10 +2,10 @@ package com.arryn.frontiermode.boss.client;
 
 import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
 import com.arryn.frontiermode.effects.client.ClientEffectsAPI;
+import com.arryn.frontiermode.effects.common.EffectsAPI;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -14,7 +14,8 @@ import net.minecraft.world.level.Level;
  * guardian near the local player, drawn by each client from state it already has. Whether a mob is a
  * guardian comes from the synced {@link GuardianPublicFixture}, and a tracked mob's position is
  * already known to the client, so no packet is needed. A moving guardian leaves a line; one standing
- * still stacks particles on its spot, so it's marked either way.
+ * still stacks particles on its spot, so it's marked either way. Each particle stays exactly where it
+ * is dropped: the shared amethyst dust has no gravity and its speed is zeroed.
  *
  * <p>Short range and short lifetime are design constraints, not tuning accidents: a long-lived trail
  * would become a visible path to the boss. The three numbers are {@code Tunable}s on the server that
@@ -24,10 +25,6 @@ import net.minecraft.world.level.Level;
  * a dedicated server.
  */
 public final class GuardianTrailClient {
-
-    // The shared amethyst particle isn't registered in code yet; Cairn's ambient signal uses the same
-    // stand-in. Swap for the shared particle when it lands.
-    private static final net.minecraft.core.particles.ParticleOptions PARTICLE = ParticleTypes.WITCH;
 
     private GuardianTrailClient() {
     }
@@ -52,7 +49,7 @@ public final class GuardianTrailClient {
                 m -> fixture.isGuardian(m.getUUID()))) {
             if (mob.distanceToSqr(player) <= radiusSq) {
                 ClientEffectsAPI.spawnParticleWithLifetime(
-                        clientLevel, PARTICLE, mob.getX(), mob.getY(), mob.getZ(), lifetime);
+                        clientLevel, EffectsAPI.AMETHYST_DUST, mob.getX(), mob.getY(), mob.getZ(), lifetime);
             }
         }
     }
