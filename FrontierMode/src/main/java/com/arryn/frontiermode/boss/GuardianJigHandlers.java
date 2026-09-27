@@ -88,7 +88,7 @@ final class GuardianJigHandlers {
      * The daylight rule's placement gate (gate 1 of 2; see {@link #onSpawnPositionCheck}). Inside a boss's guardian placement radius, and only there,
      * the darkness gate lifts for a spawn that will become a guardian: the same placement roll
      * conversion uses runs here, before the mob exists, and on a hit the spawn is allowed and its
-     * position recorded so conversion skips its own roll. Feral owns the Exterior's gate, so this
+     * position recorded so conversion skips its own roll. Feral owns the Wilds' gate, so this
      * acts inside the Frontier only. Types that can't be guardians (see
      * {@code BossRules#canBeGuardian}) are left alone.
      */

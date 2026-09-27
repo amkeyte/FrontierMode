@@ -42,7 +42,7 @@ public final class BorderCommands {
         return Commands.literal("add")
                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
                         .then(Commands.argument("radius", IntegerArgumentType.integer(1))
-                                .then(Commands.argument("layer", IntegerArgumentType.integer(0))
+                                .then(Commands.argument("layer", IntegerArgumentType.integer(1))
                                         .executes(ctx -> {
                                             BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
                                             int r = IntegerArgumentType.getInteger(ctx, "radius");
@@ -54,7 +54,7 @@ public final class BorderCommands {
                 )
                 .then(Commands.literal("here")
                         .then(Commands.argument("radius", IntegerArgumentType.integer(1))
-                                .then(Commands.argument("layer", IntegerArgumentType.integer(0))
+                                .then(Commands.argument("layer", IntegerArgumentType.integer(1))
                                         .executes(ctx -> {
                                             int r = IntegerArgumentType.getInteger(ctx, "radius");
                                             int l = IntegerArgumentType.getInteger(ctx, "layer");

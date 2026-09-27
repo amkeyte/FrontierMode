@@ -113,7 +113,7 @@ public final class BossTellFixture extends SatchelFixture {
     // Per-boss round-robin index into TELL_SOUNDS (which slot plays next) and the game-time tick
     // each boss last actually played one (for the BossRules#tellSoundCooldownTicks() gate below).
     // Deliberately NOT persisted -- same "off/on signal" ephemeral-state discipline as this
-    // fixture's own tickCounter and ExteriorTellFixture's: resetting to slot 0 / no-cooldown on a
+    // fixture's own tickCounter and WildsTellFixture's: resetting to slot 0 / no-cooldown on a
     // server restart is harmless, and neither map is large enough (one entry per boss that has
     // ever rolled a tell sound) to be a real memory concern left unbounded for a JVM's lifetime.
     private final Map<UUID, Integer> tellSoundRotation = new HashMap<>();

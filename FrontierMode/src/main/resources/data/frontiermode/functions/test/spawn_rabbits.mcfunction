@@ -1,5 +1,5 @@
 # RM_FRO_037 / FRO_099 test aid: scatters ~two dozen rabbits around wherever this is run from,
-# instead of relying on natural spawns, so Sick Wildlife's cosmetic tell (ExteriorTellFixture)
+# instead of relying on natural spawns, so Sick Wildlife's cosmetic tell (WildsTellFixture)
 # has something to act on immediately. NOTE: these are /summon'd, not naturally spawned or
 # spawner-spawned, so they do NOT pass through MobSpawnEvent.FinalizeSpawn -- the density
 # companion hook (BorderModule.onMobSpawnFinalize) will not fire for any of these. This function

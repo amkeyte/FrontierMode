@@ -35,7 +35,7 @@ public final class FeralRules {
     }
 
     // ------------------------------------------------------------------
-    // Density -- extra hostile companions near a hostile that already spawned in the Exterior,
+    // Density -- extra hostile companions near a hostile that already spawned in the Wilds,
     // same "approximation of a true spawn-rate multiplier" shape Sick Wildlife's own density
     // boost uses (FrontierMode can't retroactively multiply spawn attempts, only piggyback on ones
     // that already happened). Design ruling (2026-09-18): scales with raw distance, uncapped --
@@ -163,7 +163,7 @@ public final class FeralRules {
      * from every player before it's actually cleared -- a lingering window, not an instant cutoff,
      * so a mob doesn't flicker out and back as a player's distance oscillates right around the
      * threshold. Playtest feedback (2026-09-21, second pass): even 10s (200 ticks) was clearing
-     * mobs fast enough to make the whole Exterior feel thin/underwhelming rather than a sustained
+     * mobs fast enough to make the whole Wilds feel thin/underwhelming rather than a sustained
      * swarm -- project owner's own "like a minute" target, taken literally: 1200 ticks (60s).
      */
     public static int despawnLingerTicks() {
@@ -203,7 +203,7 @@ public final class FeralRules {
      * Dedicated ceiling on pack members specifically (see {@code FeralModule.PACK_MEMBER_TAG}),
      * counted independently of ambient natural spawns via {@code FeralModule
      * .countAlivePackMembers}. Playtest feedback (2026-09-21, fifth pass): "we are getting a lot
-     * of mobs from regular spawn algo as well, that's most of the cap" -- ambient Exterior
+     * of mobs from regular spawn algo as well, that's most of the cap" -- ambient Wilds
      * spawning was never itself capped, so it could (and did) consume the entire shared
      * {@link #maxAliveFeral()} budget and starve {@code maintainPackNearPlayer} of any room to
      * spawn at all. This reserves headroom ambient spawns can never crowd out. Twice
@@ -219,16 +219,16 @@ public final class FeralRules {
 
     // ------------------------------------------------------------------
     // Pack maintenance -- playtest feedback (2026-09-21): both the density-companion piggyback
-    // and the distance despawn timer above left the Exterior feeling thin and easy to just weave
+    // and the distance despawn timer above left the Wilds feeling thin and easy to just weave
     // through for a couple hundred blocks before Frontier Sickness did the real work. Replaces
     // relying on vanilla's own sparse natural spawn attempts with a direct guarantee: while a
-    // player is in the Exterior, keep a real pack of Feral mobs near *them* specifically. See
+    // player is in the Wilds, keep a real pack of Feral mobs near *them* specifically. See
     // FeralModule.maintainPackNearPlayer/spawnPackMember.
     // ------------------------------------------------------------------
 
     /**
      * How many Feral mobs {@code FeralModule.maintainPackNearPlayer} tries to keep within
-     * {@link #packMaintainRadius()} of a player who's in the Exterior. "Safe baseline, replace
+     * {@link #packMaintainRadius()} of a player who's in the Wilds. "Safe baseline, replace
      * later" -- picked to be a real, weave-through-it pack, not a token few; not playtest-tuned
      * against feel yet. Widened 12 -> 20 (2026-09-22, "can we increase the pack number?") --
      * {@link #maxAlivePackMembers()} widened alongside it, same 2x ratio as before.
@@ -247,7 +247,7 @@ public final class FeralRules {
     }
 
     /**
-     * Distance (blocks) beyond which an ordinary natural Exterior spawn (not a
+     * Distance (blocks) beyond which an ordinary natural Wilds spawn (not a
      * {@code FeralModule.isPackMember}-marked one) is discarded outright -- see
      * {@code FeralModule.despawnIfBeyondAmbientRadius}. Playtest feedback (2026-09-21, sixth
      * pass): "still hitting cap... remove all feral mobs spawned outside a radius, they are

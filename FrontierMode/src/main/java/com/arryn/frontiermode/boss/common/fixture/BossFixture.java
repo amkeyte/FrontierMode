@@ -268,7 +268,7 @@ public final class BossFixture extends SatchelFixture {
      * gap"). {@code position} starts null; see {@link BossRecord}'s own docs and
      * {@link #finalizePosition} for how it's set.
      *
-     * <p><b>FRO_058:</b> rejects {@code layer < 0}, mirroring
+     * <p><b>FRO_058:</b> rejects {@code layer < 1}, mirroring
      * {@code BordersCrudFacet.failureReason()}'s identical check on {@code layerIndex} -- see
      * boss.md's "Mutation validation boundary" section for the ruling. Returns
      * {@code Optional<BossRecord>} (empty on rejection, logged via {@code OUT.warn}) rather than
@@ -284,7 +284,7 @@ public final class BossFixture extends SatchelFixture {
      * defeat-triggered grow, and {@code /boss attach}) -- sets the new record's {@code borderId}
      * to {@code borderId}, unlike {@link #create(int)} above, which stays the off-path
      * ({@code /boss add}) entry point and leaves it {@code Optional.empty()}. Same rejection rule
-     * ({@code layer < 0}) as the no-borderId overload.
+     * ({@code layer < 1}) as the no-borderId overload.
      */
     public Optional<BossRecord> create(int layer, UUID borderId) {
         return create(layer, Optional.of(Objects.requireNonNull(borderId, "borderId")));
@@ -293,8 +293,8 @@ public final class BossFixture extends SatchelFixture {
     private Optional<BossRecord> create(int layer, Optional<UUID> borderId) {
         Satchel.requireServer();
 
-        if (layer < 0) {
-            OUT.warn("[Boss] create(): rejected -- negative layer " + layer + ".");
+        if (layer < 1) {
+            OUT.warn("[Boss] create(): rejected -- layer " + layer + " is below 1; layers start at 1.");
             return Optional.empty();
         }
 

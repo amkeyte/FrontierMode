@@ -37,8 +37,7 @@ public interface BossRules {
 
     /**
      * 0 (worst) to 1 (best) flatness score for a candidate position's immediate footprint --
-     * "safe baseline, replace later" per border-pregeneration.md, same framing as
-     * {@code DefaultBorderRules.GROWTH_FACTOR}.
+     * "safe baseline, replace later" per border-pregeneration.md.
      */
     double flatnessScore(Level level, BlockPos candidate);
 

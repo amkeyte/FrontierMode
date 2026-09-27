@@ -286,8 +286,8 @@ final class BossJigHandlers {
     /**
      * FRO_112: flat placeholder reward ahead of Boss Discovery's fuller, randomized,
      * difficulty-scaled loot table (Tier 2/3, still unclaimed) -- see boss.md's own "Placeholder
-     * defeat loot" section. {@code record.layer() + 1} diamonds (0-indexed layer, so a layer-0
-     * kill still pays out 1). FRO_160: only reached for a player-credited defeat, so there is
+     * defeat loot" section. {@code record.layer()} diamonds (layers start at 1, so the first
+     * kill pays out 1). FRO_160: only reached for a player-credited defeat, so there is
      * always a credited player -- the reward is a world drop at the death position either way.
      *
      * <p>FRO_134 (project owner ask): a real item drop at the boss's death position, not a direct
@@ -306,7 +306,7 @@ final class BossJigHandlers {
         OUT.debug("[Boss] grantDefeatLoot: paying " + credited.getGameProfile().getName()
                 + " for bossId=" + Ids.shortId(record.bossId()));
 
-        int diamonds = record.layer() + 1;
+        int diamonds = record.layer();
         ItemStack stack = new ItemStack(Items.DIAMOND, diamonds);
         BlockPos deathLocation = mob.blockPosition();
         Containers.dropItemStack(level, deathLocation.getX() + 0.5, deathLocation.getY() + 0.5,

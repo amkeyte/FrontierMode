@@ -21,6 +21,7 @@ import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
+import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
@@ -63,8 +64,8 @@ import java.util.UUID;
 
 /**
  * Entry point for Feral (RM_FRO_038 "Martha") -- corrupted, distance-scaling hostile mobs native
- * to the Exterior. See wiki/frontiermode/design/exterior.md#feral for design intent and
- * wiki/frontiermode/architecture/exterior.md#consumers-frontier-sickness-and-feral for the
+ * to the Wilds. See wiki/frontiermode/design/wilds.md#feral for design intent and
+ * wiki/frontiermode/architecture/wilds.md#consumers-frontier-sickness-sick-wildlife-and-feral for the
  * technical shape.
  *
  * <p><b>Its own module, deliberately, not folded into {@code BorderModule}.</b> Feral reads
@@ -101,7 +102,7 @@ import java.util.UUID;
  * {@link LivingExperienceDropSignal} for the no-free-loot rule, FRO_147; SAT_076's
  * {@link SpawnPlacementCheckSignal}/{@link EntityJoinLevelSignal} for the light-bypass wall and
  * the actual tagging authority, FRO_107 -- see {@link #onLivingDrops}/{@link #onLivingExperienceDrop}/
- * {@link #onSpawnPlacementCheck}/{@link #onEntityJoinLevel}), all subscribed via the same
+ * {@link FeralSpawnGateHandlers#onSpawnPlacementCheck}/{@link #onEntityJoinLevel}), all subscribed via the same
  * {@code FERAL_LEVEL_JIG} config's {@code eventHandlers()}. Every one of these is a bare, unscoped
  * signal (no jig-key filtering needed, unlike {@code ScopeEvent.Tick}); declaring their handlers
  * on {@code FERAL_LEVEL_JIG} is only where installation happens to occur, not a claim this is
@@ -147,7 +148,7 @@ public final class FeralModule {
     private static final Map<UUID, TickDelay> DESPAWN_TIMERS = new HashMap<>();
 
     // Playtest feedback (2026-09-21, fifth pass): distinguishes a spawnPackMember-created mob
-    // from an ordinary natural Exterior spawn that onEntityJoinLevel tags feral the same way --
+    // from an ordinary natural Wilds spawn that onEntityJoinLevel tags feral the same way --
     // see maintainPackNearPlayer/countAlivePackMembers for why that distinction matters now.
     // Stored on the entity's own persistent data (Forge's per-entity NBT compound), not a static
     // map -- survives exactly as long as the entity itself does, no separate cleanup needed.
@@ -155,7 +156,7 @@ public final class FeralModule {
 
     // Playtest feedback (2026-09-21): both the piggyback density mechanic (rollDensityCompanion,
     // riding vanilla's own sparse natural spawn attempts) and the radius+linger despawn timer
-    // left the Exterior feeling thin and easy to just weave through -- "I need more mobs near me
+    // left the Wilds feeling thin and easy to just weave through -- "I need more mobs near me
     // when I run the gauntlet." Turned off in favor of maintainPackNearPlayer's direct
     // force-spawn-near-the-player approach below, same "plain static flag" shape as the other debug switches
     // above, not a code deletion -- easy to flip back and compare if the new approach doesn't
@@ -200,7 +201,8 @@ public final class FeralModule {
                         .on(LivingDropsSignal.class, FeralModule::onLivingDrops)
                         .on(LivingExperienceDropSignal.class, FeralModule::onLivingExperienceDrop)
                         // FRO_107: same bare-signal precedent, SAT_076's spawn-cluster signals.
-                        .on(SpawnPlacementCheckSignal.class, FeralModule::onSpawnPlacementCheck)
+                        .on(SpawnPlacementCheckSignal.class, FeralSpawnGateHandlers::onSpawnPlacementCheck)
+                        .on(SpawnPositionCheckSignal.class, FeralSpawnGateHandlers::onSpawnPositionCheck)
                         .on(EntityJoinLevelSignal.class, FeralModule::onEntityJoinLevel)
                         .build();
 
@@ -258,7 +260,7 @@ public final class FeralModule {
 
     /**
      * Cosmetic-only tell on already-spawned Feral mobs -- poison particles / hurt sounds, mirroring
-     * {@code ExteriorTellFixture}'s own Sick Wildlife tell shape exactly (same two-independent-
+     * {@code WildsTellFixture}'s own Sick Wildlife tell shape exactly (same two-independent-
      * rolls dispatch, same particle/sound placeholders), just searching for {@code feral}-teamed
      * hostiles instead of {@link net.minecraft.world.entity.animal.Animal}s and gating per mob's
      * actual team membership rather than recomputing frontier-distance (a Feral mob is already,
@@ -268,7 +270,7 @@ public final class FeralModule {
      * wildlife already is.
      *
      * <p>Searches {@link Mob} (not {@link Monster}) filtered to {@link MobCategory#MONSTER} --
-     * same category test {@link #onSpawnPlacementCheck}/{@link #onMobSpawnFinalize} use, not a
+     * same category test {@link FeralSpawnGateHandlers#onSpawnPlacementCheck}/{@link #onMobSpawnFinalize} use, not a
      * class-hierarchy check. {@code Slime}/{@code MagmaCube} are real {@code MobCategory.MONSTER}
      * hostiles that don't extend {@code Monster} (a genuine vanilla quirk) -- an
      * {@code instanceof Monster} search would silently skip them here too, the same gap that kept
@@ -307,11 +309,11 @@ public final class FeralModule {
     private static void rollFeralTell(ServerPlayer player, ServerLevel level, Mob monster) {
         Vec3 pos = monster.position();
 
-        // Two independent rolls, same shape ExteriorTellFixture/BossTellFixture already use --
+        // Two independent rolls, same shape WildsTellFixture/BossTellFixture already use --
         // particle is targeted (only this player sees their own local tell), sound is an area
         // broadcast (anyone nearby hears it, not just this one player).
         if (RNG.nextDouble() < FeralRules.tellParticleChance()) {
-            // Placeholder particle -- same WITCH placeholder ExteriorTellFixture uses, same
+            // Placeholder particle -- same WITCH placeholder WildsTellFixture uses, same
             // "swap for a real poison-green particle once confirmed against real sources" hedge.
             EffectsAPI.sendParticleToPlayer(
                     player, ParticleTypes.WITCH,
@@ -319,7 +321,7 @@ public final class FeralModule {
                     6, 0.2, 0.2, 0.2, 0.01);
         }
         if (RNG.nextDouble() < FeralRules.tellSoundChance()) {
-            // Placeholder sound -- same GENERIC_HURT placeholder ExteriorTellFixture uses.
+            // Placeholder sound -- same GENERIC_HURT placeholder WildsTellFixture uses.
             EffectsAPI.broadcastSound(
                     level, pos.x, pos.y, pos.z,
                     SoundEvents.GENERIC_HURT, SoundSource.HOSTILE,
@@ -329,9 +331,9 @@ public final class FeralModule {
 
     /**
      * Playtest feedback (2026-09-21): piggybacking on vanilla's own sparse natural spawn attempts
-     * (the disabled {@link #densityCompanionEnabled} path) left the Exterior feeling thin --
+     * (the disabled {@link #densityCompanionEnabled} path) left the Wilds feeling thin --
      * "I just weave around them for about 200m before the sickness kills me." This replaces that
-     * indirection with a direct guarantee: while a player is in the Exterior, top up the Feral
+     * indirection with a direct guarantee: while a player is in the Wilds, top up the Feral
      * mobs actually near *them* specifically, rather than hoping natural spawns happen to land
      * nearby. Rides {@link #onPlayerTick} rather than its own Forge subscription -- same
      * "no new touch point needed" shape that method's cosmetic-tell call already established,
@@ -342,7 +344,7 @@ public final class FeralModule {
      * {@code player}; if under {@link FeralRules#packTargetCount()}, spawns the shortfall via
      * {@link #spawnPackMember}, clamped to whatever room remains under
      * {@link FeralRules#maxAliveFeral()} the same way {@link #rollDensityCompanion} already
-     * respects that cap. A no-op outside the Exterior (mirrors every other Feral check's own
+     * respects that cap. A no-op outside the Wilds (mirrors every other Feral check's own
      * {@code frontierDistance <= 0} guard) and while the cap has no room left.
      *
      * <p>Playtest feedback (2026-09-21, fourth pass): "got one pack... but I still passed them" --
@@ -356,7 +358,7 @@ public final class FeralModule {
      *
      * <p>Playtest feedback (fifth pass): "we are getting a lot of mobs from regular spawn algo as
      * well, that's most of the cap" -- {@code onEntityJoinLevel} still unconditionally tags every
-     * natural Exterior spawn Feral (the standing 2026-09-18 design ruling, untouched by any of
+     * natural Wilds spawn Feral (the standing 2026-09-18 design ruling, untouched by any of
      * this), and that population was never capped at all before now -- only whichever mechanic
      * was actively checking {@code MAX_ALIVE_FERAL} got throttled by it. Originally addressed by
      * giving pack members their own dedicated {@link FeralRules#maxAlivePackMembers()} budget
@@ -500,7 +502,7 @@ public final class FeralModule {
      * Forge finalize-spawn dispatch {@code FeralCommandHandler
      * .spawnTestHostiles} uses (unlike {@code /summon}, this still fires
      * {@code MobSpawnEvent.FinalizeSpawn}, so it stays fully integrated with everything else on
-     * that touch point -- the Exterior-only Slime/MagmaCube deny in {@code BossJigHandlers
+     * that touch point -- the Wilds-only Slime/MagmaCube deny in {@code BossJigHandlers
      * .onMobSpawnFinalize} (FRO_154) and Guardian conversion both still apply normally, and
      * {@link #onEntityJoinLevel} still catches and tags it Feral through the ordinary
      * {@link EntityJoinLevelSignal} path, same as any other spawn). Zombie, matching that same
@@ -622,7 +624,7 @@ public final class FeralModule {
     /**
      * Fires at most once a second per level, and only when at least one Feral mob exists (a
      * quiet Frontier logs nothing). Beyond the three counts asked for (pack members, all Feral,
-     * all mobs), also logs, per player currently in the Exterior: whether they're sprinting,
+     * all mobs), also logs, per player currently in the Wilds: whether they're sprinting,
      * their {@code frontierDistance}, and the distance to their own nearest pack member --
      * that last one is the one number that should directly answer "are pack members actually
      * closing the gap or quietly losing ground despite the speed boost," which raw counts alone
@@ -708,7 +710,7 @@ public final class FeralModule {
      *       project owner's own wording ("must die on re-entry") -- {@code LivingEntity#kill()}
      *       runs the same death handling (drops, XP, death message) an ordinary combat death
      *       would, so this reads as "the Frontier killed it," not "it vanished."
-     *   <li><b>Still in the Exterior, but too far from every player:</b> dispatches to
+     *   <li><b>Still in the Wilds, but too far from every player:</b> dispatches to
      *       {@link #despawnWithLegacyLinger} when {@link #legacyDistanceDespawnEnabled}, otherwise
      *       to {@link #despawnIfBeyondPackRadius} for a {@link #isPackMember}-marked mob or
      *       {@link #despawnIfBeyondAmbientRadius} for an ordinary natural spawn -- see those
@@ -810,7 +812,7 @@ public final class FeralModule {
     /**
      * Playtest feedback (2026-09-21, sixth pass): "still hitting cap... we should remove all
      * feral mobs spawned outside a radius now, they are inconsequential" -- an ordinary natural
-     * Exterior spawn (not a {@link #isPackMember}-marked one) has no deliberate encounter behind
+     * Wilds spawn (not a {@link #isPackMember}-marked one) has no deliberate encounter behind
      * it at all, so it doesn't earn {@link #despawnIfBeyondPackRadius}'s generous ahead-leash or
      * its ahead/behind distinction -- either way, once it's farther than
      * {@link FeralRules#ambientDespawnRadius()} from every player, it was never going to be
@@ -872,73 +874,6 @@ public final class FeralModule {
         }
     }
 
-    /**
-     * Originally a permanent, unconditional design change (project owner direction): hostiles in
-     * the Exterior spawn regardless of light level, so the Exterior reads as dangerous everywhere
-     * out there, not just in the dark. Fires from {@code SpawnPlacements#checkSpawnRules}, per
-     * that event's own doc, "before a mob attempts to spawn" -- {@code MobSpawnEvent.FinalizeSpawn}
-     * fires too late for this; light gating happens upstream of it, so a hostile blocked here never
-     * reaches {@link #onMobSpawnFinalize} at all.
-     *
-     * <p>Playtest ask (2026-09-22): "once they start outside the fence we don't need those mobs
-     * anymore" -- now conditional on the nearest player's own state, not just the spawn
-     * position's. Resolved per attempt: whoever's nearest to {@code signal.pos()}.
-     *
-     * <ul>
-     *   <li><b>That player hasn't crossed yet</b> ({@code frontierDistance <= 0} for <em>them</em>,
-     *       even though the spawn position itself is in the Exterior): unchanged from the
-     *       original behavior -- force {@link SpawnPlacementCheckSignal#allow()}. This is the
-     *       visual-tell wall, visible from inside the Frontier, that lures/warns a player who
-     *       hasn't committed to crossing yet.
-     *   <li><b>That player has already crossed</b>: force {@link SpawnPlacementCheckSignal#deny()}
-     *       outright --
-     *       not a reversion to vanilla's own light-gated rules, a full stop. Once a player is
-     *       genuinely in the wild, {@link #maintainPackNearPlayer}'s deliberate pack is the real
-     *       threat; ambient chaff spawning around them no longer serves the visual-tell purpose
-     *       (they're already out there) and was the actual driver behind ambient population
-     *       ballooning toward vanilla's own hostile cap during a sprint.
-     * </ul>
-     *
-     * <p>Still scoped to {@link MobCategory#MONSTER} entity types with {@code frontierDistance >
-     * 0} for the spawn position -- everywhere else (inside the Frontier, or any non-hostile
-     * category: animals, water creatures, ambient), this event is left at its default result, so
-     * vanilla's own spawn placement checks are completely unchanged there. "Standby, don't
-     * crash": {@code getLevel()} not actually a real {@link ServerLevel} (e.g. a
-     * {@code WorldGenRegion} during chunk generation), Border state not resolvable yet, or no
-     * player found near the spawn position all fall through to the original ALLOW behavior rather
-     * than denying on an unresolvable state.
-     *
-     * <p>FRO_107: rides {@link SpawnPlacementCheckSignal} (SAT_076) instead of a raw Forge
-     * subscription -- {@code allow()}/{@code deny()}, not {@code cancel()}: this event is
-     * {@code @HasResult}, not {@code @Cancelable} (see that signal's own doc).
-     */
-    private static void onSpawnPlacementCheck(SpawnPlacementCheckSignal signal) {
-        if (signal.entityType().getCategory() != MobCategory.MONSTER) {
-            return;
-        }
-        //noinspection resource
-        if (!(signal.level() instanceof ServerLevel level)) {
-            return;
-        }
-        BlockPos pos = signal.pos();
-        if (BorderAPI.frontierDistanceAt(level, pos) <= 0) {
-            return;
-        }
-
-        Player nearest = level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), -1.0, false);
-        if (nearest != null && BorderAPI.frontierDistanceAt(level, nearest.blockPosition()) > 0) {
-            signal.deny();
-            return;
-        }
-
-        // allow() bypasses vanilla's whole monster spawn predicate, not just its darkness test, so
-        // the spawn surface is re-checked; if it fails the result stays unset and vanilla refuses.
-        @SuppressWarnings("unchecked")
-        EntityType<? extends Mob> mobType = (EntityType<? extends Mob>) signal.entityType();
-        if (MobSpawns.surfaceAllows(level, mobType, signal.spawnType(), pos)) {
-            signal.allow();
-        }
-    }
 
     /**
      * Permanent design change, per project owner direction: no exploiting a Feral mob for free
@@ -982,7 +917,7 @@ public final class FeralModule {
     }
 
     /**
-     * Exterior policy: Slime and MagmaCube (a {@code Slime}) are removed from the Exterior only --
+     * Wilds policy: Slime and MagmaCube (a {@code Slime}) are removed from the Wilds only --
      * where {@code frontierDistanceAt > 0} -- so Feral rules govern out there, and they spawn at the
      * ordinary vanilla rate inside the border. The caller denies the spawn with
      * {@code MobSpawnFinalizeSignal#denySpawn()}, not {@code cancel()}, which only skips
@@ -995,7 +930,7 @@ public final class FeralModule {
     /**
      * Density boost only, now -- see {@link #onEntityJoinLevel} for the actual tagging authority.
      * "Standby, don't crash": the spawning mob isn't a {@code MobCategory.MONSTER} hostile, or
-     * {@code frontierDistance <= 0} (not in the Exterior), is a silent no-op. Never cancels the
+     * {@code frontierDistance <= 0} (not in the Wilds), is a silent no-op. Never cancels the
      * spawn either way. Currently a no-op regardless, per {@link #densityCompanionEnabled} -- see
      * that field's own doc.
      */
@@ -1018,7 +953,7 @@ public final class FeralModule {
 
     /**
      * Design ruling (project owner, 2026-09-18): outside the Frontier, ordinary (non-Feral)
-     * hostiles shouldn't exist at all -- every real hostile in the Exterior is Feral,
+     * hostiles shouldn't exist at all -- every real hostile in the Wilds is Feral,
      * unconditionally. Supersedes the earlier bounded, distance-saturating roll
      * ({@code FeralLogic.spawnChance}, removed) -- what scales with distance is meant to be raw
      * mob count/density, not a per-mob conversion chance; density scaling itself is tracked
@@ -1039,7 +974,7 @@ public final class FeralModule {
      * each bypass individually.
      *
      * <p>Gated on {@link MobCategory#MONSTER} (not {@code instanceof Monster}) -- the same
-     * category test {@link #onSpawnPlacementCheck}/{@link #onMobSpawnFinalize} use, needed
+     * category test {@link FeralSpawnGateHandlers#onSpawnPlacementCheck}/{@link #onMobSpawnFinalize} use, needed
      * separately here since {@code Slime}/{@code MagmaCube} don't extend {@code Monster}.
      * Idempotent via {@link #isFeral}: skips anything already tagged (e.g. by a prior call to
      * this same method for the identical entity, since {@code EntityJoinLevelEvent} can fire more
@@ -1064,7 +999,7 @@ public final class FeralModule {
             // Slime in vanilla, so this one check covers both. The only place a mob "becomes"
             // Feral is the tag call below, so excluding here is sufficient on its own; nothing
             // downstream (onSpawnPlacementCheck's light bypass, onMobSpawnFinalize's density
-            // roll) needs its own matching exclusion -- both stay generic to every Exterior
+            // roll) needs its own matching exclusion -- both stay generic to every Wilds
             // hostile, Slime/MagmaCube included, same as any other never-tagged mob passing
             // through them.
             return;
@@ -1151,7 +1086,7 @@ public final class FeralModule {
     /**
      * Same live-scan shape as {@link #countAliveFeral}, but filtered to mobs
      * {@link #spawnPackMember} itself created (see {@link #PACK_MEMBER_TAG}) -- a natural
-     * Exterior spawn is still {@code feral}-teamed the moment it joins, but was never a pack
+     * Wilds spawn is still {@code feral}-teamed the moment it joins, but was never a pack
      * member, and {@link #maintainPackNearPlayer}'s own doc covers why that distinction has to be
      * counted separately now.
      */

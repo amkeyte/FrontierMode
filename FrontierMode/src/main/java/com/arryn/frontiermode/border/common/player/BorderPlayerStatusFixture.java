@@ -102,7 +102,7 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
     /**
      * FRO_133 (playtest root cause, 2026-09-22): {@code sicknessSeverity}'s target-and-catch-up
      * climb carries forward from {@code current} tick to tick (see {@link #compute}'s own doc) --
-     * death and respawn never reset it on their own, so a player who died deep in the Exterior
+     * death and respawn never reset it on their own, so a player who died deep in the Wilds
      * kept decaying down from whatever severity they died at, at {@code PlayerRules
      * .SICKNESS_CLIMB_RATE}'s own slow per-tick rate, regardless of their new (possibly safe)
      * respawn position -- re-triggering {@code BorderModule.applySicknessEffects} on every

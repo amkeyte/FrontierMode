@@ -11,7 +11,7 @@ import com.arryn.frontiermode.border.common.fixture.Shape;
  * <p>Per wiki/frontiermode/architecture/border-curve.md's "Open questions", the exact shape
  * functions and what {@code params} holds beyond the shape tag are this node's own Lead Dev call,
  * not settled by the spec -- these three are a starting, clearly-replaceable baseline (same "safe
- * baseline, replace later" framing as {@code DefaultBorderRules.GROWTH_FACTOR}), each mapping
+ * baseline, replace later" framing as the other rules placeholders), each mapping
  * {@code normalizedDistance} (0 at the border's center, 1 at its edge) to an intensity in
  * {@code [0, 1]} that climbs as distance to center shrinks, per the worked Guardian Mobs example:
  *

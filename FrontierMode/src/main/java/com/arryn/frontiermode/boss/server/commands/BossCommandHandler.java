@@ -88,8 +88,8 @@ public final class BossCommandHandler {
         }
         BossFixture fixture = fixtureOpt.get();
 
-        // FRO_058: create() now returns Optional<BossRecord> (empty on a rejected negative
-        // layer) -- Brigadier's own IntegerArgumentType.integer(0) on "layer" already keeps this
+        // FRO_058: create() now returns Optional<BossRecord> (empty on a rejected sub-1
+        // layer) -- Brigadier's own IntegerArgumentType.integer(1) on "layer" already keeps this
         // unreachable from this command, but the fixture-level guard applies to every caller.
         // Border Pregeneration: create(layer) always starts the record unpositioned now -- this
         // command's whole point is an admin choosing the position directly, so it commits `pos`

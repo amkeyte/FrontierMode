@@ -87,11 +87,11 @@ public final class BordersPathFacet {
      * Advance the canonical border progression by one step. Builds and applies the proposal
      * directly -- FRO_047 folded {@code BorderLogic.getInitial()}/{@code grow()}'s mechanics in
      * here rather than delegating to a separate logic class, per the eliminated-{@code BorderLogic}
-     * ruling. An empty path takes the bootstrap branch ({@link BorderRules#chooseInitialCenter}/
-     * {@link BorderRules#chooseInitialRadius}, layer 0); a non-empty path grows from the tip
-     * ({@link BorderRules#chooseNextCenter}/{@link BorderRules#chooseNextRadius}, layer
-     * {@code previous.layer() + 1}) -- same branch structure {@code BorderLogic.getInitial()}/
-     * {@code grow()} used, just inlined.
+     * ruling. An empty path takes the bootstrap branch ({@link BorderRules#chooseInitialCenter},
+     * layer 1); a non-empty path grows from the tip ({@link BorderRules#chooseNextCenter}, layer
+     * {@code previous.layer() + 1}). Either way the radius is
+     * {@link BorderRules#radiusForPathPosition} for the new Border's position (the path's size
+     * plus one).
      *
      * <p>Returns whatever {@link Result} {@link BordersCrudFacet#applyProposal} produces --
      * on failure, the path is left untouched (no partial append). On success, appends to the path
@@ -113,12 +113,12 @@ public final class BordersPathFacet {
         if (tipOpt.isPresent()) {
             Border previous = tipOpt.get();
             prop.center(BorderRules.ACTIVE.chooseNextCenter(level, previous))
-                    .radius(BorderRules.ACTIVE.chooseNextRadius(level, previous))
+                    .radius(nextRadius(level))
                     .layerIndex(previous.layer() + 1);
         } else {
             prop.center(BorderRules.ACTIVE.chooseInitialCenter(level))
-                    .radius(BorderRules.ACTIVE.chooseInitialRadius(level))
-                    .layerIndex(0);
+                    .radius(nextRadius(level))
+                    .layerIndex(1);
         }
 
         Result result = fixture.CRUD.applyProposal(prop);
@@ -137,9 +137,9 @@ public final class BordersPathFacet {
     /**
      * Overload of {@link #grow()} that takes an explicit center instead of deferring to
      * {@link BorderRules#chooseNextCenter}/{@link BorderRules#chooseInitialCenter}. Same
-     * two-branch shape as the no-arg form either way -- tip present grows from it (rules-driven
-     * radius, {@code previous.layer() + 1}), tip absent bootstraps via the same empty-path
-     * branch (rules-driven radius, layer 0) -- only the center source differs. An absent tip is
+     * two-branch shape as the no-arg form either way -- tip present grows from it
+     * ({@code previous.layer() + 1}), tip absent bootstraps via the same empty-path branch
+     * (layer 1), radius from path position in both -- only the center source differs. An absent tip is
      * not a special or failure case for this overload: it bootstraps exactly like the no-arg
      * form's own empty-path branch, the same mechanism a level's very first border already needs,
      * not a corruption case unique to a caller-supplied center. See Border's wiki "Mutation
@@ -156,12 +156,12 @@ public final class BordersPathFacet {
         if (tipOpt.isPresent()) {
             Border previous = tipOpt.get();
             prop.center(center)
-                    .radius(BorderRules.ACTIVE.chooseNextRadius(level, previous))
+                    .radius(nextRadius(level))
                     .layerIndex(previous.layer() + 1);
         } else {
             prop.center(center)
-                    .radius(BorderRules.ACTIVE.chooseInitialRadius(level))
-                    .layerIndex(0);
+                    .radius(nextRadius(level))
+                    .layerIndex(1);
         }
 
         Result result = fixture.CRUD.applyProposal(prop);
@@ -175,6 +175,11 @@ public final class BordersPathFacet {
         fixture.markPathDirty();
 
         return result;
+    }
+
+    /** The radius of the Border {@code grow} is about to append: path position is size + 1. */
+    private int nextRadius(Level level) {
+        return BorderRules.ACTIVE.radiusForPathPosition(level, size() + 1);
     }
 
     public int insertAll(int index, Collection<Border> borders) {
@@ -269,9 +274,9 @@ public final class BordersPathFacet {
      * that silently didn't. That gap is what RM_FRO_015 exists to close; below is the real fix.
      *
      * <p><b>RM_FRO_015, implemented:</b> builds this path's own target layer assignment --
-     * {@code target[borderPath.get(i)] = i} for every path member -- and delegates the actual bulk
+     * {@code target[borderPath.get(i)] = i + 1} for every path member -- and delegates the actual bulk
      * apply to {@link BordersFixture#reassignLayers(Map)}. This still just sets each path member's
-     * layer to its path index, no more and no less -- layer collisions with off-path borders aren't
+     * layer to its 1-based path position (layers start at 1), no more and no less -- layer collisions with off-path borders aren't
      * a concern to route around anymore (see {@code BordersCrudFacet}'s doc: Layer
      * and Path are definitionally unrelated, and duplicate layers resolve fine via
      * {@code getRelevant()}'s own nearest-center tie-break). Full design: Border Path & Layer
@@ -287,7 +292,7 @@ public final class BordersPathFacet {
         Map<UUID, Integer> pathTargets = new LinkedHashMap<>();
         List<UUID> path = fixture.borderPath;
         for (int i = 0; i < path.size(); i++) {
-            pathTargets.put(path.get(i), i);
+            pathTargets.put(path.get(i), i + 1);
         }
 
         return fixture.reassignLayers(pathTargets);

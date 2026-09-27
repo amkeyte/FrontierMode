@@ -3,6 +3,7 @@ package com.arryn.frontiermode.border.server.rules;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.satchel.common.tunable.Tunable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -15,9 +16,8 @@ import java.util.OptionalInt;
  * <p>
  * This implementation is intentionally simple:
  * - The initial border is centered at the level spawn position.
- * - The initial radius uses {@link BorderConstants#DEFAULT_RADIUS}.
- * - Subsequent borders reuse the previous center (for now) and grow
- * the radius by a fixed factor, clamped between MIN and MAX.
+ * - Radius is a function of path position alone, growing in waves -- see
+ * {@link #radiusForPathPosition}.
  * <p>
  * This is meant as a safe baseline and can be replaced by more
  * sophisticated rule sets later.
@@ -47,10 +47,8 @@ public final class DefaultBorderRules implements BorderRules {
             "Mistbound",
             "Blackgate"
     );
-    private static final double GROWTH_FACTOR = 1.5;
-
     // Pregeneration throttle budget (wiki/frontiermode/architecture/border-pregeneration.md,
-    // FRO_092) -- safe baseline, replace later, same category as GROWTH_FACTOR above. Two
+    // FRO_092) -- safe baseline, replace later, same category as the growth-wave Tunables. Two
     // playtest data points so far, both against a real 1009-chunk (radius 18) disk: 1 tick/16
     // chunks -> "Can't keep up, 45 ticks behind"; 1 tick/8 chunks -> barely better, "41 ticks
     // behind" despite half the batch size. That non-improvement is the tell: at interval=1 every
@@ -82,12 +80,6 @@ public final class DefaultBorderRules implements BorderRules {
     }
 
     @Override
-    public int chooseInitialRadius(Level level) {
-        // Future: could vary based on level type, difficulty, etc.
-        return BorderConstants.DEFAULT_RADIUS;
-    }
-
-    @Override
     public BlockPos chooseNextCenter(Level level, Border previous) {
         // Move 30 blocks in a random horizontal direction (XZ only)
         double angle = rng.nextDouble() * Math.PI * 2.0;
@@ -103,19 +95,32 @@ public final class DefaultBorderRules implements BorderRules {
         );
     }
 
+    /**
+     * Growth in waves (border.md § Radius: growth in waves; FRO_190). {@code radius(p) = round(base x
+     * factor(0) x ... x factor(p-1))}, computed from the base every time so rounding never
+     * accumulates and an edit to one Border's radius never shifts the ones after it.
+     *
+     * <p>Each wave is a half-cosine sweep of {@code borderWaveLength} steps, from
+     * {@code 1 + borderWaveAmplitude} down to exactly 1.0 (a flat step, which still recenters), then
+     * the next wave opens wide again. Defaults (20, 0.5, 5) give factors 1.5, 1.43, 1.25, 1.07, 1.0 and
+     * radii 30, 43, 54, 57, 57, 86, 123, 154, 165, 165, 247 for positions 1-11.
+     */
     @Override
-    public int chooseNextRadius(Level level, Border previous) {
-        int current = previous.radius();
-        int grown = (int) Math.round(current * GROWTH_FACTOR);
+    public int radiusForPathPosition(Level level, int pathPosition) {
+        int base = new Tunable("borderBaseRadius", 1, 1000, 20).intValue();
+        float amplitude = new Tunable("borderWaveAmplitude", 0f, 2f, 0.5f).floatValue();
+        int waveLength = new Tunable("borderWaveLength", 2, 20, 5).intValue();
 
-        // Clamp using constants to avoid runaway values.
-        if (grown < BorderConstants.MIN_RADIUS) {
-            grown = BorderConstants.MIN_RADIUS;
-        } else if (grown > BorderConstants.MAX_RADIUS) {
-            grown = BorderConstants.MAX_RADIUS;
+        double radius = base;
+        for (int step = 0; step < Math.max(pathPosition, 1); step++) {
+            radius *= waveFactor(step % waveLength, waveLength, amplitude);
         }
+        return Math.max(BorderConstants.MIN_RADIUS, (int) Math.round(radius));
+    }
 
-        return grown;
+    private static double waveFactor(int stepInWave, int waveLength, double amplitude) {
+        double sweep = (1.0 + Math.cos(Math.PI * stepInWave / (waveLength - 1))) / 2.0;
+        return 1.0 + amplitude * sweep;
     }
 
     @Override
@@ -160,7 +165,7 @@ public final class DefaultBorderRules implements BorderRules {
     public int layerToDifficulty(int layer) {
         // Safe baseline: identity. Layer and Difficulty are vocabulary-distinct even though this
         // placeholder happens to make them numerically equal -- replace once there's a real curve
-        // to tune against (Game Designer/playtest territory, same as GROWTH_FACTOR above).
+        // to tune against (Game Designer/playtest territory).
         return layer;
     }
 

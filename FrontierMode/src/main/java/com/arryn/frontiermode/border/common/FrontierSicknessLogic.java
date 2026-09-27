@@ -7,7 +7,7 @@ package com.arryn.frontiermode.border.common;
  * this project's test sourceSet has no Minecraft userdev classes on its classpath.
  *
  * <p>Both formulas here are explicitly "safe baseline, replace later" placeholders, per
- * wiki/frontiermode/design/exterior.md's own framing ("Lead Dev owns picking sane initial numbers
+ * wiki/frontiermode/design/wilds.md's own framing ("Lead Dev owns picking sane initial numbers
  * to playtest against") -- FRO_099's own scope note makes the same call for this ticket
  * specifically. Nothing here is tuned against real playtest feedback yet.
  */
@@ -17,7 +17,7 @@ public final class FrontierSicknessLogic {
 
     // ------------------------------------------------------------------
     // Severity: a target-and-catch-up climb, per
-    // wiki/frontiermode/design/exterior.md#frontier-sickness -- "current distance sets how bad
+    // wiki/frontiermode/design/wilds.md#frontier-sickness -- "current distance sets how bad
     // it's trying to get, and the player's actual condition climbs toward that target the longer
     // they stay, rather than snapping straight to a fixed value."
     // ------------------------------------------------------------------
@@ -65,7 +65,7 @@ public final class FrontierSicknessLogic {
      * the distance at which it's already ~63% of the way to {@code maxMultiplier}) and flattening
      * out at {@code maxMultiplier} well before any real distance -- deliberately not a slow,
      * continuous climb the way {@link #severityTarget} is. {@code frontierDistance <= 0} (not in
-     * the Exterior at all) always returns {@code 1.0} -- no boost.
+     * the Wilds at all) always returns {@code 1.0} -- no boost.
      */
     public static double wildlifeDensityMultiplier(int frontierDistance, double falloffDistance, double maxMultiplier) {
         if (frontierDistance <= 0 || falloffDistance <= 0.0) {

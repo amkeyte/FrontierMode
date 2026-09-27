@@ -7,7 +7,7 @@ package com.arryn.frontiermode.border.server.rules;
  * doc called it "intentionally minimal in early versions" with nothing real wired in yet --
  * Frontier Sickness is the first real consumer. Same "safe baseline, replace later" convention
  * {@code BorderConstants}/{@code DefaultBossRules}' own tunables already follow -- none of these
- * numbers are playtest-tuned; wiki/frontiermode/design/exterior.md's own "Open questions" section
+ * numbers are playtest-tuned; wiki/frontiermode/design/wilds.md's own "Open questions" section
  * explicitly leaves exact thresholds and climb/decay rates to Lead Dev to pick and playtest
  * against, which is exactly what this pass does.
  */
@@ -32,7 +32,7 @@ public final class PlayerRules {
 
     // ------------------------------------------------------------------
     // Effect tiers -- illustrative, non-binding sketch from
-    // wiki/frontiermode/design/exterior.md#frontier-sickness, turned into concrete severity
+    // wiki/frontiermode/design/wilds.md#frontier-sickness, turned into concrete severity
     // breakpoints. Each tier is additive (a higher tier keeps every lower tier's effects too).
     // Reordered from that page's own original sketch (project owner, 2026-09-18): weakness now
     // shows up first instead of nausea, and nausea moved to the last tier alongside blindness/

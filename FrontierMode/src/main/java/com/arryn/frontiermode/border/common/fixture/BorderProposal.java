@@ -59,20 +59,18 @@ public final class BorderProposal {
     }
 
     /**
-     * FRO_047: calls {@link BorderRules#ACTIVE} directly instead of going through the deleted
-     * {@code BorderLogic.defaultCenter()}/{@code defaultRadius()} -- those two just forwarded to
-     * {@code rules.chooseInitialCenter(resolveLevel())}/{@code chooseInitialRadius(...)} with no
-     * logic of their own.
+     * Defaults to the first Border's geometry: the rules' initial center and the radius for path
+     * position 1.
      */
     private void applyGeometryDefaults() {
         //Level scope = ((LevelScope) fixture.scope()).level();
         Level level = fixture.resolveLevel();
         this.center = BorderRules.ACTIVE.chooseInitialCenter(level);
-        this.radius = BorderRules.ACTIVE.chooseInitialRadius(level);
+        this.radius = BorderRules.ACTIVE.radiusForPathPosition(level, 1);
     }
 
     private void applyTopologyDefaults() {
-        this.layerIndex = 0;
+        this.layerIndex = 1;
     }
 
 

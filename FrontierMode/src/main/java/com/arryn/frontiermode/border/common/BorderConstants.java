@@ -9,9 +9,8 @@ public final class BorderConstants {
 
     private BorderConstants() {}
 
-    public static final int DEFAULT_RADIUS = 16;
+    // No maximum: growth continues indefinitely (border.md § Radius: growth in waves).
     public static final int MIN_RADIUS = 1;
-    public static final int MAX_RADIUS = 512;
 
     // FRO_059: a UI-sane bound, not a gameplay number -- 32 comfortably covers the longest
     // existing default name in DefaultBorderRules.DEFAULT_BORDER_NAMES ("Shadowmere") with

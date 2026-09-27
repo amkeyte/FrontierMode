@@ -117,7 +117,7 @@ public final class BossCommands {
     private static ArgumentBuilder<CommandSourceStack, ?> add() {
         return Commands.literal("add")
                 .then(Commands.argument("pos", BlockPosArgument.blockPos())
-                        .then(Commands.argument("layer", IntegerArgumentType.integer(0))
+                        .then(Commands.argument("layer", IntegerArgumentType.integer(1))
                                 .executes(ctx -> {
                                     BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
                                     int layer = IntegerArgumentType.getInteger(ctx, "layer");
@@ -126,7 +126,7 @@ public final class BossCommands {
                         )
                 )
                 .then(Commands.literal("here")
-                        .then(Commands.argument("layer", IntegerArgumentType.integer(0))
+                        .then(Commands.argument("layer", IntegerArgumentType.integer(1))
                                 .executes(ctx -> {
                                     int layer = IntegerArgumentType.getInteger(ctx, "layer");
                                     return BossCommandHandler.addHere(ctx, layer);

@@ -38,14 +38,6 @@ public interface BorderRules {
 
 
 /**
-     * Choose the radius for the very first border in a level.
-     */
-
-@SuppressWarnings("SameReturnValue")
-int chooseInitialRadius(Level level);
-
-
-/**
      * Choose the center position for the next border in the path, based
      * on the previously active border.
      */
@@ -54,11 +46,12 @@ int chooseInitialRadius(Level level);
 
 
 /**
-     * Choose the radius for the next border in the path, based on the
-     * previously active border.
+     * The radius of the Border at 1-based position {@code pathPosition} on the path (the first
+     * Border is 1). A function of path position alone, never of layer or of a previous Border's
+     * radius -- see border.md § Radius: growth in waves.
      */
 
-    int chooseNextRadius(Level level, Border previous);
+    int radiusForPathPosition(Level level, int pathPosition);
 
     Border getRelevant(List<Border> containing, BlockPos pos);
 
@@ -92,7 +85,7 @@ int chooseInitialRadius(Level level);
     // ------------------------------------------------------------------
     // Border Pregeneration (wiki/frontiermode/architecture/border-pregeneration.md, FRO_092).
     // Tuning numbers only, not architecture decisions -- same "safe baseline, replace later"
-    // category as GROWTH_FACTOR above. Kept on this interface rather than a separate
+    // category as the growth-wave Tunables. Kept on this interface rather than a separate
     // PregenRules sibling, matching this interface's existing one-rules-helper-per-module
     // precedent (see the Difficulty section above for the same reasoning).
     // ------------------------------------------------------------------

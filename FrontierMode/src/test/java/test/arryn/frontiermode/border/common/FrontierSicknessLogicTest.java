@@ -16,7 +16,7 @@ class FrontierSicknessLogicTest {
     private static final double DELTA = 1e-9;
 
     @Test
-    void severityTarget_is_zero_when_not_in_the_exterior() {
+    void severityTarget_is_zero_when_not_in_the_wilds() {
         assertEquals(0.0, FrontierSicknessLogic.severityTarget(0, 1.0), DELTA);
     }
 
@@ -53,7 +53,7 @@ class FrontierSicknessLogicTest {
     }
 
     @Test
-    void wildlifeDensityMultiplier_is_flat_outside_the_exterior() {
+    void wildlifeDensityMultiplier_is_flat_outside_the_wilds() {
         assertEquals(1.0, FrontierSicknessLogic.wildlifeDensityMultiplier(0, 10.0, 2.0), DELTA);
     }
 

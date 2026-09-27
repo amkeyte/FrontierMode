@@ -16,7 +16,7 @@ import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusProposal;
-import com.arryn.frontiermode.border.common.player.ExteriorTellFixture;
+import com.arryn.frontiermode.border.common.player.WildsTellFixture;
 import com.arryn.frontiermode.border.server.commands.BorderCommands;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
@@ -218,15 +218,15 @@ public final class BorderModule {
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
-        // RM_FRO_037 ("Brenda"): ExteriorTellFixture, a sibling fixture alongside
+        // RM_FRO_037 ("Brenda"): WildsTellFixture, a sibling fixture alongside
         // BorderPlayerStatusFixture -- Sick Wildlife's cosmetic tell. Ticks automatically once
         // this bundle's own PlayerJigConfig ticks (already true below), same "no separate
         // EventHandlers entry needed" shape BorderPregenFixture's own sibling-fixture doc
         // describes for BORDERS_BUNDLE.
-        var exteriorTellFixture =
+        var wildsTellFixture =
                 new JigBundles.FixtureDecl<>(
-                        FrontierKeys.EXTERIOR_TELL,
-                        ExteriorTellFixture::new,
+                        FrontierKeys.WILDS_TELL,
+                        WildsTellFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
 
@@ -234,7 +234,7 @@ public final class BorderModule {
                 new JigBundles.BundleDecl<>(
                         FrontierKeys.BORDER_PLAYER_BUNDLE,
                         (PlayerScope scope) -> new BorderPlayerBundle(scope, FrontierKeys.BORDER_PLAYER_BUNDLE),
-                        List.of(borderPlayerFixture, exteriorTellFixture)
+                        List.of(borderPlayerFixture, wildsTellFixture)
                 );
 
         JigBundles.Schema<PlayerScope> playerBundles =
@@ -303,13 +303,13 @@ public final class BorderModule {
         // accept() below is called directly, unaffected by anything in this comment's own
         // history (kept for that context, not because the fixture above needs the dispatch fix).
         //
-        // FRO_103 (2026-09-22): the manual ExteriorTellFixture.getOrCreateFixture()+onJigTick()
+        // FRO_103 (2026-09-22): the manual WildsTellFixture.getOrCreateFixture()+onJigTick()
         // call that used to live here is gone -- SAT_049 found SatchelFixture.onJigTick() was
         // never actually invoked by the real per-fixture tick dispatch (bundles stuck at
         // CREATED skipped it entirely); SAT_053 (done) fixed that engine bug, so
-        // ExteriorTellFixture's own onJigTick() override now fires through the real dispatch
+        // WildsTellFixture's own onJigTick() override now fires through the real dispatch
         // path on its own, the same way every other fixture's does. Needs a live playtest check
-        // (Sick Wildlife's particle/sound tell on nearby Exterior animals) to confirm the
+        // (Sick Wildlife's particle/sound tell on nearby Wilds animals) to confirm the
         // dispatch actually reaches it now that the manual call is gone.
         List<Border> borders =
                 BorderAPI.CRUD(player.serverLevel())
@@ -416,7 +416,7 @@ public final class BorderModule {
      * object to the new one, so vanilla already drops every active effect on an ordinary death.
      * This handler exists anyway, as an explicit, defensive guarantee rather than relying on that
      * implicit vanilla behavior holding forever -- and it's the actual fix for the case that
-     * really matters: a player whose respawn point is still inside the Exterior would otherwise
+     * really matters: a player whose respawn point is still inside the Wilds would otherwise
      * have {@link #applySicknessEffects} re-grant the same effects within one
      * {@code SICKNESS_EFFECT_REFRESH_INTERVAL_TICKS} window of respawning, reading as "never
      * cleared" even though it technically was for an instant.
@@ -461,7 +461,7 @@ public final class BorderModule {
     // ─────────────────────────────────────────────
     // RM_FRO_037 ("Brenda"): Sick Wildlife's density half -- a Border-side MobSpawnEvent
     // .FinalizeSpawn hook, mirroring BossGuardiansFixture's own hook shape but simpler (no
-    // player, no boss, no curve -- just "is this passive mob's spawn position in the Exterior").
+    // player, no boss, no curve -- just "is this passive mob's spawn position in the Wilds").
     // Called from SpawnCoordinator alongside the Boss/Feral delegates
     // -- Feral (RM_FRO_038 "Martha") used to share this one method too, but was pulled out into
     // its own com.arryn.frontiermode.feral module (containment for a feature branch expected to

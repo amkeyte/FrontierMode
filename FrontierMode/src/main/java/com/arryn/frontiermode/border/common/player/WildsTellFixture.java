@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1 / FRO_099): Sick Wildlife's cosmetic tell --
  * poison-colored particles and periodic hurt sounds on already-present passive mobs found in the
- * Exterior, per wiki/frontiermode/design/exterior.md#sensory-design's "Sick wildlife" bullet.
+ * Wilds, per wiki/frontiermode/design/wilds.md#sensory-design's "Sick wildlife" bullet.
  * Cosmetic only: nothing here damages or despawns a mob (per that page, they're only "defeated"
  * by the player carrying them back across the Frontier themselves, which needs no code here at
  * all -- a mob that walks back inside the boundary simply stops registering a positive
@@ -35,7 +35,7 @@ import java.util.List;
  * {@code BorderModule.onMobSpawnFinalize} and {@code BorderPlayerLogic} already use) -- an
  * earlier version of this fixture gated the whole pass on the PLAYER's own
  * {@code BorderPlayerStatusFixture} reading instead, which was wrong: a player standing just
- * inside the boundary could stand right next to animals well out in the Exterior and never see
+ * inside the boundary could stand right next to animals well out in the Wilds and never see
  * a single tell, and conversely a player deep outside would roll effects on animals that were
  * themselves still technically inside. Confirmed by playtest (2026-09-08) once the underlying
  * SAT_049 dispatch bug was fixed -- see BorderModule.onPlayerScopeTick's own doc for that
@@ -49,7 +49,7 @@ import java.util.List;
  * "periodically roll a cosmetic effect near a player." Player-scoped rather than
  * {@code BossTellFixture}'s level-scoped (one instance per boss), since Sick Wildlife has no
  * Boss/border-owner to key off -- see
- * wiki/frontiermode/architecture/exterior.md#no-boss-dependency-at-all-the-cleanest-dependency-shape-of-anything-in-this-cluster.
+ * wiki/frontiermode/architecture/wilds.md#where-this-lives.
  * Zero persisted state -- no {@code registerCustom(...)} call -- for the same reason
  * {@code BossGuardiansFixture} has none: nothing here needs to survive a restart.
  *
@@ -57,7 +57,7 @@ import java.util.List;
  * concern handled at spawn time by {@code BorderModule.onMobSpawnFinalize}, not here -- this
  * fixture only ever affects mobs that already exist.
  */
-public final class ExteriorTellFixture extends SatchelFixture {
+public final class WildsTellFixture extends SatchelFixture {
 
     // Shared RNG -- same static-field, not-persisted shape BossTellFixture.RNG/
     // BossGuardiansFixture.RNG already use.
@@ -101,7 +101,7 @@ public final class ExteriorTellFixture extends SatchelFixture {
                     .min()
                     .orElse(0);
             if (frontierDistance <= 0) {
-                // This particular animal isn't in the Exterior -- not sick, even if the player
+                // This particular animal isn't in the Wilds -- not sick, even if the player
                 // standing near it is.
                 continue;
             }

@@ -414,8 +414,8 @@ public final class BorderAPI {
      * RM_FRO_038 ("Martha," Feral): raw distance past the nearest point on the Frontier's
      * boundary at an arbitrary position -- {@code min} over every {@link Border} in this level's
      * list of {@link MATH#distanceOutside(BlockPos, BlockPos, int)}, per
-     * wiki/frontiermode/architecture/exterior.md#the-distance-to-frontier-query. {@code 0} means
-     * {@code pos} isn't in the Exterior at all (inside or on at least one Border), matching
+     * wiki/frontiermode/architecture/wilds.md#the-distance-to-frontier-query. {@code 0} means
+     * {@code pos} isn't in the Wilds at all (inside or on at least one Border), matching
      * {@code distanceOutside}'s own zero-inside convention. Not resolvable yet, or no Borders
      * established, both degrade to {@code 0} rather than throwing -- same "standby, don't crash"
      * discipline as every other query on this class. {@code BorderModule.onMobSpawnFinalize} used

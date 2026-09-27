@@ -17,7 +17,7 @@ import java.util.List;
 
 /**
  * The one subscriber to {@link MobSpawnFinalizeSignal}, fanning out to the modules that each need a
- * turn on a spawn, in a fixed order: Feral's Exterior Slime/MagmaCube deny first, then Boss (guardian
+ * turn on a spawn, in a fixed order: Feral's Wilds Slime/MagmaCube deny first, then Boss (guardian
  * conversion), Border (Sick Wildlife's density roll), and Feral (its density roll). The fan-out is
  * right to exist -- one place that states the order -- but it depends on all three modules and is
  * depended on by none, so it lives here, not in any of them. Each module's own decision logic stays

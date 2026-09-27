@@ -8,7 +8,7 @@ package com.arryn.frontiermode.feral.common;
  * <p>Every hostile spawning outside the Frontier is Feral, unconditionally (design ruling,
  * 2026-09-18 -- superseded the earlier bounded, distance-saturating conversion roll this class
  * used to also hold), and density (how many) now climbs the same uncapped way severity (how
- * dangerous) already does -- per wiki/frontiermode/design/exterior.md#feral's "no bucketed tiers
+ * dangerous) already does -- per wiki/frontiermode/design/wilds.md#feral's "no bucketed tiers
  * picked from a table, just steadily more twisted and more dangerous the farther out." Both
  * {@link #intensity} and {@link #expectedDensityCount} are the same plain linear-in-distance
  * shape {@code FrontierSicknessLogic.severityTarget} uses -- deliberately not

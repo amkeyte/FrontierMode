@@ -7,7 +7,7 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
-import com.arryn.frontiermode.border.common.player.ExteriorTellFixture;
+import com.arryn.frontiermode.border.common.player.WildsTellFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
@@ -102,15 +102,15 @@ public final class FrontierKeys {
                     PlayerJig.class
             );
 
-    // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): ExteriorTellFixture -- Sick Wildlife's
+    // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): WildsTellFixture -- Sick Wildlife's
     // cosmetic tell, a sibling fixture inside BORDER_PLAYER_BUNDLE alongside
     // BorderPlayerStatusFixture. See BorderModule.init() for the schema wiring and
-    // wiki/frontiermode/design/exterior.md#sensory-design for the design.
+    // wiki/frontiermode/design/wilds.md#sensory-design for the design.
 
-    public static final FixtureKey<ExteriorTellFixture> EXTERIOR_TELL =
+    public static final FixtureKey<WildsTellFixture> WILDS_TELL =
             new FixtureKey<>(
-                    "frontiermode:exterior_tell_fixture",
-                    ExteriorTellFixture.class
+                    "frontiermode:wilds_tell_fixture",
+                    WildsTellFixture.class
             );
 
     // RM_FRO_018 (Shirley): Boss entity/spawn system. Two independent jig configs -- BossFixture

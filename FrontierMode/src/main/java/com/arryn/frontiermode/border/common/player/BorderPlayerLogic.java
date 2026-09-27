@@ -40,7 +40,7 @@ final class BorderPlayerLogic {
 
         if (pos == null || borders == null || borders.isEmpty()) {
             // No border data to reduce over -- Frontier-distance defensively reads as "not in the
-            // Exterior" rather than undefined, same "standby, don't crash" discipline as every
+            // Wilds" rather than undefined, same "standby, don't crash" discipline as every
             // other early-return branch in this class. Severity still decays toward 0 from
             // whatever it previously was, exactly as it would if frontierDistance had genuinely
             // dropped to 0 -- this isn't a special case for severity, just this branch also being
@@ -60,7 +60,7 @@ final class BorderPlayerLogic {
         // RM_FRO_037: Frontier-distance -- a second reduction over this same `borders` list,
         // independent of the containing/relevant resolution below. Every established Border
         // counts here, not just ones the point is inside or on-path -- see
-        // wiki/frontiermode/architecture/exterior.md#frontier-becomes-a-named-computed-aggregate.
+        // wiki/frontiermode/architecture/wilds.md#frontier-is-a-computed-aggregate-not-stored-state.
         // A point inside (or on) at least one Border always reduces to 0 here, since
         // BorderAPI.MATH.distanceOutside floors at 0 for that Border -- no separate inside-check
         // needed before running this.

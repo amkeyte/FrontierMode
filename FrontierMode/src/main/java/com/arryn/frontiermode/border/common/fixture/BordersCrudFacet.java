@@ -61,7 +61,7 @@ public class BordersCrudFacet {
      * correct *before* this uniqueness guard ever existed. The guard was solving a problem
      * {@code getRelevant()} didn't have: two borders sharing a layer, even two that geometrically
      * overlap, resolve deterministically without it. Global layer uniqueness was actively harmful
-     * in practice: organic growth's hardcoded {@code layer = 0} / {@code previous.layer() + 1}
+     * in practice: organic growth's hardcoded {@code layer = 1} / {@code previous.layer() + 1}
      * (now inlined in {@link BordersPathFacet#grow()}) would collide with any unrelated off-path
      * border already holding that value, blocking ordinary path growth for a reason that was never
      * a real correctness requirement (found via real playtest, RM_FRO_015).
@@ -70,16 +70,15 @@ public class BordersCrudFacet {
         Satchel.requireServer();
 
         int radius = proposal.radius();
-        if (radius < BorderConstants.MIN_RADIUS || radius > BorderConstants.MAX_RADIUS) {
-            String reason = "radius " + radius + " outside allowed range ["
-                    + BorderConstants.MIN_RADIUS + ", " + BorderConstants.MAX_RADIUS + "].";
+        if (radius < BorderConstants.MIN_RADIUS) {
+            String reason = "radius " + radius + " is below the minimum " + BorderConstants.MIN_RADIUS + ".";
             OUT.warn("[Border] Rejected proposal: " + reason);
             return Optional.of(reason);
         }
 
         int layerIndex = proposal.layerIndex();
-        if (layerIndex < 0) {
-            String reason = "negative layer " + layerIndex + ".";
+        if (layerIndex < 1) {
+            String reason = "layer " + layerIndex + " is below 1; layers start at 1.";
             OUT.warn("[Border] Rejected proposal: " + reason);
             return Optional.of(reason);
         }

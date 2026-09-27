@@ -39,8 +39,7 @@ import java.util.UUID;
 
 /**
  * Default, opinionated implementation of {@link BossRules} -- a safe baseline meant to be
- * replaced by real balance tuning later (Game Designer/playtest territory), same "safe baseline"
- * framing as {@code DefaultBorderRules.GROWTH_FACTOR}.
+ * replaced by real balance tuning later (Game Designer/playtest territory).
  */
 public final class DefaultBossRules implements BossRules {
 
@@ -111,7 +110,7 @@ public final class DefaultBossRules implements BossRules {
             BlockPos sample = BorderAPI.MATH.randomPointInAnnulus(rng, border.center(), innerRadius, border.radius());
             BlockPos chunkCenter = chunkCenterOf(sample);
             // FRO_156: snapping to a chunk center can move a candidate up to ~11 blocks, which on a
-            // tiny border (layer 0 can be radius <= 16, i.e. one chunk) throws it outside the
+            // tiny border (an admin-made one can be a chunk or less across) throws it outside the
             // border entirely. Keep the unsnapped sample -- already inside the annulus -- when the
             // snap would leave the border.
             if (BorderAPI.MATH.distanceOutside(chunkCenter, border.center(), border.radius()) > 0) {
@@ -285,7 +284,7 @@ public final class DefaultBossRules implements BossRules {
         return spawned;
     }
 
-    // Tier 0 covers layers 0-1; from layer 2 on the tier steps every bandWidth layers, capped at
+    // Tier 0 is layer 1 (layers start at 1); from layer 2 on the tier steps every bandWidth layers, capped at
     // the table's last entry. bandWidth is the pacing dial (a CSV cell, not a rebuild); the linear
     // health/damage scale in applyStatScaling() is the separate difficulty dial.
     private EntityType<? extends Mob> mobTypeForLayer(int layer) {
@@ -306,7 +305,7 @@ public final class DefaultBossRules implements BossRules {
 
     // FRO_142: the boss stat ramp's one dial -- max health AND attack damage both scale by
     // 1.0 + statScalePerLayer * layer (safe baseline 0.5, i.e. +50% per layer above the table's own
-    // baseline; same shape as DefaultBorderRules.GROWTH_FACTOR). Independent of how fast the mob
+    // baseline). Independent of how fast the mob
     // type changes (mobTierBandWidth). Set to 0 for base vanilla stats. Not a locked curve.
     // Tunable-backed (SAT_074), constructed at point of use.
     private void applyStatScaling(Mob mob, int layer) {

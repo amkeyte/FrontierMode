@@ -92,7 +92,7 @@ public final class BorderMath {
      * otherwise. Unlike {@link #distanceToSurface}, this is never negative -- it answers "how far
      * *outside* this one border," not "how far from its edge in either direction," which is
      * exactly what a Frontier-distance reduction (a min over every established Border, per
-     * wiki/frontiermode/architecture/exterior.md#the-distance-to-frontier-query) needs: a point
+     * wiki/frontiermode/architecture/wilds.md#the-distance-to-frontier-query) needs: a point
      * inside any single Border contributes 0 to that min, not a large negative number that would
      * wrongly win it.
      *
