@@ -53,7 +53,10 @@
   "cairn_ping": {
     "subtitle": "subtitles.frontiermode.cairn_ping",
     "sounds": [
-      "frontiermode:cairn_ping"
+      "frontiermode:cairn_ping1",
+      "frontiermode:cairn_ping2",
+      "frontiermode:cairn_ping3",
+      "frontiermode:cairn_ping4"
     ]
   }
 }

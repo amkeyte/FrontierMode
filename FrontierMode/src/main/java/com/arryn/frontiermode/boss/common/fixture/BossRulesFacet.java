@@ -124,16 +124,6 @@ public final class BossRulesFacet {
         return RULES.tellSoundCooldownTicks();
     }
 
-    /** See {@link com.arryn.frontiermode.boss.server.rules.BossRules#glowEnabled()}. */
-    public boolean glowEnabled() {
-        return RULES.glowEnabled();
-    }
-
-    /** See {@link com.arryn.frontiermode.boss.server.rules.BossRules#setGlowEnabled(boolean)}. */
-    public void setGlowEnabled(boolean value) {
-        RULES.setGlowEnabled(value);
-    }
-
     /**
      * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianPlacementCoefficient()}.
      */
@@ -163,9 +153,9 @@ public final class BossRulesFacet {
         RULES.killGuardian(mob, credited);
     }
 
-    /** See {@link BossRules#dismissGuardian(Mob)}. */
-    public void dismissGuardian(Mob mob) {
-        RULES.dismissGuardian(mob);
+    /** See {@link BossRules#dismiss(Mob)}. */
+    public void dismiss(Mob mob) {
+        RULES.dismiss(mob);
     }
 
     /** See {@link BossRules#canBeGuardian(EntityType)}. */
@@ -231,11 +221,6 @@ public final class BossRulesFacet {
     /** See {@link BossRules#equipSunWard(Mob)}. */
     public void equipSunWard(Mob mob) {
         RULES.equipSunWard(mob);
-    }
-
-    /** See {@link BossRules#applyGlow(Mob)}. */
-    public void applyGlow(Mob mob) {
-        RULES.applyGlow(mob);
     }
 
     /**

@@ -210,15 +210,6 @@ public final class BossCommands {
 
     private static ArgumentBuilder<CommandSourceStack, ?> debug() {
         return Commands.literal("debug")
-                // "/boss debug glow <true|false>" -- toggles the glow outline for bosses and guardians
-                // and immediately re-applies it to every present boss and guardian record. See
-                // BossCommandHandler.setGlow.
-                .then(Commands.literal("glow")
-                        .then(Commands.argument("value", BoolArgumentType.bool())
-                                .executes(ctx -> BossCommandHandler.setGlow(
-                                        ctx, BoolArgumentType.getBool(ctx, "value")))
-                        )
-                )
                 .then(Commands.literal("goto")
                         .then(Commands.argument("selector", BossSelectorArgumentType.selector())
                                 .executes(ctx -> applySelector(

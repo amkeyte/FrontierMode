@@ -152,8 +152,7 @@ final class GuardianJigHandlers {
     /**
      * Interest gained: the path a guardian loaded back from disk takes. A doomed one is removed
      * first. Otherwise publishes it (idempotent),
-     * refreshes its dimensions -- loading an entity never recomputes its hitbox -- and applies the
-     * glow toggle's current state.
+     * and refreshes its dimensions -- loading an entity never recomputes its hitbox.
      */
     static void onMobGainedInterest(ScopeEvent.MobGainedInterest event) {
         if (!event.isJig(FrontierKeys.GUARDIAN_MOB_JIG)) return;
@@ -166,7 +165,7 @@ final class GuardianJigHandlers {
             if (record.doomed()) {
                 // Its boss was defeated while it was unloaded: removed on the spot with nothing, and
                 // it never joins the public fixture, so it never shows a trail.
-                BossAPI.bosses(level).ifPresent(boss -> boss.RULES.dismissGuardian(mob));
+                BossAPI.bosses(level).ifPresent(boss -> boss.RULES.dismiss(mob));
                 if (level instanceof ServerLevel serverLevel) {
                     deleteGuardian(serverLevel, uuid);
                 }
@@ -174,7 +173,6 @@ final class GuardianJigHandlers {
             }
             BossAPI.guardianMarkers(level).ifPresent(pub -> pub.add(uuid, record.scale()));
             mob.refreshDimensions();
-            BossAPI.bosses(level).ifPresent(boss -> boss.RULES.applyGlow(mob));
         });
     }
 

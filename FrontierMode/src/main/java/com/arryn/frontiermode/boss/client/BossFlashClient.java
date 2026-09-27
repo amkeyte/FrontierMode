@@ -12,9 +12,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
 /**
- * The boss's close-range flash: a few motes of the shared amethyst dust at random points inside a
- * live boss's bounding box, drawn by each client that is close to it -- the same particle Cairn and
- * the guardian trail use, so a boss, its guardians and its Cairn read as one system up close. Client-
+ * The boss's close-range flash: a few motes of the shared amethyst dust hovering just outside a live
+ * boss's surface, drawn by each client that is close to it -- the same particle Cairn and the
+ * guardian trail use, so a boss, its guardians and its Cairn read as one system up close. Client-
  * derived: "this entity is a boss" is already synced through {@code BossPublicFixture}, so nothing
  * is sent. Fire/no-fire rides {@link ClientEffectsAPI#spawnParticleOnParity}, keyed off the boss's
  * id and the world's game time. See boss.md's "Client-side visual marker" and effects.md.
@@ -35,7 +35,29 @@ public final class BossFlashClient {
     /** Motes per checkpoint; each rolls independently (its own salt). */
     private static final int MOTES = 2;
 
+    // How far outside the body's surface a mote hovers.
+    private static final double OFFSET = 0.25;
+
     private BossFlashClient() {
+    }
+
+    /**
+     * A random point hovering just outside one of the box's sides or its top -- not inside it: a
+     * boss's solid model would hide a mote spawned within its body from most angles, and the flash
+     * would never be seen. Never below the feet, where the ground would hide it.
+     */
+    private static double[] pointOutside(AABB box, RandomSource random) {
+        double x = box.minX + random.nextDouble() * box.getXsize();
+        double y = box.minY + random.nextDouble() * box.getYsize();
+        double z = box.minZ + random.nextDouble() * box.getZsize();
+        switch (random.nextInt(5)) {
+            case 0 -> x = box.minX - OFFSET;
+            case 1 -> x = box.maxX + OFFSET;
+            case 2 -> z = box.minZ - OFFSET;
+            case 3 -> z = box.maxZ + OFFSET;
+            default -> y = box.maxY + OFFSET;
+        }
+        return new double[]{x, y, z};
     }
 
     public static void tick(Level level) {
@@ -56,13 +78,10 @@ public final class BossFlashClient {
             }
             AABB box = boss.getBoundingBox();
             for (int mote = 0; mote < MOTES; mote++) {
+                double[] p = pointOutside(box, random);
                 ClientEffectsAPI.spawnParticleOnParity(
                         clientLevel, boss.getUUID(), mote, CHECKPOINT_INTERVAL, PROBABILITY,
-                        EffectsAPI.AMETHYST_DUST,
-                        box.minX + random.nextDouble() * box.getXsize(),
-                        box.minY + random.nextDouble() * box.getYsize(),
-                        box.minZ + random.nextDouble() * box.getZsize(),
-                        0.0, 0.0, 0.0);
+                        EffectsAPI.AMETHYST_DUST, p[0], p[1], p[2], 0.0, 0.0, 0.0);
             }
         }
     }

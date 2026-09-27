@@ -144,24 +144,6 @@ public interface BossRules {
     int tellSoundCooldownTicks();
 
     /**
-     * Project owner request (2026-09-08): a live debug toggle for whether {@code tagVisibly}
-     * (Boss materialize) and {@link #applyGlow} (guardians) apply
-     * {@code Entity#setGlowingTag(true)} to the mob they're tagging. Unlike every other method on
-     * this interface, this pair is mutable, real-time state rather than a fixed strategy/baseline
-     * -- deliberately still routed through {@code BossRules}/{@code BossRulesFacet} rather than a
-     * standalone static field (the way {@code WorldBordersRenderer}'s own ring-visibility toggle
-     * is), because this one needs to be reachable from a SERVER command (glow is real synced
-     * entity state, not a purely client-side render decision) and {@code BossRulesFacet} is
-     * already the one existing path {@code BossCommandHandler} and {@code BossTellFixture} both
-     * use to reach the live {@code DefaultBossRules} instance. Shared by bosses and guardians;
-     * default {@code false}, not persisted.
-     */
-    boolean glowEnabled();
-
-    /** See {@link #glowEnabled()}. */
-    void setGlowEnabled(boolean value);
-
-    /**
      * RM_FRO_029 (Gloria): probability coefficient for the Guardian Mobs placement roll, mirroring
      * {@link #tellParticleCoefficient()}'s exact shape -- applied as
      * {@code placementIntensity x guardianPlacementCoefficient()} against a [0,1) uniform draw.
@@ -207,10 +189,11 @@ public interface BossRules {
     void killGuardian(Mob mob, ServerPlayer credited);
 
     /**
-     * Removes {@code mob}, a doomed guardian that loaded after its boss was defeated, with vanilla's
-     * death puff and nothing else: no drops, no XP, no death event.
+     * Removes {@code mob} with vanilla's death puff and nothing else: no drops, no XP, no death event.
+     * For a doomed guardian that loaded after its boss was defeated, and for a boss whose defeat was
+     * forced ({@code /boss defeat}) or that is found alive after its record was defeated.
      */
-    void dismissGuardian(Mob mob);
+    void dismiss(Mob mob);
 
     /**
      * Whether a spawn of {@code type} can become a guardian, and so whether the daylight gates may
@@ -266,9 +249,6 @@ public interface BossRules {
      * its head slot with a drop chance of 0, so vanilla's sun-ignition check never burns it.
      */
     void equipSunWard(Mob mob);
-
-    /** Sets {@code mob}'s glow outline to the current {@link #glowEnabled()} state. */
-    void applyGlow(Mob mob);
 
     /**
      * RM_FRO_029 (Gloria): applies stat scaling keyed off {@code difficultyIntensity} rather than

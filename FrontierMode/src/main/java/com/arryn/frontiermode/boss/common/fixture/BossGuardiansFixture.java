@@ -312,13 +312,12 @@ public final class BossGuardiansFixture extends SatchelFixture {
         });
     }
 
-    /** Conversion's treatment: stat scaling, the sun ward, the guardian team, glow per the debug toggle. */
+    /** Conversion's treatment: stat scaling, the sun ward, the guardian team. */
     private void applyConversion(Mob mob, ServerLevel level, BossFixture boss, double difficultyIntensity) {
         boss.RULES.applyGuardianStatScaling(mob, difficultyIntensity);
         // Before vanilla's own setup, which only fills empty equipment slots.
         boss.RULES.equipSunWard(mob);
         boss.RULES.joinGuardianTeam(mob, level);
-        boss.RULES.applyGlow(mob);
     }
 
     private static final String PURPOSE_PLACEMENT = "placement";

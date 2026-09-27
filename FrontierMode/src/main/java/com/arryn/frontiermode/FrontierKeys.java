@@ -291,6 +291,15 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
+    // The client-side debug view's handler home: a BOTH-applicability jig with no bundle, only so its
+    // ScopeEvent.Tick handler is installed on the client. See AdminToolsModule.init().
+
+    public static final JigKey<LevelJig> ADMIN_VIEW_JIG =
+            new JigKey<>(
+                    "frontiermode:admin_view_jig",
+                    LevelJig.class
+            );
+
     // FRO_166: SpawnCoordinator's own tick-free signal subscription point -- no bundle/fixture,
     // same shape as FERAL_LEVEL_JIG/ADMIN_TOOLS_JIG. See SpawnCoordinator.init() for the wiring.
 

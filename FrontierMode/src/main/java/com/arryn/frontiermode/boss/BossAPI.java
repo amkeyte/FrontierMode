@@ -487,6 +487,18 @@ public final class BossAPI {
         // A forced defeat kills the boss's guardians uncredited: drops, no XP.
         GuardianJigHandlers.onBossDefeated(level, bossId, null);
 
+        // A forced defeat has no kill, so the boss's body would otherwise stay: it leaves in a puff.
+        // discard(), not kill(), so the real-death cascade doesn't re-enter (see removeBoss). One that
+        // is unloaded now is removed when it next attaches (BossMobJigHandlers.onScopeLoaded).
+        if (record.materialized()) {
+            Satchel.require().egress().getEntity(level, record.bossEntityId())
+                    .ifPresent(entity -> {
+                        if (entity instanceof net.minecraft.world.entity.Mob mob) {
+                            fixture.RULES.dismiss(mob);
+                        }
+                    });
+        }
+
         // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
         // gating below stops growth right here -- see boss.md's "Cascade durability".
         fixture.scheduleForceFlush();

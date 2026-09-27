@@ -44,6 +44,13 @@ final class BossMobJigHandlers {
             return;
         }
 
+        // A boss whose record is already defeated (a forced /boss defeat while it was unloaded) leaves
+        // in a puff instead of attaching; a real defeat kills the body, so this never sees one.
+        if (!recordOpt.get().alive()) {
+            BossAPI.bosses(mob.level()).ifPresent(f -> f.RULES.dismiss(mob));
+            return;
+        }
+
         var jig = (MobJig) info.jigInfo().jig;
         BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
         BossMobFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new);

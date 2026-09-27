@@ -13,6 +13,7 @@ import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.PlayerAttackSignal;
 import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.registries.DeferredRegister;
@@ -60,6 +61,25 @@ public final class AdminToolsModule {
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults())
                 .eventHandlers(eventHandlers);
+
+        Satchel.registerJigConfig(config);
+
+        registerViewJig();
+    }
+
+    /**
+     * The client-side debug view's handler home: no bundle, BOTH applicability, only so the tick
+     * handler is installed on the client (see {@code AdminViewHandlers}).
+     */
+    private static void registerViewJig() {
+        LevelJigConfig config = new LevelJigConfig(FrontierKeys.ADMIN_VIEW_JIG);
+        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
+        config.bundles().schema(new JigBundles.Schema<>(List.of()));
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults())
+                .eventHandlers(EventHandlers.builder()
+                        .on(ScopeEvent.Tick.class, AdminViewHandlers::onTick)
+                        .build());
 
         Satchel.registerJigConfig(config);
     }

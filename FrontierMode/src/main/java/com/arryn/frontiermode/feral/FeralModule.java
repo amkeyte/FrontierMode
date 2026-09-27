@@ -125,6 +125,11 @@ public final class FeralModule {
     // Candidate spots MobSpawns.scatter tries for one density companion.
     private static final int DENSITY_SCATTER_TRIES = 4;
 
+    // A player this many blocks below the surface heightmap counts as underground for the pack, and
+    // how many cone columns are sampled for an open floor there before giving up for this pass.
+    private static final int UNDERGROUND_DEPTH = 3;
+    private static final int PACK_UNDERGROUND_TRIES = 24;
+
     // FRO_111: per-level cadence gate for the re-entry sweep, same TickThrottler(intervalTicks,
     // level::getGameTime)-keyed-by-object-identity shape BordersRevisionMonitor already
     // establishes for "throttle this recurring check independently per level."
@@ -148,20 +153,11 @@ public final class FeralModule {
     // map -- survives exactly as long as the entity itself does, no separate cleanup needed.
     private static final String PACK_MEMBER_TAG = "frontiermode_feral_pack";
 
-    // FRO_135: debug toggle for Feral's glowing tag, same "plain static flag, not persisted"
-    // shape BorderModule.sicknessEnabled already establishes for this kind of playtest on/off
-    // switch. Defaults to true -- matches the always-on behavior tagFeral had before this ticket.
-    private static boolean glowEnabled = true;
-
-    public static void setGlowEnabled(boolean value) {
-        glowEnabled = value;
-    }
-
     // Playtest feedback (2026-09-21): both the piggyback density mechanic (rollDensityCompanion,
     // riding vanilla's own sparse natural spawn attempts) and the radius+linger despawn timer
     // left the Exterior feeling thin and easy to just weave through -- "I need more mobs near me
     // when I run the gauntlet." Turned off in favor of maintainPackNearPlayer's direct
-    // force-spawn-near-the-player approach below, same "plain static flag" shape as glowEnabled
+    // force-spawn-near-the-player approach below, same "plain static flag" shape as the other debug switches
     // above, not a code deletion -- easy to flip back and compare if the new approach doesn't
     // land either.
     private static final boolean densityCompanionEnabled = false;
@@ -458,6 +454,48 @@ public final class FeralModule {
     }
 
     /**
+     * Where the next pack member goes: a spot in the cone ahead of the player. On the surface that is
+     * the surface heightmap of a random column in the cone. Underground (the player is more than
+     * {@value #UNDERGROUND_DEPTH} blocks below the surface) the heightmap would put the pack on the
+     * ground above them, out of reach, so the spot is a standable floor near the player's own height
+     * instead, found by sampling up to {@value #PACK_UNDERGROUND_TRIES} columns in the cone; {@code null}
+     * if none is open -- nothing spawns in rock, and the next maintenance pass tries again. In a tight
+     * tunnel expect fewer members than in an open cave.
+     */
+    private static BlockPos choosePackSpot(ServerPlayer player, ServerLevel level) {
+        BlockPos playerPos = player.blockPosition();
+        int surfaceY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, playerPos).getY();
+        if (playerPos.getY() >= surfaceY - UNDERGROUND_DEPTH) {
+            double[] xz = samplePackColumn(player);
+            return level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                    BlockPos.containing(xz[0], player.getY(), xz[1]));
+        }
+
+        Mob probe = EntityType.ZOMBIE.create(level);
+        if (probe == null) {
+            return null;
+        }
+        for (int i = 0; i < PACK_UNDERGROUND_TRIES; i++) {
+            double[] xz = samplePackColumn(player);
+            Optional<BlockPos> spot = MobSpawns.standingSpot(
+                    level, probe, 1.0F, (int) Math.floor(xz[0]), playerPos.getY(), (int) Math.floor(xz[1]));
+            if (spot.isPresent()) {
+                return spot.get();
+            }
+        }
+        return null;
+    }
+
+    /** A random column in the cone ahead of {@code player}: a bearing within the cone, at a random distance in range. */
+    private static double[] samplePackColumn(ServerPlayer player) {
+        double halfAngleRad = Math.toRadians(FeralRules.packSpawnConeHalfAngleDegrees());
+        double angle = Math.toRadians(player.getYRot()) + (RNG.nextDouble() * 2.0 - 1.0) * halfAngleRad;
+        double distance = FeralRules.packSpawnMinDistance()
+                + RNG.nextDouble() * (FeralRules.packSpawnMaxDistance() - FeralRules.packSpawnMinDistance());
+        return new double[]{player.getX() + (-Math.sin(angle)) * distance, player.getZ() + Math.cos(angle) * distance};
+    }
+
+    /**
      * Force-spawns one hostile ahead of {@code player} with {@code DISPATCHED} setup, the same real
      * Forge finalize-spawn dispatch {@code FeralCommandHandler
      * .spawnTestHostiles} uses (unlike {@code /summon}, this still fires
@@ -493,17 +531,8 @@ public final class FeralModule {
      * widened spread.
      */
     private static void spawnPackMember(ServerPlayer player, ServerLevel level) {
-        double halfAngleRad = Math.toRadians(FeralRules.packSpawnConeHalfAngleDegrees());
-        double angle = Math.toRadians(player.getYRot()) + (RNG.nextDouble() * 2.0 - 1.0) * halfAngleRad;
-        double distance = FeralRules.packSpawnMinDistance()
-                + RNG.nextDouble() * (FeralRules.packSpawnMaxDistance() - FeralRules.packSpawnMinDistance());
-
-        double targetX = player.getX() + (-Math.sin(angle)) * distance;
-        double targetZ = player.getZ() + Math.cos(angle) * distance;
-        BlockPos offset = BlockPos.containing(targetX, player.getY(), targetZ);
-        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, offset);
-
-        if (BorderAPI.frontierDistanceAt(level, ground) <= 0) {
+        BlockPos ground = choosePackSpot(player, level);
+        if (ground == null || BorderAPI.frontierDistanceAt(level, ground) <= 0) {
             return;
         }
 
@@ -1101,7 +1130,7 @@ public final class FeralModule {
     /**
      * Live count of every currently-loaded {@code feral}-teamed mob in {@code level} -- same
      * resolve-live-off-the-scoreboard shape {@link #sweepFeralCleanup}/{@link #onPlayerTick}/
-     * {@code FeralCommandHandler.setGlow} already use, factored out here since
+     * {@code sweepFeralCleanup} already use, factored out here since
      * {@link #rollDensityCompanion} needs just the count, not a cleanup or tag pass over the
      * results.
      */
@@ -1175,16 +1204,12 @@ public final class FeralModule {
      */
     private static void tagFeral(Mob mob, int frontierDistance, ServerLevel level) {
         mob.setCustomName(Component.literal("Feral [" + frontierDistance + "]"));
-        mob.setCustomNameVisible(true);
+        // Visible only in the client-side debug view (AdminViewClient); the name itself stays set.
+        mob.setCustomNameVisible(false);
 
         Scoreboard scoreboard = level.getScoreboard();
         PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, "feral", ChatFormatting.DARK_GREEN);
         EffectsAPI.assignToTeam(mob, scoreboard, team);
-
-        // FRO_135: reads the debug toggle instead of an unconditional true, so /feral debug glow
-        // affects newly-tagged mobs immediately; FeralCommandHandler.setGlow handles retroactively
-        // updating already-tagged ones.
-        mob.setGlowingTag(glowEnabled);
     }
 
     /**

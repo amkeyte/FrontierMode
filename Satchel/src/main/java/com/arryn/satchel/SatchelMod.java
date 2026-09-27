@@ -5,6 +5,7 @@ import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.commands.MobTrackCommands;
+import com.arryn.satchel.server.commands.TunableCommands;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -38,6 +39,9 @@ public class SatchelMod {
         // /satchel mobtrack -- the in-game surface for exercising SatchelHealth's own
         // watch/unwatch/getFor without needing code access or a debugger.
         MinecraftForge.EVENT_BUS.addListener(MobTrackCommands::onRegisterCommands);
+
+        // /satchel tunables -- tune, reload, and save Tunables without a restart (SAT_090).
+        MinecraftForge.EVENT_BUS.addListener(TunableCommands::onRegisterCommands);
     }
 
     // ------------------------------------------------------------

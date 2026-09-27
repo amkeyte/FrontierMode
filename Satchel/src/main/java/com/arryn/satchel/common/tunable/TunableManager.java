@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,9 +38,13 @@ import java.util.TreeSet;
  * {@link LinkedHashMap} is deliberate, not an oversight.
  *
  * <p>
- * No hot-reload, on purpose: values load once at {@link ServerStartingEvent} and write once at
- * {@link ServerStoppingEvent}. Changing a tuned value means stop, edit the CSV, start -- avoiding
- * the unexpected-kneecapper class of bugs a live-reload path would risk.
+ * <b>The running registry is the truth (SAT_090).</b> Values load at {@link ServerStartingEvent}
+ * and the whole registry is written back at {@link ServerStoppingEvent}; in between, the {@code
+ * /satchel tunables} commands change it: {@link #tune} sets one value, {@link #reset} returns one
+ * row or one class's rows to their defaults, {@link #reload} replaces values (all, one row, or one
+ * class's rows) from the live file, and {@link #write} saves it without stopping. A change is seen by the next {@link Tunable} construction -- every consumer
+ * constructs fresh at each read -- and never by a value already consumed. Mid-session, a bad value
+ * or file row is refused and nothing changes; only server start treats a bad row as a crash.
  *
  * <p>
  * <b>Seed + live file (SAT_082).</b> Two files share one name, {@value #FILE_NAME}. The
@@ -53,7 +58,7 @@ import java.util.TreeSet;
  * shipped} is then set to the seed's value.
  *
  * <p>
- * Producers: {@code SAT_074}, {@code SAT_082}.
+ * Producers: {@code SAT_074}, {@code SAT_082}, {@code SAT_090}.
  */
 @Mod.EventBusSubscriber(
         modid = SatchelMod.MODID,
@@ -75,6 +80,15 @@ public final class TunableManager {
 
     private static Path csvPath;
 
+    /** Keys changed by {@link #tune} since the last start, {@link #write}, or reload of that key --
+     * what a reload of that key would discard. */
+    private static final Set<String> UNSAVED = new HashSet<>();
+
+    /** Keys some {@link Tunable} has been constructed for since the last start -- the rows whose
+     * {@code def} is the running code's own default. Any other row's {@code def} is the file's
+     * record of it, which may predate the current code. */
+    private static final Set<String> CONSTRUCTED = new HashSet<>();
+
     private TunableManager() {}
 
     /* =============================================================
@@ -88,13 +102,14 @@ public final class TunableManager {
             );
         }
 
+        CONSTRUCTED.add(namespacedName);
         TunableRecord existing = REGISTRY.get(namespacedName);
         if (existing == null) {
             REGISTRY.put(namespacedName, new TunableRecord(type, min, max, def, def, null));
             return def;
         }
 
-        if (existing.type() != type || !Objects.equals(existing.min(), min) || !Objects.equals(existing.max(), max)) {
+        if (!existing.sameShape(new TunableRecord(type, min, max, def, def, null))) {
             throw new IllegalStateException(
                     "Tunable '" + namespacedName + "' redeclared with a different shape -- recorded "
                             + existing.type() + " [" + existing.min() + "," + existing.max() + "], code declared "
@@ -124,6 +139,8 @@ public final class TunableManager {
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent e) {
         REGISTRY.clear();
+        UNSAVED.clear();
+        CONSTRUCTED.clear();
         csvPath = FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
 
         Map<String, TunableRecord> seed = readSeeds();
@@ -187,14 +204,19 @@ public final class TunableManager {
         }
     }
 
-    /** Skips the header line; blank lines ignored. */
+    /** Skips the header line; blank lines ignored. A bad row throws, naming its line. */
     private static Map<String, TunableRecord> parseRows(List<String> lines) {
         Map<String, TunableRecord> rows = new LinkedHashMap<>();
         for (int i = 1; i < lines.size(); i++) {
             String line = lines.get(i);
             if (line.isBlank()) continue;
             String[] cols = line.split(",", -1);
-            rows.put(cols[0], parseRow(cols));
+            try {
+                rows.put(cols[0], parseRow(cols));
+            } catch (RuntimeException ex) {
+                throw new IllegalStateException(
+                        "Tunable csv line " + (i + 1) + " ('" + cols[0] + "'): " + ex.getMessage(), ex);
+            }
         }
         return rows;
     }
@@ -237,6 +259,194 @@ public final class TunableManager {
         }
 
         return new TunableRecord(type, min, max, def, value, shipped);
+    }
+
+    /* =============================================================
+     * Runtime -- the /satchel tunables commands (SAT_090)
+     * ========================================================== */
+
+    /** Every registered name: each row loaded at start, plus any code registered since. */
+    public static Set<String> names() {
+        return Set.copyOf(REGISTRY.keySet());
+    }
+
+    /** One row's current state, for chat. */
+    public static TunableOutcome describe(String name) {
+        if (csvPath == null) return TunableOutcome.notRunning();
+        TunableRecord r = REGISTRY.get(name);
+        if (r == null) return TunableOutcome.unknownName(name);
+
+        String range = r.type() == TunableType.STRING ? "" : " [" + r.min() + ", " + r.max() + "]";
+        String shipped = r.shipped() == null ? "none" : String.valueOf(r.shipped());
+        return TunableOutcome.ok(name + " = " + r.value() + " (" + r.type() + range + "; default "
+                + r.def() + ", shipped " + shipped + ")" + (UNSAVED.contains(name) ? " -- unsaved" : ""));
+    }
+
+    /**
+     * Sets one row's running value from its text form, checked against the row's registered type
+     * and range exactly as construction checks it. Works on a row no code has constructed yet --
+     * its shape is known from the file.
+     */
+    public static TunableOutcome tune(String name, String rawValue) {
+        if (csvPath == null) return TunableOutcome.notRunning();
+        TunableRecord r = REGISTRY.get(name);
+        if (r == null) return TunableOutcome.unknownName(name);
+
+        Object value;
+        try {
+            value = switch (r.type()) {
+                case FLOAT -> Float.parseFloat(rawValue.trim());
+                case INT -> Integer.parseInt(rawValue.trim());
+                case STRING -> rawValue;
+            };
+        } catch (NumberFormatException ex) {
+            return TunableOutcome.rejected("'" + rawValue + "' is not a valid " + r.type() + ".");
+        }
+        if (r.type() == TunableType.STRING) {
+            // One unquoted csv cell per value: a comma or line break would split the row.
+            if (rawValue.contains(",") || rawValue.contains("\n") || rawValue.contains("\r")) {
+                return TunableOutcome.rejected("A string tunable can't contain a comma or line break.");
+            }
+        } else if (!inRange(r.type(), r.min(), r.max(), value)) {
+            return TunableOutcome.rejected(value + " is outside " + name + "'s range [" + r.min() + ", " + r.max() + "].");
+        }
+
+        Object previous = r.value();
+        REGISTRY.put(name, r.withValue(value));
+        UNSAVED.add(name);
+        OUT.info("[Tunables] tune(): " + name + " = " + value + " (was " + previous + ")");
+        return TunableOutcome.ok(name + " = " + value + " (was " + previous + "). Unsaved: kept until"
+                + " /satchel tunables write or server stop, and a saved value ships in the next jar's seed.");
+    }
+
+    /**
+     * Re-reads the live file and applies the rows {@code target} selects: {@code null} for every
+     * row, {@code "Class:*"} for one class's rows, or one exact name. The whole file must parse,
+     * and every selected row must keep its registered type and range; otherwise nothing changes.
+     * Only values are taken from the file -- a row's shape is fixed for the session. Rows the file
+     * doesn't hold (registered by code this session) are left as they are. Unsaved tunes on the
+     * selected rows are discarded.
+     */
+    public static TunableOutcome reload(String target) {
+        if (csvPath == null) return TunableOutcome.notRunning();
+
+        Map<String, TunableRecord> file;
+        try {
+            file = readFile(csvPath);
+        } catch (RuntimeException ex) {
+            return TunableOutcome.rejected("Couldn't read " + csvPath.getFileName() + ": " + ex.getMessage() + ".");
+        }
+
+        Map<String, TunableRecord> selected = new LinkedHashMap<>();
+        for (Map.Entry<String, TunableRecord> entry : file.entrySet()) {
+            if (selects(target, entry.getKey())) selected.put(entry.getKey(), entry.getValue());
+        }
+        if (selected.isEmpty()) {
+            return TunableOutcome.notInFile(csvPath.getFileName() + " holds no row matching '" + target + "'.");
+        }
+
+        List<String> misshapen = new ArrayList<>();
+        for (Map.Entry<String, TunableRecord> entry : selected.entrySet()) {
+            TunableRecord existing = REGISTRY.get(entry.getKey());
+            if (existing != null && !existing.sameShape(entry.getValue())) misshapen.add(entry.getKey());
+        }
+        if (!misshapen.isEmpty()) {
+            return TunableOutcome.rejected(misshapen.size() + " row(s) changed type or range in the file ("
+                    + String.join(", ", misshapen.subList(0, Math.min(3, misshapen.size())))
+                    + (misshapen.size() > 3 ? ", ..." : "") + "); a shape change needs a restart.");
+        }
+
+        int changed = 0;
+        int added = 0;
+        int discarded = 0;
+        for (Map.Entry<String, TunableRecord> entry : selected.entrySet()) {
+            String key = entry.getKey();
+            TunableRecord fileRow = entry.getValue();
+            TunableRecord existing = REGISTRY.get(key);
+            if (existing == null) {
+                REGISTRY.put(key, fileRow);
+                added++;
+                continue;
+            }
+            if (!Objects.equals(existing.value(), fileRow.value())) {
+                changed++;
+                if (UNSAVED.contains(key)) discarded++;
+            }
+            REGISTRY.put(key, existing.withValue(fileRow.value()));
+            UNSAVED.remove(key);
+        }
+
+        String summary = "Reloaded " + selected.size() + " row(s) from " + csvPath.getFileName() + ": "
+                + changed + " changed, " + added + " added, " + discarded + " unsaved tune(s) discarded.";
+        OUT.info("[Tunables] reload(" + (target == null ? "all" : target) + "): " + summary);
+        return TunableOutcome.ok(summary);
+    }
+
+    /**
+     * Sets the rows {@code target} selects -- one exact name, or {@code "Class:*"} -- back to their
+     * default. Deliberately no "every row" form. A row's default is the running code's own once
+     * code has constructed it this session; before that it is the file's recorded default, which
+     * may be older than the code, and the outcome says how many rows that applies to. A default
+     * outside its row's range (a hand-edited file) refuses the whole reset.
+     */
+    public static TunableOutcome reset(String target) {
+        if (csvPath == null) return TunableOutcome.notRunning();
+        Objects.requireNonNull(target, "target");
+
+        List<String> keys = new ArrayList<>();
+        for (String key : REGISTRY.keySet()) if (selects(target, key)) keys.add(key);
+        if (keys.isEmpty()) return TunableOutcome.unknownName(target);
+
+        List<String> outOfRange = new ArrayList<>();
+        for (String key : keys) {
+            TunableRecord r = REGISTRY.get(key);
+            if (r.type() != TunableType.STRING && !inRange(r.type(), r.min(), r.max(), r.def())) outOfRange.add(key);
+        }
+        if (!outOfRange.isEmpty()) {
+            return TunableOutcome.rejected(outOfRange.size() + " row(s) have a default outside their range ("
+                    + String.join(", ", outOfRange.subList(0, Math.min(3, outOfRange.size())))
+                    + (outOfRange.size() > 3 ? ", ..." : "") + ").");
+        }
+
+        int changed = 0;
+        int fromFile = 0;
+        for (String key : keys) {
+            TunableRecord r = REGISTRY.get(key);
+            if (!CONSTRUCTED.contains(key)) fromFile++;
+            if (Objects.equals(r.value(), r.def())) continue;
+            REGISTRY.put(key, r.withValue(r.def()));
+            UNSAVED.add(key);
+            changed++;
+        }
+
+        String summary = "Reset " + keys.size() + " row(s) to default: " + changed + " changed"
+                + (fromFile == 0 ? "." : "; " + fromFile + " not read by code yet this session, so their"
+                + " default is the file's record and may be older than the code.")
+                + (changed == 0 ? "" : " Unsaved until /satchel tunables write or server stop.");
+        OUT.info("[Tunables] reset(" + target + "): " + summary);
+        return TunableOutcome.ok(summary);
+    }
+
+    private static boolean selects(String target, String key) {
+        if (target == null) return true;
+        if (target.endsWith(":*")) return key.startsWith(target.substring(0, target.length() - 1));
+        return key.equals(target);
+    }
+
+    /** Writes the whole registry to the live file now, as server stop would. */
+    public static TunableOutcome write() {
+        if (csvPath == null) return TunableOutcome.notRunning();
+        try {
+            writeLive();
+        } catch (UncheckedIOException ex) {
+            return TunableOutcome.rejected("Couldn't write " + csvPath.getFileName() + ": " + ex.getMessage() + ".");
+        }
+        int saved = UNSAVED.size();
+        UNSAVED.clear();
+        String summary = "Wrote " + REGISTRY.size() + " row(s) to " + csvPath.getFileName()
+                + " (" + saved + " unsaved tune(s) saved).";
+        OUT.info("[Tunables] write(): " + summary);
+        return TunableOutcome.ok(summary);
     }
 
     /* =============================================================

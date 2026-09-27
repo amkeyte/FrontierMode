@@ -16,7 +16,7 @@ this project; the originals are not distributed in this repository.
 |---|---|---|---|---|---|
 | `frontiermode/sounds/entry_cue.ogg` | "Couch drop" | megablasterrecordings | [Freesound #368641](https://freesound.org/s/368641/) | _unverified_ | Re-timed and tuned in Audacity (about 2.9 s); converted to OGG. |
 | `frontiermode/sounds/boss_tell_1.ogg` to `boss_tell_5.ogg` | "Little dark house soundscape" | szegvari | [Freesound #557191](https://freesound.org/s/557191/) | _unverified_ | Cut into five variants and processed in Audacity; converted to OGG. |
-| `frontiermode/sounds/cairn_ping.ogg` | "Ping" | bristolstories | [Freesound #51702](https://freesound.org/s/51702/) | _unverified_ | Converted to mono OGG. |
+| `frontiermode/sounds/cairn_ping1.ogg` to `cairn_ping4.ogg` | "Ping" | bristolstories | [Freesound #51702](https://freesound.org/s/51702/) | _unverified_ | Four pitch variants; converted to mono OGG. |
 
 <!-- TODO(owner): confirm whether the boss tell files also mix in these two sources, which sit in the same
      working folder: Freesound #469623 (onderwish, "Cloverfield monster howling") and #485009

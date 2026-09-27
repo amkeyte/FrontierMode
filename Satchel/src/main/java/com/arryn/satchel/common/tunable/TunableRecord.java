@@ -1,5 +1,7 @@
 package com.arryn.satchel.common.tunable;
 
+import java.util.Objects;
+
 /**
  * One registered tunable's on-record state. {@code min}/{@code max} are {@code null} for {@link
  * TunableType#STRING} -- no range concept for a string. {@code def} is write-only, carried
@@ -22,5 +24,14 @@ record TunableRecord(TunableType type, Object min, Object max, Object def, Objec
 
     TunableRecord withShipped(Object newShipped) {
         return new TunableRecord(type, min, max, def, value, newShipped);
+    }
+
+    TunableRecord withValue(Object newValue) {
+        return new TunableRecord(type, min, max, def, newValue, shipped);
+    }
+
+    /** Same type and range -- the shape {@code register} and a runtime reload both hold a row to. */
+    boolean sameShape(TunableRecord other) {
+        return type == other.type && Objects.equals(min, other.min) && Objects.equals(max, other.max);
     }
 }

@@ -113,17 +113,21 @@ public final class MobSpawns {
         for (int i = 0; i < tries; i++) {
             int x = center.getX() + random.nextInt(radius * 2 + 1) - radius;
             int z = center.getZ() + random.nextInt(radius * 2 + 1) - radius;
-            BlockPos floor = findStandingSpot(level, mob, scale, x, center.getY(), z);
-            if (floor != null) {
-                return floor;
+            Optional<BlockPos> floor = standingSpot(level, mob, scale, x, center.getY(), z);
+            if (floor.isPresent()) {
+                return floor.get();
             }
         }
         return center;
     }
 
-    // Looks outward from the column's center height (0, +1, -1, +2, -2, ...) for the nearest spot
-    // that stands on a solid face, isn't in a fluid, and fits.
-    private static BlockPos findStandingSpot(ServerLevel level, Mob mob, float scale, int x, int centerY, int z) {
+    /**
+     * The nearest standable spot in the column {@code (x, z)} to {@code centerY}, looking outward from
+     * it (0, +1, -1, +2, -2, ...): a spot that stands on a solid face, isn't in a fluid, and where
+     * {@code mob} fits at {@code scale}. Empty if the column has none within reach -- a column that is
+     * solid rock at that height, say. Never the surface heightmap.
+     */
+    public static Optional<BlockPos> standingSpot(ServerLevel level, Mob mob, float scale, int x, int centerY, int z) {
         for (int step = 0; step <= FLOOR_SEARCH_RANGE * 2; step++) {
             int dy = (step + 1) / 2 * (step % 2 == 1 ? 1 : -1);
             BlockPos pos = new BlockPos(x, centerY + dy, z);
@@ -134,10 +138,10 @@ public final class MobSpawns {
             if (level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)
                     && level.getFluidState(pos).isEmpty()
                     && fits(level, mob, scale, pos)) {
-                return pos;
+                return Optional.of(pos);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     /**

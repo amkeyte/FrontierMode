@@ -72,9 +72,8 @@ final class InspectReport {
         return BossAPI.guardiansQuiet(level)
                 .flatMap(g -> g.record(target.getUUID()))
                 .map((BossGuardiansFixture.GuardianRecord record) -> String.format(
-                        "  guardian: scale %.2f, boss #%s, glow %s%s",
+                        "  guardian: scale %.2f, boss #%s%s",
                         record.scale(), Ids.shortId(record.bossId()),
-                        target.hasGlowingTag() ? "on" : "off",
                         record.doomed() ? ", doomed" : ""));
     }
 }

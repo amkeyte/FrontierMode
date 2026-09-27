@@ -51,6 +51,10 @@ public final class DefaultBossRules implements BossRules {
     // boss at the world floor -- 5 independent random draws just isn't enough coverage once a
     // disk gets that large, and a heightmap + block-state lookup is cheap enough (this only runs
     // once per boss, not per tick) that quadrupling it is effectively free insurance.
+    // The boss mob's player-facing name, and the text LogFilters matches in vanilla's death log line.
+    // See FRO_182.
+    public static final String BOSS_NAME = "Amethyst Keeper";
+
     private static final int POSITION_CANDIDATES = 20;
 
     // FRO_163: Y used when every candidate scores hazardous -- see choosePosition's fallback branch.
@@ -273,7 +277,7 @@ public final class DefaultBossRules implements BossRules {
                     // Fire immunity stops the damage; the sun ward stops the ignition itself, so a
                     // Zombie or Skeleton boss doesn't visibly burn in daylight.
                     equipSunWard(mob);
-                    tagVisibly(mob, layer);
+                    name(mob);
                 });
         if (spawned.isEmpty()) {
             OUT.warn("[Boss] materialize(): spawn failed for " + type + " at " + position);
@@ -320,29 +324,12 @@ public final class DefaultBossRules implements BossRules {
         }
     }
 
-    // Project owner request (2026-09-08): live debug toggle for Boss/Guardian glow -- see
-    // BossRules#glowEnabled's own doc for why this is mutable state on an otherwise
-    // strategy/baseline interface. Not persisted -- resets to false on
-    // server restart, same "off/on signal" ephemeral-state discipline as every other debug-only
-    // flag in this codebase (WorldBordersRenderer.visible, BossTellFixture's rotation maps, etc.).
-    private boolean glowEnabled = false;
-
-    @Override
-    public boolean glowEnabled() {
-        return glowEnabled;
-    }
-
-    @Override
-    public void setGlowEnabled(boolean value) {
-        glowEnabled = value;
-    }
-
-    private void tagVisibly(Mob mob, int layer) {
-        // "No discovery aids" (Tier 1) means findable by looking, not invisible until you already
-        // know -- a lightweight visible marker, not a real discovery mechanic (that's Tier 2).
-        mob.setCustomName(Component.literal("Boss (Layer " + layer + ")"));
-        mob.setCustomNameVisible(true);
-        mob.setGlowingTag(glowEnabled);
+    // Players see the name in vanilla death messages ("slain by Amethyst Keeper"), never as a tag.
+    private void name(Mob mob) {
+        mob.setCustomName(Component.literal(BOSS_NAME));
+        // The tag's visibility is the client-side debug view's to turn on (AdminViewClient); the
+        // name itself stays set.
+        mob.setCustomNameVisible(false);
     }
 
     // FRO_148: shared size multiplier, 1.0 + layer * scalePerLayer (boss.md "Spawn platform").
@@ -459,7 +446,7 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public void dismissGuardian(Mob mob) {
+    public void dismiss(Mob mob) {
         // Entity event 60: vanilla's death puff.
         mob.level().broadcastEntityEvent(mob, (byte) 60);
         mob.discard();
@@ -547,11 +534,6 @@ public final class DefaultBossRules implements BossRules {
         StackData.enchant(ward, Enchantments.BINDING_CURSE, 1);
         mob.setItemSlot(EquipmentSlot.HEAD, ward);
         mob.setDropChance(EquipmentSlot.HEAD, 0.0F);
-    }
-
-    @Override
-    public void applyGlow(Mob mob) {
-        mob.setGlowingTag(glowEnabled);
     }
 
     private static String guardianTeamName() {
