@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.bosstell.server.commands;
 
+import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.server.commands.BossSelector;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
@@ -95,7 +96,7 @@ public final class BossTellCommands {
         BossRecord record = matches.get(0);
 
         ItemStack stack = new ItemStack(BossTellModule.AMETHYST_COMPASS.get());
-        CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true);
+        CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true, BossAPI.levelOf(record.layer()));
 
         if (!sp.getInventory().add(stack)) {
             sp.drop(stack, false);

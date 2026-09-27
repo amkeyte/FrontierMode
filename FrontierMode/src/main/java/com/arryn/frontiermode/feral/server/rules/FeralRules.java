@@ -200,7 +200,7 @@ public final class FeralRules {
     }
 
     /**
-     * Dedicated ceiling on pack members specifically (see {@code FeralModule.PACK_MEMBER_TAG}),
+     * Dedicated ceiling on pack members specifically (see {@code FeralPackFixture}),
      * counted independently of ambient natural spawns via {@code FeralModule
      * .countAlivePackMembers}. Playtest feedback (2026-09-21, fifth pass): "we are getting a lot
      * of mobs from regular spawn algo as well, that's most of the cap" -- ambient Wilds
@@ -248,7 +248,7 @@ public final class FeralRules {
 
     /**
      * Distance (blocks) beyond which an ordinary natural Wilds spawn (not a
-     * {@code FeralModule.isPackMember}-marked one) is discarded outright -- see
+     * pack member, {@code FeralPackFixture}) is discarded outright -- see
      * {@code FeralModule.despawnIfBeyondAmbientRadius}. Playtest feedback (2026-09-21, sixth
      * pass): "still hitting cap... remove all feral mobs spawned outside a radius, they are
      * inconsequential." Flat and direction-agnostic, unlike {@link #packDespawnRadius()}/

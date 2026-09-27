@@ -62,4 +62,21 @@ public final class BorderMathLogic {
     public static double distanceToEdge(double distanceToCenter, double radius) {
         return distanceToCenter - radius;
     }
+
+    /**
+     * Border radius at 1-based path position {@code pathPosition}, growing in waves (border.md §
+     * Radius: growth in waves): {@code round(base x f(0) x ... x f(p-1))}, where each wave is a
+     * half-cosine sweep of {@code waveLength} steps from {@code 1 + amplitude} down to exactly 1.0.
+     * Computed from the base every time, so rounding never accumulates. A position below 1 is
+     * treated as 1. {@code waveLength} must be at least 2.
+     */
+    public static long waveRadius(int base, double amplitude, int waveLength, int pathPosition) {
+        double radius = base;
+        for (int step = 0; step < Math.max(pathPosition, 1); step++) {
+            int stepInWave = step % waveLength;
+            double sweep = (1.0 + Math.cos(Math.PI * stepInWave / (waveLength - 1))) / 2.0;
+            radius *= 1.0 + amplitude * sweep;
+        }
+        return Math.round(radius);
+    }
 }

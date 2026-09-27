@@ -128,6 +128,14 @@ public final class BossAPI {
     }
 
     /**
+     * The player-facing level for a boss layer -- the one place the two are converted, so a future
+     * split between them changes only this. Layers start at 1 and match levels (FRO_191).
+     */
+    public static int levelOf(int layer) {
+        return layer;
+    }
+
+    /**
      * FRO_121 (Intuition/Resonance): resolves the boss identity at the level's current
      * {@code BordersPathFacet} tip -- "Intuition/Resonance resolve 'the current Path Tip'
      * exactly once, at lock time, to get a boss identity" per special-compass.md's "One shared

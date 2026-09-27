@@ -2,6 +2,7 @@ package com.arryn.frontiermode.border.server.rules;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
+import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.satchel.common.tunable.Tunable;
 import net.minecraft.core.BlockPos;
@@ -111,16 +112,8 @@ public final class DefaultBorderRules implements BorderRules {
         float amplitude = new Tunable("borderWaveAmplitude", 0f, 2f, 0.5f).floatValue();
         int waveLength = new Tunable("borderWaveLength", 2, 20, 5).intValue();
 
-        double radius = base;
-        for (int step = 0; step < Math.max(pathPosition, 1); step++) {
-            radius *= waveFactor(step % waveLength, waveLength, amplitude);
-        }
-        return Math.max(BorderConstants.MIN_RADIUS, (int) Math.round(radius));
-    }
-
-    private static double waveFactor(int stepInWave, int waveLength, double amplitude) {
-        double sweep = (1.0 + Math.cos(Math.PI * stepInWave / (waveLength - 1))) / 2.0;
-        return 1.0 + amplitude * sweep;
+        long radius = BorderMath.waveRadius(base, amplitude, waveLength, pathPosition);
+        return (int) Math.max(BorderConstants.MIN_RADIUS, Math.min(radius, Integer.MAX_VALUE));
     }
 
     @Override

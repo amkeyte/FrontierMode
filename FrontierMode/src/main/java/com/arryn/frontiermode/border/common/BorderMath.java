@@ -108,6 +108,11 @@ public final class BorderMath {
         return (int) Math.round(Math.max(0.0, BorderMathLogic.distanceToEdge(centerDistance, radius)));
     }
 
+    /** See {@link BorderMathLogic#waveRadius}. */
+    public static long waveRadius(int base, double amplitude, int waveLength, int pathPosition) {
+        return BorderMathLogic.waveRadius(base, amplitude, waveLength, pathPosition);
+    }
+
     public static double distanceSqToCenter(Border border, BlockPos pos) {
         double dx = pos.getX() - border.center().getX();
         double dz = pos.getZ() - border.center().getZ();

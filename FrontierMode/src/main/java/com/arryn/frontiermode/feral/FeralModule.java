@@ -4,6 +4,8 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralLogic;
+import com.arryn.frontiermode.feral.common.bundle.FeralPackBundle;
+import com.arryn.frontiermode.feral.common.fixture.FeralPackFixture;
 import com.arryn.frontiermode.feral.server.commands.FeralCommands;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
 import com.arryn.frontiermode.spawn.MobSpawns;
@@ -13,12 +15,16 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
+import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
+import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
@@ -60,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -74,20 +81,21 @@ import java.util.UUID;
  * Mobs reads Border/Effects from inside Boss's own module -- through their public APIs, not by
  * living inside them. That's the real precedent here, not {@code BossGuardiansFixture}'s own
  * bundle placement: Guardian is a real {@code SatchelFixture} specifically for "access parity"
- * reaching a sibling fixture (its own doc comment says so); Feral has no sibling fixture to reach
- * (no persisted state at all), so it needed neither a fixture nor a home inside another module's
- * files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
+ * reaching a sibling fixture (its own doc comment says so); Feral has no sibling fixture to reach,
+ * so it needed no home inside another module's files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
  * is cheaper than untangling it from Border's own files later.
  *
- * <p>No persisted state, no fixture/bundle. {@code onRegisterCommands} is Feral's one remaining
+ * <p>Feral's one piece of persisted state is which Feral mobs are pack members
+ * ({@code FeralPackFixture}, FRO_201); team membership and everything else is resolved live.
+ * {@code onRegisterCommands} is Feral's one remaining
  * raw-Forge delegate target (command registration, a permanently-accepted exception per
  * wiki/satchel/spec/forge-integration.md) -- every other concern rides a Satchel signal or
  * {@code ScopeEvent.Tick}, none of them a raw Forge touch point of Feral's own.
  *
  * <p><b>Tick-driven work</b> uses its own two {@code JigConfig}s (FRO_146) --
  * {@link FrontierKeys#FERAL_PLAYER_JIG}/{@link FrontierKeys#FERAL_LEVEL_JIG}, registered in
- * {@link #init()} with an empty bundle schema (no fixture/bundle needed, same as the module as a
- * whole -- these two keys exist purely to get a per-tick {@code ScopeEvent.Tick} callback).
+ * {@link #init()}; the level config also carries the pack-member bundle, the player config has
+ * none.
  * Feral's own keys, not Border's {@code BORDER_PLAYER_JIG}/{@code BORDERS_JIG} -- Feral depends on
  * Border, never the reverse (same discipline Boss/Border already keep), so it doesn't ride a tick
  * source another module owns. {@link #onPlayerScopeTick}/{@link #onLevelScopeTick} are the
@@ -147,13 +155,6 @@ public final class FeralModule {
     // threshold, not with Feral's full lifetime population.
     private static final Map<UUID, TickDelay> DESPAWN_TIMERS = new HashMap<>();
 
-    // Playtest feedback (2026-09-21, fifth pass): distinguishes a spawnPackMember-created mob
-    // from an ordinary natural Wilds spawn that onEntityJoinLevel tags feral the same way --
-    // see maintainPackNearPlayer/countAlivePackMembers for why that distinction matters now.
-    // Stored on the entity's own persistent data (Forge's per-entity NBT compound), not a static
-    // map -- survives exactly as long as the entity itself does, no separate cleanup needed.
-    private static final String PACK_MEMBER_TAG = "frontiermode_feral_pack";
-
     // Playtest feedback (2026-09-21): both the piggyback density mechanic (rollDensityCompanion,
     // riding vanilla's own sparse natural spawn attempts) and the radius+linger despawn timer
     // left the Wilds feeling thin and easy to just weave through -- "I need more mobs near me
@@ -168,12 +169,13 @@ public final class FeralModule {
         OUT.info("FrontierMode - Feral Module Initiating.");
         registerPlayerJig();
         registerLevelJig();
+        registerPackMobJig();
     }
 
-    // FRO_146: no fixture/bundle -- these two configs exist purely to get a ScopeEvent.Tick
-    // source, replacing the raw TickEvent.PlayerTickEvent/LevelTickEvent subscriptions that used
-    // to live in FrontierMode.java. See this class's own doc for why Feral gets its own keys
-    // rather than riding Border's.
+    // FRO_146: these two configs are Feral's ScopeEvent.Tick source, replacing the raw
+    // TickEvent.PlayerTickEvent/LevelTickEvent subscriptions that used to live in FrontierMode.java.
+    // See this class's own doc for why Feral gets its own keys rather than riding Border's. The
+    // level config also carries the pack-member records (FRO_201); the player config has no bundle.
 
     private static void registerPlayerJig() {
         EventHandlers eventHandlers =
@@ -206,12 +208,60 @@ public final class FeralModule {
                         .on(EntityJoinLevelSignal.class, FeralModule::onEntityJoinLevel)
                         .build();
 
+        // FRO_201: the pack-member records, persisted.
+        var feralPackFixture =
+                new JigBundles.FixtureDecl<>(
+                        FrontierKeys.FERAL_PACK,
+                        FeralPackFixture::new,
+                        JigPolicies.CreatePolicy.ALWAYS
+                );
+        var feralPackBundle =
+                new JigBundles.BundleDecl<>(
+                        FrontierKeys.FERAL_PACK_BUNDLE,
+                        (LevelScope scope) -> new FeralPackBundle(scope, FrontierKeys.FERAL_PACK_BUNDLE),
+                        List.of(feralPackFixture)
+                );
+
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.FERAL_LEVEL_JIG);
+        config.bundles().schema(new JigBundles.Schema<>(List.of(feralPackBundle)));
+        // Persistence needs both the capability and the matching policy (see BORDERS_JIG/BOSS_JIG).
+        config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));
+        config.policies().persistence(
+                new JigPolicies.Persistence(
+                        true,
+                        JigPolicies.FlushPolicy.EXECUTION_PULSE,
+                        JigPolicies.MissingDataPolicy.WARN));
+        // withExecutionPulse(true) is required alongside withTick(true) -- persistence flush only
+        // runs from inside onExecutionPulse.
+        config.execution()
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
+                .eventHandlers(eventHandlers);
+
+        Satchel.registerJigConfig(config);
+    }
+
+    /**
+     * FRO_201: tracks the pack members {@code FeralPackFixture} names, so their removal signals reach
+     * {@link FeralPackHandlers}. Server-only, empty bundle schema: no per-mob state. The interest set
+     * is the fixture's live member view, registered per level from the level tick.
+     */
+    private static void registerPackMobJig() {
+        EventHandlers eventHandlers =
+                EventHandlers.builder()
+                        // Bare, unscoped signals -- declared here only because this is the topically
+                        // closest config, not a claim they are FERAL_PACK_MOB_JIG-scoped.
+                        .on(MobDied.class, FeralPackHandlers::onMobDied)
+                        .on(MobRemoved.class, FeralPackHandlers::onMobRemoved)
+                        .build();
+
+        MobJigConfig config = new MobJigConfig(FrontierKeys.FERAL_PACK_MOB_JIG);
+        config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
         config.bundles().schema(new JigBundles.Schema<>(List.of()));
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
                 .eventHandlers(eventHandlers);
 
+        MobInterestRegistry.register(FrontierKeys.FERAL_PACK_MOB_JIG, () -> FeralPackHandlers.INTERESTS);
         Satchel.registerJigConfig(config);
     }
 
@@ -538,11 +588,19 @@ public final class FeralModule {
             return;
         }
 
-        // Marked before it ever joins the level -- see PACK_MEMBER_TAG's own doc for why this
-        // distinction matters (countAlivePackMembers, maxAlivePackMembers()).
+        // Recorded as a pack member before it ever joins the level, so it counts against
+        // maxAlivePackMembers() from its first tick (FeralPackFixture). A spawn that fails takes the
+        // record back out.
+        UUID[] staged = new UUID[1];
         Optional<Mob> spawned = MobSpawns.spawn(level, EntityType.ZOMBIE, ground, MobSpawns.Setup.DISPATCHED,
-                mob -> mob.getPersistentData().putBoolean(PACK_MEMBER_TAG, true));
+                mob -> {
+                    staged[0] = mob.getUUID();
+                    FeralPackHandlers.markMember(level, mob);
+                });
         if (spawned.isEmpty()) {
+            if (staged[0] != null) {
+                FeralPackHandlers.forget(level, staged[0]);
+            }
             return;
         }
         Mob mob = spawned.get();
@@ -604,6 +662,7 @@ public final class FeralModule {
      * {@link #onPlayerTick}.
      */
     private static void onLevelTick(ServerLevel level) {
+        FeralPackHandlers.onLevelTick(level);
         logPackDiagnostics(level);
 
         TickThrottler throttler = REENTRY_SWEEP_THROTTLERS.computeIfAbsent(
@@ -654,6 +713,7 @@ public final class FeralModule {
         int allFeral = 0;
         int packMembersTargetingPlayer = 0;
         List<Mob> packMembersFound = new ArrayList<>();
+        Set<UUID> packMembers = FeralPackHandlers.members(level);
         for (Entity entity : level.getAllEntities()) {
             totalEntities++;
             if (!(entity instanceof Mob mob)) {
@@ -664,7 +724,7 @@ public final class FeralModule {
                 continue;
             }
             allFeral++;
-            if (isPackMember(mob)) {
+            if (packMembers.contains(mob.getUUID())) {
                 packMembersFound.add(mob);
                 if (mob.getTarget() instanceof Player) {
                     packMembersTargetingPlayer++;
@@ -702,8 +762,8 @@ public final class FeralModule {
      * Resolves {@code feral}-team membership live off every {@link Mob} currently in
      * {@code level} whose type is a real {@link MobCategory#MONSTER} hostile -- not an
      * {@code instanceof Monster} check, same reasoning as {@link #onPlayerTick}'s own search --
-     * per this fixture-free module's own "no persisted tracking" precedent, not a list Feral
-     * itself maintains. One pass, two independent cleanup checks per mob found:
+     * resolved live, not a list Feral maintains (pack membership is the one record it keeps). One
+     * pass, two independent cleanup checks per mob found:
      *
      * <ol>
      *   <li><b>Re-entered the Frontier:</b> kills it (not a silent {@code discard()}), per the
@@ -712,13 +772,14 @@ public final class FeralModule {
      *       would, so this reads as "the Frontier killed it," not "it vanished."
      *   <li><b>Still in the Wilds, but too far from every player:</b> dispatches to
      *       {@link #despawnWithLegacyLinger} when {@link #legacyDistanceDespawnEnabled}, otherwise
-     *       to {@link #despawnIfBeyondPackRadius} for a {@link #isPackMember}-marked mob or
+     *       to {@link #despawnIfBeyondPackRadius} for a pack member ({@code FeralPackFixture}) or
      *       {@link #despawnIfBeyondAmbientRadius} for an ordinary natural spawn -- see those
      *       methods' own docs for the actual behavior each one implements; this method doesn't
      *       care which is active.
      * </ol>
      */
     private static void sweepFeralCleanup(ServerLevel level) {
+        Set<UUID> packMembers = FeralPackHandlers.members(level);
         for (Entity entity : level.getAllEntities()) {
             if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
                 continue;
@@ -736,7 +797,7 @@ public final class FeralModule {
 
             if (legacyDistanceDespawnEnabled) {
                 despawnWithLegacyLinger(level, monster);
-            } else if (isPackMember(monster)) {
+            } else if (packMembers.contains(monster.getUUID())) {
                 despawnIfBeyondPackRadius(level, monster);
             } else {
                 despawnIfBeyondAmbientRadius(level, monster);
@@ -812,7 +873,7 @@ public final class FeralModule {
     /**
      * Playtest feedback (2026-09-21, sixth pass): "still hitting cap... we should remove all
      * feral mobs spawned outside a radius now, they are inconsequential" -- an ordinary natural
-     * Wilds spawn (not a {@link #isPackMember}-marked one) has no deliberate encounter behind
+     * Wilds spawn (not a pack member) has no deliberate encounter behind
      * it at all, so it doesn't earn {@link #despawnIfBeyondPackRadius}'s generous ahead-leash or
      * its ahead/behind distinction -- either way, once it's farther than
      * {@link FeralRules#ambientDespawnRadius()} from every player, it was never going to be
@@ -830,11 +891,6 @@ public final class FeralModule {
         }
         monster.discard();
         return true;
-    }
-
-    /** See {@link #PACK_MEMBER_TAG}'s own doc. */
-    private static boolean isPackMember(Mob mob) {
-        return mob.getPersistentData().getBoolean(PACK_MEMBER_TAG);
     }
 
     /**
@@ -1085,12 +1141,13 @@ public final class FeralModule {
 
     /**
      * Same live-scan shape as {@link #countAliveFeral}, but filtered to mobs
-     * {@link #spawnPackMember} itself created (see {@link #PACK_MEMBER_TAG}) -- a natural
+     * {@link #spawnPackMember} itself created (the pack records, {@code FeralPackFixture}) -- a natural
      * Wilds spawn is still {@code feral}-teamed the moment it joins, but was never a pack
      * member, and {@link #maintainPackNearPlayer}'s own doc covers why that distinction has to be
      * counted separately now.
      */
     private static int countAlivePackMembers(ServerLevel level) {
+        Set<UUID> packMembers = FeralPackHandlers.members(level);
         int count = 0;
         for (Entity entity : level.getAllEntities()) {
             if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
@@ -1100,7 +1157,7 @@ public final class FeralModule {
             if (team == null || !"feral".equals(team.getName())) {
                 continue;
             }
-            if (isPackMember(monster)) {
+            if (packMembers.contains(monster.getUUID())) {
                 count++;
             }
         }

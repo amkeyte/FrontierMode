@@ -9,6 +9,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -38,6 +39,7 @@ public final class CompassAttunement {
     private static final String KEY_ADMIN = "admin";
     private static final String KEY_OWNER_ID = "ownerId";
     private static final String KEY_LOCKED_ENCHANT_LEVEL = "lockedEnchantLevel";
+    private static final String KEY_BOSS_LEVEL = "bossLevel";
 
     private CompassAttunement() {
     }
@@ -47,15 +49,17 @@ public final class CompassAttunement {
      * distinguishes the Admin Compass variant (command-constructed, never craftable) from the
      * player-facing Amethyst Compass sharing the same item class -- see special-compass.md's
      * "One shared core" section. {@code ownerId} is the player this stack is bound to for the
-     * ownership rule -- "blocked, never destroyed" for anyone else.
+     * ownership rule -- "blocked, never destroyed" for anyone else. {@code bossLevel} is the locked
+     * boss's player-facing level, for the tooltip (a snapshot; a boss's layer never changes).
      */
-    public static void setLive(ItemStack stack, UUID bossId, UUID ownerId, boolean admin) {
+    public static void setLive(ItemStack stack, UUID bossId, UUID ownerId, boolean admin, int bossLevel) {
         Objects.requireNonNull(bossId, "bossId");
         Objects.requireNonNull(ownerId, "ownerId");
         CompoundTag root = new CompoundTag();
         root.putUUID(KEY_BOSS_ID, bossId);
         root.putUUID(KEY_OWNER_ID, ownerId);
         root.putBoolean(KEY_ADMIN, admin);
+        root.putInt(KEY_BOSS_LEVEL, bossLevel);
         preserveLockedEnchantLevel(stack, root);
         StackData.write(stack, NAMESPACE, root);
     }
@@ -65,14 +69,16 @@ public final class CompassAttunement {
      * bedrock pad (Tier 1) and Intuition (Tiers 2-4) both resolve to a stored coordinate once
      * and never touch a boss reference again afterward, per special-compass.md's "One shared
      * core" table. Never {@code admin} -- the Admin Compass is always the live case.
+     * {@code bossLevel} as for {@link #setLive}: the level of the boss the position was taken from.
      */
-    public static void setFrozen(ItemStack stack, BlockPos pos, UUID ownerId) {
+    public static void setFrozen(ItemStack stack, BlockPos pos, UUID ownerId, int bossLevel) {
         Objects.requireNonNull(pos, "pos");
         Objects.requireNonNull(ownerId, "ownerId");
         CompoundTag root = new CompoundTag();
         root.putIntArray(KEY_FROZEN_POS, new int[]{pos.getX(), pos.getY(), pos.getZ()});
         root.putUUID(KEY_OWNER_ID, ownerId);
         root.putBoolean(KEY_ADMIN, false);
+        root.putInt(KEY_BOSS_LEVEL, bossLevel);
         preserveLockedEnchantLevel(stack, root);
         StackData.write(stack, NAMESPACE, root);
     }
@@ -112,6 +118,15 @@ public final class CompassAttunement {
             return Optional.empty();
         }
         return Optional.of(new BlockPos(xyz[0], xyz[1], xyz[2]));
+    }
+
+    /**
+     * The locked boss's level, written at attunement; empty for an unattuned stack or one attuned
+     * before the level was stored.
+     */
+    public static OptionalInt bossLevel(ItemStack stack) {
+        CompoundTag root = StackData.read(stack, NAMESPACE);
+        return root.contains(KEY_BOSS_LEVEL) ? OptionalInt.of(root.getInt(KEY_BOSS_LEVEL)) : OptionalInt.empty();
     }
 
     public static boolean isAdmin(ItemStack stack) {

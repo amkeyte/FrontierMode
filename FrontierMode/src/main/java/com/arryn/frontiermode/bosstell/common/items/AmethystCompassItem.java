@@ -7,7 +7,9 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.BossPlatform;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -246,9 +248,14 @@ public class AmethystCompassItem extends CompassItem {
         }
         UUID bossId = bossIdOpt.get();
         UUID ownerId = holder.getUUID();
+        Optional<Integer> bossLevelOpt = bossLevel(level, bossId);
+        if (bossLevelOpt.isEmpty()) {
+            return;
+        }
+        int bossLevel = bossLevelOpt.get();
 
         if (newCode == RESONANCE_CODE) {
-            CompassAttunement.setLive(stack, bossId, ownerId, false);
+            CompassAttunement.setLive(stack, bossId, ownerId, false, bossLevel);
             refreshTarget(stack, level);
         } else {
             Optional<BlockPos> posOpt = BossAPI.resolveLivePosition(level, bossId);
@@ -258,7 +265,7 @@ public class AmethystCompassItem extends CompassItem {
             int tierIndex = newCode - 1;
             BlockPos jitter = BorderMath.randomPointInAnnulus(
                     RNG, posOpt.get(), INTUITION_INNER_RADIUS[tierIndex], INTUITION_OUTER_RADIUS[tierIndex]);
-            CompassAttunement.setFrozen(stack, jitter, ownerId);
+            CompassAttunement.setFrozen(stack, jitter, ownerId, bossLevel);
             writeLodestoneFields(stack, level, jitter);
         }
         CompassAttunement.setLockedEnchantLevel(stack, newCode);
@@ -297,24 +304,30 @@ public class AmethystCompassItem extends CompassItem {
             return InteractionResult.PASS;
         }
 
-        Optional<UUID> bossIdOpt = BossAPI.bosses(level).flatMap(fixture ->
+        Optional<BossRecord> recordOpt = BossAPI.bosses(level).flatMap(fixture ->
                 fixture.all().stream()
                         .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked,
                                 BossPlatform.halfWidth(fixture.RULES.scaleForLayer(record.layer()))))
-                        .map(BossRecord::bossId)
                         .findFirst());
-        if (bossIdOpt.isEmpty()) {
+        if (recordOpt.isEmpty()) {
             return InteractionResult.PASS;
         }
 
-        Optional<BlockPos> posOpt = BossAPI.resolveLivePosition(level, bossIdOpt.get());
+        Optional<BlockPos> posOpt = BossAPI.resolveLivePosition(level, recordOpt.get().bossId());
         if (posOpt.isEmpty()) {
             return InteractionResult.PASS;
         }
 
-        CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID());
+        CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID(),
+                BossAPI.levelOf(recordOpt.get().layer()));
         writeLodestoneFields(stack, level, posOpt.get());
         return InteractionResult.CONSUME;
+    }
+
+    /** The player-facing level of {@code bossId}'s record, for the tooltip; empty if it has none. */
+    private static Optional<Integer> bossLevel(Level level, UUID bossId) {
+        return BossAPI.bosses(level).flatMap(fixture -> fixture.get(bossId))
+                .map(record -> BossAPI.levelOf(record.layer()));
     }
 
     /**
@@ -343,28 +356,20 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * {@code Compass - Boss[N]} -- {@code N}'s meaning depends on the variant, per
-     * special-compass.md's "Tooltip" section: the Admin Compass's own raw selector index
-     * (matching {@code /boss debug}'s own grammar), or the Amethyst Compass's boss-layer
-     * reading (a placeholder display decision, not final, per that section).
+     * {@code Amethyst Keeper, level N}, plus the boss's short id on the Admin Compass
+     * (special-compass.md § Tooltip). Runs on the client, where boss records don't exist, so it reads
+     * only what attunement wrote onto the stack. No line for an unattuned compass.
      */
     @Override
     public void appendHoverText(@NotNull ItemStack stack, Level level, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
 
-        Optional<UUID> bossIdOpt = CompassAttunement.bossId(stack);
-        if (bossIdOpt.isEmpty() || level == null) {
-            return;
-        }
-
-        BossAPI.bosses(level).ifPresent(fixture ->
-                fixture.get(bossIdOpt.get()).ifPresent(record -> {
-                    if (CompassAttunement.isAdmin(stack)) {
-                        int index = fixture.all().indexOf(record);
-                        tooltip.add(Component.literal("Compass - Boss[" + index + "]"));
-                    } else {
-                        tooltip.add(Component.literal("Compass - Boss[" + record.layer() + "]"));
-                    }
-                }));
+        CompassAttunement.bossLevel(stack).ifPresent(bossLevel -> {
+            String line = DefaultBossRules.BOSS_NAME + ", level " + bossLevel;
+            if (CompassAttunement.isAdmin(stack)) {
+                line += CompassAttunement.bossId(stack).map(id -> " -- #" + Ids.shortId(id)).orElse("");
+            }
+            tooltip.add(Component.literal(line));
+        });
     }
 }
