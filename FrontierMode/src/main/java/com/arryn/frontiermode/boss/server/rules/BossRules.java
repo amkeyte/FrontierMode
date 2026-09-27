@@ -180,6 +180,12 @@ public interface BossRules {
     /** How many of a defeated boss's guardians die per {@code BOSS_JIG} tick, so their loot doesn't land in one tick. */
     int guardianDefeatKillsPerTick();
 
+    /** A boss gets a health bar only at this maximum health or more. See boss.md § Health bar. */
+    float bossBarMinHealth();
+
+    /** How long a player keeps seeing a boss's health bar after they last held its kill credit. */
+    int bossBarLingerTicks();
+
     /**
      * Kills {@code mob}, a guardian of a defeated boss, as a real vanilla death: ordinary drops
      * always. With a {@code credited} player it is marked as recently hurt by them first, so

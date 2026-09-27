@@ -436,6 +436,17 @@ public final class DefaultBossRules implements BossRules {
         return new Tunable("guardianDefeatKillsPerTick", 1, 100, 5).intValue();
     }
 
+    // FRO_189: the Ender Dragon's max health.
+    @Override
+    public float bossBarMinHealth() {
+        return new Tunable("bossBarMinHealth", 1f, 10000f, 200f).floatValue();
+    }
+
+    @Override
+    public int bossBarLingerTicks() {
+        return new Tunable("bossBarLingerTicks", 1, 72000, 600).intValue();
+    }
+
     @Override
     public void killGuardian(Mob mob, ServerPlayer credited) {
         if (credited != null) {

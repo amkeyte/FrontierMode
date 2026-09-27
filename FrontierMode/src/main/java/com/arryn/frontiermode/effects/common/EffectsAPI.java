@@ -4,11 +4,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.scores.PlayerTeam;
@@ -124,6 +127,17 @@ public final class EffectsAPI {
      */
     public static final DustParticleOptions AMETHYST_DUST =
             new DustParticleOptions(new Vector3f(0.65F, 0.45F, 0.9F), 1.0F);
+
+    /**
+     * A new boss bar with no viewers -- persistent visual state, like a team, so server-authoritative
+     * and with no client-derived counterpart. Callers add and remove players and set progress on the
+     * returned handle, and must {@link BossBarHandle#removeAll()} when they're done with it: a bar
+     * nobody removes stays on its viewers' screens. See effects.md § Boss bars.
+     */
+    public static BossBarHandle createBossBar(
+            Component title, BossEvent.BossBarColor color, BossEvent.BossBarOverlay overlay) {
+        return new BossBarHandle(new ServerBossEvent(title, color, overlay));
+    }
 
     /**
      * Idempotent create-if-absent for a named {@link PlayerTeam} -- proposed shape from

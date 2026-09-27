@@ -35,3 +35,5 @@ FeralRules:packTargetCount,INT,0,100,20,20,
 DefaultBorderRules:borderBaseRadius,INT,1,1000,20,20,20
 DefaultBorderRules:borderWaveAmplitude,FLOAT,0.0,2.0,0.5,0.5,0.5
 DefaultBorderRules:borderWaveLength,INT,2,20,5,5,5
+DefaultBossRules:bossBarMinHealth,FLOAT,1.0,10000.0,200.0,200.0,200.0
+DefaultBossRules:bossBarLingerTicks,INT,1,72000,600,600,600

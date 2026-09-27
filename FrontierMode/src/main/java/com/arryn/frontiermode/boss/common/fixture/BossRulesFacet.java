@@ -148,6 +148,16 @@ public final class BossRulesFacet {
         return RULES.guardianDefeatKillsPerTick();
     }
 
+    /** See {@link BossRules#bossBarMinHealth()}. */
+    public float bossBarMinHealth() {
+        return RULES.bossBarMinHealth();
+    }
+
+    /** See {@link BossRules#bossBarLingerTicks()}. */
+    public int bossBarLingerTicks() {
+        return RULES.bossBarLingerTicks();
+    }
+
     /** See {@link BossRules#killGuardian(Mob, ServerPlayer)}. */
     public void killGuardian(Mob mob, ServerPlayer credited) {
         RULES.killGuardian(mob, credited);
