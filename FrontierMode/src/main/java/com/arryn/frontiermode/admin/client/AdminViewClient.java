@@ -18,21 +18,26 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * The debug view: one toggle, like F3, that shows everything a playtester wants to see -- a glow
- * outline on bosses, guardians and Ferals, the name tag on bosses and Ferals, and the border rings.
+ * The debug view: one toggle, like F3, that shows everything a playtester wants to see -- a coloured
+ * marker above bosses, guardians and Ferals ({@link AdminViewMarkers}), the name tag on bosses and
+ * Ferals, and the border rings.
  * Entirely client-side and per player: nothing is sent, the server never sets the flags, and normal
  * play always shows none of it. {@code /admin debug view <true|false>}, default off, not persisted.
  *
  * <p>The client already knows which mobs to mark: bosses and guardians through the synced
- * {@link BossMarkers}/{@link GuardianMarkers}, Ferals through their {@code feral} team (scoreboard
- * teams are synced, and the team colours the outline: purple guardians, green Ferals). While on, this
- * sets the glow flag and name-tag visibility on each matching entity's local copy every tick -- the
- * server never resends those values unless they change, and re-applying each tick covers the times it
- * resends the whole flags byte. Turning it off puts back what it touched.
+ * {@link BossMarkers}/{@link GuardianMarkers}, Ferals through their synced {@code feral} team. While
+ * on, each tick this rebuilds the set of marked mobs and their roles (which {@link AdminViewMarkers}
+ * draws) and sets name-tag visibility on each boss's and Feral's local copy -- re-applied each tick in
+ * case the server resends it. Turning it off puts back what it touched.
+ *
+ * <p>No glow: vanilla's outline draws only from a server-synced entity flag that client code can't
+ * set ({@code Entity#setGlowingTag} on the client writes the flag's own current value back), so the
+ * marker replaces it. See FRO_202.
  *
  * <p>Registered on the client command dispatcher, the same shape {@code /border debug rings} used:
  * Forge's client and server command graphs are separate, so this runs locally regardless of the
@@ -43,8 +48,35 @@ public final class AdminViewClient {
 
     private static boolean enabled;
 
-    // Entities this view has marked, weakly held, so turning it off can put them back.
+    /** What a marked mob is there for, and its marker colour (ARGB, fully opaque). */
+    public enum Role {
+        BOSS(0xFFFFAA00, true),
+        GUARDIAN(0xFFFF55FF, false),
+        FERAL(0xFF55FF55, true);
+
+        private final int color;
+        private final boolean tagged;
+
+        Role(int color, boolean tagged) {
+            this.color = color;
+            this.tagged = tagged;
+        }
+
+        public int color() {
+            return color;
+        }
+
+        /** Whether this role also shows its name tag in the view (a guardian carries none). */
+        public boolean tagged() {
+            return tagged;
+        }
+    }
+
+    // Entities this view has shown a name tag on, weakly held, so turning it off can put them back.
     private static final Set<Entity> TOUCHED = Collections.newSetFromMap(new WeakHashMap<>());
+
+    // This tick's marked mobs and their roles, weakly held; rebuilt every tick while on.
+    private static final Map<Mob, Role> MARKED = new WeakHashMap<>();
 
     private AdminViewClient() {
     }
@@ -76,11 +108,16 @@ public final class AdminViewClient {
         WorldBordersRenderer.setVisible(value);
         if (!value) {
             for (Entity entity : TOUCHED) {
-                entity.setGlowingTag(false);
                 entity.setCustomNameVisible(false);
             }
             TOUCHED.clear();
+            MARKED.clear();
         }
+    }
+
+    /** The mobs to mark this frame and their roles; empty while the view is off. */
+    static Map<Mob, Role> marked() {
+        return Collections.unmodifiableMap(MARKED);
     }
 
     /** Called every client tick from {@code AdminViewHandlers}; a no-op while the view is off. */
@@ -88,22 +125,32 @@ public final class AdminViewClient {
         if (!enabled || !(level instanceof ClientLevel clientLevel)) {
             return;
         }
+        MARKED.clear();
         for (Entity entity : clientLevel.entitiesForRendering()) {
             if (!(entity instanceof Mob mob)) {
                 continue;
             }
-            boolean guardian = GuardianMarkers.isGuardian(mob);
-            // A guardian carries no name tag; a boss or a Feral does.
-            boolean tagged = BossMarkers.isLiveBoss(mob) || isFeral(mob);
-            if (!guardian && !tagged) {
+            Role role = roleOf(mob);
+            if (role == null) {
                 continue;
             }
-            mob.setGlowingTag(true);
-            if (tagged) {
+            MARKED.put(mob, role);
+            if (role.tagged()) {
                 mob.setCustomNameVisible(true);
+                TOUCHED.add(mob);
             }
-            TOUCHED.add(mob);
         }
+    }
+
+    // A boss first, then a guardian (a guardian in the Wilds is Feral-tagged too), then a Feral.
+    private static Role roleOf(Mob mob) {
+        if (BossMarkers.isLiveBoss(mob)) {
+            return Role.BOSS;
+        }
+        if (GuardianMarkers.isGuardian(mob)) {
+            return Role.GUARDIAN;
+        }
+        return isFeral(mob) ? Role.FERAL : null;
     }
 
     private static boolean isFeral(Mob mob) {

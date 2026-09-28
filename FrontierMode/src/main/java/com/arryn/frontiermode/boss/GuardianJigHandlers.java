@@ -210,12 +210,10 @@ final class GuardianJigHandlers {
     }
 
     /**
-     * Deletes {@code mobUuid}'s record, its guardian-team membership and its client copy. A no-op
-     * for a mob with no record.
+     * Deletes {@code mobUuid}'s record and its client copy. A no-op for a mob with no record.
      */
     static void deleteGuardian(ServerLevel level, UUID mobUuid) {
         BossAPI.guardiansQuiet(level).flatMap(g -> g.delete(mobUuid)).ifPresent(record -> {
-            BossAPI.bosses(level).ifPresent(boss -> boss.RULES.leaveGuardianTeam(mobUuid, level));
             BossAPI.guardianMarkers(level).ifPresent(pub -> pub.remove(mobUuid));
         });
     }

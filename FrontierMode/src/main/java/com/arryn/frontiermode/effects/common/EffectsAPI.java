@@ -146,9 +146,7 @@ public final class EffectsAPI {
      * convention. Team membership is persistent, server-authoritative entity state (unlike a
      * particle burst or a sound), so it has no client-derived/parity counterpart -- every real
      * caller is this server-broadcast path.
-     *
-     * <p>A team user that keeps records removes a member with {@link #removeFromTeam} when its record
-     * is deleted; a team user with no records leaves its members behind.
+
      */
     public static PlayerTeam ensureTeam(Scoreboard scoreboard, String name, ChatFormatting color) {
         PlayerTeam team = scoreboard.getPlayerTeam(name);
@@ -169,15 +167,5 @@ public final class EffectsAPI {
      */
     public static void assignToTeam(Entity entity, Scoreboard scoreboard, PlayerTeam team) {
         scoreboard.addPlayerToTeam(entity.getScoreboardName(), team);
-    }
-
-    /**
-     * Removes {@code scoreboardName} from {@code team}; a no-op if it isn't a member. The name is
-     * the string {@link #assignToTeam} registered: an entity's UUID for a non-player.
-     */
-    public static void removeFromTeam(Scoreboard scoreboard, String scoreboardName, PlayerTeam team) {
-        if (scoreboard.getPlayersTeam(scoreboardName) == team) {
-            scoreboard.removePlayerFromTeam(scoreboardName, team);
-        }
     }
 }

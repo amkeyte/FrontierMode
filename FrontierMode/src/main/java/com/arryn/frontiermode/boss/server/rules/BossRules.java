@@ -2,14 +2,12 @@ package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Strategy interface for Boss's own two genuinely separate mechanisms -- position and
@@ -230,15 +228,6 @@ public interface BossRules {
 
     /** How far from its parent an extra guardian is placed, in blocks. */
     int guardianAddScatterRadius();
-
-    /**
-     * Puts a converted guardian on the shared guardian team. The team carries color only (what
-     * makes a glowing guardian's outline purple); membership has no visible effect while glow is off.
-     */
-    void joinGuardianTeam(Mob mob, ServerLevel level);
-
-    /** Removes {@code mobUuid} from the guardian team -- called when its record is deleted. */
-    void leaveGuardianTeam(UUID mobUuid, ServerLevel level);
 
     /** Ticks between trail particles per guardian. Reaches the client through the public fixture. */
     int trailIntervalTicks();

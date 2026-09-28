@@ -4,13 +4,11 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.common.BossMobTypes;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -29,13 +27,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
 //import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Default, opinionated implementation of {@link BossRules} -- a safe baseline meant to be
@@ -394,14 +389,7 @@ public final class DefaultBossRules implements BossRules {
     // ------------------------------------------------------------------
 
     // The guardian numbers are Tunable-backed, constructed inside their own accessor methods rather
-    // than cached as fields. GUARDIAN_TEAM_COLOR stays a plain field -- an enum isn't
-    // representable by Tunable's float/int/String shape.
-
-    // Single shared team every guardian joins -- see
-    // wiki/frontiermode/architecture/effects.md#team-assignment-persistent-visual-state. Dark, to
-    // read as distinct from Boss's own unteamed (vanilla white) glow at a glance, especially
-    // underground. Safe baseline; playtest territory.
-    private static final ChatFormatting GUARDIAN_TEAM_COLOR = ChatFormatting.DARK_PURPLE;
+    // than cached as fields.
 
     @Override
     public double guardianPlacementCoefficient() {
@@ -502,23 +490,6 @@ public final class DefaultBossRules implements BossRules {
         return new Tunable("guardianAddScatterRadius", 1, 32, 4).intValue();
     }
 
-    @Override
-    public void joinGuardianTeam(Mob mob, ServerLevel level) {
-        // EffectsAPI.assignToTeam takes the Scoreboard explicitly -- Entity has no getScoreboard().
-        Scoreboard scoreboard = level.getScoreboard();
-        PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, guardianTeamName(), GUARDIAN_TEAM_COLOR);
-        EffectsAPI.assignToTeam(mob, scoreboard, team);
-    }
-
-    @Override
-    public void leaveGuardianTeam(UUID mobUuid, ServerLevel level) {
-        Scoreboard scoreboard = level.getScoreboard();
-        PlayerTeam team = scoreboard.getPlayerTeam(guardianTeamName());
-        if (team != null) {
-            EffectsAPI.removeFromTeam(scoreboard, mobUuid.toString(), team);
-        }
-    }
-
     // The trail's three numbers. Tunables are server-only, so BOSS_JIG's tick copies them into
     // GuardianPublicFixture, the one channel from server to client for guardians.
     @Override
@@ -544,10 +515,6 @@ public final class DefaultBossRules implements BossRules {
         StackData.enchant(ward, Enchantments.BINDING_CURSE, 1);
         mob.setItemSlot(EquipmentSlot.HEAD, ward);
         mob.setDropChance(EquipmentSlot.HEAD, 0.0F);
-    }
-
-    private static String guardianTeamName() {
-        return new Tunable("guardianTeamName", "guardian").stringValue();
     }
 
     @Override

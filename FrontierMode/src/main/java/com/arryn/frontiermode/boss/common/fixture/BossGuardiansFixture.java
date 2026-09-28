@@ -307,17 +307,16 @@ public final class BossGuardiansFixture extends SatchelFixture {
                 boss.RULES.guardianAddScatterRadius(), add.scale, ADD_SCATTER_TRIES);
         MobSpawns.spawn(level, add.type, spot, MobSpawns.Setup.VANILLA, mob -> {
             stage(mob.getUUID(), add.bossId, add.scale);
-            applyConversion(mob, level, boss, add.difficultyIntensity);
+            applyConversion(mob, boss, add.difficultyIntensity);
             mob.refreshDimensions();
         });
     }
 
-    /** Conversion's treatment: stat scaling, the sun ward, the guardian team. */
-    private void applyConversion(Mob mob, ServerLevel level, BossFixture boss, double difficultyIntensity) {
+    /** Conversion's treatment: stat scaling and the sun ward. */
+    private void applyConversion(Mob mob, BossFixture boss, double difficultyIntensity) {
         boss.RULES.applyGuardianStatScaling(mob, difficultyIntensity);
         // Before vanilla's own setup, which only fills empty equipment slots.
         boss.RULES.equipSunWard(mob);
-        boss.RULES.joinGuardianTeam(mob, level);
     }
 
     private static final String PURPOSE_PLACEMENT = "placement";
@@ -414,7 +413,7 @@ public final class BossGuardiansFixture extends SatchelFixture {
         double target = bossFixture.RULES.guardianTargetScale(nearby.boss().layer());
         float size = fitScale(level, mob, target, bossFixture);
 
-        applyConversion(mob, level, bossFixture, difficultyIntensity);
+        applyConversion(mob, bossFixture, difficultyIntensity);
         stage(mob.getUUID(), nearby.boss().bossId(), size);
         if (size != 1.0F) {
             // The mob was built at full size before it was known to be a guardian; the staged

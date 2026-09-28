@@ -1,5 +1,6 @@
 package com.arryn.frontiermode;
 
+import com.arryn.frontiermode.admin.client.AdminViewMarkers;
 import com.arryn.frontiermode.border.client.render.level.GrowthTriggerRenderer;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 
@@ -70,6 +71,8 @@ public class Rendering {
         // Render border rings
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
             bordersRenderer().render(event.getPoseStack());
+            // The debug view's markers (FRO_202); draws nothing while the view is off.
+            AdminViewMarkers.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
         }
     }
 

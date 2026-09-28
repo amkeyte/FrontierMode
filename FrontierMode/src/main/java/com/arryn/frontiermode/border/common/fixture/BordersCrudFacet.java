@@ -77,8 +77,10 @@ public class BordersCrudFacet {
         }
 
         int layerIndex = proposal.layerIndex();
-        if (layerIndex < 1) {
-            String reason = "layer " + layerIndex + " is below 1; layers start at 1.";
+        // Layer 0 is valid for a Border (an admin's special case, FRO_191); path growth still
+        // starts at 1, and a boss record still needs layer 1 or more.
+        if (layerIndex < 0) {
+            String reason = "negative layer " + layerIndex + ".";
             OUT.warn("[Border] Rejected proposal: " + reason);
             return Optional.of(reason);
         }

@@ -200,7 +200,7 @@ public final class BossCommandHandler {
         Optional<BossRecord> recordOpt = fixture.CRUD.create(border.layer(), border.id());
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: could not create a boss record for border "
-                    + border.id() + " (negative layer -- see server log)."));
+                    + border.id() + " (a boss needs layer 1 or more -- see server log)."));
             return 0;
         }
         BossRecord record = recordOpt.get();

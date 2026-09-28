@@ -4,14 +4,12 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * FRO_081: Boss's pluggable-strategy facet, mirroring {@code BordersRulesFacet}'s shape -- wraps
@@ -201,16 +199,6 @@ public final class BossRulesFacet {
     /** See {@link BossRules#guardianAddScatterRadius()}. */
     public int guardianAddScatterRadius() {
         return RULES.guardianAddScatterRadius();
-    }
-
-    /** See {@link BossRules#joinGuardianTeam(Mob, ServerLevel)}. */
-    public void joinGuardianTeam(Mob mob, ServerLevel level) {
-        RULES.joinGuardianTeam(mob, level);
-    }
-
-    /** See {@link BossRules#leaveGuardianTeam(UUID, ServerLevel)}. */
-    public void leaveGuardianTeam(UUID mobUuid, ServerLevel level) {
-        RULES.leaveGuardianTeam(mobUuid, level);
     }
 
     /** See {@link BossRules#trailIntervalTicks()}. */
