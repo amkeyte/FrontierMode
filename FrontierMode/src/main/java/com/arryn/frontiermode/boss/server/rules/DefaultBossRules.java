@@ -23,6 +23,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
@@ -73,6 +74,10 @@ public final class DefaultBossRules implements BossRules {
     // center. A tuning number, not a locked algorithm -- Game Designer/playtest territory once
     // there's a real path shape to tune against.
     private static final double EDGE_BIAS_INNER_FRACTION = 0.6;
+
+    // FRO_197: HurtByTargetGoal's own alert conditions -- vanilla's combat rules, no sight test.
+    private static final TargetingConditions GUARDIAN_ALERT_TARGETING =
+            TargetingConditions.forCombat().ignoreLineOfSight().ignoreInvisibilityTesting();
 
     private final RandomSource rng;
 
@@ -441,6 +446,43 @@ public final class DefaultBossRules implements BossRules {
             mob.setLastHurtByPlayer(credited);
         }
         mob.kill();
+    }
+
+    // FRO_197: guardians defend the boss (guardian-mobs.md § Defending the boss).
+    @Override
+    public int guardianAlertRadius() {
+        return new Tunable("guardianAlertRadius", 4, 64, 24).intValue();
+    }
+
+    @Override
+    public int guardianAlertMemoryTicks() {
+        return new Tunable("guardianAlertMemoryTicks", 20, 1200, 200).intValue();
+    }
+
+    @Override
+    public boolean alertGuardian(Mob guardian, ServerPlayer player) {
+        if (!GUARDIAN_ALERT_TARGETING.test(guardian, player)) {
+            return false;
+        }
+        guardian.setTarget(player);
+        return true;
+    }
+
+    @Override
+    public void releaseGuardian(Mob guardian, ServerPlayer player) {
+        if (guardian.getTarget() != player) {
+            return;
+        }
+        var followRange = guardian.getAttribute(Attributes.FOLLOW_RANGE);
+        double range = followRange == null ? 0.0 : followRange.getValue();
+        // Same level first: after a portal, distance and sight would be measured against the
+        // player's coordinates in the other dimension and can come out true.
+        boolean canSee = player.level() == guardian.level()
+                && guardian.distanceToSqr(player) <= range * range
+                && guardian.getSensing().hasLineOfSight(player);
+        if (!canSee) {
+            guardian.setTarget(null);
+        }
     }
 
     @Override

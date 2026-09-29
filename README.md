@@ -57,9 +57,10 @@ Build Satchel first; FrontierMode compiles against it.
 
 ## License
 
-<!-- TODO: decide and state one license per mod, and add the LICENSE file(s). Satchel's build files
-     say MIT; FrontierMode's mods.toml and gradle.properties currently disagree (see FRO ticket). -->
-See the license declared in each mod's `mods.toml`.
+FrontierMode and Satchel are both released under the [MIT License](LICENSE).
+
+Third-party assets (the sound files) keep their own licenses, listed per file in
+[CREDITS.md](CREDITS.md).
 
 ## Credits
 

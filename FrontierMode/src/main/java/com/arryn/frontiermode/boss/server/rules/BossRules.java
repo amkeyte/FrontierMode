@@ -192,6 +192,31 @@ public interface BossRules {
     void killGuardian(Mob mob, ServerPlayer credited);
 
     /**
+     * Horizontal half-width, in blocks, of the box around a boss whose guardians turn on a player who
+     * hits it. A flat number, not tied to the placement ring. See guardian-mobs.md § Defending the boss.
+     */
+    int guardianAlertRadius();
+
+    /** How long, in ticks, an alerted guardian stays on the player after the last hit on its boss. */
+    int guardianAlertMemoryTicks();
+
+    /**
+     * Turns {@code guardian} on {@code player}, replacing any current target, unless vanilla's combat
+     * targeting rules exclude the player (creative, spectator, allied). No line-of-sight check.
+     *
+     * @return true if the guardian now targets {@code player}
+     */
+    boolean alertGuardian(Mob guardian, ServerPlayer player);
+
+    /**
+     * An alert on {@code guardian} lapsed: clears its target if it is still {@code player} and the
+     * guardian can't see them within its own follow range -- which a player in another level never
+     * is. One that can see them keeps the target,
+     * and vanilla's own targeting and forgiveness take over; any other target is left alone.
+     */
+    void releaseGuardian(Mob guardian, ServerPlayer player);
+
+    /**
      * Removes {@code mob} with vanilla's death puff and nothing else: no drops, no XP, no death event.
      * For a doomed guardian that loaded after its boss was defeated, and for a boss whose defeat was
      * forced ({@code /boss defeat}) or that is found alive after its record was defeated.

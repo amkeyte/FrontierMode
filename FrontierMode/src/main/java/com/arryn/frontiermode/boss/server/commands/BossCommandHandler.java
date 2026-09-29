@@ -12,6 +12,7 @@ import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.util.Ids;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -280,7 +281,7 @@ public final class BossCommandHandler {
         // DefeatOutcome's own doc for why there's no real grow() outcome to report here).
         if (outcome.growthGated()) {
             ctx.getSource().sendSuccess(
-                    () -> msg("Boss " + id + " force-defeated. " + result.message()),
+                    () -> msg("Boss " + Ids.shortId(id) + " force-defeated. " + result.message()),
                     false
             );
             return 1;
@@ -288,7 +289,7 @@ public final class BossCommandHandler {
 
         if (!result.isSuccess()) {
             ctx.getSource().sendFailure(
-                    msg("Failed to force-defeat boss " + id + ": " + result.message())
+                    msg("Failed to force-defeat boss " + Ids.shortId(id) + ": " + result.message())
             );
             return 0;
         }
@@ -298,11 +299,11 @@ public final class BossCommandHandler {
         // carries the real BossRecord (or is honestly empty if createBoss itself couldn't
         // resolve a fixture for it -- see BossAPI.forceDefeat's own warn log for that case).
         String nextBossText = outcome.nextBoss()
-                .map(r -> r.bossId().toString())
+                .map(r -> Ids.shortId(r.bossId()))
                 .orElse("(none -- see server log)");
 
         ctx.getSource().sendSuccess(
-                () -> msg("Boss " + id + " defeated -- border " + result.border().id()
+                () -> msg("Boss " + Ids.shortId(id) + " defeated -- border " + Ids.shortId(result.border().id())
                         + " grown, next boss " + nextBossText + " queued."),
                 false
         );

@@ -161,6 +161,26 @@ public final class BossRulesFacet {
         RULES.killGuardian(mob, credited);
     }
 
+    /** See {@link BossRules#guardianAlertRadius()}. */
+    public int guardianAlertRadius() {
+        return RULES.guardianAlertRadius();
+    }
+
+    /** See {@link BossRules#guardianAlertMemoryTicks()}. */
+    public int guardianAlertMemoryTicks() {
+        return RULES.guardianAlertMemoryTicks();
+    }
+
+    /** See {@link BossRules#alertGuardian(Mob, ServerPlayer)}. */
+    public boolean alertGuardian(Mob guardian, ServerPlayer player) {
+        return RULES.alertGuardian(guardian, player);
+    }
+
+    /** See {@link BossRules#releaseGuardian(Mob, ServerPlayer)}. */
+    public void releaseGuardian(Mob guardian, ServerPlayer player) {
+        RULES.releaseGuardian(guardian, player);
+    }
+
     /** See {@link BossRules#dismiss(Mob)}. */
     public void dismiss(Mob mob) {
         RULES.dismiss(mob);

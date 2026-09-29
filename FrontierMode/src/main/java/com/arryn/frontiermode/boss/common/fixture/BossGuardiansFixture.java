@@ -21,6 +21,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,6 +92,16 @@ public final class BossGuardiansFixture extends SatchelFixture {
 
     // Transient: doomed on the record is what survives a restart or an unload before a guardian's turn.
     private final Deque<PendingKill> pendingKills = new ArrayDeque<>();
+
+    /** A guardian turned on {@code playerUuid} by a hit on its boss, held until game time {@code alertedUntil}. */
+    private record Alert(UUID playerUuid, long alertedUntil) {
+    }
+
+    // Transient, never persisted -- vanilla doesn't save a mob's target either. Guardian UUID -> its alert.
+    private final Map<UUID, Alert> alerts = new HashMap<>();
+
+    // Vertical half-height of the alert box: HurtByTargetGoal.alertOthers's own.
+    private static final double ALERT_HEIGHT = 10.0;
 
     // Candidate spots MobSpawns.scatter tries for one extra guardian.
     private static final int ADD_SCATTER_TRIES = 4;
@@ -200,6 +212,80 @@ public final class BossGuardiansFixture extends SatchelFixture {
         }
         if (changed) {
             markDirty();
+        }
+    }
+
+    // ── defending the boss ───────────────────────────────────────────────────
+
+    /**
+     * {@code player} just hit the boss {@code bossId} (entity {@code boss}): its non-doomed guardians
+     * in a box around it turn on the player, and each one's alert window opens or is pushed out to
+     * {@code guardianAlertMemoryTicks} from now. Guardians of any other boss don't join in. See
+     * guardian-mobs.md § Defending the boss.
+     */
+    public void alertGuardiansOf(UUID bossId, Mob boss, ServerPlayer player) {
+        BossBundle bundle = getBundle();
+        Optional<BossFixture> bossOpt = bundle.boss();
+        if (bossOpt.isEmpty()) {
+            return;
+        }
+        BossFixture bossFixture = bossOpt.get();
+        ServerLevel level = (ServerLevel) bundle.level();
+        double radius = bossFixture.RULES.guardianAlertRadius();
+        long alertedUntil = level.getGameTime() + bossFixture.RULES.guardianAlertMemoryTicks();
+        AABB box = AABB.unitCubeFromLowerCorner(boss.position()).inflate(radius, ALERT_HEIGHT, radius);
+
+        for (Mob mob : level.getEntitiesOfClass(Mob.class, box)) {
+            GuardianRecord r = records.get(mob.getUUID());
+            if (r == null || r.doomed || !r.bossId.equals(bossId)) {
+                continue;
+            }
+            if (bossFixture.RULES.alertGuardian(mob, player)) {
+                alerts.put(mob.getUUID(), new Alert(player.getUUID(), alertedUntil));
+            }
+        }
+    }
+
+    /**
+     * Retires lapsed alerts. A guardian whose window has run out is let go through
+     * {@code BossRules#releaseGuardian}, which keeps it on the player only if it can see them. An
+     * entry whose guardian is gone, unloaded, doomed, or no longer a guardian, or whose player has
+     * logged out, is simply dropped.
+     */
+    public void releaseLapsedAlerts(ServerLevel level) {
+        if (alerts.isEmpty()) {
+            return;
+        }
+        BossBundle bundle = getBundle();
+        Optional<BossFixture> bossOpt = bundle.boss();
+        if (bossOpt.isEmpty()) {
+            return;
+        }
+        BossFixture boss = bossOpt.get();
+        long now = level.getGameTime();
+
+        Iterator<Map.Entry<UUID, Alert>> it = alerts.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Alert> entry = it.next();
+            GuardianRecord r = records.get(entry.getKey());
+            Optional<Entity> entity = Satchel.require().egress().getEntity(level, entry.getKey());
+            if (r == null || r.doomed || entity.isEmpty() || !(entity.get() instanceof Mob guardian)
+                    || !guardian.isAlive()) {
+                it.remove();
+                continue;
+            }
+            Alert alert = entry.getValue();
+            if (now < alert.alertedUntil) {
+                continue;
+            }
+            it.remove();
+            // Server-wide, not this level: a player who took a portal is revived as the same object in
+            // another level, still alive, so the guardian keeps chasing unless released. Only a player
+            // who logged out (null) needs no call -- vanilla drops a removed target itself.
+            ServerPlayer player = level.getServer().getPlayerList().getPlayer(alert.playerUuid);
+            if (player != null) {
+                boss.RULES.releaseGuardian(guardian, player);
+            }
         }
     }
 

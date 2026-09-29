@@ -50,6 +50,10 @@ public final class BossMobFixture extends SatchelFixture {
     // Viewing player -> game time they last held the boss's kill credit.
     private final Map<UUID, Long> barViewers = new HashMap<>();
 
+    // The boss's last-hurt timestamp as last seen, so each hit is noticed once (guardian-mobs.md §
+    // Defending the boss). Seeded at attach, so a hit from before it never counts.
+    private int lastSeenHurtTimestamp;
+
     public BossMobFixture() {
     }
 
@@ -58,8 +62,9 @@ public final class BossMobFixture extends SatchelFixture {
      * present and this fixture is created for it (see {@code BossModule}'s
      * {@code ScopeEvent.Loaded} handler on {@code BOSS_MOB_JIG}).
      */
-    public void attachTo(UUID bossId) {
+    public void attachTo(UUID bossId, Mob boss) {
         this.bossId = bossId;
+        this.lastSeenHurtTimestamp = boss.getLastHurtByMobTimestamp();
     }
 
     public UUID bossId() {
@@ -108,6 +113,20 @@ public final class BossMobFixture extends SatchelFixture {
         if (healthBar != null) {
             healthBar.setProgress(boss.getHealth() / boss.getMaxHealth());
         }
+    }
+
+    /**
+     * The player credited with a new hit on {@code boss} since this fixture last looked -- their hit,
+     * projectile, or tamed pet, the same credit the health bar reads -- or empty. Answers once per
+     * hit, not once per tick.
+     */
+    public Optional<ServerPlayer> takeNewPlayerHit(Mob boss) {
+        int stamp = boss.getLastHurtByMobTimestamp();
+        if (stamp == lastSeenHurtTimestamp) {
+            return Optional.empty();
+        }
+        lastSeenHurtTimestamp = stamp;
+        return boss.getKillCredit() instanceof ServerPlayer credited ? Optional.of(credited) : Optional.empty();
     }
 
     private void hideHealthBar() {

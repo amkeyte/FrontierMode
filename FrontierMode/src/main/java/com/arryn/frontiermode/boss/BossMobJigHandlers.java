@@ -54,7 +54,7 @@ final class BossMobJigHandlers {
         var jig = (MobJig) info.jigInfo().jig;
         BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
         BossMobFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new);
-        fixture.attachTo(recordOpt.get().bossId());
+        fixture.attachTo(recordOpt.get().bossId(), mob);
 
         // FRO_145: publish "this entity is a boss" to clients -- no position, just the id pair.
         // FRO_148: plus its size multiplier, computed once from the record's layer. The entity was

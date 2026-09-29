@@ -462,7 +462,7 @@ public final class BossAPI {
         Optional<BossRecord> recordOpt = fixture.CRUD.get(bossId);
         if (recordOpt.isEmpty()) {
             return new DefeatOutcome(
-                    Result.notFound("No boss record for id " + bossId), Optional.empty(), false);
+                    Result.notFound("No boss record for id " + Ids.shortId(bossId)), Optional.empty(), false);
         }
         BossRecord record = recordOpt.get();
 
@@ -472,7 +472,7 @@ public final class BossAPI {
         // rejected call leaves the record untouched rather than defeated with no border grown.
         if (!record.positioned()) {
             return new DefeatOutcome(
-                    Result.validationRejected("Boss " + bossId
+                    Result.validationRejected("Boss " + Ids.shortId(bossId)
                             + " has no finalized position yet (home border still pregenerating)"
                             + " -- cannot force-defeat."),
                     Optional.empty(), false);
@@ -488,7 +488,7 @@ public final class BossAPI {
         // BossFixture.markDefeated() call this always made.
         if (!fixture.CRUD.markDefeated(bossId)) {
             return new DefeatOutcome(
-                    Result.validationRejected("Boss " + bossId + " is already defeated."),
+                    Result.validationRejected("Boss " + Ids.shortId(bossId) + " is already defeated."),
                     Optional.empty(), false);
         }
 
@@ -517,7 +517,7 @@ public final class BossAPI {
         // committed either way; only the grow/createBoss cascade is gated here.
         if (record.borderId().isEmpty()) {
             return new DefeatOutcome(
-                    Result.validationRejected("Boss " + bossId + " was never on-path (borderId"
+                    Result.validationRejected("Boss " + Ids.shortId(bossId) + " was never on-path (borderId"
                             + " empty, e.g. a hand-placed /boss add) -- force-defeated, but no"
                             + " border growth to trigger."),
                     Optional.empty(), true);
@@ -525,8 +525,8 @@ public final class BossAPI {
         UUID borderId = record.borderId().get();
         if (fixture.INFO.anyAliveWithBorderId(borderId)) {
             return new DefeatOutcome(
-                    Result.validationRejected("Boss " + bossId + " force-defeated, but another"
-                            + " boss on border " + borderId + " is still alive -- border growth"
+                    Result.validationRejected("Boss " + Ids.shortId(bossId) + " force-defeated, but another"
+                            + " boss on border " + Ids.shortId(borderId) + " is still alive -- border growth"
                             + " withheld until every boss on this border falls."),
                     Optional.empty(), true);
         }

@@ -1,7 +1,7 @@
 # Forge mods.toml for Frontier Mode
 modLoader="javafml"
 loaderVersion="[47,)"
-license="All Rights Reserved"
+license="${mod_license}"
 
 [[mods]]
 modId="frontiermode"
