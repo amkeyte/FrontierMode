@@ -31,7 +31,8 @@ import java.util.UUID;
  * {@code satchel} namespace is Satchel's own and can't be written here.
  *
  * <p>
- * <b>Vanilla-owned state</b> changes only through named methods -- today {@link #scaleMaxHealth}.
+ * <b>Vanilla-owned state</b> changes only through named methods -- today {@link #scaleMaxHealth} and
+ * {@link #setFollowRange}.
  * Each records what it did under Satchel's namespace, so a conversion can re-apply it to the new
  * mob (vanilla's conversion copies no attributes).
  *
@@ -44,6 +45,7 @@ public final class MobData {
     /** Satchel's own namespace: the stat changes it has made, for re-application on conversion. */
     private static final String STATS_KEY = new ResourceLocation(SatchelMod.MODID, "stats").toString();
     private static final String MAX_HEALTH = "max_health";
+    private static final String FOLLOW_RANGE = "follow_range";
 
     private MobData() {
     }
@@ -156,6 +158,51 @@ public final class MobData {
         return scales.contains(k, Tag.TAG_DOUBLE) ? OptionalDouble.of(scales.getDouble(k)) : OptionalDouble.empty();
     }
 
+    /**
+     * Sets {@code mob}'s follow range -- how far it notices and pursues a target -- to {@code blocks},
+     * as a vanilla attribute modifier owned by {@code key} (SAT_096). The modifier adds
+     * {@code blocks} minus the mob's base follow range, so the result is {@code blocks} whatever the
+     * base is (and can be lower than the base). One modifier per key: setting it again replaces it,
+     * never stacks. Vanilla saves the modifier with the mob; a conversion re-applies the same target
+     * against the new mob's own base.
+     *
+     * @throws IllegalArgumentException if {@code blocks} isn't a positive, finite number
+     */
+    public static void setFollowRange(Mob mob, ResourceLocation key, double blocks) {
+        Objects.requireNonNull(mob, "mob");
+        Objects.requireNonNull(key, "key");
+        if (!(blocks > 0) || !Double.isFinite(blocks)) {
+            throw new IllegalArgumentException("follow range must be positive and finite, was " + blocks);
+        }
+        MobDataStore store = require(mob);
+        AttributeInstance followRange = Objects.requireNonNull(mob.getAttribute(Attributes.FOLLOW_RANGE), "follow range");
+
+        UUID id = modifierId(FOLLOW_RANGE, key);
+        followRange.removeModifier(id);
+        double delta = blocks - followRange.getBaseValue();
+        if (delta != 0.0) {
+            followRange.addPermanentModifier(new AttributeModifier(id, "satchel:" + key, delta,
+                    AttributeModifier.Operation.ADDITION));
+        }
+
+        CompoundTag stats = store.read(STATS_KEY);
+        CompoundTag targets = stats.getCompound(FOLLOW_RANGE);
+        targets.putDouble(key.toString(), blocks);
+        stats.put(FOLLOW_RANGE, targets);
+        store.write(STATS_KEY, stats);
+    }
+
+    /** The follow range {@code key} last set on {@code mob}, or empty. */
+    public static OptionalDouble followRangeTarget(Mob mob, ResourceLocation key) {
+        Objects.requireNonNull(mob, "mob");
+        Objects.requireNonNull(key, "key");
+        CompoundTag targets = MobDataStore.of(mob)
+                .map(s -> s.read(STATS_KEY).getCompound(FOLLOW_RANGE))
+                .orElseGet(CompoundTag::new);
+        String k = key.toString();
+        return targets.contains(k, Tag.TAG_DOUBLE) ? OptionalDouble.of(targets.getDouble(k)) : OptionalDouble.empty();
+    }
+
     /* =============================================================
      * Satchel-internal -- called by ServerMobDataIngress
      * ========================================================== */
@@ -185,6 +232,11 @@ public final class MobData {
         for (String key : scales.getAllKeys()) {
             ResourceLocation id = ResourceLocation.tryParse(key);
             if (id != null) scaleMaxHealth(to, id, scales.getDouble(key));
+        }
+        CompoundTag ranges = data.getCompound(STATS_KEY).getCompound(FOLLOW_RANGE);
+        for (String key : ranges.getAllKeys()) {
+            ResourceLocation id = ResourceLocation.tryParse(key);
+            if (id != null) setFollowRange(to, id, ranges.getDouble(key));
         }
     }
 
@@ -222,6 +274,10 @@ public final class MobData {
             throw new IllegalArgumentException("MobData: the '" + SatchelMod.MODID + "' namespace is Satchel's own");
         }
         return namespace.toString();
+    }
+
+    private static UUID modifierId(String attribute, ResourceLocation key) {
+        return UUID.nameUUIDFromBytes(("satchel:" + attribute + "/" + key).getBytes(StandardCharsets.UTF_8));
     }
 
     private static UUID modifierId(ResourceLocation key) {
