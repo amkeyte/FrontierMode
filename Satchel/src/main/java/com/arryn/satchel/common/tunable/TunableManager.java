@@ -1,11 +1,6 @@
 package com.arryn.satchel.common.tunable;
 
-import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.event.server.ServerStartingEvent;
-import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.BufferedReader;
@@ -26,25 +21,28 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Registry + persistence for {@link Tunable}. Touches Forge's server-lifecycle events directly
- * rather than routing through {@code ServerForgeIngress} -- a deliberate, named exception to
- * Satchel's ingress discipline (see the Forge Integration & Sidedness Contract), same category as
- * Feral's own six direct hooks or {@code Rendering.onRenderLevel}.
+ * Registry + persistence for {@link Tunable}. Touches no Forge event itself (SAT_093): {@link
+ * #load} runs from Satchel's common setup -- once per game, before any world exists, so a {@code
+ * Tunable} read during world creation sees the CSV -- and again from {@code ServerForgeIngress}
+ * just before each server starts, so a CSV edited between two worlds of one game isn't overwritten;
+ * {@code ServerForgeIngress} calls {@link #save} as each server stops. The file is instance-wide
+ * ({@code config/}), not per world.
  *
  * <p>
  * Single global registry, not side-scoped like {@code LogicalFoundation} -- balance numbers have
- * no legitimate client-side value, and this only ever runs on the main server tick thread (same
- * assumption the rest of Satchel's gameplay-facing code already makes), so a plain, unsynchronized
- * {@link LinkedHashMap} is deliberate, not an oversight.
+ * no legitimate client-side value. A plain, unsynchronized {@link LinkedHashMap}, deliberately: the
+ * first load runs on the main thread during common setup, before any server thread exists, and
+ * everything after it runs on the server thread (the same assumption the rest of Satchel's
+ * gameplay-facing code makes).
  *
  * <p>
- * <b>The running registry is the truth (SAT_090).</b> Values load at {@link ServerStartingEvent}
- * and the whole registry is written back at {@link ServerStoppingEvent}; in between, the {@code
+ * <b>The running registry is the truth (SAT_090).</b> Values load as above and the whole registry
+ * is written back as each server stops; in between, the {@code
  * /satchel tunables} commands change it: {@link #tune} sets one value, {@link #reset} returns one
  * row or one class's rows to their defaults, {@link #reload} replaces values (all, one row, or one
  * class's rows) from the live file, and {@link #write} saves it without stopping. A change is seen by the next {@link Tunable} construction -- every consumer
  * constructs fresh at each read -- and never by a value already consumed. Mid-session, a bad value
- * or file row is refused and nothing changes; only server start treats a bad row as a crash.
+ * or file row is refused and nothing changes; only {@link #load} treats a bad row as a crash.
  *
  * <p>
  * <b>Seed + live file (SAT_082).</b> Two files share one name, {@value #FILE_NAME}. The
@@ -58,12 +56,8 @@ import java.util.TreeSet;
  * shipped} is then set to the seed's value.
  *
  * <p>
- * Producers: {@code SAT_074}, {@code SAT_082}, {@code SAT_090}.
+ * Producers: {@code SAT_074}, {@code SAT_082}, {@code SAT_090}, {@code SAT_093}.
  */
-@Mod.EventBusSubscriber(
-        modid = SatchelMod.MODID,
-        bus = Mod.EventBusSubscriber.Bus.FORGE
-)
 public final class TunableManager {
 
     private static final String FILE_NAME = "satchel-tunables.csv";
@@ -133,11 +127,16 @@ public final class TunableManager {
     }
 
     /* =============================================================
-     * Load — ServerStartingEvent
+     * Load -- common setup, and before each server starts
      * ========================================================== */
 
-    @SubscribeEvent
-    public static void onServerStarting(ServerStartingEvent e) {
+    /**
+     * Reads the seed and the live file into a fresh registry, merging per the rule above, and
+     * writes the live file at once if there wasn't one. A bad row throws, naming its line -- at
+     * common setup that is a mod-loading error. Nothing is lost by re-reading before a server
+     * starts: the previous server's stop already wrote the registry.
+     */
+    public static void load() {
         REGISTRY.clear();
         UNSAVED.clear();
         CONSTRUCTED.clear();
@@ -450,11 +449,12 @@ public final class TunableManager {
     }
 
     /* =============================================================
-     * Write — ServerStoppingEvent
+     * Write -- as each server stops
      * ========================================================== */
 
-    @SubscribeEvent
-    public static void onServerStopping(ServerStoppingEvent e) {
+    /** Writes the whole registry back to the live file. */
+    public static void save() {
+        if (csvPath == null) return;
         writeLive();
     }
 

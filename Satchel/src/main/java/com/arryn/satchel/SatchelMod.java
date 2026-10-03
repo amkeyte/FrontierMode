@@ -3,10 +3,14 @@ package com.arryn.satchel;
 import com.arryn.satchel.common.config.SatchelConfig;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.tracking.SatchelHealth;
+import com.arryn.satchel.common.tunable.TunableManager;
+import com.arryn.satchel.common.util.MobDataStore;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.commands.MobTrackCommands;
 import com.arryn.satchel.server.commands.TunableCommands;
+import com.arryn.satchel.server.commands.TuningTableCommands;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
@@ -36,12 +40,19 @@ public class SatchelMod {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         modBus.addListener(this::commonSetup);
 
+        // SAT_094: MobData's container, the satchel:mob_data capability. Registration phase only;
+        // ServerMobDataIngress attaches it.
+        modBus.addListener(SatchelMod::registerCapabilities);
+
         // /satchel mobtrack -- the in-game surface for exercising SatchelHealth's own
         // watch/unwatch/getFor without needing code access or a debugger.
         MinecraftForge.EVENT_BUS.addListener(MobTrackCommands::onRegisterCommands);
 
         // /satchel tunables -- tune, reload, and save Tunables without a restart (SAT_090).
         MinecraftForge.EVENT_BUS.addListener(TunableCommands::onRegisterCommands);
+
+        // /satchel tables -- list and reload TuningTables without a restart (SAT_092).
+        MinecraftForge.EVENT_BUS.addListener(TuningTableCommands::onRegisterCommands);
     }
 
     // ------------------------------------------------------------
@@ -49,6 +60,10 @@ public class SatchelMod {
     // here onward. ModLoadingContext.get().registerConfig(...) above only registers the spec;
     // it doesn't load the actual TOML file synchronously in the constructor.
     // ------------------------------------------------------------
+    private static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        event.register(MobDataStore.class);
+    }
+
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             // SAT_039/SAT_040/SAT_060 -- SatchelHealth is the single registration point for
@@ -60,6 +75,12 @@ public class SatchelMod {
             // doc for the full mechanism, and for why the MobJig half is expected to crash
             // loudly on a real connected client until RM_SAT_022 ("Roger") lands.
             SatchelHealth.init();
+
+            // SAT_093: Tunables load once per game, here -- before any world exists, so a Tunable
+            // read during world creation (the new-world spawn search) sees the CSV, and a bad row
+            // is a mod-loading error. ServerForgeIngress re-reads them before each server starts
+            // and saves them as it stops.
+            TunableManager.load();
         });
     }
 }

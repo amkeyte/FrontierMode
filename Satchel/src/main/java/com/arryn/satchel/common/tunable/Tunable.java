@@ -6,7 +6,8 @@ import java.lang.StackWalker.StackFrame;
  * A dev-only balance-tuning value -- not a long-lived object to hold onto. Construct one fresh
  * wherever you need the current value (a cheap map lookup underneath); self-registers with {@link
  * TunableManager} at construction, backed by a CSV a developer hand-edits and diffs across saves
- * (loaded once at server start, written once at server stop -- no hot-reload, on purpose).
+ * (loaded at game start and before each server, written as each server stops, and changed at
+ * runtime only through the {@code /satchel tunables} commands -- see {@link TunableManager}).
  *
  * <p>
  * <b>Convention, not enforced here:</b> a {@code Tunable} should be constructed inside a module's

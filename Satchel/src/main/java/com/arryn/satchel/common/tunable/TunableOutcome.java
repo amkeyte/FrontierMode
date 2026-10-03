@@ -3,16 +3,17 @@ package com.arryn.satchel.common.tunable;
 import java.util.Objects;
 
 /**
- * The result of a runtime {@link TunableManager} operation -- {@code tune}, {@code reload},
- * {@code write}, or a lookup -- for the caller (the {@code /satchel tunables} commands) to switch
- * on. Every non-{@link Kind#OK} outcome means nothing changed.
+ * The result of a runtime {@link TunableManager} or {@link TuningTables} operation -- {@code tune},
+ * {@code reset}, {@code reload}, {@code write}, or a lookup -- for the caller (the {@code /satchel
+ * tunables} and {@code /satchel tables} commands) to switch on. Every non-{@link Kind#OK} outcome
+ * means nothing changed.
  */
 public final class TunableOutcome {
 
     public enum Kind {
         /** The operation applied (or, for a lookup, found the row). */
         OK,
-        /** No row with that name is registered. */
+        /** No row (or tuning table) with that name is registered. */
         UNKNOWN_NAME,
         /** A reload named a row (or class) the live file doesn't hold. */
         NOT_IN_FILE,
@@ -36,6 +37,10 @@ public final class TunableOutcome {
 
     static TunableOutcome unknownName(String name) {
         return new TunableOutcome(Kind.UNKNOWN_NAME, "No tunable '" + name + "' is registered.");
+    }
+
+    static TunableOutcome unknownTable(String id) {
+        return new TunableOutcome(Kind.UNKNOWN_NAME, "No tuning table '" + id + "' is declared.");
     }
 
     static TunableOutcome notInFile(String message) {

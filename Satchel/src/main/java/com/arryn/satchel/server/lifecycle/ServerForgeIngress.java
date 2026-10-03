@@ -5,10 +5,15 @@ import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
+import com.arryn.satchel.common.lifecycle.AnimalTameSignal;
 import com.arryn.satchel.common.lifecycle.BlockBreakSignal;
+import com.arryn.satchel.common.lifecycle.CreateWorldSpawnSignal;
 import com.arryn.satchel.common.lifecycle.ItemPickupSignal;
+import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
+import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
+import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.PlayerAttackSignal;
@@ -16,23 +21,31 @@ import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
 import com.arryn.satchel.common.tracking.SatchelHealth;
+import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
+import net.minecraftforge.event.entity.living.AnimalTameEvent;
+import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -56,6 +69,10 @@ import java.util.UUID;
  *   <li>Post {@link PlayerAttackSignal} before a player's attack applies (SAT_087)</li>
  *   <li>Post {@link MobRemoved}, with the removal reason, when a mob something is interested
  *   in leaves its level (SAT_084)</li>
+ *   <li>Post {@link CreateWorldSpawnSignal} when a new world picks its spawn (SAT_093)</li>
+ *   <li>Post {@link LivingHurtSignal}/{@link LivingDamageSignal}/{@link LivingChangeTargetSignal}/
+ *   {@link AnimalTameSignal} for hits, damage, target changes, and taming (SAT_094)</li>
+ *   <li>Re-read Tunables before each server starts, and save them as it stops (SAT_093)</li>
  * </ul>
  *
  * <p>
@@ -91,6 +108,26 @@ public final class ServerForgeIngress {
         BOOTER.bindFoundation();
         ensureInstalled();
 
+    }
+
+    /* =============================================================
+     * Tunables -- re-read before each server, saved as it stops (SAT_093)
+     * ========================================================== */
+
+    /**
+     * Re-reads Tunables before this server creates any level. The first load happens at Satchel's
+     * common setup; this one picks up a CSV edited between two worlds of the same game, which
+     * would otherwise be overwritten when this server stops. Nothing unsaved is lost: the previous
+     * server's stop already wrote the registry.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onServerAboutToStart(ServerAboutToStartEvent e) {
+        TunableManager.load();
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent e) {
+        TunableManager.save();
     }
 
     /* =============================================================
@@ -139,6 +176,44 @@ public final class ServerForgeIngress {
         // name (same deterministic scope UUID) found the old scope's state still resident and
         // reused it instead of starting fresh.
         foundation.tryRemoveSource(level);
+    }
+
+    /* =============================================================
+     * New-world spawn — CreateWorldSpawnSignal (SAT_093)
+     * ========================================================== */
+
+    /**
+     * Posts {@link CreateWorldSpawnSignal} when a brand-new world's overworld picks its spawn --
+     * once per world, inside {@code MinecraftServer.createLevels}, right after the overworld's
+     * {@code LevelEvent.Load} (so {@link #onFirstLevelLoad}/{@link #onLevelDiscover} have already
+     * bound and installed the foundation on this thread). Binds anyway, since this is the earliest
+     * point any signal fires. See the signal's class doc for what a subscriber may touch.
+     *
+     * <p>
+     * A subscriber that cancels takes over the spawn choice; one that cancels without moving the
+     * spawn leaves it at the level data's default, which is almost certainly a bug, so that case
+     * logs a warning.
+     */
+    @SubscribeEvent
+    public static void onCreateWorldSpawn(LevelEvent.CreateSpawnPosition e) {
+        if (!(e.getLevel() instanceof ServerLevel level)) return;
+
+        BOOTER.bindFoundation();
+        if (!Satchel.isReady()) {
+            OUT.debug("[CreateWorldSpawnSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+
+        ServerLevelData data = e.getSettings();
+        int x = data.getXSpawn(), y = data.getYSpawn(), z = data.getZSpawn();
+        boolean bonusChest = level.getServer().getWorldData().worldGenOptions().generateBonusChest();
+
+        Satchel.require().eventBus().post(new CreateWorldSpawnSignal(level, e, bonusChest));
+
+        if (e.isCanceled() && data.getXSpawn() == x && data.getYSpawn() == y && data.getZSpawn() == z) {
+            OUT.warn("[CreateWorldSpawnSignal] a subscriber canceled vanilla's spawn choice but never set one"
+                    + " -- the world spawn stays at " + x + ", " + y + ", " + z + ".");
+        }
     }
 
     /* =============================================================
@@ -422,7 +497,54 @@ public final class ServerForgeIngress {
         Satchel.require().eventBus().post(new LivingExperienceDropSignal(e));
     }
 
-    /* =================================ss============================
+    /* =============================================================
+     * Combat signals (SAT_094)
+     * ========================================================== */
+
+    /**
+     * Posts {@link LivingHurtSignal} before armor applies -- the place modules scale a hit. No
+     * client guard: {@code LivingEntity#hurt} returns before this event on the client.
+     */
+    @SubscribeEvent
+    public static void onLivingHurt(LivingHurtEvent e) {
+        if (!Satchel.isReady()) return;
+        Satchel.require().eventBus().post(new LivingHurtSignal(e));
+    }
+
+    /**
+     * Posts {@link LivingDamageSignal} just before health comes off -- the place modules tally
+     * damage. Lowest priority, so another mod's change to the amount is already in. Server-only,
+     * like {@link #onLivingHurt}.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onLivingDamage(LivingDamageEvent e) {
+        if (!Satchel.isReady()) return;
+        Satchel.require().eventBus().post(new LivingDamageSignal(e));
+    }
+
+    /**
+     * Posts {@link LivingChangeTargetSignal}. Mob AI targets server-side; the client guard is cheap
+     * insurance against any client-side {@code setTarget} call.
+     */
+    @SubscribeEvent
+    public static void onLivingChangeTarget(LivingChangeTargetEvent e) {
+        if (e.getEntity().level().isClientSide()) return;
+        if (!Satchel.isReady()) return;
+        Satchel.require().eventBus().post(new LivingChangeTargetSignal(e));
+    }
+
+    /** Posts {@link AnimalTameSignal}. Taming is server-side; the guard is cheap insurance. */
+    @SubscribeEvent
+    public static void onAnimalTame(AnimalTameEvent e) {
+        if (e.getEntity().level().isClientSide()) return;
+        if (!Satchel.isReady()) {
+            OUT.debug("[AnimalTameSignal] gate: Satchel not ready -- skipping");
+            return;
+        }
+        Satchel.require().eventBus().post(new AnimalTameSignal(e));
+    }
+
+    /* =============================================================
      * Execution pulse
      * ========================================================== */
 
