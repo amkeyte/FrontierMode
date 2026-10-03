@@ -5,6 +5,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
+import com.arryn.satchel.common.lifecycle.AnimalTameSignal;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
@@ -32,6 +33,7 @@ public final class DifficultyModule {
                 EventHandlers.builder()
                         .on(EntityJoinLevelSignal.class, DifficultyHandlers::onEntityJoinLevel)
                         .on(LivingHurtSignal.class, DifficultyHandlers::onLivingHurt)
+                        .on(AnimalTameSignal.class, DifficultyHandlers::onAnimalTame)
                         .build();
 
         // Exists purely to get a signal subscription point: no bundle or fixture, and no tick

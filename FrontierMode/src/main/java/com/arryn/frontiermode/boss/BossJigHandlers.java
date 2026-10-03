@@ -183,7 +183,7 @@ final class BossJigHandlers {
         // FRO_160: only a player's defeat advances the loop. Evaluated once, before markDefeated,
         // so a non-player death never marks the record defeated -- see boss.md's "Player credit
         // and non-player death".
-        ServerPlayer credited = creditedPlayer(mob);
+        ServerPlayer credited = creditedPlayer(fixture, mob);
         if (credited == null) {
             onNonPlayerDeath(fixture, bossId.get(), mob);
             return;
@@ -262,8 +262,25 @@ final class BossJigHandlers {
      * remaining-time counter is protected, so a different window would need bespoke damage
      * tracking, which per boss.md arrives as a Satchel signal.
      */
-    private static ServerPlayer creditedPlayer(Mob mob) {
-        return mob.getKillCredit() instanceof ServerPlayer player ? player : null;
+    private static ServerPlayer creditedPlayer(BossFixture fixture, Mob mob) {
+        if (!(mob.getKillCredit() instanceof ServerPlayer player)) {
+            return null;
+        }
+        // FRO_215: and the players' own damage must add up to keeperPlayerShare of its maximum health;
+        // allies, a raid, lava or another mob can finish a Keeper but not carry the fight. Counted
+        // against maximum health, so a Keeper that healed simply needs more hits. If the tally is
+        // somehow missing the credit stands rather than breaking the core loop.
+        double share = fixture.RULES.keeperPlayerShare();
+        boolean enough = BossMobFixture.of(mob)
+                .map(f -> f.playerDamage() >= share * mob.getMaxHealth())
+                .orElse(true);
+        if (!enough) {
+            OUT.info("[Boss] onMobDied: boss at " + mob.blockPosition()
+                    + " died with a player credited, but players dealt under " + share
+                    + " of its maximum health -- counted as a non-player death.");
+            return null;
+        }
+        return player;
     }
 
     /**

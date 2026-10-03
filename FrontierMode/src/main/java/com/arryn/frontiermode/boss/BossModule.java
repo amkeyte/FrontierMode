@@ -28,6 +28,8 @@ import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
+import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
+import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -236,6 +238,10 @@ public final class BossModule {
                 EventHandlers.builder()
                         .on(ScopeEvent.MobGainedInterest.class, BossMobJigHandlers::onScopeLoaded)
                         .on(ScopeEvent.MobLostInterest.class, BossMobJigHandlers::onScopeUnloaded)
+                        // Bare, unscoped signals -- declared here only because this is the topically
+                        // closest config, not a claim they are BOSS_MOB_JIG-scoped.
+                        .on(LivingDamageSignal.class, KeeperCombatHandlers::onLivingDamage)
+                        .on(LivingChangeTargetSignal.class, KeeperCombatHandlers::onChangeTarget)
                         .build();
 
         MobJigConfig config = new MobJigConfig(FrontierKeys.BOSS_MOB_JIG);

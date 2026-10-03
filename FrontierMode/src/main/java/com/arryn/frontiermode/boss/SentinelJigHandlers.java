@@ -81,6 +81,7 @@ final class SentinelJigHandlers {
                     // Vanilla setup has run by now and can raise max health without healing.
                     BossAPI.bosses(level).ifPresent(boss -> boss.RULES.healSentinel(mob));
                     BossAPI.sentinelMarkers(level).ifPresent(pub -> pub.add(record.mobUuid(), record.scale()));
+                    SentinelAllyTargetGoal.addTo(mob);
                 });
     }
 
@@ -173,6 +174,9 @@ final class SentinelJigHandlers {
             }
             BossAPI.sentinelMarkers(level).ifPresent(pub -> pub.add(uuid, record.scale()));
             mob.refreshDimensions();
+            // Goals aren't saved: a reloaded Sentinel gets its ally goal back here, once the presence
+            // poll confirms it (a fresh one already has it from its join; the call is idempotent).
+            SentinelAllyTargetGoal.addTo(mob);
         });
     }
 

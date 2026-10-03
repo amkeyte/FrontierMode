@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.difficulty.server.rules.DifficultyRules;
+import com.arryn.satchel.common.lifecycle.AnimalTameSignal;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
 import com.arryn.satchel.common.util.MobData;
@@ -13,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.monster.Vex;
 
 import java.util.List;
@@ -52,10 +54,31 @@ final class DifficultyHandlers {
             return;
         }
 
-        if (!DifficultyAPI.isLadderHostile(mob)) {
-            return;
+        String rung = DifficultyAPI.isAlly(mob) ? Ladder.RUNG_ALLY
+                : DifficultyAPI.isLadderHostile(mob) ? Ladder.RUNG_ORDINARY : null;
+        if (rung != null) {
+            applyAmbientRung(level, mob, rung);
         }
+    }
 
+    /**
+     * A wild wolf becomes an ally the moment it is tamed (the signal fires just before it applies),
+     * so that is where it is put on the ally rung (difficulty.md § Allies). Other animals are not
+     * allies. A wolf born tame, and an iron golem, take the rung on join instead.
+     */
+    static void onAnimalTame(AnimalTameSignal signal) {
+        if (signal.animal() instanceof Wolf wolf
+                && wolf.level() instanceof ServerLevel level
+                && !Ladder.claimed(wolf)) {
+            applyAmbientRung(level, wolf, Ladder.RUNG_ALLY);
+        }
+    }
+
+    /**
+     * The ordinary growth at the mob's own position: the ambient Difficulty there, if it is 2 or more.
+     * Ordinary hostiles and allies share the numbers and differ only in the rung they record.
+     */
+    private static void applyAmbientRung(ServerLevel level, Mob mob, String rung) {
         OptionalInt difficulty = ambientDifficulty(level, mob.blockPosition());
         if (difficulty.isEmpty() || difficulty.getAsInt() < 2) {
             return;
@@ -63,10 +86,10 @@ final class DifficultyHandlers {
 
         DifficultyRules rules = DifficultyRules.ACTIVE;
         int n = difficulty.getAsInt();
-        if (Ladder.apply(mob, Ladder.RUNG_ORDINARY,
+        if (Ladder.apply(mob, rung,
                 LadderMath.multiplier(rules.ordinaryHealthGrowth(), n),
                 LadderMath.multiplier(rules.ordinaryDamageGrowth(), n))) {
-            OUT.debug("[Difficulty] ordinary rung n=" + n + " on " + mob.getType() + " at " + mob.blockPosition());
+            OUT.debug("[Difficulty] " + rung + " rung n=" + n + " on " + mob.getType() + " at " + mob.blockPosition());
         }
     }
 

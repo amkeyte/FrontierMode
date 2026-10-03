@@ -2,7 +2,10 @@ package com.arryn.frontiermode.difficulty;
 
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.difficulty.server.rules.DifficultyRules;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.IronGolem;
+import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.monster.Monster;
@@ -35,6 +38,15 @@ public final class DifficultyAPI {
         }
         // Slime also covers MagmaCube.
         return mob instanceof Ghast || mob instanceof Phantom || mob instanceof Slime;
+    }
+
+    /**
+     * An ally: an iron golem (village-spawned or player-built) or a tamed wolf. Allies take the
+     * ordinary growth (difficulty.md § Allies), never attack a Keeper (boss.md), and are what Sentinels
+     * attack first (sentinels.md § Defending the boss).
+     */
+    public static boolean isAlly(Entity entity) {
+        return entity instanceof IronGolem || (entity instanceof Wolf wolf && wolf.isTame());
     }
 
     /** The Keeper's health growth: the ordinary growth plus the Keeper's (boss.md § Keeper stats). */

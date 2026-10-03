@@ -151,6 +151,11 @@ public final class BossRulesFacet {
         return RULES.sentinelDefeatKillsPerTick();
     }
 
+    /** See {@link BossRules#keeperPlayerShare()}. */
+    public double keeperPlayerShare() {
+        return RULES.keeperPlayerShare();
+    }
+
     /** See {@link BossRules#bossBarLingerTicks()}. */
     public int bossBarLingerTicks() {
         return RULES.bossBarLingerTicks();

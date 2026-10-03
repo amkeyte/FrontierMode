@@ -186,6 +186,12 @@ public interface BossRules {
     /** How many of a defeated boss's sentinels die per {@code BOSS_JIG} tick, so their loot doesn't land in one tick. */
     int sentinelDefeatKillsPerTick();
 
+    /**
+     * The share of a Keeper's maximum health that players' own damage must add up to for its death to
+     * count as a player's defeat (boss.md § Player credit and non-player death). Safe baseline 0.5.
+     */
+    double keeperPlayerShare();
+
     /** How long a player keeps seeing a boss's health bar after they last held its kill credit. */
     int bossBarLingerTicks();
 

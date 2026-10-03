@@ -597,6 +597,11 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
+    public double keeperPlayerShare() {
+        return new Tunable("keeperPlayerShare", 0f, 1f, 0.5f).floatValue();
+    }
+
+    @Override
     public int bossBarLingerTicks() {
         return new Tunable("bossBarLingerTicks", 1, 72000, 600).intValue();
     }
@@ -622,6 +627,11 @@ public final class DefaultBossRules implements BossRules {
 
     @Override
     public boolean alertSentinel(Mob sentinel, ServerPlayer player) {
+        // Allies come first: a Sentinel already fighting an ally is left to it, so no alert window is
+        // recorded; once the ally is gone or out of sight the next hit on the boss alerts it as usual.
+        if (sentinel.getTarget() != null && DifficultyAPI.isAlly(sentinel.getTarget())) {
+            return false;
+        }
         if (!SENTINEL_ALERT_TARGETING.test(sentinel, player)) {
             return false;
         }

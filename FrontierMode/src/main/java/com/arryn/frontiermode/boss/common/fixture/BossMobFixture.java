@@ -54,6 +54,10 @@ public final class BossMobFixture extends SatchelFixture {
     // Defending the boss). Seeded at attach, so a hit from before it never counts.
     private int lastSeenHurtTimestamp;
 
+    // Health players' own hits have removed from this boss (boss.md § Player credit and non-player
+    // death). Transient like the fixture: a respawned boss is a new entity with a fresh tally.
+    private double playerDamage;
+
     public BossMobFixture() {
     }
 
@@ -69,6 +73,16 @@ public final class BossMobFixture extends SatchelFixture {
 
     public UUID bossId() {
         return bossId;
+    }
+
+    /** Adds health a player's own hit actually removed (after armor, capped at what the boss had left). */
+    public void addPlayerDamage(float healthRemoved) {
+        playerDamage += healthRemoved;
+    }
+
+    /** Total health players' own damage has removed from this boss so far. */
+    public double playerDamage() {
+        return playerDamage;
     }
 
     /**
