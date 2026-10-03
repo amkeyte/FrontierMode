@@ -7,7 +7,7 @@ import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
@@ -60,7 +60,7 @@ final class BossJigHandlers {
         BossBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
-        GuardianJigHandlers.onBossTick(level, bundle);
+        SentinelJigHandlers.onBossTick(level, bundle);
         if (level instanceof ServerLevel serverLevel) {
             BossHealthBarHandlers.onBossTick(serverLevel, fixture);
             BossDefenseHandlers.onBossTick(serverLevel, bundle);
@@ -146,7 +146,7 @@ final class BossJigHandlers {
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
-        BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
+        BossSentinelsFixture.ensureSentinelCurves(level, result.border().id());
     }
 
     /**
@@ -193,8 +193,8 @@ final class BossJigHandlers {
             return;
         }
 
-        // The boss's guardians die with it, staggered; see guardian-mobs.md's "When the boss is defeated".
-        GuardianJigHandlers.onBossDefeated(level, bossId.get(), credited.getUUID());
+        // The boss's sentinels die with it, staggered; see sentinels.md's "When the boss is defeated".
+        SentinelJigHandlers.onBossDefeated(level, bossId.get(), credited.getUUID());
 
         // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
         // gating below stops growth right here -- see boss.md's "Cascade durability".
@@ -247,7 +247,7 @@ final class BossJigHandlers {
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
-        BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
+        BossSentinelsFixture.ensureSentinelCurves(level, result.border().id());
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

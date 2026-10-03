@@ -68,7 +68,7 @@ public final class CairnFixture extends SatchelFixture {
     /**
      * Creates a fresh, unplaced record for {@code bossId} if none exists yet -- idempotent, same
      * "if absent" shape {@code BossTellFixture.createTellCurveIfAbsent}/{@code
-     * BossGuardiansFixture.ensureGuardianCurves} already establish for paired-creation call
+     * BossSentinelsFixture.ensureSentinelCurves} already establish for paired-creation call
      * sites. Returns the existing record unchanged if one is already there (defends against
      * {@code BossPositionListeners} somehow firing twice for the same boss).
      *

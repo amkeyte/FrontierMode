@@ -29,7 +29,7 @@ public final class FeralRules {
         return new Tunable("intensityScale", 0f, 1f, 0.05f).floatValue();
     }
 
-    /** Stat-scaling factor per unit of intensity -- same shape as Guardian's own health-scale constant. */
+    /** Stat-scaling factor per unit of intensity -- same shape as Sentinel's own health-scale constant. */
     public static float healthScale() {
         return new Tunable("healthScale", 0f, 10f, 1.0f).floatValue();
     }

@@ -14,7 +14,7 @@ import net.minecraft.world.phys.AABB;
 /**
  * The boss's close-range flash: a few motes of the shared amethyst dust hovering just outside a live
  * boss's surface, drawn by each client that is close to it -- the same particle Cairn and the
- * guardian trail use, so a boss, its guardians and its Cairn read as one system up close. Client-
+ * sentinel trail use, so a boss, its sentinels and its Cairn read as one system up close. Client-
  * derived: "this entity is a boss" is already synced through {@code BossPublicFixture}, so nothing
  * is sent. Fire/no-fire rides {@link ClientEffectsAPI#spawnParticleOnParity}, keyed off the boss's
  * id and the world's game time. See boss.md's "Client-side visual marker" and effects.md.

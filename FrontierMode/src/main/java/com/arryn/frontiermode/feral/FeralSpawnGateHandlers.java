@@ -16,7 +16,7 @@ import net.minecraft.world.entity.player.Player;
  * refuses a bright spawn at two separate points -- the placement check before the mob exists, and
  * the position check after it is created and placed -- and both apply a light test to a
  * {@code Monster}, so both are lifted. See feral.md § How Feral hooks the game; the same two-gate
- * shape as guardians in daylight ({@code GuardianJigHandlers}).
+ * shape as sentinels in daylight ({@code SentinelJigHandlers}).
  *
  * <p>Bare, unscoped signals, installed from {@link FeralModule}'s level jig; no jig-key guard.
  */

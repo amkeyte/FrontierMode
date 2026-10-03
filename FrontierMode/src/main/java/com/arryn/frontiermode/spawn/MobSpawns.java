@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  * The one place mobs are made to appear: every module's "create a mob, place it, set it up, add it
  * to the level" code calls this, so the vanilla and Forge calls involved live here instead of a copy
  * per caller. Stateless and free of domain knowledge -- callers decide what, where, and how many;
- * this only does it. See guardian-mobs.md's "MobSpawns".
+ * this only does it. See sentinels.md's "MobSpawns".
  */
 public final class MobSpawns {
 

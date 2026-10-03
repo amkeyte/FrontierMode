@@ -10,22 +10,22 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The client-visible guardian record: {@code {mobUuid, scale}} for every guardian currently
- * present in the level. Carries no position and no {@code bossId} -- guardians cluster around
+ * The client-visible sentinel record: {@code {mobUuid, scale}} for every sentinel currently
+ * present in the level. Carries no position and no {@code bossId} -- sentinels cluster around
  * their boss, so a client able to pair one with the other would learn more than the trail is meant
- * to give away. Same shape as {@link BossPublicFixture}; see guardian-mobs.md's
- * "GuardianPublicFixture".
+ * to give away. Same shape as {@link BossPublicFixture}; see sentinels.md's
+ * "SentinelPublicFixture".
  *
- * <p>Written server-side at {@code GUARDIAN_MOB_JIG}'s interest hooks; the client's copy hydrates
- * from Satchel's parcel. Networked, not persisted (see {@code GuardianPublicBundle}).
+ * <p>Written server-side at {@code SENTINEL_MOB_JIG}'s interest hooks; the client's copy hydrates
+ * from Satchel's parcel. Networked, not persisted (see {@code SentinelPublicBundle}).
  *
  * <p>A change forces a network push, coalesced to at most one per tick: writers set a pending flag
- * and this fixture's own tick flushes it, so a burst of guardians joining in one tick costs one push
- * and a guardian still reaches clients with its scale when it spawns, not a sync interval later.
+ * and this fixture's own tick flushes it, so a burst of sentinels joining in one tick costs one push
+ * and a sentinel still reaches clients with its scale when it spawns, not a sync interval later.
  */
-public final class GuardianPublicFixture extends SatchelFixture {
+public final class SentinelPublicFixture extends SatchelFixture {
 
-    private static final String KEY_GUARDIANS = "guardians";
+    private static final String KEY_SENTINELS = "sentinels";
 
     private record Entry(UUID mobUuid, float scale) {
     }
@@ -40,8 +40,8 @@ public final class GuardianPublicFixture extends SatchelFixture {
     private int trailLifetimeTicks = 30;
     private int trailRadius = 24;
 
-    public GuardianPublicFixture() {
-        registerCustom(KEY_GUARDIANS, this::saveEntries, this::loadEntries);
+    public SentinelPublicFixture() {
+        registerCustom(KEY_SENTINELS, this::saveEntries, this::loadEntries);
         registerCustom(KEY_TRAIL, this::saveTrail, this::loadTrail);
     }
 
@@ -53,15 +53,15 @@ public final class GuardianPublicFixture extends SatchelFixture {
             tag.putFloat("scale", e.scale);
             list.add(tag);
         }
-        root.put(KEY_GUARDIANS, list);
+        root.put(KEY_SENTINELS, list);
     }
 
     private void loadEntries(CompoundTag root) {
         entries.clear();
-        if (!root.contains(KEY_GUARDIANS, Tag.TAG_LIST)) {
+        if (!root.contains(KEY_SENTINELS, Tag.TAG_LIST)) {
             return;
         }
-        for (Tag t : root.getList(KEY_GUARDIANS, Tag.TAG_COMPOUND)) {
+        for (Tag t : root.getList(KEY_SENTINELS, Tag.TAG_COMPOUND)) {
             CompoundTag tag = (CompoundTag) t;
             if (!tag.hasUUID("mobUuid")) {
                 continue;
@@ -91,7 +91,7 @@ public final class GuardianPublicFixture extends SatchelFixture {
 
     // ── server-side writes ────────────────────────────────────────────────────
 
-    /** Adds the guardian, or updates its scale. Idempotent: no change, no push. */
+    /** Adds the sentinel, or updates its scale. Idempotent: no change, no push. */
     public void add(UUID mobUuid, float scale) {
         Entry existing = entries.get(mobUuid);
         if (existing != null && existing.scale == scale) {
@@ -101,7 +101,7 @@ public final class GuardianPublicFixture extends SatchelFixture {
         changed();
     }
 
-    /** Removes the guardian. No-op if it was never added. */
+    /** Removes the sentinel. No-op if it was never added. */
     public void remove(UUID mobUuid) {
         if (entries.remove(mobUuid) != null) {
             changed();
@@ -135,12 +135,12 @@ public final class GuardianPublicFixture extends SatchelFixture {
 
     // ── reads (either side) ───────────────────────────────────────────────────
 
-    /** True if {@code mobUuid} is a guardian currently present. */
-    public boolean isGuardian(UUID mobUuid) {
+    /** True if {@code mobUuid} is a sentinel currently present. */
+    public boolean isSentinel(UUID mobUuid) {
         return entries.containsKey(mobUuid);
     }
 
-    /** The guardian's size multiplier, or {@code 1.0} if {@code mobUuid} isn't a known guardian. */
+    /** The sentinel's size multiplier, or {@code 1.0} if {@code mobUuid} isn't a known sentinel. */
     public float scaleOf(UUID mobUuid) {
         Entry e = entries.get(mobUuid);
         return e == null ? 1.0F : e.scale;

@@ -8,11 +8,11 @@ import com.arryn.frontiermode.boss.common.items.SunWardItem;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
-import com.arryn.frontiermode.boss.common.bundle.GuardianPublicBundle;
-import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
+import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
+import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
@@ -75,8 +75,8 @@ public final class BossModule {
         registerBossJig();
         registerBossMobJig();
         registerBossPublicJig();
-        registerGuardianMobJig();
-        registerGuardianPublicJig();
+        registerSentinelMobJig();
+        registerSentinelPublicJig();
         registerNavigatorResolver();
     }
 
@@ -86,18 +86,18 @@ public final class BossModule {
     }
 
     /**
-     * Guardian conversion's entry point: called by {@code SpawnCoordinator}, the one subscriber to
+     * Sentinel conversion's entry point: called by {@code SpawnCoordinator}, the one subscriber to
      * {@code MobSpawnFinalizeSignal}, in its fixed order after Feral's Slime/MagmaCube deny.
      *
-     * <p>Never cancels the spawn either way -- Guardian Mobs is a modifier on an already-happening
-     * spawn, not a summon. "Standby, don't crash": a {@link BossGuardiansFixture} that isn't
+     * <p>Never cancels the spawn either way -- Sentinels is a modifier on an already-happening
+     * spawn, not a summon. "Standby, don't crash": a {@link BossSentinelsFixture} that isn't
      * resolvable yet (Satchel not ready, scope not known) is a silent no-op -- the vanilla spawn
      * proceeds unmodified either way. {@code level} is already confirmed a real {@link ServerLevel}
      * by the caller.
      */
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
-        BossAPI.guardians(level).ifPresent(guardians ->
-                guardians.onMobSpawnFinalize(mob, level));
+        BossAPI.sentinels(level).ifPresent(sentinels ->
+                sentinels.onMobSpawnFinalize(mob, level));
     }
 
     // ── TargetType.BOSS resolver ──────────────────────────────────────────────
@@ -126,17 +126,17 @@ public final class BossModule {
                 );
         // RM_FRO_029 (Gloria): third BossBundle sibling. Persisted records; conversion is
         // event-driven off onMobSpawnFinalize, and the fixture rides BOSS_JIG's tick for its staging.
-        var bossGuardiansFixture =
+        var bossSentinelsFixture =
                 new JigBundles.FixtureDecl<>(
-                        FrontierKeys.BOSS_GUARDIANS,
-                        BossGuardiansFixture::new,
+                        FrontierKeys.BOSS_SENTINELS,
+                        BossSentinelsFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
         var bossBundle =
                 new JigBundles.BundleDecl<>(
                         FrontierKeys.BOSS_BUNDLE,
                         (LevelScope scope) -> new BossBundle(scope, FrontierKeys.BOSS_BUNDLE),
-                        List.of(bossFixture, bossTellFixture, bossGuardiansFixture)
+                        List.of(bossFixture, bossTellFixture, bossSentinelsFixture)
                 );
 
         EventHandlers eventHandlers =
@@ -250,69 +250,69 @@ public final class BossModule {
         Satchel.registerJigConfig(config);
     }
 
-    // ── GUARDIAN_MOB_JIG ─────────────────────────────────────────────────────
+    // ── SENTINEL_MOB_JIG ─────────────────────────────────────────────────────
 
     /**
-     * Tracks the guardian entities {@code BossGuardiansFixture}'s records name. Server-only, and an
+     * Tracks the sentinel entities {@code BossSentinelsFixture}'s records name. Server-only, and an
      * empty bundle schema: there is no per-mob state to hold. The interest set is the fixture's live
      * record-key view, registered per level from {@code BOSS_JIG}'s tick.
      */
-    private static void registerGuardianMobJig() {
+    private static void registerSentinelMobJig() {
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(ScopeEvent.MobGainedInterest.class, GuardianJigHandlers::onMobGainedInterest)
-                        .on(ScopeEvent.MobLostInterest.class, GuardianJigHandlers::onMobLostInterest)
+                        .on(ScopeEvent.MobGainedInterest.class, SentinelJigHandlers::onMobGainedInterest)
+                        .on(ScopeEvent.MobLostInterest.class, SentinelJigHandlers::onMobLostInterest)
                         // Bare, unscoped signals -- declared here only because this is the topically
-                        // closest config, not a claim they are GUARDIAN_MOB_JIG-scoped.
-                        .on(EntityJoinLevelSignal.class, GuardianJigHandlers::onEntityJoinLevel)
-                        .on(SpawnPlacementCheckSignal.class, GuardianJigHandlers::onSpawnPlacementCheck)
-                        .on(SpawnPositionCheckSignal.class, GuardianJigHandlers::onSpawnPositionCheck)
-                        .on(MobDied.class, GuardianJigHandlers::onMobDied)
-                        .on(MobRemoved.class, GuardianJigHandlers::onMobRemoved)
+                        // closest config, not a claim they are SENTINEL_MOB_JIG-scoped.
+                        .on(EntityJoinLevelSignal.class, SentinelJigHandlers::onEntityJoinLevel)
+                        .on(SpawnPlacementCheckSignal.class, SentinelJigHandlers::onSpawnPlacementCheck)
+                        .on(SpawnPositionCheckSignal.class, SentinelJigHandlers::onSpawnPositionCheck)
+                        .on(MobDied.class, SentinelJigHandlers::onMobDied)
+                        .on(MobRemoved.class, SentinelJigHandlers::onMobRemoved)
                         .build();
 
-        MobJigConfig config = new MobJigConfig(FrontierKeys.GUARDIAN_MOB_JIG);
+        MobJigConfig config = new MobJigConfig(FrontierKeys.SENTINEL_MOB_JIG);
         config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
         config.bundles().schema(new JigBundles.Schema<>(List.of()));
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
                 .eventHandlers(eventHandlers);
 
-        MobInterestRegistry.register(FrontierKeys.GUARDIAN_MOB_JIG, () -> GuardianInterests.MAP);
+        MobInterestRegistry.register(FrontierKeys.SENTINEL_MOB_JIG, () -> SentinelInterests.MAP);
         Satchel.registerJigConfig(config);
     }
 
-    // ── GUARDIAN_PUBLIC_JIG ──────────────────────────────────────────────────
+    // ── SENTINEL_PUBLIC_JIG ──────────────────────────────────────────────────
 
     /**
-     * The client-visible guardian record, in its own BOTH-applicability jig. Networked, not
+     * The client-visible sentinel record, in its own BOTH-applicability jig. Networked, not
      * persisted; the fixture's own tick flushes its coalesced push.
      */
-    private static void registerGuardianPublicJig() {
-        var guardianPublicFixture =
+    private static void registerSentinelPublicJig() {
+        var sentinelPublicFixture =
                 new JigBundles.FixtureDecl<>(
-                        FrontierKeys.GUARDIAN_PUBLIC,
-                        GuardianPublicFixture::new,
+                        FrontierKeys.SENTINEL_PUBLIC,
+                        SentinelPublicFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
-        var guardianPublicBundle =
+        var sentinelPublicBundle =
                 new JigBundles.BundleDecl<>(
-                        FrontierKeys.GUARDIAN_PUBLIC_BUNDLE,
-                        (LevelScope scope) -> new GuardianPublicBundle(scope, FrontierKeys.GUARDIAN_PUBLIC_BUNDLE),
-                        List.of(guardianPublicFixture)
+                        FrontierKeys.SENTINEL_PUBLIC_BUNDLE,
+                        (LevelScope scope) -> new SentinelPublicBundle(scope, FrontierKeys.SENTINEL_PUBLIC_BUNDLE),
+                        List.of(sentinelPublicFixture)
                 );
 
-        LevelJigConfig config = new LevelJigConfig(FrontierKeys.GUARDIAN_PUBLIC_JIG);
+        LevelJigConfig config = new LevelJigConfig(FrontierKeys.SENTINEL_PUBLIC_JIG);
         // Networking requires BOTH (JigConfigValidator).
         config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-        config.bundles().schema(new JigBundles.Schema<>(List.of(guardianPublicBundle)));
+        config.bundles().schema(new JigBundles.Schema<>(List.of(sentinelPublicBundle)));
         config.policies().capabilities(new JigPolicies.Capabilities(false, true, false));
         // The execution pulse drives client sync; the tick runs the fixture's coalesced push flush
         // and, client side, the trail.
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(EventHandlers.builder()
-                        .on(ScopeEvent.Tick.class, GuardianJigHandlers::onGuardianPublicTick)
+                        .on(ScopeEvent.Tick.class, SentinelJigHandlers::onSentinelPublicTick)
                         .build());
 
         Satchel.registerJigConfig(config);

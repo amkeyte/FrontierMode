@@ -9,7 +9,7 @@ import java.util.function.Function;
  * Client-side cache for a fixture reached through Satchel scope lookup, which is too much to do for
  * every entity on every frame. Caches per level and, while unresolved (the normal state for the
  * first moments after joining, before the first parcel lands), retries at most once a second. Used by
- * {@link BossMarkers} and {@link GuardianMarkers}; not for the server side, which asks rarely and
+ * {@link BossMarkers} and {@link SentinelMarkers}; not for the server side, which asks rarely and
  * isn't cached. No client classes here, so it loads on a dedicated server.
  */
 final class ClientFixtureCache<T> {

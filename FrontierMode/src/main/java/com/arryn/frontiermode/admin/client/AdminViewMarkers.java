@@ -16,7 +16,7 @@ import java.util.Map;
 /**
  * The debug view's marker: a coloured diamond drawn above every mob {@link AdminViewClient} is
  * marking, seen through walls, so a playtester can find a tracked mob and tell what it's there for
- * (FRO_202). Gold for a boss, purple for a guardian, green for a Feral.
+ * (FRO_202). Gold for a boss, purple for a sentinel, green for a Feral.
  *
  * <p>A font glyph drawn the way vanilla draws a name tag's see-through pass, but fully opaque
  * (vanilla's see-through pass is ~12% alpha, which is what makes distant tags faint). It has a fixed

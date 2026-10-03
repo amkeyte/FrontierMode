@@ -77,10 +77,10 @@ import java.util.UUID;
  *
  * <p><b>Its own module, deliberately, not folded into {@code BorderModule}.</b> Feral reads
  * {@link BorderAPI#frontierDistanceAt(net.minecraft.world.level.Level, BlockPos)} (Border) and
- * {@link EffectsAPI#ensureTeam}/{@link EffectsAPI#assignToTeam} (Effects) the same way Guardian
+ * {@link EffectsAPI#ensureTeam}/{@link EffectsAPI#assignToTeam} (Effects) the same way Sentinel
  * Mobs reads Border/Effects from inside Boss's own module -- through their public APIs, not by
- * living inside them. That's the real precedent here, not {@code BossGuardiansFixture}'s own
- * bundle placement: Guardian is a real {@code SatchelFixture} specifically for "access parity"
+ * living inside them. That's the real precedent here, not {@code BossSentinelsFixture}'s own
+ * bundle placement: Sentinel is a real {@code SatchelFixture} specifically for "access parity"
  * reaching a sibling fixture (its own doc comment says so); Feral has no sibling fixture to reach,
  * so it needed no home inside another module's files. Kept separate on purpose -- this feature is expected to grow a lot, and containment now
  * is cheaper than untangling it from Border's own files later.
@@ -128,7 +128,7 @@ public final class FeralModule {
     }
 
     // Shared, not-persisted RNG -- same static-field shape BossTellFixture.RNG/
-    // BossGuardiansFixture.RNG/BorderModule.RNG already use.
+    // BossSentinelsFixture.RNG/BorderModule.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
 
     // Candidate spots MobSpawns.scatter tries for one density companion.
@@ -553,7 +553,7 @@ public final class FeralModule {
      * .spawnTestHostiles} uses (unlike {@code /summon}, this still fires
      * {@code MobSpawnEvent.FinalizeSpawn}, so it stays fully integrated with everything else on
      * that touch point -- the Wilds-only Slime/MagmaCube deny in {@code BossJigHandlers
-     * .onMobSpawnFinalize} (FRO_154) and Guardian conversion both still apply normally, and
+     * .onMobSpawnFinalize} (FRO_154) and Sentinel conversion both still apply normally, and
      * {@link #onEntityJoinLevel} still catches and tags it Feral through the ordinary
      * {@link EntityJoinLevelSignal} path, same as any other spawn). Zombie, matching that same
      * debug command's own choice -- a deliberately simple placeholder, not tuned for variety yet.
@@ -641,7 +641,7 @@ public final class FeralModule {
 
     /**
      * FRO_111 (project owner ruling, routed via Architect): a Feral mob that wanders back inside
-     * the Frontier must not survive -- ordinary hostiles, Boss, and Guardian Mobs are unaffected
+     * the Frontier must not survive -- ordinary hostiles, Boss, and Sentinels are unaffected
      * and stay exactly as designed. Sick Wildlife's own "cured by walking back in" precedent (it
      * just stops registering a positive {@code frontierDistance} and is left alone, no code
      * needed) doesn't transfer: Sick Wildlife is harmless, but a Feral mob is stat-scaled and
@@ -940,7 +940,7 @@ public final class FeralModule {
      * distinguish the two -- simpler and unambiguous to make a Feral mob drop nothing at all,
      * however it dies. Gated on {@code feral}-team membership (not a fixture/list -- same "no
      * persisted tracking" precedent everywhere else in this module), so this only ever touches
-     * mobs Feral itself tagged; ordinary hostiles, Boss, and Guardian Mobs are unaffected.
+     * mobs Feral itself tagged; ordinary hostiles, Boss, and Sentinels are unaffected.
      *
      * <p>FRO_147: rides {@link LivingDropsSignal} (SAT_072) instead of a raw Forge subscription --
      * {@link LivingDropsSignal#cancel()} passes straight through to the wrapped event's own
@@ -1191,7 +1191,7 @@ public final class FeralModule {
      * Name tag + a shared {@code feral} scoreboard team. The tag shows the raw frontier-distance
      * {@code mob} spawned at, not a bucketed tier -- per the design page's explicit "no bucketed
      * tiers picked from a table, just steadily more twisted." Team color is {@code DARK_GREEN} for
-     * the design page's "sickly green," distinct from Guardian's {@code DARK_PURPLE} and Boss's
+     * the design page's "sickly green," distinct from Sentinel's {@code DARK_PURPLE} and Boss's
      * unteamed white glow.
      */
     private static void tagFeral(Mob mob, int frontierDistance, ServerLevel level) {
@@ -1205,9 +1205,9 @@ public final class FeralModule {
     }
 
     /**
-     * Continuous, uncapped stat scaling by {@code intensity} -- mirrors
-     * {@code DefaultBossRules.applyGuardianStatScaling}'s health/attack-damage formula shape
-     * exactly, keyed off {@link FeralLogic#intensity} instead of a {@code BorderCurve} intensity.
+     * Continuous, uncapped stat scaling by {@code intensity}: {@code 1 + healthScale x intensity} on
+     * max health and attack damage, keyed off {@link FeralLogic#intensity}. Feral sits off the stat
+     * ladder (difficulty.md), so this stays its own.
      */
     private static void applyStatScaling(Mob mob, double intensity) {
         double factor = 1.0 + (FeralRules.healthScale() * intensity);

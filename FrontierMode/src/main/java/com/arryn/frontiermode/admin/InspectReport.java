@@ -3,7 +3,7 @@ package com.arryn.frontiermode.admin;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.satchel.common.util.Ids;
 import net.minecraft.core.BlockPos;
@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /**
  * The Inspect Stick's report: what a living entity is, assembled as plain lines. Everything is read
- * through each module's public surface ({@code BossAPI}, {@code BorderAPI}, the guardian lookup);
+ * through each module's public surface ({@code BossAPI}, {@code BorderAPI}, the sentinel lookup);
  * lines that don't apply are left out. See wiki admin-tools.md, "Inspect".
  */
 final class InspectReport {
@@ -42,7 +42,7 @@ final class InspectReport {
         lines.add("  category " + target.getType().getCategory() + " | team " + teamName
                 + " | frontier distance " + BorderAPI.frontierDistanceAt(level, pos));
         lines.add("  boss: " + bossLine(level, uuid));
-        guardianLine(level, target).ifPresent(lines::add);
+        sentinelLine(level, target).ifPresent(lines::add);
         if ("feral".equals(teamName)) {
             lines.add("  feral: yes");
         }
@@ -68,11 +68,11 @@ final class InspectReport {
         return "-";
     }
 
-    private static Optional<String> guardianLine(ServerLevel level, LivingEntity target) {
-        return BossAPI.guardiansQuiet(level)
+    private static Optional<String> sentinelLine(ServerLevel level, LivingEntity target) {
+        return BossAPI.sentinelsQuiet(level)
                 .flatMap(g -> g.record(target.getUUID()))
-                .map((BossGuardiansFixture.GuardianRecord record) -> String.format(
-                        "  guardian: scale %.2f, boss #%s%s",
+                .map((BossSentinelsFixture.SentinelRecord record) -> String.format(
+                        "  Sentinel: scale %.2f, boss #%s%s",
                         record.scale(), Ids.shortId(record.bossId()),
                         record.doomed() ? ", doomed" : ""));
     }

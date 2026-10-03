@@ -76,7 +76,7 @@ public final class DefaultBossRules implements BossRules {
     private static final double EDGE_BIAS_INNER_FRACTION = 0.6;
 
     // FRO_197: HurtByTargetGoal's own alert conditions -- vanilla's combat rules, no sight test.
-    private static final TargetingConditions GUARDIAN_ALERT_TARGETING =
+    private static final TargetingConditions SENTINEL_ALERT_TARGETING =
             TargetingConditions.forCombat().ignoreLineOfSight().ignoreInvisibilityTesting();
 
     private final RandomSource rng;
@@ -271,7 +271,6 @@ public final class DefaultBossRules implements BossRules {
                     // A plain vanilla Mob is still subject to natural despawn unless persistence is
                     // required, and Border Pregeneration can run minutes before a player arrives.
                     mob.setPersistenceRequired();
-                    applyStatScaling(mob, layer);
                     makeFireImmune(mob);
                     // Fire immunity stops the damage; the sun ward stops the ignition itself, so a
                     // Zombie or Skeleton boss doesn't visibly burn in daylight.
@@ -285,8 +284,7 @@ public final class DefaultBossRules implements BossRules {
     }
 
     // Tier 0 is layer 1 (layers start at 1); from layer 2 on the tier steps every bandWidth layers, capped at
-    // the table's last entry. bandWidth is the pacing dial (a CSV cell, not a rebuild); the linear
-    // health/damage scale in applyStatScaling() is the separate difficulty dial.
+    // the table's last entry. bandWidth is the pacing dial (a CSV cell, not a rebuild).
     private EntityType<? extends Mob> mobTypeForLayer(int layer) {
         int bandWidth = Math.max(1, new Tunable("mobTierBandWidth", 1, 20, 3).intValue());
         int tier = layer <= 1 ? 0 : Math.min(1 + (layer - 2) / bandWidth, BossMobTypes.ORDERED.size() - 1);
@@ -301,26 +299,6 @@ public final class DefaultBossRules implements BossRules {
     private void makeFireImmune(Mob mob) {
         mob.addEffect(new MobEffectInstance(
                 MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
-    }
-
-    // FRO_142: the boss stat ramp's one dial -- max health AND attack damage both scale by
-    // 1.0 + statScalePerLayer * layer (safe baseline 0.5, i.e. +50% per layer above the table's own
-    // baseline). Independent of how fast the mob
-    // type changes (mobTierBandWidth). Set to 0 for base vanilla stats. Not a locked curve.
-    // Tunable-backed (SAT_074), constructed at point of use.
-    private void applyStatScaling(Mob mob, int layer) {
-        double factor = 1.0 + (new Tunable("statScalePerLayer", 0f, 5f, 0.5f).floatValue() * Math.max(layer, 0));
-
-        var healthAttr = mob.getAttribute(Attributes.MAX_HEALTH);
-        if (healthAttr != null) {
-            healthAttr.setBaseValue(healthAttr.getBaseValue() * factor);
-            mob.setHealth(mob.getMaxHealth());
-        }
-
-        var damageAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (damageAttr != null) {
-            damageAttr.setBaseValue(damageAttr.getBaseValue() * factor);
-        }
     }
 
     // Players see the name in vanilla death messages ("slain by Amethyst Keeper"), never as a tag.
@@ -390,24 +368,24 @@ public final class DefaultBossRules implements BossRules {
     }
 
     // ------------------------------------------------------------------
-    // RM_FRO_029 (Gloria): BossGuardiansFixture tunable baseline values
+    // RM_FRO_029 (Gloria): BossSentinelsFixture tunable baseline values
     // ------------------------------------------------------------------
 
-    // The guardian numbers are Tunable-backed, constructed inside their own accessor methods rather
+    // The sentinel numbers are Tunable-backed, constructed inside their own accessor methods rather
     // than cached as fields.
 
     @Override
-    public double guardianPlacementCoefficient() {
+    public double sentinelPlacementCoefficient() {
         // 2026-09-07 playtest, fourth and (per Arryn) final bump for this round: 0.15 -> 0.4 -> 0.6.
         // Max 60% chance per spawn attempt at intensity 1.0 (right on top of the boss), decaying with
         // placementIntensity same as always. Still a roll, not a guarantee, so ordinary vanilla spawns
         // still happen near the boss too. Called "good for now" after this value -- further tuning is
         // a fresh playtest decision, not an assumed follow-up. [0,1] bound -- a probability roll.
-        return new Tunable("guardianPlacementCoefficient", 0f, 1f, 0.6f).floatValue();
+        return new Tunable("sentinelPlacementCoefficient", 0f, 1f, 0.6f).floatValue();
     }
 
     @Override
-    public double guardianPlacementRadiusFraction() {
+    public double sentinelPlacementRadiusFraction() {
         // 2026-09-07 playtest, revised twice same session: started at the full border radius (read as
         // "clustered right on the boss, nothing beyond ~30 blocks" on a large border -- the LINEAR
         // ramp was mathematically correct but imperceptibly thin across the whole disc); briefly tried
@@ -415,18 +393,18 @@ public final class DefaultBossRules implements BossRules {
         // to notice at all). Settled: same LINEAR formula, same direction (climbs toward the boss), but
         // normalized against half the border's own radius instead of the whole thing -- a real,
         // noticeable ramp concentrated in a smaller ring around the boss. Safe baseline; playtest
-        // territory, same as guardianPlacementCoefficient above. [0,1] bound -- a fraction of radius.
-        return new Tunable("guardianPlacementRadiusFraction", 0f, 1f, 0.5f).floatValue();
+        // territory, same as sentinelPlacementCoefficient above. [0,1] bound -- a fraction of radius.
+        return new Tunable("sentinelPlacementRadiusFraction", 0f, 1f, 0.5f).floatValue();
     }
 
     @Override
-    public void healGuardian(Mob mob) {
+    public void healSentinel(Mob mob) {
         mob.setHealth(mob.getMaxHealth());
     }
 
     @Override
-    public int guardianDefeatKillsPerTick() {
-        return new Tunable("guardianDefeatKillsPerTick", 1, 100, 5).intValue();
+    public int sentinelDefeatKillsPerTick() {
+        return new Tunable("sentinelDefeatKillsPerTick", 1, 100, 5).intValue();
     }
 
     @Override
@@ -435,47 +413,47 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public void killGuardian(Mob mob, ServerPlayer credited) {
+    public void killSentinel(Mob mob, ServerPlayer credited) {
         if (credited != null) {
             mob.setLastHurtByPlayer(credited);
         }
         mob.kill();
     }
 
-    // FRO_197: guardians defend the boss (guardian-mobs.md § Defending the boss).
+    // FRO_197: sentinels defend the boss (sentinels.md § Defending the boss).
     @Override
-    public int guardianAlertRadius() {
-        return new Tunable("guardianAlertRadius", 4, 64, 24).intValue();
+    public int sentinelAlertRadius() {
+        return new Tunable("sentinelAlertRadius", 4, 64, 24).intValue();
     }
 
     @Override
-    public int guardianAlertMemoryTicks() {
-        return new Tunable("guardianAlertMemoryTicks", 20, 1200, 200).intValue();
+    public int sentinelAlertMemoryTicks() {
+        return new Tunable("sentinelAlertMemoryTicks", 20, 1200, 200).intValue();
     }
 
     @Override
-    public boolean alertGuardian(Mob guardian, ServerPlayer player) {
-        if (!GUARDIAN_ALERT_TARGETING.test(guardian, player)) {
+    public boolean alertSentinel(Mob sentinel, ServerPlayer player) {
+        if (!SENTINEL_ALERT_TARGETING.test(sentinel, player)) {
             return false;
         }
-        guardian.setTarget(player);
+        sentinel.setTarget(player);
         return true;
     }
 
     @Override
-    public void releaseGuardian(Mob guardian, ServerPlayer player) {
-        if (guardian.getTarget() != player) {
+    public void releaseSentinel(Mob sentinel, ServerPlayer player) {
+        if (sentinel.getTarget() != player) {
             return;
         }
-        var followRange = guardian.getAttribute(Attributes.FOLLOW_RANGE);
+        var followRange = sentinel.getAttribute(Attributes.FOLLOW_RANGE);
         double range = followRange == null ? 0.0 : followRange.getValue();
         // Same level first: after a portal, distance and sight would be measured against the
         // player's coordinates in the other dimension and can come out true.
-        boolean canSee = player.level() == guardian.level()
-                && guardian.distanceToSqr(player) <= range * range
-                && guardian.getSensing().hasLineOfSight(player);
+        boolean canSee = player.level() == sentinel.level()
+                && sentinel.distanceToSqr(player) <= range * range
+                && sentinel.getSensing().hasLineOfSight(player);
         if (!canSee) {
-            guardian.setTarget(null);
+            sentinel.setTarget(null);
         }
     }
 
@@ -487,47 +465,47 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public boolean canBeGuardian(EntityType<?> type) {
+    public boolean canBeSentinel(EntityType<?> type) {
         return type.getCategory() == MobCategory.MONSTER
                 && type != EntityType.PHANTOM
                 && type != EntityType.SLIME
                 && type != EntityType.MAGMA_CUBE;
     }
 
-    // Guardian size and adds: starting values for playtest (guardian-mobs.md, "Size and adds").
+    // Sentinel size and adds: starting values for playtest (sentinels.md, "Size and adds").
     @Override
-    public double guardianTargetScale(int layer) {
-        double ratio = new Tunable("guardianScaleRatio", 0f, 1f, 0.5f).floatValue();
+    public double sentinelTargetScale(int layer) {
+        double ratio = new Tunable("sentinelScaleRatio", 0f, 1f, 0.5f).floatValue();
         return 1.0 + (scaleForLayer(layer) - 1.0) * ratio;
     }
 
     @Override
-    public double guardianMaxScale() {
-        return new Tunable("guardianMaxScale", 1f, 5f, 1.5f).floatValue();
+    public double sentinelMaxScale() {
+        return new Tunable("sentinelMaxScale", 1f, 5f, 1.5f).floatValue();
     }
 
     @Override
-    public double guardianFitStep() {
-        return new Tunable("guardianFitStep", 0.01f, 1f, 0.1f).floatValue();
+    public double sentinelFitStep() {
+        return new Tunable("sentinelFitStep", 0.01f, 1f, 0.1f).floatValue();
     }
 
     @Override
-    public double guardianAddCost() {
-        return new Tunable("guardianAddCost", 0.05f, 10f, 0.5f).floatValue();
+    public double sentinelAddCost() {
+        return new Tunable("sentinelAddCost", 0.05f, 10f, 0.5f).floatValue();
     }
 
     @Override
-    public int guardianMaxAddsPerSpawn() {
-        return new Tunable("guardianMaxAddsPerSpawn", 0, 20, 3).intValue();
+    public int sentinelMaxAddsPerSpawn() {
+        return new Tunable("sentinelMaxAddsPerSpawn", 0, 20, 3).intValue();
     }
 
     @Override
-    public int guardianAddScatterRadius() {
-        return new Tunable("guardianAddScatterRadius", 1, 32, 4).intValue();
+    public int sentinelAddScatterRadius() {
+        return new Tunable("sentinelAddScatterRadius", 1, 32, 4).intValue();
     }
 
     // The trail's three numbers. Tunables are server-only, so BOSS_JIG's tick copies them into
-    // GuardianPublicFixture, the one channel from server to client for guardians.
+    // SentinelPublicFixture, the one channel from server to client for sentinels.
     @Override
     public int trailIntervalTicks() {
         return new Tunable("trailIntervalTicks", 1, 200, 4).intValue();
@@ -547,29 +525,9 @@ public final class DefaultBossRules implements BossRules {
     public void equipSunWard(Mob mob) {
         ItemStack ward = new ItemStack(BossModule.SUN_WARD.get());
         // Mob#canReplaceCurrentItem refuses to replace an item with Curse of Binding, so a
-        // guardian that picks up a real helmet keeps the ward.
+        // sentinel that picks up a real helmet keeps the ward.
         StackData.enchant(ward, Enchantments.BINDING_CURSE, 1);
         mob.setItemSlot(EquipmentSlot.HEAD, ward);
         mob.setDropChance(EquipmentSlot.HEAD, 0.0F);
-    }
-
-    @Override
-    public void applyGuardianStatScaling(Mob mob, double difficultyIntensity) {
-        // Same "+X% per unit of intensity" shape as statScalePerLayer, but keyed off a
-        // continuous [0,1] intensity rather than a discrete layer -- +100% max health/attack damage
-        // at difficultyIntensity == 1.0 (right on top of the boss), scaling down linearly toward the
-        // border's edge. Safe baseline; playtest territory. FRO_142: Tunable-backed (SAT_074).
-        double guardianHealthScale = new Tunable("guardianHealthScale", 0f, 10f, 1.0f).floatValue();
-        double factor = 1.0 + (guardianHealthScale * difficultyIntensity);
-
-        var healthAttr = mob.getAttribute(Attributes.MAX_HEALTH);
-        if (healthAttr != null) {
-            healthAttr.setBaseValue(healthAttr.getBaseValue() * factor);
-            mob.setHealth(mob.getMaxHealth());
-        }
-        var damageAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (damageAttr != null) {
-            damageAttr.setBaseValue(damageAttr.getBaseValue() * factor);
-        }
     }
 }

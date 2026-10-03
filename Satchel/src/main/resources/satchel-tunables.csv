@@ -1,8 +1,8 @@
 name,type,min,max,default,value,shipped
-DefaultBossRules:guardianHealthScale,FLOAT,0.0,10.0,1.0,1.0,1.0
-DefaultBossRules:guardianPlacementCoefficient,FLOAT,0.0,1.0,0.6,0.61,0.61
-DefaultBossRules:guardianPlacementRadiusFraction,FLOAT,0.0,1.0,0.5,0.5,0.5
-DefaultBossRules:guardianTierCount,INT,1,20,4,4,4
+DefaultBossRules:sentinelHealthScale,FLOAT,0.0,10.0,1.0,1.0,1.0
+DefaultBossRules:sentinelPlacementCoefficient,FLOAT,0.0,1.0,0.6,0.61,0.61
+DefaultBossRules:sentinelPlacementRadiusFraction,FLOAT,0.0,1.0,0.5,0.5,0.5
+DefaultBossRules:sentinelTierCount,INT,1,20,4,4,4
 DefaultBossRules:tellParticleCoefficient,FLOAT,0.0,1.0,0.7,0.7,0.7
 DefaultBossRules:tellSoundCoefficient,FLOAT,0.0,1.0,0.05,0.05,0.05
 DefaultBossRules:tellSoundCooldownTicks,INT,0,6000,600,600,600

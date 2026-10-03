@@ -50,7 +50,7 @@ public final class BossMobFixture extends SatchelFixture {
     // Viewing player -> game time they last held the boss's kill credit.
     private final Map<UUID, Long> barViewers = new HashMap<>();
 
-    // The boss's last-hurt timestamp as last seen, so each hit is noticed once (guardian-mobs.md §
+    // The boss's last-hurt timestamp as last seen, so each hit is noticed once (sentinels.md §
     // Defending the boss). Seeded at attach, so a hit from before it never counts.
     private int lastSeenHurtTimestamp;
 

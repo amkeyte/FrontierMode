@@ -141,123 +141,123 @@ public interface BossRules {
     int tellSoundCooldownTicks();
 
     /**
-     * RM_FRO_029 (Gloria): probability coefficient for the Guardian Mobs placement roll, mirroring
+     * RM_FRO_029 (Gloria): probability coefficient for the Sentinels placement roll, mirroring
      * {@link #tellParticleCoefficient()}'s exact shape -- applied as
-     * {@code placementIntensity x guardianPlacementCoefficient()} against a [0,1) uniform draw.
-     * Safe baseline: 0.15 (guardians are meant to be a rarer, more meaningful discovery-gradient
+     * {@code placementIntensity x sentinelPlacementCoefficient()} against a [0,1) uniform draw.
+     * Safe baseline: 0.15 (sentinels are meant to be a rarer, more meaningful discovery-gradient
      * signal than an environmental tell, not a constant background occurrence). Tuning is Game
      * Designer/playtest territory, same as every other coefficient in this cluster -- see
-     * RM_FRO_029's own "which Borders actually turn Guardian Mobs on" open item for the config
+     * RM_FRO_029's own "which Borders actually turn Sentinels on" open item for the config
      * layer this coefficient sits underneath.
      */
-    double guardianPlacementCoefficient();
+    double sentinelPlacementCoefficient();
 
     /**
      * RM_FRO_029 (Gloria), revised 2026-09-07 after playtest: the {@code "placement"} roll doesn't
      * normalize distance against the boss's own full {@code border.radius()} -- doing so spread a
-     * {@code LINEAR} ramp thin enough across a large border that it read as "no guardians past a
+     * {@code LINEAR} ramp thin enough across a large border that it read as "no sentinels past a
      * short distance," not a gradient. Instead, the roll's own normalized distance divides by
-     * {@code border.radius() * guardianPlacementRadiusFraction()} -- a smaller reference circle
+     * {@code border.radius() * sentinelPlacementRadiusFraction()} -- a smaller reference circle
      * concentric with the border, same shape/formula as before, just compressed so the ramp from
      * "certain" to "never" is actually noticeable as a tell while a player closes in. Clamped like
      * every other normalized distance in this cluster ({@code BorderMath.intensityAt}'s own
      * {@code [0,1]} clamp), so anything beyond this fraction of the radius reads as the curve's own
-     * edge value (0 for {@code LINEAR}) -- no guardians out there at all, by construction. Safe
+     * edge value (0 for {@code LINEAR}) -- no sentinels out there at all, by construction. Safe
      * baseline: 0.5 (half the border's radius). Tuning is Game Designer/playtest territory, same as
      * every other value in this cluster -- this one moved twice in one playtest session already.
      */
-    double guardianPlacementRadiusFraction();
+    double sentinelPlacementRadiusFraction();
 
     /**
-     * Heals {@code mob}, a guardian that just joined the level, to its full maximum health. Stat
+     * Heals {@code mob}, a sentinel that just joined the level, to its full maximum health. Stat
      * scaling runs before vanilla's own setup, which can raise max health without healing (a leader
      * zombie), so the join is the first point at which the final maximum is known.
      */
-    void healGuardian(Mob mob);
+    void healSentinel(Mob mob);
 
-    /** How many of a defeated boss's guardians die per {@code BOSS_JIG} tick, so their loot doesn't land in one tick. */
-    int guardianDefeatKillsPerTick();
+    /** How many of a defeated boss's sentinels die per {@code BOSS_JIG} tick, so their loot doesn't land in one tick. */
+    int sentinelDefeatKillsPerTick();
 
     /** How long a player keeps seeing a boss's health bar after they last held its kill credit. */
     int bossBarLingerTicks();
 
     /**
-     * Kills {@code mob}, a guardian of a defeated boss, as a real vanilla death: ordinary drops
+     * Kills {@code mob}, a sentinel of a defeated boss, as a real vanilla death: ordinary drops
      * always. With a {@code credited} player it is marked as recently hurt by them first, so
      * experience and player-only drops follow; {@code null} kills it uncredited (drops, no XP).
      */
-    void killGuardian(Mob mob, ServerPlayer credited);
+    void killSentinel(Mob mob, ServerPlayer credited);
 
     /**
-     * Horizontal half-width, in blocks, of the box around a boss whose guardians turn on a player who
-     * hits it. A flat number, not tied to the placement ring. See guardian-mobs.md § Defending the boss.
+     * Horizontal half-width, in blocks, of the box around a boss whose sentinels turn on a player who
+     * hits it. A flat number, not tied to the placement ring. See sentinels.md § Defending the boss.
      */
-    int guardianAlertRadius();
+    int sentinelAlertRadius();
 
-    /** How long, in ticks, an alerted guardian stays on the player after the last hit on its boss. */
-    int guardianAlertMemoryTicks();
+    /** How long, in ticks, an alerted sentinel stays on the player after the last hit on its boss. */
+    int sentinelAlertMemoryTicks();
 
     /**
-     * Turns {@code guardian} on {@code player}, replacing any current target, unless vanilla's combat
+     * Turns {@code sentinel} on {@code player}, replacing any current target, unless vanilla's combat
      * targeting rules exclude the player (creative, spectator, allied). No line-of-sight check.
      *
-     * @return true if the guardian now targets {@code player}
+     * @return true if the sentinel now targets {@code player}
      */
-    boolean alertGuardian(Mob guardian, ServerPlayer player);
+    boolean alertSentinel(Mob sentinel, ServerPlayer player);
 
     /**
-     * An alert on {@code guardian} lapsed: clears its target if it is still {@code player} and the
-     * guardian can't see them within its own follow range -- which a player in another level never
+     * An alert on {@code sentinel} lapsed: clears its target if it is still {@code player} and the
+     * sentinel can't see them within its own follow range -- which a player in another level never
      * is. One that can see them keeps the target,
      * and vanilla's own targeting and forgiveness take over; any other target is left alone.
      */
-    void releaseGuardian(Mob guardian, ServerPlayer player);
+    void releaseSentinel(Mob sentinel, ServerPlayer player);
 
     /**
      * Removes {@code mob} with vanilla's death puff and nothing else: no drops, no XP, no death event.
-     * For a doomed guardian that loaded after its boss was defeated, and for a boss whose defeat was
+     * For a doomed sentinel that loaded after its boss was defeated, and for a boss whose defeat was
      * forced ({@code /boss defeat}) or that is found alive after its record was defeated.
      */
     void dismiss(Mob mob);
 
     /**
-     * Whether a spawn of {@code type} can become a guardian, and so whether the daylight gates may
+     * Whether a spawn of {@code type} can become a sentinel, and so whether the daylight gates may
      * lift for it. {@code MobCategory.MONSTER} is the base test (not {@code instanceof Monster}: Slime
      * and MagmaCube are {@code MONSTER}-category hostiles that don't extend it). Excluded: Phantom,
      * which ignites in sunlight with no helmet check so the sun ward can't protect it; and Slime and
      * MagmaCube, which split on death and would crowd the hostile cap.
      */
-    boolean canBeGuardian(EntityType<?> type);
+    boolean canBeSentinel(EntityType<?> type);
 
     /**
-     * A guardian's uncapped target scale for its boss's {@code layer}:
-     * {@code 1 + layer x scalePerLayer x guardianScaleRatio}. The ratio keeps a guardian at a
+     * A sentinel's uncapped target scale for its boss's {@code layer}:
+     * {@code 1 + layer x scalePerLayer x sentinelScaleRatio}. The ratio keeps a sentinel at a
      * fraction of its boss's growth, so the boss stays the largest thing on the field at every layer.
      */
-    double guardianTargetScale(int layer);
+    double sentinelTargetScale(int layer);
 
-    /** The largest scale a single guardian takes; growth past it becomes extra guardians instead. */
-    double guardianMaxScale();
+    /** The largest scale a single sentinel takes; growth past it becomes extra sentinels instead. */
+    double sentinelMaxScale();
 
     /** How far the fit test steps down from the ceiling toward 1.0 when the full size doesn't fit. */
-    double guardianFitStep();
+    double sentinelFitStep();
 
-    /** How much of the scale budget one extra guardian costs. */
-    double guardianAddCost();
+    /** How much of the scale budget one extra sentinel costs. */
+    double sentinelAddCost();
 
-    /** The most extra guardians one conversion queues. */
-    int guardianMaxAddsPerSpawn();
+    /** The most extra sentinels one conversion queues. */
+    int sentinelMaxAddsPerSpawn();
 
-    /** How far from its parent an extra guardian is placed, in blocks. */
-    int guardianAddScatterRadius();
+    /** How far from its parent an extra sentinel is placed, in blocks. */
+    int sentinelAddScatterRadius();
 
-    /** Ticks between trail particles per guardian. Reaches the client through the public fixture. */
+    /** Ticks between trail particles per sentinel. Reaches the client through the public fixture. */
     int trailIntervalTicks();
 
     /** How long each trail particle lives, in ticks. Reaches the client through the public fixture. */
     int trailLifetimeTicks();
 
-    /** How close to the local player a guardian must be to leave a trail. Reaches the client through the public fixture. */
+    /** How close to the local player a sentinel must be to leave a trail. Reaches the client through the public fixture. */
     int trailRadius();
 
     /**
@@ -265,12 +265,4 @@ public interface BossRules {
      * its head slot with a drop chance of 0, so vanilla's sun-ignition check never burns it.
      */
     void equipSunWard(Mob mob);
-
-    /**
-     * RM_FRO_029 (Gloria): applies stat scaling keyed off {@code difficultyIntensity} rather than
-     * layer -- mirrors {@code DefaultBossRules.applyStatScaling()} directly, same "safe baseline,
-     * replace later" framing as {@link #tellParticleCoefficient()} and every other tunable in this
-     * cluster. Ships in v1 alongside the marker, per the same 2026-09-07 ruling -- not deferred.
-     */
-    void applyGuardianStatScaling(Mob mob, double difficultyIntensity);
 }

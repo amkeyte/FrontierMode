@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Which Feral mobs in this level are pack members -- mobs {@code FeralModule}'s pack maintenance
  * spawned, as opposed to natural Wilds spawns that are Feral too. A Satchel record, not a tag on the
- * entity, the same shape as guardian records: persisted, so a pack member is still one after its
+ * entity, the same shape as sentinel records: persisted, so a pack member is still one after its
  * chunk reloads or the server restarts, and deleted only when the mob is gone for good
  * ({@code FeralPackHandlers}). FRO_201.
  */

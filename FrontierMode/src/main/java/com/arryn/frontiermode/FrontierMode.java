@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.boss.BossModule;
+import com.arryn.frontiermode.difficulty.DifficultyModule;
 import com.arryn.frontiermode.coordination.SpawnCoordinator;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
@@ -161,6 +162,10 @@ public final class FrontierMode {
         // this same init() call -- see BossModule.onBordersScopeLoaded's own doc.
         BossModule.init();
 
+        // FRO_068: the stat ladder. Depends on Border for the ambient Difficulty lookup; Boss calls
+        // into it for Sentinels, never the reverse.
+        DifficultyModule.init();
+
         // FRO_118 (RM_FRO_033, "Marilyn"): Admin Compass + shared core. No fixture/init-order
         // dependency on Border or Boss's own module init -- it reaches BossAPI/BorderAPI from
         // outside, the same one-directional relationship Feral has with both (see
@@ -182,7 +187,7 @@ public final class FrontierMode {
         EffectsMod.init();
 
         // RM_FRO_038 ("Martha"): Feral mobs. No fixture/init-order dependency on Border/Boss
-        // either -- reads BorderAPI/EffectsAPI at spawn time, same as Guardian Mobs reads them
+        // either -- reads BorderAPI/EffectsAPI at spawn time, same as Sentinels reads them
         // from inside Boss's own module. Kept as its own module deliberately -- see FeralModule's
         // own doc.
         FeralModule.init();

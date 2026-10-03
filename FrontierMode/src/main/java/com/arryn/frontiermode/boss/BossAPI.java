@@ -8,13 +8,13 @@ import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
-import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
+import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -261,13 +261,13 @@ public final class BossAPI {
     }
 
     /**
-     * Resolves {@link BossGuardiansFixture} for {@code level} -- same "standby, don't crash"
+     * Resolves {@link BossSentinelsFixture} for {@code level} -- same "standby, don't crash"
      * discipline as {@link #bosses(Level)}, mirroring {@link #bossTells} exactly. Used by
      * {@code BossModule.onMobSpawnFinalize}.
      */
-    public static Optional<BossGuardiansFixture> guardians(Level level) {
+    public static Optional<BossSentinelsFixture> sentinels(Level level) {
         if (!Satchel.isReady()) {
-            OUT.debug("[BossAPI] guardians(): Satchel not ready yet -> Optional.empty level="
+            OUT.debug("[BossAPI] sentinels(): Satchel not ready yet -> Optional.empty level="
                     + level.dimension().location());
             return Optional.empty();
         }
@@ -278,7 +278,7 @@ public final class BossAPI {
         // steps this used to hand-write into one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
         if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] guardians(): scope not ready -> Optional.empty level="
+            OUT.debug("[BossAPI] sentinels(): scope not ready -> Optional.empty level="
                     + level.dimension().location());
             return Optional.empty();
         }
@@ -286,19 +286,19 @@ public final class BossAPI {
         try {
             return levelJig()
                     .getOrCreate(scope, FrontierKeys.BOSS_BUNDLE)
-                    .get(FrontierKeys.BOSS_GUARDIANS);
+                    .get(FrontierKeys.BOSS_SENTINELS);
         } catch (RuntimeException e) {
             throw new SatchelException.AccessFailed(
-                    "Failed to resolve BossGuardiansFixture for level " + level.dimension().location(), e);
+                    "Failed to resolve BossSentinelsFixture for level " + level.dimension().location(), e);
         }
     }
 
     /**
-     * {@link #guardians(Level)} for hot paths -- the hitbox {@code Size} handler runs for every
+     * {@link #sentinels(Level)} for hot paths -- the hitbox {@code Size} handler runs for every
      * entity's dimension refresh, including from the {@code Entity} constructor. Never logs, never
      * throws; empty for anything not resolvable yet.
      */
-    public static Optional<BossGuardiansFixture> guardiansQuiet(Level level) {
+    public static Optional<BossSentinelsFixture> sentinelsQuiet(Level level) {
         if (!Satchel.isReady()) {
             return Optional.empty();
         }
@@ -307,28 +307,28 @@ public final class BossAPI {
             return Optional.empty();
         }
         try {
-            return levelJig().getOrCreate(scope, FrontierKeys.BOSS_BUNDLE).get(FrontierKeys.BOSS_GUARDIANS);
+            return levelJig().getOrCreate(scope, FrontierKeys.BOSS_BUNDLE).get(FrontierKeys.BOSS_SENTINELS);
         } catch (RuntimeException e) {
             return Optional.empty();
         }
     }
 
     /**
-     * The client-visible guardian record on either side. Like {@link #publicMarkers(Level)}: never
+     * The client-visible sentinel record on either side. Like {@link #publicMarkers(Level)}: never
      * logs, never throws -- "not ready yet" is the normal state for the first moments after joining
      * a world, and this is called from render and tick paths.
      */
-    public static Optional<GuardianPublicFixture> guardianMarkers(Level level) {
+    public static Optional<SentinelPublicFixture> sentinelMarkers(Level level) {
         if (!Satchel.isReady()) {
             return Optional.empty();
         }
         LevelScope scope = new LevelScope(level);
-        if (Satchel.tryReadyScopeInfo(FrontierKeys.GUARDIAN_PUBLIC_JIG, scope).isEmpty()) {
+        if (Satchel.tryReadyScopeInfo(FrontierKeys.SENTINEL_PUBLIC_JIG, scope).isEmpty()) {
             return Optional.empty();
         }
         try {
-            var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.GUARDIAN_PUBLIC_JIG).jig;
-            return jig.getOrCreate(scope, FrontierKeys.GUARDIAN_PUBLIC_BUNDLE).get(FrontierKeys.GUARDIAN_PUBLIC);
+            var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.SENTINEL_PUBLIC_JIG).jig;
+            return jig.getOrCreate(scope, FrontierKeys.SENTINEL_PUBLIC_BUNDLE).get(FrontierKeys.SENTINEL_PUBLIC);
         } catch (RuntimeException e) {
             return Optional.empty();
         }
@@ -518,8 +518,8 @@ public final class BossAPI {
                     Optional.empty(), false);
         }
 
-        // A forced defeat kills the boss's guardians uncredited: drops, no XP.
-        GuardianJigHandlers.onBossDefeated(level, bossId, null);
+        // A forced defeat kills the boss's sentinels uncredited: drops, no XP.
+        SentinelJigHandlers.onBossDefeated(level, bossId, null);
 
         // A forced defeat has no kill, so the boss's body would otherwise stay: it leaves in a puff.
         // discard(), not kill(), so the real-death cascade doesn't re-enter (see removeBoss). One that
@@ -569,9 +569,9 @@ public final class BossAPI {
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline -- this is one of the three call
-        // sites ensureGuardianCurves runs from (the other two are
+        // sites ensureSentinelCurves runs from (the other two are
         // BossJigHandlers.onBordersScopeLoaded/onMobDied).
-        BossGuardiansFixture.ensureGuardianCurves(level, result.border().id());
+        BossSentinelsFixture.ensureSentinelCurves(level, result.border().id());
         return new DefeatOutcome(result, nextBoss, false);
     }
 }

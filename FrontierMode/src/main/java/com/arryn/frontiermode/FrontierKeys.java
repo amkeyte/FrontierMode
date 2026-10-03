@@ -13,9 +13,9 @@ import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.bundle.GuardianPublicBundle;
-import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
-import com.arryn.frontiermode.boss.common.fixture.GuardianPublicFixture;
+import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
+import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
+import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
@@ -189,44 +189,44 @@ public final class FrontierKeys {
                     BossTellFixture.class
             );
 
-    // RM_FRO_029 (Gloria): BossGuardiansFixture -- third sibling fixture in BOSS_BUNDLE alongside
+    // RM_FRO_029 (Gloria): BossSentinelsFixture -- third sibling fixture in BOSS_BUNDLE alongside
     // BossFixture/BossTellFixture. See BossModule.registerBossJig() for the schema wiring and
-    // wiki/frontiermode/architecture/guardian-mobs.md for the design.
+    // wiki/frontiermode/architecture/sentinels.md for the design.
 
-    public static final FixtureKey<BossGuardiansFixture> BOSS_GUARDIANS =
+    public static final FixtureKey<BossSentinelsFixture> BOSS_SENTINELS =
             new FixtureKey<>(
-                    "frontiermode:boss_guardians_fixture",
-                    BossGuardiansFixture.class
+                    "frontiermode:boss_sentinels_fixture",
+                    BossSentinelsFixture.class
             );
 
 
-    // FRO_167: the client-visible guardian record -- its own BOTH-applicability bundle and jig so
-    // guardian churn never resends the boss records. See BossModule.registerGuardianPublicJig().
+    // FRO_167: the client-visible sentinel record -- its own BOTH-applicability bundle and jig so
+    // sentinel churn never resends the boss records. See BossModule.registerSentinelPublicJig().
 
-    public static final BundleKey<GuardianPublicBundle> GUARDIAN_PUBLIC_BUNDLE =
+    public static final BundleKey<SentinelPublicBundle> SENTINEL_PUBLIC_BUNDLE =
             new BundleKey<>(
-                    "frontiermode:guardian_public_bundle",
-                    GuardianPublicBundle.class
+                    "frontiermode:sentinel_public_bundle",
+                    SentinelPublicBundle.class
             );
 
-    public static final FixtureKey<GuardianPublicFixture> GUARDIAN_PUBLIC =
+    public static final FixtureKey<SentinelPublicFixture> SENTINEL_PUBLIC =
             new FixtureKey<>(
-                    "frontiermode:guardian_public_fixture",
-                    GuardianPublicFixture.class
+                    "frontiermode:sentinel_public_fixture",
+                    SentinelPublicFixture.class
             );
 
-    public static final JigKey<LevelJig> GUARDIAN_PUBLIC_JIG =
+    public static final JigKey<LevelJig> SENTINEL_PUBLIC_JIG =
             new JigKey<>(
-                    "frontiermode:guardian_public_jig",
+                    "frontiermode:sentinel_public_jig",
                     LevelJig.class
             );
 
-    // FRO_167: MobJig tracking the guardian entities named by BossGuardiansFixture's records. No
-    // bundle -- there is no per-mob state. See BossModule.registerGuardianMobJig().
+    // FRO_167: MobJig tracking the sentinel entities named by BossSentinelsFixture's records. No
+    // bundle -- there is no per-mob state. See BossModule.registerSentinelMobJig().
 
-    public static final JigKey<MobJig> GUARDIAN_MOB_JIG =
+    public static final JigKey<MobJig> SENTINEL_MOB_JIG =
             new JigKey<>(
-                    "frontiermode:guardian_mob_jig",
+                    "frontiermode:sentinel_mob_jig",
                     MobJig.class
             );
 
@@ -342,6 +342,15 @@ public final class FrontierKeys {
     public static final JigKey<LevelJig> ADMIN_TOOLS_JIG =
             new JigKey<>(
                     "frontiermode:admin_tools_jig",
+                    LevelJig.class
+            );
+
+    // FRO_068: the difficulty module's tick-free signal subscription point -- no bundle/fixture,
+    // same shape as ADMIN_TOOLS_JIG. See DifficultyModule.init().
+
+    public static final JigKey<LevelJig> DIFFICULTY_JIG =
+            new JigKey<>(
+                    "frontiermode:difficulty_jig",
                     LevelJig.class
             );
 

@@ -17,11 +17,11 @@ import java.util.List;
 
 /**
  * The one subscriber to {@link MobSpawnFinalizeSignal}, fanning out to the modules that each need a
- * turn on a spawn, in a fixed order: Feral's Wilds Slime/MagmaCube deny first, then Boss (guardian
+ * turn on a spawn, in a fixed order: Feral's Wilds Slime/MagmaCube deny first, then Boss (sentinel
  * conversion), Border (Sick Wildlife's density roll), and Feral (its density roll). The fan-out is
  * right to exist -- one place that states the order -- but it depends on all three modules and is
  * depended on by none, so it lives here, not in any of them. Each module's own decision logic stays
- * inside that module; this only calls them. See guardian-mobs.md, "Hooking the spawn event".
+ * inside that module; this only calls them. See sentinels.md, "Hooking the spawn event".
  *
  * <p>Registered like Feral's tick sources: its own tick-free {@code JigConfig} with an empty bundle
  * schema, only where installation happens to occur -- a bare signal isn't scoped to it, so the

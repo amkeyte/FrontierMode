@@ -123,27 +123,27 @@ public final class BossRulesFacet {
     }
 
     /**
-     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianPlacementCoefficient()}.
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#sentinelPlacementCoefficient()}.
      */
-    public double guardianPlacementCoefficient() {
-        return RULES.guardianPlacementCoefficient();
+    public double sentinelPlacementCoefficient() {
+        return RULES.sentinelPlacementCoefficient();
     }
 
     /**
-     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#guardianPlacementRadiusFraction()}.
+     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#sentinelPlacementRadiusFraction()}.
      */
-    public double guardianPlacementRadiusFraction() {
-        return RULES.guardianPlacementRadiusFraction();
+    public double sentinelPlacementRadiusFraction() {
+        return RULES.sentinelPlacementRadiusFraction();
     }
 
-    /** See {@link BossRules#healGuardian(Mob)}. */
-    public void healGuardian(Mob mob) {
-        RULES.healGuardian(mob);
+    /** See {@link BossRules#healSentinel(Mob)}. */
+    public void healSentinel(Mob mob) {
+        RULES.healSentinel(mob);
     }
 
-    /** See {@link BossRules#guardianDefeatKillsPerTick()}. */
-    public int guardianDefeatKillsPerTick() {
-        return RULES.guardianDefeatKillsPerTick();
+    /** See {@link BossRules#sentinelDefeatKillsPerTick()}. */
+    public int sentinelDefeatKillsPerTick() {
+        return RULES.sentinelDefeatKillsPerTick();
     }
 
     /** See {@link BossRules#bossBarLingerTicks()}. */
@@ -151,29 +151,29 @@ public final class BossRulesFacet {
         return RULES.bossBarLingerTicks();
     }
 
-    /** See {@link BossRules#killGuardian(Mob, ServerPlayer)}. */
-    public void killGuardian(Mob mob, ServerPlayer credited) {
-        RULES.killGuardian(mob, credited);
+    /** See {@link BossRules#killSentinel(Mob, ServerPlayer)}. */
+    public void killSentinel(Mob mob, ServerPlayer credited) {
+        RULES.killSentinel(mob, credited);
     }
 
-    /** See {@link BossRules#guardianAlertRadius()}. */
-    public int guardianAlertRadius() {
-        return RULES.guardianAlertRadius();
+    /** See {@link BossRules#sentinelAlertRadius()}. */
+    public int sentinelAlertRadius() {
+        return RULES.sentinelAlertRadius();
     }
 
-    /** See {@link BossRules#guardianAlertMemoryTicks()}. */
-    public int guardianAlertMemoryTicks() {
-        return RULES.guardianAlertMemoryTicks();
+    /** See {@link BossRules#sentinelAlertMemoryTicks()}. */
+    public int sentinelAlertMemoryTicks() {
+        return RULES.sentinelAlertMemoryTicks();
     }
 
-    /** See {@link BossRules#alertGuardian(Mob, ServerPlayer)}. */
-    public boolean alertGuardian(Mob guardian, ServerPlayer player) {
-        return RULES.alertGuardian(guardian, player);
+    /** See {@link BossRules#alertSentinel(Mob, ServerPlayer)}. */
+    public boolean alertSentinel(Mob sentinel, ServerPlayer player) {
+        return RULES.alertSentinel(sentinel, player);
     }
 
-    /** See {@link BossRules#releaseGuardian(Mob, ServerPlayer)}. */
-    public void releaseGuardian(Mob guardian, ServerPlayer player) {
-        RULES.releaseGuardian(guardian, player);
+    /** See {@link BossRules#releaseSentinel(Mob, ServerPlayer)}. */
+    public void releaseSentinel(Mob sentinel, ServerPlayer player) {
+        RULES.releaseSentinel(sentinel, player);
     }
 
     /** See {@link BossRules#dismiss(Mob)}. */
@@ -181,39 +181,39 @@ public final class BossRulesFacet {
         RULES.dismiss(mob);
     }
 
-    /** See {@link BossRules#canBeGuardian(EntityType)}. */
-    public boolean canBeGuardian(EntityType<?> type) {
-        return RULES.canBeGuardian(type);
+    /** See {@link BossRules#canBeSentinel(EntityType)}. */
+    public boolean canBeSentinel(EntityType<?> type) {
+        return RULES.canBeSentinel(type);
     }
 
-    /** See {@link BossRules#guardianTargetScale(int)}. */
-    public double guardianTargetScale(int layer) {
-        return RULES.guardianTargetScale(layer);
+    /** See {@link BossRules#sentinelTargetScale(int)}. */
+    public double sentinelTargetScale(int layer) {
+        return RULES.sentinelTargetScale(layer);
     }
 
-    /** See {@link BossRules#guardianMaxScale()}. */
-    public double guardianMaxScale() {
-        return RULES.guardianMaxScale();
+    /** See {@link BossRules#sentinelMaxScale()}. */
+    public double sentinelMaxScale() {
+        return RULES.sentinelMaxScale();
     }
 
-    /** See {@link BossRules#guardianFitStep()}. */
-    public double guardianFitStep() {
-        return RULES.guardianFitStep();
+    /** See {@link BossRules#sentinelFitStep()}. */
+    public double sentinelFitStep() {
+        return RULES.sentinelFitStep();
     }
 
-    /** See {@link BossRules#guardianAddCost()}. */
-    public double guardianAddCost() {
-        return RULES.guardianAddCost();
+    /** See {@link BossRules#sentinelAddCost()}. */
+    public double sentinelAddCost() {
+        return RULES.sentinelAddCost();
     }
 
-    /** See {@link BossRules#guardianMaxAddsPerSpawn()}. */
-    public int guardianMaxAddsPerSpawn() {
-        return RULES.guardianMaxAddsPerSpawn();
+    /** See {@link BossRules#sentinelMaxAddsPerSpawn()}. */
+    public int sentinelMaxAddsPerSpawn() {
+        return RULES.sentinelMaxAddsPerSpawn();
     }
 
-    /** See {@link BossRules#guardianAddScatterRadius()}. */
-    public int guardianAddScatterRadius() {
-        return RULES.guardianAddScatterRadius();
+    /** See {@link BossRules#sentinelAddScatterRadius()}. */
+    public int sentinelAddScatterRadius() {
+        return RULES.sentinelAddScatterRadius();
     }
 
     /** See {@link BossRules#trailIntervalTicks()}. */
@@ -234,12 +234,5 @@ public final class BossRulesFacet {
     /** See {@link BossRules#equipSunWard(Mob)}. */
     public void equipSunWard(Mob mob) {
         RULES.equipSunWard(mob);
-    }
-
-    /**
-     * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#applyGuardianStatScaling(Mob, double)}.
-     */
-    public void applyGuardianStatScaling(Mob mob, double difficultyIntensity) {
-        RULES.applyGuardianStatScaling(mob, difficultyIntensity);
     }
 }

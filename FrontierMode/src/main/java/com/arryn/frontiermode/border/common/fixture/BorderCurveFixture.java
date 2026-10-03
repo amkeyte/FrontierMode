@@ -111,8 +111,8 @@ public final class BorderCurveFixture extends SatchelFixture {
      * {@link #create} on a border with no such curve yet.
      *
      * <p>Added for exactly the gap {@code create}-if-absent helpers like
-     * {@code BossTellFixture.createTellCurveIfAbsent}/{@code BossGuardiansFixture
-     * .ensureGuardianCurves} can't cover on their own: a curve's shape/steepness is "safe
+     * {@code BossTellFixture.createTellCurveIfAbsent}/{@code BossSentinelsFixture
+     * .ensureSentinelCurves} can't cover on their own: a curve's shape/steepness is "safe
      * baseline, replace later" tuning territory by design, and this whole cluster is still being
      * played and adjusted -- a live world that already seeded a curve under the old constants
      * would otherwise be stuck with them until the world resets, since {@code create}-if-absent

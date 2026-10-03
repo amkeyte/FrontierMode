@@ -122,7 +122,7 @@ public final class EffectsAPI {
 
     /**
      * The shared amethyst particle until a custom type is registered: vanilla dust in an amethyst
-     * purple, so every consumer (a guardian's trail, Cairn, the boss's flash) draws the same colour.
+     * purple, so every consumer (a sentinel's trail, Cairn, the boss's flash) draws the same colour.
      * Dust has no gravity, so a consumer that wants it to stay put can zero its speed.
      */
     public static final DustParticleOptions AMETHYST_DUST =
@@ -142,7 +142,7 @@ public final class EffectsAPI {
     /**
      * Idempotent create-if-absent for a named {@link PlayerTeam} -- proposed shape from
      * wiki/frontiermode/architecture/effects.md#team-assignment-persistent-visual-state, mirroring
-     * this codebase's own {@code createTellCurveIfAbsent}/{@code ensureGuardianCurves}
+     * this codebase's own {@code createTellCurveIfAbsent}/{@code ensureSentinelCurves}
      * convention. Team membership is persistent, server-authoritative entity state (unlike a
      * particle burst or a sound), so it has no client-derived/parity counterpart -- every real
      * caller is this server-broadcast path.

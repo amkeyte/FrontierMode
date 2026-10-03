@@ -28,7 +28,7 @@ class BorderCurveMathTest {
     void square_is_max_at_center_and_zero_at_the_edge() {
         assertEquals(1.0, BorderCurveMath.intensityAt(Shape.SQUARE, 1.0, 0.0), DELTA);
         assertEquals(0.0, BorderCurveMath.intensityAt(Shape.SQUARE, 1.0, 1.0), DELTA);
-        // Worked Guardian Mobs example's "difficulty" curve is LOG, but SQUARE's own convex
+        // Worked Sentinels example's "difficulty" curve is LOG, but SQUARE's own convex
         // falloff (stays high longer, then drops late) should still sit above the LINEAR
         // baseline at the same halfway distance.
         assertTrue(BorderCurveMath.intensityAt(Shape.SQUARE, 1.0, 0.5)

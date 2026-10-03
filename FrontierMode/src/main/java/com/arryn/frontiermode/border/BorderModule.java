@@ -56,7 +56,7 @@ public final class BorderModule {
 
     // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): shared RNG for Sick Wildlife's spawn-
     // density roll in onMobSpawnFinalize below -- same static-field, not-persisted shape
-    // BossTellFixture.RNG/BossGuardiansFixture.RNG already use.
+    // BossTellFixture.RNG/BossSentinelsFixture.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
 
     // Debug toggle, project owner request (2026-09-18): "/border debug sickness <true|false>" --
@@ -460,7 +460,7 @@ public final class BorderModule {
 
     // ─────────────────────────────────────────────
     // RM_FRO_037 ("Brenda"): Sick Wildlife's density half -- a Border-side MobSpawnEvent
-    // .FinalizeSpawn hook, mirroring BossGuardiansFixture's own hook shape but simpler (no
+    // .FinalizeSpawn hook, mirroring BossSentinelsFixture's own hook shape but simpler (no
     // player, no boss, no curve -- just "is this passive mob's spawn position in the Wilds").
     // Called from SpawnCoordinator alongside the Boss/Feral delegates
     // -- Feral (RM_FRO_038 "Martha") used to share this one method too, but was pulled out into
@@ -476,14 +476,14 @@ public final class BorderModule {
     /**
      * Never cancels the spawn either way -- this is a modifier on an already-happening spawn
      * (spawning an extra nearby companion), not a summon or a block, same discipline
-     * {@code BossGuardiansFixture.onMobSpawnFinalize} already follows. "Standby, don't crash":
+     * {@code BossSentinelsFixture.onMobSpawnFinalize} already follows. "Standby, don't crash":
      * Border state not resolvable yet, or the spawning mob isn't a passive {@link Animal}, is a
      * silent no-op.
      */
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
         if (!(mob instanceof Animal)) {
             // Density scaling only concerns Sick Wildlife's passive mobs -- everything else
-            // (hostiles, the mob that just triggered Guardian Mobs'/Feral's own handlers) is
+            // (hostiles, the mob that just triggered Sentinels'/Feral's own handlers) is
             // untouched.
             return;
         }

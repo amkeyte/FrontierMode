@@ -8,16 +8,16 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Per-level interest for {@code GUARDIAN_MOB_JIG}: each level's set is the live, read-only view of
- * its {@code BossGuardiansFixture}'s record keys -- not a second, hand-maintained set. Deleting a
+ * Per-level interest for {@code SENTINEL_MOB_JIG}: each level's set is the live, read-only view of
+ * its {@code BossSentinelsFixture}'s record keys -- not a second, hand-maintained set. Deleting a
  * record stops tracking it. Registered per level from {@code BOSS_JIG}'s tick
- * ({@link GuardianJigHandlers#onBossTick}); nothing is rebuilt per call, since {@code MobDied}'s
+ * ({@link SentinelJigHandlers#onBossTick}); nothing is rebuilt per call, since {@code MobDied}'s
  * gate walks every supplier on every mob death.
  */
-final class GuardianInterests {
+final class SentinelInterests {
 
     static final Map<Level, Set<UUID>> MAP = new ConcurrentHashMap<>();
 
-    private GuardianInterests() {
+    private SentinelInterests() {
     }
 }

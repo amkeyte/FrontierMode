@@ -244,7 +244,7 @@ public final class BorderMath {
     // wiki/frontiermode/architecture/border-curve.md#evaluation-bordermath-not-a-service-class.
     // BorderCurve is data; the evaluation is pure math living here, same as isInside/
     // randomPointInDisk above. Zero domain knowledge either way -- this doesn't know what a
-    // "tier" or "guardian" is, only how to turn a shape and a distance into a number.
+    // "tier" or "sentinel" is, only how to turn a shape and a distance into a number.
     // ------------------------------------------------------------------
 
     /**

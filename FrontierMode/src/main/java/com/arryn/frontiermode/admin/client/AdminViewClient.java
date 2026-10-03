@@ -3,7 +3,7 @@ package com.arryn.frontiermode.admin.client;
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.boss.GuardianMarkers;
+import com.arryn.frontiermode.boss.SentinelMarkers;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.commands.Commands;
@@ -24,13 +24,13 @@ import java.util.WeakHashMap;
 
 /**
  * The debug view: one toggle, like F3, that shows everything a playtester wants to see -- a coloured
- * marker above bosses, guardians and Ferals ({@link AdminViewMarkers}), the name tag on bosses and
+ * marker above bosses, sentinels and Ferals ({@link AdminViewMarkers}), the name tag on bosses and
  * Ferals, and the border rings.
  * Entirely client-side and per player: nothing is sent, the server never sets the flags, and normal
  * play always shows none of it. {@code /admin debug view <true|false>}, default off, not persisted.
  *
- * <p>The client already knows which mobs to mark: bosses and guardians through the synced
- * {@link BossMarkers}/{@link GuardianMarkers}, Ferals through their synced {@code feral} team. While
+ * <p>The client already knows which mobs to mark: bosses and sentinels through the synced
+ * {@link BossMarkers}/{@link SentinelMarkers}, Ferals through their synced {@code feral} team. While
  * on, each tick this rebuilds the set of marked mobs and their roles (which {@link AdminViewMarkers}
  * draws) and sets name-tag visibility on each boss's and Feral's local copy -- re-applied each tick in
  * case the server resends it. Turning it off puts back what it touched.
@@ -51,7 +51,7 @@ public final class AdminViewClient {
     /** What a marked mob is there for, and its marker colour (ARGB, fully opaque). */
     public enum Role {
         BOSS(0xFFFFAA00, true),
-        GUARDIAN(0xFFFF55FF, false),
+        SENTINEL(0xFFFF55FF, false),
         FERAL(0xFF55FF55, true);
 
         private final int color;
@@ -66,7 +66,7 @@ public final class AdminViewClient {
             return color;
         }
 
-        /** Whether this role also shows its name tag in the view (a guardian carries none). */
+        /** Whether this role also shows its name tag in the view (a sentinel carries none). */
         public boolean tagged() {
             return tagged;
         }
@@ -142,13 +142,13 @@ public final class AdminViewClient {
         }
     }
 
-    // A boss first, then a guardian (a guardian in the Wilds is Feral-tagged too), then a Feral.
+    // A boss first, then a sentinel (a sentinel in the Wilds is Feral-tagged too), then a Feral.
     private static Role roleOf(Mob mob) {
         if (BossMarkers.isLiveBoss(mob)) {
             return Role.BOSS;
         }
-        if (GuardianMarkers.isGuardian(mob)) {
-            return Role.GUARDIAN;
+        if (SentinelMarkers.isSentinel(mob)) {
+            return Role.SENTINEL;
         }
         return isFeral(mob) ? Role.FERAL : null;
     }

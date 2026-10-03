@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * FRO_148: the client half of boss (and guardian) scale -- the render transform, and the dimension refresh that
+ * FRO_148: the client half of boss (and sentinel) scale -- the render transform, and the dimension refresh that
  * makes the client's own hitbox catch up once the marker's scale arrives.
  *
  * <p>The hitbox scale itself is {@code BossScaleEvents}' {@code Size} handler (both sides). This

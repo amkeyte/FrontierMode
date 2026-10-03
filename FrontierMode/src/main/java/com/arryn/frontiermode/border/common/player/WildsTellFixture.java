@@ -51,7 +51,7 @@ import java.util.List;
  * Boss/border-owner to key off -- see
  * wiki/frontiermode/architecture/wilds.md#where-this-lives.
  * Zero persisted state -- no {@code registerCustom(...)} call -- for the same reason
- * {@code BossGuardiansFixture} has none: nothing here needs to survive a restart.
+ * {@code BossSentinelsFixture} has none: nothing here needs to survive a restart.
  *
  * <p>Density scaling (mobs spawning more densely with distance, per FRO_098) is a separate
  * concern handled at spawn time by {@code BorderModule.onMobSpawnFinalize}, not here -- this
@@ -60,7 +60,7 @@ import java.util.List;
 public final class WildsTellFixture extends SatchelFixture {
 
     // Shared RNG -- same static-field, not-persisted shape BossTellFixture.RNG/
-    // BossGuardiansFixture.RNG already use.
+    // BossSentinelsFixture.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
 
     // Non-persisted tell-pass cadence counter, per-player (this fixture instance is itself
