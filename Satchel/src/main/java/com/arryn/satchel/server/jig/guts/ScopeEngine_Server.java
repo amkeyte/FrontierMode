@@ -227,11 +227,16 @@ public final class ScopeEngine_Server implements ScopeEngine {
         onExecutionPulse(info, false);
     }
 
-    private void onExecutionPulse(ScopeInfo info, boolean terminal) {
-        if (info == null) return;
+    /**
+     * @return whether any bundle was flushed into {@link BundleSavedData}'s snapshot this pass
+     */
+    private boolean onExecutionPulse(ScopeInfo info, boolean terminal) {
+        if (info == null) return false;
 
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
-        if (map == null || map.isEmpty()) return;
+        if (map == null || map.isEmpty()) return false;
+
+        boolean flushed = false;
 
         for (BundleKey<?> key : List.copyOf(map.keySet())) {
             SatchelBundle bundle = map.get(key);
@@ -241,9 +246,10 @@ public final class ScopeEngine_Server implements ScopeEngine {
             bundle.healthCheckPulse();
 
             if (bundle.isDirty()) {
-                flushIfDirty(info, key, bundle, terminal);
+                flushed |= flushIfDirty(info, key, bundle, terminal);
             }
         }
+        return flushed;
     }
 
     @Override
@@ -267,8 +273,19 @@ public final class ScopeEngine_Server implements ScopeEngine {
     public void unload(ScopeInfo info) {
         if (info == null) return;
 
-        // Terminal maintenance flush
-        onExecutionPulse(info, true);
+        // Terminal maintenance flush. It only refreshes the SavedData snapshot; a level unloaded
+        // at server stop is unloaded after vanilla's own save pass has already run, so without an
+        // explicit write here a change made at teardown (a Trinket's onDetach, say) would never
+        // reach disk. Same level-wide write forceWriteToDisk() uses, done only when this pass
+        // actually flushed something and the server is stopping -- while it runs, vanilla's
+        // autosave covers an ordinary mob or player scope unloading, and a write per teardown
+        // would be needless disk traffic.
+        if (onExecutionPulse(info, true)) {
+            ServerLevel level = resolveServerLevel(info, CapableOf.PERSISTENCE);
+            if (!level.getServer().isRunning()) {
+                level.getDataStorage().save();
+            }
+        }
 
         // RM_SAT_014, part 2: must read the map *before* evicting it below, then evict
         // regardless of whether it had anything in it. Previously this method called
@@ -375,29 +392,29 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * Persistence flush + sync
      * ========================================================== */
 
-    private void flushIfDirty(
+    private boolean flushIfDirty(
             ScopeInfo info,
             BundleKey<?> key,
             SatchelBundle bundle,
             boolean terminal
     ) {
-        if (!bundle.isDirty()) return;
+        if (!bundle.isDirty()) return false;
 
         // SAT_053: same bundle-level gate as hydrateBundle() -- nothing to flush to if this
         // bundle never declared Capability.PERSISTENCE in the first place. resolveServerLevel()
         // below separately enforces that the jig allows it.
         if ((bundle.required() & Capability.PERSISTENCE.bit()) == 0) {
-            return;
+            return false;
         }
 
         JigPolicies.FlushPolicy flushOn = info.policies().persistence().flushOn();
 
         switch (flushOn) {
             case NONE:
-                return;
+                return false;
             case UNLOAD:
                 if (!terminal) {
-                    return;
+                    return false;
                 }
                 break;
             case EXECUTION_PULSE:
@@ -412,6 +429,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
                 .store(bundle.saveAll());
 
         bundle.clearDirty();
+        return true;
     }
 
     /**

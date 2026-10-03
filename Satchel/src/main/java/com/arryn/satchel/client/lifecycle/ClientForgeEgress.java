@@ -7,6 +7,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,5 +55,11 @@ public final class ClientForgeEgress implements ForgeEgress {
             return Optional.of(local);
         }
         return Optional.empty();
+    }
+
+    @Override
+    public Iterable<Level> levels() {
+        Level level = Minecraft.getInstance().level;
+        return level == null ? List.of() : List.of(level);
     }
 }

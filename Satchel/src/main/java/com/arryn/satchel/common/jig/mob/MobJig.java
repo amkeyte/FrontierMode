@@ -152,16 +152,15 @@ public final class MobJig extends ASatchelJig<MobScope> {
         Set<UUID> resolvedThisCycle = new HashSet<>();
 
         for (Map.Entry<Level, Set<UUID>> entry : interests.entrySet()) {
-            Level level = entry.getKey();
-            for (UUID uuid : entry.getValue()) {
-                Optional<Entity> resolved = Satchel.require().egress().getEntity(level, uuid);
-                if (resolved.isPresent() && resolved.get() instanceof Mob mob && !mob.isRemoved()) {
-                    resolvedThisCycle.add(uuid);
-                    // Idempotent via JigInfo.hasScope's existing guard -- safe to call every
-                    // cycle even for a mob already scoped, same reliance MobScope.getFor has on
-                    // this same guard.
-                    Satchel.require().introduceSource(mob);
-                }
+            introduceResolvable(entry.getKey(), entry.getValue(), resolvedThisCycle);
+        }
+
+        // Per-level registration (SAT_098), beside the old form: asked once for each level this
+        // side has. A live view of the module's own set, so nothing is copied here.
+        MobInterestPerLevel perLevel = MobInterestRegistry.getPerLevel(info.key);
+        if (perLevel != null) {
+            for (Level level : Satchel.require().egress().levels()) {
+                introduceResolvable(level, perLevel.interestedIn(level), resolvedThisCycle);
             }
         }
 
@@ -222,6 +221,23 @@ public final class MobJig extends ASatchelJig<MobScope> {
                 // substitute: it drives ScopeLifecycleDispatcher.signalScopeUnloaded, which
                 // evicts the entry from JigInfo's own map -- no leaked ScopeInfo.
                 this.onUnload(scopeInfo);
+            }
+        }
+    }
+
+    /**
+     * Phase 1 for one level's interest set: every UUID that resolves to a live, non-removed
+     * {@link Mob} is introduced and recorded in {@code resolved}.
+     */
+    private static void introduceResolvable(Level level, Set<UUID> uuids, Set<UUID> resolved) {
+        for (UUID uuid : uuids) {
+            Optional<Entity> entity = Satchel.require().egress().getEntity(level, uuid);
+            if (entity.isPresent() && entity.get() instanceof Mob mob && !mob.isRemoved()) {
+                resolved.add(uuid);
+                // Idempotent via JigInfo.hasScope's existing guard -- safe to call every cycle
+                // even for a mob already scoped, same reliance MobScope.getFor has on this same
+                // guard.
+                Satchel.require().introduceSource(mob);
             }
         }
     }

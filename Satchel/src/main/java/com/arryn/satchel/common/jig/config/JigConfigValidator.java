@@ -2,7 +2,12 @@ package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.identity.JigKey;
 
+import com.arryn.satchel.common.trinket.Ticking;
+import com.arryn.satchel.common.trinket.TrinketDecl;
+
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 public final class JigConfigValidator {
 
@@ -20,6 +25,7 @@ public final class JigConfigValidator {
         validateExecution(key, p);
         validatePolicies(key, p);
         validateCapabilities(key, p);
+        validateTrinkets(key, p);
     }
 
     // =============================================================
@@ -253,6 +259,34 @@ public final class JigConfigValidator {
                 throw new IllegalStateException(
                         "Jig " + key +
                                 " requires networking but is restricted to a single logical side"
+                );
+            }
+        }
+    }
+
+    // =============================================================
+    // Trinkets
+    // =============================================================
+
+    private static void validateTrinkets(
+            JigKey<?> key,
+            JigConfig.Presets<?, ?> p
+    ) {
+        Set<Class<?>> seen = new HashSet<>();
+
+        for (TrinketDecl<?> decl : p.bundles.trinkets) {
+            if (!seen.add(decl.type())) {
+                throw new IllegalStateException(
+                        "Jig " + key + " declares Trinket " + decl.type().getName() + " twice"
+                );
+            }
+
+            if (Ticking.class.isAssignableFrom(decl.type())
+                    && !p.execution.lifecycle.participatesInTick()) {
+                throw new IllegalStateException(
+                        "Jig " + key + " declares Ticking Trinket " + decl.type().getName()
+                                + " but its lifecycle does not participate in tick -- set "
+                                + "Lifecycle.withTick(true)"
                 );
             }
         }

@@ -7,6 +7,7 @@ import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.MobDataStore;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.commands.MobTrackCommands;
+import com.arryn.satchel.server.commands.TrinketCommands;
 import com.arryn.satchel.server.commands.TunableCommands;
 import com.arryn.satchel.server.commands.TuningTableCommands;
 import net.minecraftforge.common.MinecraftForge;
@@ -53,6 +54,9 @@ public class SatchelMod {
 
         // /satchel tables -- list and reload TuningTables without a restart (SAT_092).
         MinecraftForge.EVENT_BUS.addListener(TuningTableCommands::onRegisterCommands);
+
+        // /satchel trinkets -- lists every attached Trinket per jig and scope (SAT_097).
+        MinecraftForge.EVENT_BUS.addListener(TrinketCommands::onRegisterCommands);
     }
 
     // ------------------------------------------------------------

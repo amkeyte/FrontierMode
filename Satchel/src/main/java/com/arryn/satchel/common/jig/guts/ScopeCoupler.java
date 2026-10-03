@@ -6,6 +6,9 @@ import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 
+import com.arryn.satchel.common.trinket.Trinket;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -164,4 +167,22 @@ public interface ScopeCoupler extends IJigConfigurable {
     ScopeCoupler.AccessDecision  afterCreate(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle);
 
     void installEngine(ScopeEngine engine);
+
+    /**
+     * Whether this jig's config declares a Trinket of exactly {@code type}.
+     */
+    boolean declaresTrinket(Class<? extends Trinket> type);
+
+    /**
+     * The scope's Trinket of {@code type}: empty while the scope isn't ready or its Trinkets aren't
+     * attached yet ("standby, don't crash").
+     *
+     * @throws SatchelException.Generic if this jig doesn't declare {@code type} -- a programming error
+     */
+    <T extends Trinket> Optional<T> trinket(ScopeInfo info, Class<T> type);
+
+    /**
+     * Every Trinket this scope currently holds, in declaration order; empty if none attached.
+     */
+    List<Trinket> trinkets(ScopeInfo info);
 }

@@ -4,10 +4,16 @@ import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.*;
+import com.arryn.satchel.common.trinket.Trinket;
+import com.arryn.satchel.common.trinket.TrinketDecl;
+import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Default {@link ScopeCoupler} implementation every real coupler ({@code
@@ -149,6 +155,16 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     @Override
     public void onScopeLoad(ScopeInfo info) {
         requireConfig();
+
+        // Every declared Trinket is constructed first, then attached in declaration order, so a
+        // sibling always exists during onAttach. The set is registered before attaching so a
+        // sibling lookup from inside onAttach resolves.
+        List<TrinketDecl<?>> decls = bundles().trinkets();
+        if (decls.isEmpty()) return;
+
+        TrinketSet set = TrinketSet.construct(decls);
+        trinkets.put(info, set);
+        set.attachAll(info);
     }
 
     @Override
@@ -169,7 +185,10 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         if (!execution().lifecycle().participatesInTick()) return;
 
         beforeTick(info);
+        TrinketSet set = trinkets.get(info);
+        if (set != null) set.tickBefore(info);
         engine().onJigTick(info);
+        if (set != null) set.tickAfter(info);
         afterTick(info);
     }
 
@@ -179,8 +198,62 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         requireReady(info);
 
         beforeUnload(info);
-        engine().unload(info);
+        // Trinkets detach before the engine unloads the bundles, so a fixture write made in
+        // onDetach is saved by the engine's terminal flush. A throw in onDetach still propagates,
+        // but only after the unload below has run; the set is dropped either way.
+        try {
+            TrinketSet set = trinkets.get(info);
+            if (set != null) set.detachAll(info);
+        } finally {
+            try {
+                engine().unload(info);
+            } finally {
+                trinkets.remove(info);
+            }
+        }
         afterUnload(info);
+    }
+
+    // ---------------------------------------------------------------------
+    // Trinkets
+    // ---------------------------------------------------------------------
+
+    /**
+     * One set per loaded scope, keyed by identity ({@link ScopeInfo} has no equals). A jig that
+     * declares no Trinkets never adds an entry.
+     */
+    private final Map<ScopeInfo, TrinketSet> trinkets = new ConcurrentHashMap<>();
+
+    @Override
+    public final boolean declaresTrinket(Class<? extends Trinket> type) {
+        requireConfig();
+        return bundles().trinkets().stream().anyMatch(d -> d.type() == type);
+    }
+
+    @Override
+    public final <T extends Trinket> Optional<T> trinket(ScopeInfo info, Class<T> type) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(type, "type");
+        requireConfig();
+
+        if (!declaresTrinket(type)) {
+            throw new SatchelException.Generic(
+                    "Jig " + debugName() + " does not declare Trinket " + type.getName());
+        }
+
+        if (!isReady(info)) return Optional.empty();
+
+        // The Trinket's existence is the readiness answer: before onScopeLoad has attached the
+        // set, there is nothing to return.
+        TrinketSet set = trinkets.get(info);
+        return set == null ? Optional.empty() : set.get(type);
+    }
+
+    @Override
+    public final List<Trinket> trinkets(ScopeInfo info) {
+        Objects.requireNonNull(info, "info");
+        TrinketSet set = trinkets.get(info);
+        return set == null ? List.of() : set.all();
     }
 
     // ---------------------------------------------------------------------

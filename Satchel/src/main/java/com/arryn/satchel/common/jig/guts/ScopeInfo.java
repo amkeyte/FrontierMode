@@ -1,10 +1,16 @@
 package com.arryn.satchel.common.jig.guts;
 
+import com.arryn.satchel.common.bundle.SatchelBundle;
+import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.config.*;
+import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.mob.MobScope;
+import com.arryn.satchel.common.jig.player.PlayerScope;
 import net.minecraft.world.level.Level;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -197,6 +203,32 @@ public final class ScopeInfo implements IJigConfigurable {
                 .referenceLevelResolver()
                 .apply(scopeAs());
     }
+
+    /**
+     * The scope's {@link Level}, for every scope kind and on both sides: a level scope is its level;
+     * a player or mob scope is that entity's current level. Unlike {@link #referenceLevel()}, never
+     * null for want of a configured resolver.
+     *
+     * @throws IllegalStateException for a scope kind this method doesn't know
+     */
+    public Level level() {
+        if (scope instanceof LevelScope s) return s.level();
+        if (scope instanceof PlayerScope s) return s.player().level();
+        if (scope instanceof MobScope s) return s.mob().level();
+        throw new IllegalStateException("No level for scope kind " + scope.getClass().getName());
+    }
+
+    /**
+     * This scope's bundle, through the jig's coupler -- the same readiness gate and hooks as every
+     * other bundle read; empty if the scope isn't ready or the bundle doesn't exist yet.
+     */
+    public <B extends SatchelBundle> Optional<B> ask(BundleKey<B> key) {
+        if (jigInfo == null) {
+            throw new IllegalStateException("No owning jig for scope: " + debugName());
+        }
+        return jigInfo.coupler().ask(this, key);
+    }
+
     // ---------------------------------------------------------------------
     // Owning JigInfo (back-reference)
     // ---------------------------------------------------------------------

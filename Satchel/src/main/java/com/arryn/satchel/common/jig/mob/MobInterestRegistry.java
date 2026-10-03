@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.jig.mob;
 
 import com.arryn.satchel.common.identity.JigKey;
+import net.minecraft.world.level.Level;
 
 import java.util.Map;
 import java.util.Objects;
@@ -26,6 +27,9 @@ public final class MobInterestRegistry {
     private static final Map<JigKey<?>, MobInterestSupplier> SUPPLIERS =
             new ConcurrentHashMap<>();
 
+    private static final Map<JigKey<?>, MobInterestPerLevel> PER_LEVEL =
+            new ConcurrentHashMap<>();
+
     public static void register(JigKey<?> key, MobInterestSupplier supplier) {
         SUPPLIERS.put(
                 Objects.requireNonNull(key, "key"),
@@ -33,8 +37,36 @@ public final class MobInterestRegistry {
         );
     }
 
+    /**
+     * Registers the per-level form of interest beside {@link #register}: Satchel asks {@code
+     * perLevel} which UUIDs the consumer cares about in each level it polls, and in the level of a
+     * mob that dies or leaves, so the consumer needs no static map. A key may hold both forms; their
+     * interest is the union. See {@link MobInterestPerLevel} for the cost the supplier must keep
+     * to -- it runs on every mob death and every mob leaving a level.
+     */
+    public static void registerPerLevel(JigKey<?> key, MobInterestPerLevel perLevel) {
+        PER_LEVEL.put(
+                Objects.requireNonNull(key, "key"),
+                Objects.requireNonNull(perLevel, "perLevel")
+        );
+    }
+
+    /**
+     * Removes whatever this key registered, in either form.
+     */
     public static void unregister(JigKey<?> key) {
-        SUPPLIERS.remove(Objects.requireNonNull(key, "key"));
+        Objects.requireNonNull(key, "key");
+        SUPPLIERS.remove(key);
+        PER_LEVEL.remove(key);
+    }
+
+    /**
+     * The per-level registration for {@code key}, or {@code null} if it registered only the old
+     * form (or nothing).
+     */
+    public static MobInterestPerLevel getPerLevel(JigKey<?> key) {
+        Objects.requireNonNull(key, "key");
+        return PER_LEVEL.get(key);
     }
 
     public static MobInterestSupplier get(JigKey<?> key) {
@@ -62,6 +94,21 @@ public final class MobInterestRegistry {
             for (Set<UUID> set : supplier.interestedMobs().values()) {
                 if (set.contains(uuid)) return true;
             }
+        }
+        return false;
+    }
+
+    /**
+     * As {@link #isAnyInterested(UUID)}, and additionally {@code true} if any per-level
+     * registration names {@code uuid} in {@code level} -- the mob's own level. The gate {@code
+     * ServerForgeIngress} uses for {@code MobDied}/{@code MobRemoved}; the one-argument method
+     * above keeps its old-form-only behavior for anyone still calling it.
+     */
+    public static boolean isAnyInterested(Level level, UUID uuid) {
+        Objects.requireNonNull(level, "level");
+        if (isAnyInterested(uuid)) return true;
+        for (MobInterestPerLevel perLevel : PER_LEVEL.values()) {
+            if (perLevel.interestedIn(level).contains(uuid)) return true;
         }
         return false;
     }

@@ -356,7 +356,7 @@ public final class ServerForgeIngress {
         }
 
         UUID uuid = e.getEntity().getUUID();
-        if (!MobInterestRegistry.isAnyInterested(uuid)) return;
+        if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)) return;
 
         OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
@@ -386,7 +386,7 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         UUID uuid = entity.getUUID();
-        if (!MobInterestRegistry.isAnyInterested(uuid)) return;
+        if (!MobInterestRegistry.isAnyInterested(e.getLevel(), uuid)) return;
 
         Entity.RemovalReason reason = entity.getRemovalReason();
         if (reason == null) {

@@ -8,6 +8,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,5 +45,18 @@ public final class ServerForgeEgress implements ForgeEgress {
             return Optional.empty();
         }
         return Optional.ofNullable(server.getPlayerList().getPlayer(uuid));
+    }
+
+    @Override
+    public Iterable<Level> levels() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return List.of();
+        }
+        List<Level> levels = new ArrayList<>();
+        for (ServerLevel level : server.getAllLevels()) {
+            levels.add(level);
+        }
+        return levels;
     }
 }

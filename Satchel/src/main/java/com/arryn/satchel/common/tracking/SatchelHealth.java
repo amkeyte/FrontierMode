@@ -110,6 +110,7 @@ public final class SatchelHealth {
         MobHealthCheck.register();
         LevelHealthCheck.register();
         PlayerHealthCheck.register();
+        TrinketHealthCheck.register();
     }
 
     // =================================================================

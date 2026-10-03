@@ -6,6 +6,7 @@ import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.jig.config.JigConfig;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
+import com.arryn.satchel.common.trinket.Trinket;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.EnumMap;
@@ -141,6 +142,30 @@ public final class Satchel {
                 .flatMap(j -> j.ask(scope, bundleKey));
     }
 
+
+    /**
+     * The scope's {@link Trinket} of {@code type}, beside {@link #ask}. Empty while the scope isn't
+     * ready or its Trinkets aren't attached yet -- "standby, don't crash". Uses the same side binding
+     * as {@link #require()}: it works on the server thread and the client thread, which ingress
+     * binds, and is empty on an unbound thread.
+     *
+     * @throws SatchelException.Generic if the jig doesn't declare {@code type} -- a programming error
+     */
+    public static <T extends Trinket> Optional<T> trinket(
+            JigKey<?> jigKey,
+            SatchelScope scope,
+            Class<T> type
+    ) {
+        Objects.requireNonNull(jigKey, "jigKey");
+        Objects.requireNonNull(scope, "scope");
+        Objects.requireNonNull(type, "type");
+
+        Optional<JigInfo> jigInfo = foundation().flatMap(f -> f.askJigInfo(jigKey));
+        if (jigInfo.isEmpty()) return Optional.empty();
+
+        JigInfo ji = jigInfo.get();
+        return ji.scopeInfo(scope).flatMap(info -> ji.coupler().trinket(info, type));
+    }
 
     /**
      * Require an existing bundle.
