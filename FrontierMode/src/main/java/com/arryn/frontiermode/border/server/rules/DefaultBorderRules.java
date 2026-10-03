@@ -3,6 +3,7 @@ package com.arryn.frontiermode.border.server.rules;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.common.BorderMath;
+import com.arryn.frontiermode.border.common.BorderMathLogic;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.satchel.common.tunable.Tunable;
 import net.minecraft.core.BlockPos;
@@ -110,10 +111,20 @@ public final class DefaultBorderRules implements BorderRules {
     public int radiusForPathPosition(Level level, int pathPosition) {
         int base = new Tunable("borderBaseRadius", 1, 1000, 20).intValue();
         float amplitude = new Tunable("borderWaveAmplitude", 0f, 2f, 0.5f).floatValue();
-        int waveLength = new Tunable("borderWaveLength", 2, 20, 5).intValue();
+        int waveLength = borderWaveLength();
 
         long radius = BorderMath.waveRadius(base, amplitude, waveLength, pathPosition);
         return (int) Math.max(BorderConstants.MIN_RADIUS, Math.min(radius, Integer.MAX_VALUE));
+    }
+
+    @Override
+    public int borderWaveLength() {
+        return new Tunable("borderWaveLength", 2, 20, 5).intValue();
+    }
+
+    @Override
+    public int waveStep(int pathPosition) {
+        return BorderMathLogic.waveStep(pathPosition, borderWaveLength());
     }
 
     @Override

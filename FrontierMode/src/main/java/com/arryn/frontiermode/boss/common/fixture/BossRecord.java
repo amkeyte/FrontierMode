@@ -5,6 +5,7 @@ import net.minecraft.nbt.CompoundTag;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -42,6 +43,7 @@ public final class BossRecord {
     private final UUID bossId;
     private final BlockPos position;
     private final int layer;
+    private final OptionalInt pathPosition;
     private final UUID bossEntityId;
     private final boolean alive;
     private final Optional<UUID> borderId;
@@ -51,6 +53,7 @@ public final class BossRecord {
             UUID bossId,
             BlockPos position,
             int layer,
+            OptionalInt pathPosition,
             UUID bossEntityId,
             boolean alive,
             Optional<UUID> borderId,
@@ -59,6 +62,7 @@ public final class BossRecord {
         this.bossId = Objects.requireNonNull(bossId, "bossId");
         this.position = position; // nullable -- see this class's own doc
         this.layer = layer;
+        this.pathPosition = Objects.requireNonNull(pathPosition, "pathPosition");
         this.bossEntityId = bossEntityId; // nullable
         this.alive = alive;
         this.borderId = Objects.requireNonNull(borderId, "borderId");
@@ -83,6 +87,16 @@ public final class BossRecord {
 
     public int layer() {
         return layer;
+    }
+
+    /**
+     * The home Border's 1-based position on the path, copied once at creation (the Keeper's
+     * progression number -- what players are told is its "level"); empty for a boss with no path
+     * position (hand-placed, or attached to an off-path Border). Read through
+     * {@code BossAPI.pathPositionOf}, which falls back to {@link #layer()} when this is empty.
+     */
+    public OptionalInt pathPosition() {
+        return pathPosition;
     }
 
     public UUID bossEntityId() {
@@ -116,7 +130,7 @@ public final class BossRecord {
 
     /** Returns a copy of this record with {@code platformPos} set: the platform is in place. */
     public BossRecord withPlatform(BlockPos pos) {
-        return new BossRecord(bossId, position, layer, bossEntityId, alive, borderId,
+        return new BossRecord(bossId, position, layer, pathPosition, bossEntityId, alive, borderId,
                 Objects.requireNonNull(pos, "pos"));
     }
 
@@ -139,6 +153,7 @@ public final class BossRecord {
                 bossId,
                 Objects.requireNonNull(resolvedPosition, "resolvedPosition"),
                 layer,
+                pathPosition,
                 bossEntityId,
                 alive,
                 borderId,
@@ -158,6 +173,7 @@ public final class BossRecord {
                 bossId,
                 position,
                 layer,
+                pathPosition,
                 Objects.requireNonNull(entityId, "entityId"),
                 alive,
                 borderId,
@@ -176,6 +192,7 @@ public final class BossRecord {
                 bossId,
                 position,
                 layer,
+                pathPosition,
                 null,
                 alive,
                 borderId,
@@ -194,6 +211,7 @@ public final class BossRecord {
                 bossId,
                 position,
                 layer,
+                pathPosition,
                 bossEntityId,
                 false,
                 borderId,
@@ -223,6 +241,8 @@ public final class BossRecord {
             tag.putInt("z", r.position.getZ());
         }
         tag.putInt("layer", r.layer);
+        tag.putBoolean("hasPathPosition", r.pathPosition.isPresent());
+        r.pathPosition.ifPresent(p -> tag.putInt("pathPosition", p));
         tag.putBoolean("hasEntity", r.bossEntityId != null);
         if (r.bossEntityId != null) {
             tag.putUUID("bossEntityId", r.bossEntityId);
@@ -255,6 +275,9 @@ public final class BossRecord {
                 tag.getUUID("bossId"),
                 position,
                 tag.getInt("layer"),
+                // Absent on a record saved before this field existed: no path position, so
+                // BossAPI.pathPositionOf falls back to layer.
+                tag.getBoolean("hasPathPosition") ? OptionalInt.of(tag.getInt("pathPosition")) : OptionalInt.empty(),
                 entityId,
                 tag.getBoolean("alive"),
                 borderId,

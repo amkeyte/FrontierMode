@@ -3,10 +3,7 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.Mob;
 
 import java.util.Optional;
 
@@ -29,15 +26,10 @@ final class BossDefenseHandlers {
         }
         BossGuardiansFixture guardians = guardiansOpt.get();
 
-        for (BossRecord record : bossOpt.get().all()) {
-            if (record.bossEntityId() == null
-                    || !(level.getEntity(record.bossEntityId()) instanceof Mob boss)) {
-                continue;
-            }
-            BossMobFixture.of(boss)
-                    .flatMap(mobFixture -> mobFixture.takeNewPlayerHit(boss))
-                    .ifPresent(player -> guardians.alertGuardiansOf(record.bossId(), boss, player));
-        }
+        PresentBosses.forEach(level, bossOpt.get(), present ->
+                present.mobFixture().takeNewPlayerHit(present.boss())
+                        .ifPresent(player ->
+                                guardians.alertGuardiansOf(present.record().bossId(), present.boss(), player)));
 
         guardians.releaseLapsedAlerts(level);
     }

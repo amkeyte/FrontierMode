@@ -40,6 +40,26 @@ class BorderWaveRadiusTest {
     }
 
     @Test
+    void wave_step_cycles_one_to_wave_length() {
+        int[] expected = {1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1};
+        for (int p = 1; p <= expected.length; p++) {
+            assertEquals(expected[p - 1], BorderMathLogic.waveStep(p, WAVE_LENGTH), "position " + p);
+        }
+    }
+
+    @Test
+    void wave_step_follows_a_retuned_wave_length() {
+        assertEquals(3, BorderMathLogic.waveStep(3, 3));
+        assertEquals(1, BorderMathLogic.waveStep(4, 3));
+        assertEquals(2, BorderMathLogic.waveStep(10, 4));
+    }
+
+    @Test
+    void wave_step_below_1_is_treated_as_1() {
+        assertEquals(1, BorderMathLogic.waveStep(0, WAVE_LENGTH));
+    }
+
+    @Test
     void zero_amplitude_never_grows() {
         assertEquals(BASE, BorderMathLogic.waveRadius(BASE, 0.0, WAVE_LENGTH, 12));
     }

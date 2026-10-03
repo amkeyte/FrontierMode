@@ -96,7 +96,7 @@ public final class BossTellCommands {
         BossRecord record = matches.get(0);
 
         ItemStack stack = new ItemStack(BossTellModule.AMETHYST_COMPASS.get());
-        CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true, BossAPI.levelOf(record.layer()));
+        CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true, BossAPI.pathPositionOf(record));
 
         if (!sp.getInventory().add(stack)) {
             sp.drop(stack, false);

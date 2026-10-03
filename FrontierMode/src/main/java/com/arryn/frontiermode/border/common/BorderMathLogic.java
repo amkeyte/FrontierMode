@@ -79,4 +79,13 @@ public final class BorderMathLogic {
         }
         return Math.round(radius);
     }
+
+    /**
+     * A path position's step within its growth wave, 1 to {@code waveLength}:
+     * {@code ((pathPosition - 1) mod waveLength) + 1}. Step {@code waveLength} is the wave's last,
+     * flat Border. A position below 1 is treated as 1, as in {@link #waveRadius}.
+     */
+    public static int waveStep(int pathPosition, int waveLength) {
+        return (Math.max(pathPosition, 1) - 1) % waveLength + 1;
+    }
 }

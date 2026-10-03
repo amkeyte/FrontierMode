@@ -75,10 +75,10 @@ public final class BossMobFixture extends SatchelFixture {
      * One {@code BOSS_JIG} tick of the health bar (boss.md § Health bar). A player holding the boss's
      * kill credit -- their hit, projectile, or tamed pet -- starts watching; a viewer stops
      * {@code lingerTicks} after they last held it, or at once if they die, disconnect, or leave
-     * {@code level}. A boss that is dead or under {@code minHealth} max health shows no bar.
+     * {@code level}. A boss that is dead, or is not a {@code milestone} Keeper, shows no bar.
      */
-    public void tickHealthBar(ServerLevel level, Mob boss, float minHealth, int lingerTicks) {
-        if (!boss.isAlive() || boss.getMaxHealth() < minHealth) {
+    public void tickHealthBar(ServerLevel level, Mob boss, boolean milestone, int lingerTicks) {
+        if (!boss.isAlive() || !milestone) {
             hideHealthBar();
             return;
         }

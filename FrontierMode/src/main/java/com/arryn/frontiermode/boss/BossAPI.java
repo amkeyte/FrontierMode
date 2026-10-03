@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossGuardiansFixture;
@@ -26,6 +27,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -128,11 +130,35 @@ public final class BossAPI {
     }
 
     /**
-     * The player-facing level for a boss layer -- the one place the two are converted, so a future
-     * split between them changes only this. Layers start at 1 and match levels (FRO_191).
+     * A Keeper's progression number -- what players are told is its "level" -- is its home Border's
+     * path position, not its layer (boss.md § Data model). Falls back to {@code layer} for a boss
+     * with no path position (hand-placed, or attached to an off-path Border), so it still has a
+     * number to show.
      */
-    public static int levelOf(int layer) {
-        return layer;
+    public static int pathPositionOf(BossRecord record) {
+        return record.pathPosition().orElse(record.layer());
+    }
+
+    /**
+     * Is {@code record} a milestone Keeper -- the one on the last Border of a growth wave
+     * (boss.md § Milestone Keepers)? Reads the record's own path position, never the layer
+     * fallback: a boss with no path position closes no wave, so is never a milestone.
+     */
+    public static boolean isMilestone(BossRecord record) {
+        if (record.pathPosition().isEmpty()) {
+            return false;
+        }
+        BorderRules rules = BorderRules.ACTIVE;
+        return rules.waveStep(record.pathPosition().getAsInt()) == rules.borderWaveLength();
+    }
+
+    /**
+     * {@code border}'s 1-based position on {@code level}'s path -- the value a boss record copies
+     * once at creation. Empty if the Border is not on the path (or the path isn't resolvable yet).
+     */
+    public static OptionalInt pathPositionOf(Level level, Border border) {
+        int index = BorderAPI.PATH(level).map(path -> path.indexOf(border.id())).orElse(-1);
+        return index < 0 ? OptionalInt.empty() : OptionalInt.of(index + 1);
     }
 
     /**
@@ -340,7 +366,7 @@ public final class BossAPI {
         // whole contract: "for border"), so the new record's borderId is always set to
         // border.id() here, never left empty. The off-path (/boss add) entry point stays on
         // BossFixture.create(int)/BossCrudFacet.create(int) directly, unaffected.
-        return fixtureOpt.get().CRUD.create(border.layer(), border.id());
+        return fixtureOpt.get().CRUD.create(border.layer(), border.id(), pathPositionOf(level, border));
     }
 
     /**

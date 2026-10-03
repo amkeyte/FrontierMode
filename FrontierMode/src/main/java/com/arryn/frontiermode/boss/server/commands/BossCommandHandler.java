@@ -170,7 +170,7 @@ public final class BossCommandHandler {
     /**
      * Pairs a boss onto an existing boss-less path border -- FRO_082 (FRO_063's ruling).
      * {@code add} with a border to bind to instead of a raw position: creates a boss record via
-     * {@code BossCrudFacet.create(border.layer(), border.id())}, which sets the new record's
+     * {@code BossCrudFacet.create(border.layer(), border.id(), pathPosition)}, which sets the new record's
      * {@code borderId} to the selected border, then clears that border from
      * {@code pendingAttach}. See wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach.
      *
@@ -198,7 +198,8 @@ public final class BossCommandHandler {
         }
         BossFixture fixture = fixtureOpt.get();
 
-        Optional<BossRecord> recordOpt = fixture.CRUD.create(border.layer(), border.id());
+        Optional<BossRecord> recordOpt = fixture.CRUD.create(
+                border.layer(), border.id(), BossAPI.pathPositionOf(level, border));
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: could not create a boss record for border "
                     + border.id() + " (a boss needs layer 1 or more -- see server log)."));

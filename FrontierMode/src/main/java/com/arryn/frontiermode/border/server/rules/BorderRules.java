@@ -53,6 +53,16 @@ public interface BorderRules {
 
     int radiusForPathPosition(Level level, int pathPosition);
 
+    /** Border's growth-wave length (border.md § Radius: growth in waves). */
+    int borderWaveLength();
+
+    /**
+     * A path position's step within its growth wave, 1 to {@link #borderWaveLength()}; the last step
+     * is the wave's flat Border. The one place "where in the wave" is computed -- Boss's milestone
+     * test and the Diorite Striker read it (border.md § Radius: growth in waves).
+     */
+    int waveStep(int pathPosition);
+
     Border getRelevant(List<Border> containing, BlockPos pos);
 
     @SuppressWarnings("SameReturnValue")

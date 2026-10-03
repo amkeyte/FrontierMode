@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -37,10 +38,10 @@ public class BossCrudFacet {
 
     /**
      * FRO_082: on-path creation, paired with real border-growth -- see
-     * {@link BossFixture#create(int, UUID)}.
+     * {@link BossFixture#create(int, UUID, OptionalInt)}.
      */
-    public Optional<BossRecord> create(int layer, UUID borderId) {
-        return fixture.create(layer, borderId);
+    public Optional<BossRecord> create(int layer, UUID borderId, OptionalInt pathPosition) {
+        return fixture.create(layer, borderId, pathPosition);
     }
 
     /**

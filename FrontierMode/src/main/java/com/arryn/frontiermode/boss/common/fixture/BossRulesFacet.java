@@ -146,11 +146,6 @@ public final class BossRulesFacet {
         return RULES.guardianDefeatKillsPerTick();
     }
 
-    /** See {@link BossRules#bossBarMinHealth()}. */
-    public float bossBarMinHealth() {
-        return RULES.bossBarMinHealth();
-    }
-
     /** See {@link BossRules#bossBarLingerTicks()}. */
     public int bossBarLingerTicks() {
         return RULES.bossBarLingerTicks();

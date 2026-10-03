@@ -319,7 +319,7 @@ public class AmethystCompassItem extends CompassItem {
         }
 
         CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID(),
-                BossAPI.levelOf(recordOpt.get().layer()));
+                BossAPI.pathPositionOf(recordOpt.get()));
         writeLodestoneFields(stack, level, posOpt.get());
         return InteractionResult.CONSUME;
     }
@@ -327,7 +327,7 @@ public class AmethystCompassItem extends CompassItem {
     /** The player-facing level of {@code bossId}'s record, for the tooltip; empty if it has none. */
     private static Optional<Integer> bossLevel(Level level, UUID bossId) {
         return BossAPI.bosses(level).flatMap(fixture -> fixture.get(bossId))
-                .map(record -> BossAPI.levelOf(record.layer()));
+                .map(BossAPI::pathPositionOf);
     }
 
     /**

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -276,21 +277,22 @@ public final class BossFixture extends SatchelFixture {
      * this fixture.
      */
     public Optional<BossRecord> create(int layer) {
-        return create(layer, Optional.empty());
+        return create(layer, Optional.empty(), OptionalInt.empty());
     }
 
     /**
      * FRO_082: on-path creation, paired with real border-growth (the bootstrap grow, the
      * defeat-triggered grow, and {@code /boss attach}) -- sets the new record's {@code borderId}
      * to {@code borderId}, unlike {@link #create(int)} above, which stays the off-path
-     * ({@code /boss add}) entry point and leaves it {@code Optional.empty()}. Same rejection rule
-     * ({@code layer < 1}) as the no-borderId overload.
+     * ({@code /boss add}) entry point and leaves it {@code Optional.empty()}. {@code pathPosition}
+     * is the home Border's 1-based path position, copied once (FRO_209); empty when the Border is
+     * not on the path. Same rejection rule ({@code layer < 1}) as the no-borderId overload.
      */
-    public Optional<BossRecord> create(int layer, UUID borderId) {
-        return create(layer, Optional.of(Objects.requireNonNull(borderId, "borderId")));
+    public Optional<BossRecord> create(int layer, UUID borderId, OptionalInt pathPosition) {
+        return create(layer, Optional.of(Objects.requireNonNull(borderId, "borderId")), pathPosition);
     }
 
-    private Optional<BossRecord> create(int layer, Optional<UUID> borderId) {
+    private Optional<BossRecord> create(int layer, Optional<UUID> borderId, OptionalInt pathPosition) {
         Satchel.requireServer();
 
         if (layer < 1) {
@@ -305,6 +307,7 @@ public final class BossFixture extends SatchelFixture {
                 UUID.randomUUID(),
                 null,
                 layer,
+                pathPosition,
                 null,
                 true,
                 borderId,
