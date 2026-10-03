@@ -37,6 +37,27 @@ public final class DifficultyAPI {
         return mob instanceof Ghast || mob instanceof Phantom || mob instanceof Slime;
     }
 
+    /** The Keeper's health growth: the ordinary growth plus the Keeper's (boss.md § Keeper stats). */
+    public static double keeperHealthGrowthTotal() {
+        DifficultyRules rules = DifficultyRules.ACTIVE;
+        return rules.ordinaryHealthGrowth() + rules.keeperHealthGrowth();
+    }
+
+    /** The Keeper's damage growth: the ordinary growth plus the Keeper's. */
+    public static double keeperDamageGrowthTotal() {
+        DifficultyRules rules = DifficultyRules.ACTIVE;
+        return rules.ordinaryDamageGrowth() + rules.keeperDamageGrowth();
+    }
+
+    /**
+     * Puts {@code mob} -- a Keeper, before it joins the level -- on the Keeper rung with the given
+     * multipliers, which Boss works out from its stat tables (boss.md § Keeper stats). {@code false}
+     * if a rung already had it.
+     */
+    public static boolean applyKeeperRung(Mob mob, double healthMultiplier, double damageMultiplier) {
+        return Ladder.apply(mob, Ladder.RUNG_KEEPER, healthMultiplier, damageMultiplier);
+    }
+
     /**
      * Puts {@code mob} on the Sentinel rung (difficulty.md § One formula, three rungs):
      * {@code n} is its Keeper's path position, and the growth is the ordinary growth plus a Sentinel

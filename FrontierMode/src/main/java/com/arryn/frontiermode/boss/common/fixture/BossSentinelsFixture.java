@@ -498,10 +498,10 @@ public final class BossSentinelsFixture extends SatchelFixture {
         // across the whole border.
         double difficultyIntensity = BorderMath.intensityAt(
                 nearby.difficulty(), nearby.radius() > 0.0 ? nearby.distanceToBoss() / nearby.radius() : 1.0);
-        double target = bossFixture.RULES.sentinelTargetScale(nearby.boss().layer());
+        int keeperPathPosition = BossAPI.pathPositionOf(nearby.boss());
+        double target = bossFixture.RULES.sentinelTargetScale(keeperPathPosition);
         float size = fitScale(level, mob, target, bossFixture);
 
-        int keeperPathPosition = BossAPI.pathPositionOf(nearby.boss());
         applyConversion(mob, bossFixture, keeperPathPosition, difficultyIntensity);
         stage(mob.getUUID(), nearby.boss().bossId(), size);
         if (size != 1.0F) {

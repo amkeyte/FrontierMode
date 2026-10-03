@@ -87,7 +87,7 @@ public final class BossSpawnFacet {
             }
             // The entity spawns only once its platform is in place, so it never materializes over nothing.
             ensurePlatform(level, record);
-            fixture.RULES.materialize(level, xz, record.layer()).ifPresent(mob -> {
+            fixture.RULES.materialize(level, xz, record).ifPresent(mob -> {
                 fixture.CRUD.materialize(record.bossId(), mob.getUUID());
                 onMaterialized.accept(mob.getUUID());
                 announceSpawn(level);
@@ -152,7 +152,7 @@ public final class BossSpawnFacet {
         level.getChunk(xz);
         ensurePlatform(level, record);
 
-        Optional<Mob> mobOpt = fixture.RULES.materialize(level, xz, record.layer());
+        Optional<Mob> mobOpt = fixture.RULES.materialize(level, xz, record);
         if (mobOpt.isEmpty()) {
             OUT.warn("[Boss] forceMaterialize(): BossRules.materialize declined for bossId="
                     + Ids.shortId(bossId) + " at " + xz + " (e.g. an all-liquid column).");
@@ -178,7 +178,7 @@ public final class BossSpawnFacet {
     // ── private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Builds the record's spawn platform if it has none yet, sized to its layer's scale, and stores
+     * Builds the record's spawn platform if it has none yet, sized to its Keeper's scale, and stores
      * its position. Built once per record: a respawned boss returns onto the platform already there
      * rather than re-carving it, which would delete anything a player built around the spot.
      * Bedrock isn't breakable in survival. The caller has confirmed the chunk is loaded.
@@ -188,7 +188,7 @@ public final class BossSpawnFacet {
             return;
         }
         BlockPos bossPos = record.position();
-        BossPlatform.place(level, bossPos, fixture.RULES.scaleForLayer(record.layer()));
+        BossPlatform.place(level, bossPos, fixture.RULES.keeperScale(record));
         fixture.CRUD.setPlatform(record.bossId(), bossPos.below());
         OUT.info("[Boss] ensurePlatform(): built bedrock platform for bossId=" + Ids.shortId(record.bossId())
                 + " centered at " + bossPos.below());

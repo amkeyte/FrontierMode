@@ -17,6 +17,8 @@ final class Ladder {
 
     static final String RUNG_ORDINARY = "ordinary";
     static final String RUNG_SENTINEL = "sentinel";
+    static final String RUNG_KEEPER = "keeper";
+    static final String RUNG_KEEPER_SUMMON = "keeper_summon";
 
     private static final String KEY_RUNG = "rung";
     private static final String KEY_HEALTH = "health";
@@ -48,6 +50,11 @@ final class Ladder {
         // to its final maximum rather than trusted to be at full already.
         mob.setHealth(mob.getMaxHealth());
         return true;
+    }
+
+    /** The rung that reached {@code mob}, or {@code ""} if none has. */
+    static String rungOf(Mob mob) {
+        return MobData.read(mob, NAMESPACE).getString(KEY_RUNG);
     }
 
     static boolean hasDamageMultiplier(CompoundTag ladderData) {

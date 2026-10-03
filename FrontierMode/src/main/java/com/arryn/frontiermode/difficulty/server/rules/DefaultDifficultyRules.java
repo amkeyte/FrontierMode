@@ -37,4 +37,25 @@ public final class DefaultDifficultyRules implements DifficultyRules {
     public double sentinelDamageGrowthNear() {
         return new Tunable("sentinelDamageGrowthNear", 0f, 1f, 0.1f).floatValue();
     }
+
+    @Override
+    public double keeperHealthGrowth() {
+        return new Tunable("keeperHealthGrowth", 0f, 2f, 0.31f).floatValue();
+    }
+
+    @Override
+    public double keeperDamageGrowth() {
+        return new Tunable("keeperDamageGrowth", 0f, 2f, 0.31f).floatValue();
+    }
+
+    @Override
+    public double keeperVexDamage() {
+        return new Tunable("keeperVexDamage", 0f, 100f, 12f).floatValue();
+    }
+
+    @Override
+    public double vexReferenceHit() {
+        // A vex's sword hit on Normal.
+        return 9.0;
+    }
 }

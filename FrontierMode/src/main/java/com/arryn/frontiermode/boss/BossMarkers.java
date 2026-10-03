@@ -12,7 +12,7 @@ import java.util.Optional;
  * {@link BossPublicFixture} -- the one place the eye render layer, the hitbox {@code Size} handler,
  * and the render-scale handler all ask. No client classes here, so it loads on a dedicated server.
  *
- * <p>Bosses are only ever one of {@link BossMobTypes#ORDERED}, so anything else is rejected before any
+ * <p>Bosses are only ever one of {@link BossMobTypes#ELIGIBLE}, so anything else is rejected before any
  * fixture lookup -- these are called from hot paths (every entity's dimension refresh, every
  * rendered frame).
  */

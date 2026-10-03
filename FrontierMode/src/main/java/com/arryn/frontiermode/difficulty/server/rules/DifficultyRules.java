@@ -22,4 +22,15 @@ public interface DifficultyRules {
     double sentinelDamageGrowthFar();
 
     double sentinelDamageGrowthNear();
+
+    /** A Keeper's extra growth per path position, on top of the ordinary growth. */
+    double keeperHealthGrowth();
+
+    double keeperDamageGrowth();
+
+    /** Damage per hit of a vex an Evoker Keeper summons (vanilla health and size; boss.md § The Evoker). */
+    double keeperVexDamage();
+
+    /** The damage one ordinary vex hit deals on Normal, the reference {@link #keeperVexDamage} is scaled from. */
+    double vexReferenceHit();
 }

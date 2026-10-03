@@ -44,6 +44,7 @@ public final class BossRecord {
     private final BlockPos position;
     private final int layer;
     private final OptionalInt pathPosition;
+    private final String body;
     private final UUID bossEntityId;
     private final boolean alive;
     private final Optional<UUID> borderId;
@@ -54,6 +55,7 @@ public final class BossRecord {
             BlockPos position,
             int layer,
             OptionalInt pathPosition,
+            String body,
             UUID bossEntityId,
             boolean alive,
             Optional<UUID> borderId,
@@ -63,6 +65,7 @@ public final class BossRecord {
         this.position = position; // nullable -- see this class's own doc
         this.layer = layer;
         this.pathPosition = Objects.requireNonNull(pathPosition, "pathPosition");
+        this.body = Objects.requireNonNull(body, "body");
         this.bossEntityId = bossEntityId; // nullable
         this.alive = alive;
         this.borderId = Objects.requireNonNull(borderId, "borderId");
@@ -99,6 +102,15 @@ public final class BossRecord {
         return pathPosition;
     }
 
+    /**
+     * The boss's body, by name from the {@code keeper-bodies} table: the authored body for its path
+     * position through 20, a rolled one past it. Fixed at creation, so a respawned boss keeps it.
+     * Empty only on a record saved before this field existed.
+     */
+    public String body() {
+        return body;
+    }
+
     public UUID bossEntityId() {
         return bossEntityId;
     }
@@ -130,7 +142,7 @@ public final class BossRecord {
 
     /** Returns a copy of this record with {@code platformPos} set: the platform is in place. */
     public BossRecord withPlatform(BlockPos pos) {
-        return new BossRecord(bossId, position, layer, pathPosition, bossEntityId, alive, borderId,
+        return new BossRecord(bossId, position, layer, pathPosition, body, bossEntityId, alive, borderId,
                 Objects.requireNonNull(pos, "pos"));
     }
 
@@ -154,6 +166,7 @@ public final class BossRecord {
                 Objects.requireNonNull(resolvedPosition, "resolvedPosition"),
                 layer,
                 pathPosition,
+                body,
                 bossEntityId,
                 alive,
                 borderId,
@@ -174,6 +187,7 @@ public final class BossRecord {
                 position,
                 layer,
                 pathPosition,
+                body,
                 Objects.requireNonNull(entityId, "entityId"),
                 alive,
                 borderId,
@@ -193,6 +207,7 @@ public final class BossRecord {
                 position,
                 layer,
                 pathPosition,
+                body,
                 null,
                 alive,
                 borderId,
@@ -212,6 +227,7 @@ public final class BossRecord {
                 position,
                 layer,
                 pathPosition,
+                body,
                 bossEntityId,
                 false,
                 borderId,
@@ -243,6 +259,7 @@ public final class BossRecord {
         tag.putInt("layer", r.layer);
         tag.putBoolean("hasPathPosition", r.pathPosition.isPresent());
         r.pathPosition.ifPresent(p -> tag.putInt("pathPosition", p));
+        tag.putString("body", r.body);
         tag.putBoolean("hasEntity", r.bossEntityId != null);
         if (r.bossEntityId != null) {
             tag.putUUID("bossEntityId", r.bossEntityId);
@@ -278,6 +295,7 @@ public final class BossRecord {
                 // Absent on a record saved before this field existed: no path position, so
                 // BossAPI.pathPositionOf falls back to layer.
                 tag.getBoolean("hasPathPosition") ? OptionalInt.of(tag.getInt("pathPosition")) : OptionalInt.empty(),
+                tag.getString("body"), // "" on a record saved before this field existed
                 entityId,
                 tag.getBoolean("alive"),
                 borderId,

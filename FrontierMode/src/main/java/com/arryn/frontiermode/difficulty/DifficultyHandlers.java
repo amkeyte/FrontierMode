@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.Vex;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,8 +39,20 @@ final class DifficultyHandlers {
         if (signal.loadedFromDisk()
                 || !(signal.entity() instanceof Mob mob)
                 || !(signal.level() instanceof ServerLevel level)
-                || !DifficultyAPI.isLadderHostile(mob)
                 || Ladder.claimed(mob)) {
+            return;
+        }
+
+        // A vex an Evoker Keeper summoned: the Keeper-summon values, before the ordinary rung can
+        // reach it. Vanilla sets a summoned vex's owner before adding it to the level.
+        if (mob instanceof Vex vex && vex.getOwner() != null
+                && Ladder.RUNG_KEEPER.equals(Ladder.rungOf(vex.getOwner()))) {
+            DifficultyRules rules = DifficultyRules.ACTIVE;
+            Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 1.0, rules.keeperVexDamage() / rules.vexReferenceHit());
+            return;
+        }
+
+        if (!DifficultyAPI.isLadderHostile(mob)) {
             return;
         }
 

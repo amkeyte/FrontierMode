@@ -52,10 +52,15 @@ public final class BossRulesFacet {
     }
 
     /**
-     * See {@link BossRules#materialize(Level, BlockPos, int)}.
+     * See {@link BossRules#materialize(Level, BlockPos, BossRecord)}.
      */
-    public Optional<Mob> materialize(Level level, BlockPos position, int layer) {
-        return RULES.materialize(level, position, layer);
+    public Optional<Mob> materialize(Level level, BlockPos position, BossRecord record) {
+        return RULES.materialize(level, position, record);
+    }
+
+    /** See {@link BossRules#chooseBody(int)}. */
+    public String chooseBody(int pathPosition) {
+        return RULES.chooseBody(pathPosition);
     }
 
     /**
@@ -68,10 +73,10 @@ public final class BossRulesFacet {
     }
 
     /**
-     * See {@link BossRules#scaleForLayer(int)}.
+     * See {@link BossRules#keeperScale(BossRecord)}.
      */
-    public float scaleForLayer(int layer) {
-        return RULES.scaleForLayer(layer);
+    public float keeperScale(BossRecord record) {
+        return RULES.keeperScale(record);
     }
 
     /**
@@ -187,8 +192,8 @@ public final class BossRulesFacet {
     }
 
     /** See {@link BossRules#sentinelTargetScale(int)}. */
-    public double sentinelTargetScale(int layer) {
-        return RULES.sentinelTargetScale(layer);
+    public double sentinelTargetScale(int keeperPathPosition) {
+        return RULES.sentinelTargetScale(keeperPathPosition);
     }
 
     /** See {@link BossRules#sentinelMaxScale()}. */

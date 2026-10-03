@@ -303,11 +303,16 @@ public final class BossFixture extends SatchelFixture {
         // Border Pregeneration: position starts unset -- BOSS_JIG's own tick finalizes it once
         // BorderAPI.isPregenReady() passes for this record's home border. See boss.md's "Three
         // questions, three different mechanisms" section.
+        // The body is chosen once, here, so a boss that respawns after a non-player death keeps it:
+        // the authored one for its path position through 20, a rolled one past it.
+        String body = RULES.chooseBody(pathPosition.orElse(layer));
+
         BossRecord record = new BossRecord(
                 UUID.randomUUID(),
                 null,
                 layer,
                 pathPosition,
+                body,
                 null,
                 true,
                 borderId,

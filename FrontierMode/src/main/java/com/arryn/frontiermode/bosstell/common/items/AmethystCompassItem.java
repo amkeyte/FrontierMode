@@ -307,7 +307,7 @@ public class AmethystCompassItem extends CompassItem {
         Optional<BossRecord> recordOpt = BossAPI.bosses(level).flatMap(fixture ->
                 fixture.all().stream()
                         .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked,
-                                BossPlatform.halfWidth(fixture.RULES.scaleForLayer(record.layer()))))
+                                BossPlatform.halfWidth(fixture.RULES.keeperScale(record))))
                         .findFirst());
         if (recordOpt.isEmpty()) {
             return InteractionResult.PASS;

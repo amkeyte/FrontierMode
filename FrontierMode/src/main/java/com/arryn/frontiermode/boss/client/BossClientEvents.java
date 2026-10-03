@@ -17,7 +17,7 @@ import net.minecraftforge.fml.common.Mod;
 
 /**
  * FRO_145: client-side wiring for the boss eye layer -- adds a {@link BossEyesLayer} to each of the
- * boss-eligible mob renderer ({@link BossMobTypes#ORDERED}, Rabbit through Ravager). The set is
+ * boss-eligible mob renderer ({@link BossMobTypes#ELIGIBLE}, Rabbit through Evoker). The set is
  * bounded, not open-ended: each model's UV layout needs its own texture, so adding a mob type to
  * the list means adding a texture named for its registry path.
  *
@@ -37,7 +37,7 @@ public final class BossClientEvents {
      */
     @SubscribeEvent
     public static void onAddLayers(EntityRenderersEvent.AddLayers event) {
-        for (EntityType<? extends Mob> type : BossMobTypes.ORDERED) {
+        for (EntityType<? extends Mob> type : BossMobTypes.ELIGIBLE) {
             addEyes(event, type, EntityType.getKey(type).getPath());
         }
     }

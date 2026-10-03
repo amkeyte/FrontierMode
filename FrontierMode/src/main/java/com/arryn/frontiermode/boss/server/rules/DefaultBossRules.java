@@ -1,17 +1,24 @@
 package com.arryn.frontiermode.boss.server.rules;
 
+import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.boss.common.BossMobTypes;
+import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.satchel.common.tunable.CellType;
 import com.arryn.satchel.common.tunable.Tunable;
+import com.arryn.satchel.common.tunable.TuningTable;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -19,10 +26,13 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
+import net.minecraft.world.entity.animal.Rabbit;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -251,13 +261,176 @@ public final class DefaultBossRules implements BossRules {
         return true;
     }
 
+    // ── Keeper stats (boss.md § Keeper stats) ───────────────────────────────
+
+    // Path positions 1-20 are hand-authored per stat; past 20 the body is rolled and the stats follow
+    // a formula.
+    private static final int AUTHORED_THROUGH = 20;
+
+    /** The rows a fresh {@code keeper-bodies} table starts with, and what the seed formulas read. */
+    private record BodyDefault(String name, EntityType<?> type, float referenceHit, float sizePast20,
+                               String sizeGrowth, float poolWeight) {
+    }
+
+    // referenceHit: one ordinary hit on Normal (0: an ordinary Rabbit deals none). The Killer Bunny is a
+    // Rabbit variant, hence a body named apart from its entity type. The pool past 20 is a placeholder:
+    // the authored bodies plus the Killer Bunny, at equal weight (the Game Designer's to design).
+    private static final List<BodyDefault> BODY_DEFAULTS = List.of(
+            new BodyDefault("rabbit", EntityType.RABBIT, 0f, 1f, "", 1f),
+            new BodyDefault("killer_bunny", EntityType.RABBIT, 8f, 1f, "", 1f),
+            new BodyDefault("spider", EntityType.SPIDER, 2f, 1.5f, "", 1f),
+            // The one body that keeps growing past 20 ("bigger and bigger"): 0.1 per path position.
+            new BodyDefault("zombie", EntityType.ZOMBIE, 3f, 2f, "0.1", 1f),
+            new BodyDefault("skeleton", EntityType.SKELETON, 4f, 2.3f, "", 1f),
+            new BodyDefault("zombified_piglin", EntityType.ZOMBIFIED_PIGLIN, 8f, 2f, "", 1f),
+            new BodyDefault("pillager", EntityType.PILLAGER, 4f, 2f, "", 1f),
+            new BodyDefault("vindicator", EntityType.VINDICATOR, 13f, 1.7f, "", 1f),
+            new BodyDefault("evoker", EntityType.EVOKER, 6f, 1f, "", 1f));
+
+    // The authored ladder, by path position 1-20: Rabbit, Spider x3, Zombie x3, Skeleton x3,
+    // Zombified Piglin x3, Pillager x3, Vindicator x3, Evoker.
+    private static final List<String> AUTHORED_LADDER = List.of(
+            "rabbit",
+            "spider", "spider", "spider",
+            "zombie", "zombie", "zombie",
+            "skeleton", "skeleton", "skeleton",
+            "zombified_piglin", "zombified_piglin", "zombified_piglin",
+            "pillager", "pillager", "pillager",
+            "vindicator", "vindicator", "vindicator",
+            "evoker");
+
+    // The owner's authored sizes (FRO_208, 2026-10-01). Rabbit (1) and Evoker (20) are the named
+    // exceptions to "always larger than its kind". The seed only: the value column is for tuning.
+    private static final float[] AUTHORED_SIZE = {
+            1f, 1.2f, 1.3f, 1.5f, 2f, 1.5f, 2f, 1.2f, 1.5f, 2.3f,
+            1.2f, 1.5f, 2f, 1.5f, 2f, 2f, 1.5f, 1.6f, 1.7f, 1f};
+
+    private static final TuningTable KEEPER_BODIES = keeperBodiesTable();
+
+    private static final TuningTable KEEPER_BODY = TuningTable.builder(tableId("keeper-body"))
+            .intKeys("pathPosition", 1, AUTHORED_THROUGH)
+            .seededColumn("value", "seed", CellType.STRING, p -> AUTHORED_LADDER.get(p - 1))
+            .build();
+
+    private static final TuningTable KEEPER_HEALTH = TuningTable.builder(tableId("keeper-health"))
+            .intKeys("pathPosition", 1, AUTHORED_THROUGH)
+            .seededColumn("value", "seed", CellType.FLOAT, p -> authoredHealthSeed(p))
+            .build();
+
+    private static final TuningTable KEEPER_DAMAGE = TuningTable.builder(tableId("keeper-damage"))
+            .intKeys("pathPosition", 1, AUTHORED_THROUGH)
+            .seededColumn("value", "seed", CellType.FLOAT, p -> authoredDamageSeed(p))
+            .build();
+
+    private static final TuningTable KEEPER_SIZE = TuningTable.builder(tableId("keeper-size"))
+            .intKeys("pathPosition", 1, AUTHORED_THROUGH)
+            .seededColumn("value", "seed", CellType.FLOAT, p -> AUTHORED_SIZE[p - 1])
+            .build();
+
+    private static ResourceLocation tableId(String name) {
+        return new ResourceLocation(FrontierMode.MODID, name);
+    }
+
+    private static TuningTable keeperBodiesTable() {
+        TuningTable.Builder builder = TuningTable.builder(tableId("keeper-bodies"))
+                .freeKeys("body", CellType.STRING)
+                .column("entityType", CellType.ENTITY_TYPE)
+                .column("referenceHit", CellType.FLOAT)
+                .column("sizePast20", CellType.FLOAT)
+                .optionalColumn("sizeGrowth", CellType.FLOAT)
+                .optionalColumn("poolWeight", CellType.FLOAT);
+        for (BodyDefault d : BODY_DEFAULTS) {
+            builder.defaultRow(d.name(), EntityType.getKey(d.type()).toString(), Float.toString(d.referenceHit()),
+                    Float.toString(d.sizePast20()), d.sizeGrowth(), Float.toString(d.poolWeight()));
+        }
+        return builder.build();
+    }
+
+    private static BodyDefault authoredBody(int pathPosition) {
+        String name = AUTHORED_LADDER.get(pathPosition - 1);
+        return BODY_DEFAULTS.stream().filter(d -> d.name().equals(name)).findFirst().orElseThrow();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static double vanillaMaxHealth(EntityType<?> type) {
+        return DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>) type)
+                .getBaseValue(Attributes.MAX_HEALTH);
+    }
+
+    // The seeds are the formula (boss.md § Keeper stats): the body's vanilla value x (1 + growth x (p - 1)).
+    private static double authoredHealthSeed(int pathPosition) {
+        return vanillaMaxHealth(authoredBody(pathPosition).type())
+                * LadderMath.multiplier(DifficultyAPI.keeperHealthGrowthTotal(), pathPosition);
+    }
+
+    private static double authoredDamageSeed(int pathPosition) {
+        return authoredBody(pathPosition).referenceHit()
+                * LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
+    }
+
+    /** Authored body through path position 20; past it, a body rolled by pool weight. */
     @Override
-    public Optional<Mob> materialize(Level level, BlockPos position, int layer) {
+    public String chooseBody(int pathPosition) {
+        int p = Math.max(pathPosition, 1);
+        if (p <= AUTHORED_THROUGH) {
+            return KEEPER_BODY.row(p).getString("value");
+        }
+        double total = 0.0;
+        for (TuningTable.Row row : KEEPER_BODIES.rows()) {
+            if (row.has("poolWeight")) {
+                total += Math.max(0f, row.getFloat("poolWeight"));
+            }
+        }
+        if (total <= 0.0) {
+            throw new IllegalStateException("keeper-bodies has no row with a poolWeight above 0: nothing to roll past path position "
+                    + AUTHORED_THROUGH);
+        }
+        double roll = rng.nextDouble() * total;
+        for (TuningTable.Row row : KEEPER_BODIES.rows()) {
+            if (!row.has("poolWeight")) {
+                continue;
+            }
+            roll -= Math.max(0f, row.getFloat("poolWeight"));
+            if (roll < 0.0) {
+                return row.key();
+            }
+        }
+        // Float rounding only: the last weighted row.
+        return KEEPER_BODIES.rows().stream().filter(r -> r.has("poolWeight")).reduce((a, b) -> b).orElseThrow().key();
+    }
+
+    /**
+     * The size table through path position 20; past it the body's size, growing by its optional
+     * {@code sizeGrowth} per path position past 20 (the Zombie's, uncapped).
+     */
+    @Override
+    public float keeperScale(BossRecord record) {
+        int p = Math.max(BossAPI.pathPositionOf(record), 1);
+        if (p <= AUTHORED_THROUGH) {
+            return KEEPER_SIZE.row(p).getFloat("value");
+        }
+        if (record.body().isEmpty()) {
+            return 1.0F;
+        }
+        TuningTable.Row body = KEEPER_BODIES.row(record.body());
+        float size = body.getFloat("sizePast20");
+        if (body.has("sizeGrowth")) {
+            size += body.getFloat("sizeGrowth") * (p - AUTHORED_THROUGH);
+        }
+        return size;
+    }
+
+    @Override
+    public Optional<Mob> materialize(Level level, BlockPos position, BossRecord record) {
         // Border Pregeneration: position was already validated (flatness/hazard-scored) against
         // real, pregenerated terrain when choosePosition() chose it -- no in-place Y-resolution
         // or liquid-column check left to do here. See border-pregeneration.md's "Worked example:
         // Boss placement, revised" and "What this changes in Boss" sections.
-        EntityType<? extends Mob> type = mobTypeForLayer(layer);
+        int pathPosition = Math.max(BossAPI.pathPositionOf(record), 1);
+        // A record saved before the body field existed has none: choose it now (not saved back).
+        String bodyName = record.body().isEmpty() ? chooseBody(pathPosition) : record.body();
+        TuningTable.Row body = KEEPER_BODIES.row(bodyName);
+        EntityType<?> type = body.getEntityType("entityType");
         if (!(level instanceof ServerLevel serverLevel)) {
             throw new IllegalStateException("Non server level");
         }
@@ -271,6 +444,11 @@ public final class DefaultBossRules implements BossRules {
                     // A plain vanilla Mob is still subject to natural despawn unless persistence is
                     // required, and Border Pregeneration can run minutes before a player arrives.
                     mob.setPersistenceRequired();
+                    // Vanilla setup rolls a Rabbit's variant, so the Killer Bunny is set after it.
+                    if (bodyName.equals("killer_bunny") && mob instanceof Rabbit rabbit) {
+                        rabbit.setVariant(Rabbit.Variant.EVIL);
+                    }
+                    applyKeeperRung(mob, pathPosition, body);
                     makeFireImmune(mob);
                     // Fire immunity stops the damage; the sun ward stops the ignition itself, so a
                     // Zombie or Skeleton boss doesn't visibly burn in daylight.
@@ -283,12 +461,30 @@ public final class DefaultBossRules implements BossRules {
         return spawned;
     }
 
-    // Tier 0 is layer 1 (layers start at 1); from layer 2 on the tier steps every bandWidth layers, capped at
-    // the table's last entry. bandWidth is the pacing dial (a CSV cell, not a rebuild).
-    private EntityType<? extends Mob> mobTypeForLayer(int layer) {
-        int bandWidth = Math.max(1, new Tunable("mobTierBandWidth", 1, 20, 3).intValue());
-        int tier = layer <= 1 ? 0 : Math.min(1 + (layer - 2) / bandWidth, BossMobTypes.ORDERED.size() - 1);
-        return BossMobTypes.ORDERED.get(tier);
+    /**
+     * Puts the Keeper on the Keeper rung of the stat ladder, before it joins the level. Health: the
+     * table's value divided by the body's vanilla maximum, so the Keeper has exactly the table's
+     * health. Damage: the table's value divided by the body's reference hit (an ordinary Rabbit has
+     * none, so no multiplier). Past path position 20 both are the formula, 1 + growth x (p - 1). Every
+     * kind of damage scales when it lands, so one number covers swords, arrows, bolts and fangs.
+     */
+    private void applyKeeperRung(Mob mob, int pathPosition, TuningTable.Row body) {
+        float referenceHit = body.getFloat("referenceHit");
+        double healthMultiplier;
+        double damageMultiplier = 1.0;
+        if (pathPosition <= AUTHORED_THROUGH) {
+            healthMultiplier = KEEPER_HEALTH.row(pathPosition).getFloat("value")
+                    / mob.getAttributeBaseValue(Attributes.MAX_HEALTH);
+            if (referenceHit > 0f) {
+                damageMultiplier = KEEPER_DAMAGE.row(pathPosition).getFloat("value") / referenceHit;
+            }
+        } else {
+            healthMultiplier = LadderMath.multiplier(DifficultyAPI.keeperHealthGrowthTotal(), pathPosition);
+            if (referenceHit > 0f) {
+                damageMultiplier = LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
+            }
+        }
+        DifficultyAPI.applyKeeperRung(mob, healthMultiplier, damageMultiplier);
     }
 
     // Boss invariant (boss.md Scope): no fire damage for any boss. A permanent Fire Resistance
@@ -307,13 +503,6 @@ public final class DefaultBossRules implements BossRules {
         // The tag's visibility is the client-side debug view's to turn on (AdminViewClient); the
         // name itself stays set.
         mob.setCustomNameVisible(false);
-    }
-
-    // FRO_148: shared size multiplier, 1.0 + layer * scalePerLayer (boss.md "Spawn platform").
-    @Override
-    public float scaleForLayer(int layer) {
-        float perLayer = new Tunable("scalePerLayer", 0f, 1f, 0.1f).floatValue();
-        return 1.0F + Math.max(layer, 0) * perLayer;
     }
 
     // FRO_160: non-player-death respawn tuning -- see BossRules for the meaning of each.
@@ -474,9 +663,12 @@ public final class DefaultBossRules implements BossRules {
 
     // Sentinel size and adds: starting values for playtest (sentinels.md, "Size and adds").
     @Override
-    public double sentinelTargetScale(int layer) {
+    public double sentinelTargetScale(int keeperPathPosition) {
+        // The Sentinels' own size curve (the per-step growth bosses used before their size became a
+        // table), kept so Sentinel sizes don't follow a table built for Keepers.
+        double step = new Tunable("sentinelScaleStep", 0f, 1f, 0.1f).floatValue();
         double ratio = new Tunable("sentinelScaleRatio", 0f, 1f, 0.5f).floatValue();
-        return 1.0 + (scaleForLayer(layer) - 1.0) * ratio;
+        return 1.0 + Math.max(keeperPathPosition, 0) * step * ratio;
     }
 
     @Override

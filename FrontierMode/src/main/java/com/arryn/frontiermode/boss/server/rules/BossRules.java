@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -71,24 +72,31 @@ public interface BossRules {
      * {@code Level.isLoaded(position)}. {@code position} is already validated, real terrain by
      * this point (chosen and scored by {@link #choosePosition} above) -- no in-place Y-resolution
      * or liquid-column check happens here anymore, per border-pregeneration.md's "What this
-     * changes in Boss" section. Spawns the vanilla mob for {@code layer}, applies placeholder
-     * stat scaling, and attaches a visible marker so "no discovery aids" (Tier 1) still means
-     * "findable by looking." Returns empty only if the entity itself couldn't be created or
-     * added (not a terrain problem anymore) -- the caller retries next tick, same fixed
+     * changes in Boss" section. Spawns the {@code record}'s body, puts it on the Keeper rung of the
+     * stat ladder from the Keeper stat tables (boss.md § Keeper stats), and sets it up as a Keeper
+     * (fire immunity, sun ward, name). Returns empty only if the entity itself couldn't be created
+     * or added (not a terrain problem anymore) -- the caller retries next tick, same fixed
      * {@code position}.
      *
      * <p>Deliberately does not call {@code MobScope.getFor(mob)} or touch {@code BossFixture} --
      * both are Satchel-wiring concerns owned by {@code BossModule}, not a "boss design" decision.
      */
-    Optional<Mob> materialize(Level level, BlockPos position, int layer);
+    Optional<Mob> materialize(Level level, BlockPos position, BossRecord record);
 
     /**
-     * FRO_148: the boss's size multiplier for {@code layer} -- {@code 1.0 + layer * perLayer},
-     * one number driving both the entity's own hitbox/render scale and (boss.md's "Spawn
-     * platform") the platform's footprint and clearance. Computed once at attach from the record's
-     * own layer, never re-read from a live Border. Safe baseline: {@code perLayer = 0.1}.
+     * The name of the body a boss gets at path position {@code pathPosition}, from the
+     * {@code keeper-bodies} table: the authored body through path position 20, a body rolled by
+     * pool weight past it. Called once, at record creation.
      */
-    float scaleForLayer(int layer);
+    String chooseBody(int pathPosition);
+
+    /**
+     * The Keeper's size multiplier -- the {@code keeper-size} table through path position 20, its
+     * body's size past it (boss.md § Keeper stats). One number driving both the entity's own
+     * hitbox/render scale (FRO_148) and the spawn platform's footprint and clearance. Computed from
+     * the record's own path position and body, never from a live Border.
+     */
+    float keeperScale(BossRecord record);
 
     /**
      * FRO_160: ticks between a non-player death returning a boss to unmaterialized and the
@@ -230,11 +238,11 @@ public interface BossRules {
     boolean canBeSentinel(EntityType<?> type);
 
     /**
-     * A sentinel's uncapped target scale for its boss's {@code layer}:
-     * {@code 1 + layer x scalePerLayer x sentinelScaleRatio}. The ratio keeps a sentinel at a
-     * fraction of its boss's growth, so the boss stays the largest thing on the field at every layer.
+     * A sentinel's uncapped target scale for its Keeper's path position:
+     * {@code 1 + keeperPathPosition x sentinelScaleStep x sentinelScaleRatio}. The ratio keeps a
+     * sentinel at a fraction of that growth, so the boss stays the largest thing on the field.
      */
-    double sentinelTargetScale(int layer);
+    double sentinelTargetScale(int keeperPathPosition);
 
     /** The largest scale a single sentinel takes; growth past it becomes extra sentinels instead. */
     double sentinelMaxScale();

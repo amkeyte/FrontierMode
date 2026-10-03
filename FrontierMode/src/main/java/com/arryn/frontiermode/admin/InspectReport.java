@@ -57,12 +57,13 @@ final class InspectReport {
         BossFixture fixture = fixtureOpt.get();
         for (BossRecord record : fixture.all()) {
             if (entityId.equals(record.bossEntityId())) {
-                return String.format("#%s layer %d border %s %s%s scale %.2f",
-                        Ids.shortId(record.bossId()), record.layer(),
+                return String.format("#%s layer %d path position %d body %s border %s %s%s scale %.2f",
+                        Ids.shortId(record.bossId()), record.layer(), BossAPI.pathPositionOf(record),
+                        record.body().isEmpty() ? "-" : record.body(),
                         record.borderId().map(Ids::shortId).orElse("-"),
                         record.alive() ? "alive" : "defeated",
                         record.materialized() ? ", materialized" : "",
-                        fixture.RULES.scaleForLayer(record.layer()));
+                        fixture.RULES.keeperScale(record));
             }
         }
         return "-";
