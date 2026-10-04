@@ -38,20 +38,6 @@ public final class BossRulesFacet {
     }
 
     /**
-     * See {@link BossRules#flatnessScore(Level, BlockPos)}.
-     */
-    public double flatnessScore(Level level, BlockPos candidate) {
-        return RULES.flatnessScore(level, candidate);
-    }
-
-    /**
-     * See {@link BossRules#hazardScore(Level, BlockPos)}.
-     */
-    public double hazardScore(Level level, BlockPos candidate) {
-        return RULES.hazardScore(level, candidate);
-    }
-
-    /**
      * See {@link BossRules#materialize(Level, BlockPos, BossRecord)}.
      */
     public Optional<Mob> materialize(Level level, BlockPos position, BossRecord record) {
@@ -61,15 +47,6 @@ public final class BossRulesFacet {
     /** See {@link BossRules#chooseBody(int)}. */
     public String chooseBody(int pathPosition) {
         return RULES.chooseBody(pathPosition);
-    }
-
-    /**
-     * FRO_120 (Cairn): the shared footprint-mode terrain check, reached via
-     * {@code BossAPI.RULES(Level)} from outside the {@code boss} package -- see
-     * {@link BossRules#footprintSuitable(Level, BlockPos, int, int)}.
-     */
-    public boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
-        return RULES.footprintSuitable(level, center, size, clearance);
     }
 
     /**

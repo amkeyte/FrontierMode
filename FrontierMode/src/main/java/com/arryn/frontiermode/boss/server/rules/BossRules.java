@@ -28,44 +28,11 @@ public interface BossRules {
      * Position -- called only once the whole target {@code border}'s disk is already
      * pregenerated. Samples several chunk-center candidates within {@code border}'s disk
      * ({@code BorderMath.randomPointInDisk}), resolves each candidate's real ground Y (safe now
-     * that the disk is real, generated terrain), scores them via {@link #flatnessScore}/
-     * {@link #hazardScore}, and returns the winning full position (X, resolved Y, Z) -- already
+     * that the disk is real, generated terrain), scores them via Siting's
+     * flatness and hazard scores, and returns the winning full position (X, resolved Y, Z) -- already
      * validated, nothing left for materialization to check.
      */
     BlockPos choosePosition(Level level, Border border);
-
-    /**
-     * 0 (worst) to 1 (best) flatness score for a candidate position's immediate footprint --
-     * "safe baseline, replace later" per border-pregeneration.md.
-     */
-    double flatnessScore(Level level, BlockPos candidate);
-
-    /**
-     * 0 (safe) to 1 (worst) hazard score for a candidate position (lava, deep water, the world
-     * floor, ...) -- "safe baseline, replace later," same framing as {@link #flatnessScore}.
-     */
-    double hazardScore(Level level, BlockPos candidate);
-
-    /**
-     * FRO_120 (Cairn): footprint-mode terrain-suitability check over a {@code size × size} area
-     * centered on {@code center}, reusing the identical {@link #flatnessScore}/{@link
-     * #hazardScore} logic {@link #choosePosition} already scores a single column with -- one
-     * shared rule across point-mode and footprint-mode, not two independently hand-rolled
-     * versions that could drift apart. See
-     * wiki/frontiermode/architecture/boss.md#spawn-algorithm-a-pluggable-strategy-mirroring-borderrules
-     * and wiki/frontiermode/architecture/cairn.md#placement.
-     *
-     * <p>Unlike {@link #choosePosition}'s "score several candidates, pick the best" shape, this
-     * is a plain boolean pass/fail for one candidate -- Cairn's own placement (the first
-     * consumer) resamples a fresh candidate on failure rather than scoring several at once, per
-     * cairn.md's own "a dev stand-in for now" framing.
-     *
-     * @param clearance required vertical clearance above each column's resolved ground, in
-     *                  blocks -- one shared number across every footprint consumer (5, per
-     *                  boss.md's own spec, sized to cover both a boss mob's standing room and
-     *                  Cairn's 3-tall pillar plus a spare block above the cap).
-     */
-    boolean footprintSuitable(Level level, BlockPos center, int size, int clearance);
 
     /**
      * Materialization -- called only once the caller (BOSS_JIG's own tick) has already confirmed

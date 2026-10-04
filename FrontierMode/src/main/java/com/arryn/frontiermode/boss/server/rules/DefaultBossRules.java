@@ -8,6 +8,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
+import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.common.tunable.CellType;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -16,7 +17,6 @@ import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -64,14 +64,6 @@ public final class DefaultBossRules implements BossRules {
 
     // FRO_163: Y used when every candidate scores hazardous -- see choosePosition's fallback branch.
     private static final int FALLBACK_Y = 64;
-
-    // flatnessScore()'s own safe baseline: candidate height compared against four points this far
-    // out in each cardinal direction. A tuning number, not an architecture decision.
-    private static final int FLATNESS_SAMPLE_DISTANCE = 4;
-
-    // flatnessScore(): a height delta at or above this many blocks scores 0 (steepest); below it
-    // scales linearly toward 1 (flattest). A tuning number.
-    private static final double FLATNESS_MAX_DELTA = 8.0;
 
     // FRO_072: each new border centers on wherever its own boss died (BossModule
     // .onLivingDeath -- deathLocation is the grow() center directly). A boss placed near its own
@@ -131,15 +123,15 @@ public final class DefaultBossRules implements BossRules {
             // height/block data here is safe, not a forced-generation side effect.
             BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, chunkCenter);
 
-            double hazard = hazardScore(level, ground);
-            double score = flatnessScore(level, ground) - hazard;
+            double hazard = SitingAPI.hazardScore(level, ground);
+            double score = SitingAPI.flatnessScore(level, ground) - hazard;
 
             if (score > bestAnyScore) {
                 bestAnyScore = score;
                 bestAny = ground;
             }
             // A disqualifying hazard (fluid, world-floor void, or no solid footing -- see
-            // hazardScore's own doc) never wins a real spot, no matter how it scores -- an empty
+            // SitingAPI.hazardScore's own doc) never wins a real spot, no matter how it scores -- an empty
             // column reads back as artificially flat (every sample lands on the same "nothing
             // found" sentinel height, so neighbor deltas are all zero), which is exactly what let
             // a hazardous candidate win outright before this fix caught a real playtest boss
@@ -178,87 +170,6 @@ public final class DefaultBossRules implements BossRules {
         int chunkX = pos.getX() >> 4;
         int chunkZ = pos.getZ() >> 4;
         return new BlockPos(chunkX * 16 + 8, pos.getY(), chunkZ * 16 + 8);
-    }
-
-    @Override
-    public double flatnessScore(Level level, BlockPos candidate) {
-        // Safe baseline: compares candidate's own resolved height against its four cardinal
-        // neighbors, FLATNESS_SAMPLE_DISTANCE blocks over -- a flat plateau scores near 1.0, a
-        // sharp cliff edge scores near 0.0. Not a locked algorithm -- Game Designer/playtest
-        // territory once there's something to tune.
-        int centerY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, candidate).getY();
-
-        int maxDelta = 0;
-        int[][] offsets = {
-                {FLATNESS_SAMPLE_DISTANCE, 0}, {-FLATNESS_SAMPLE_DISTANCE, 0},
-                {0, FLATNESS_SAMPLE_DISTANCE}, {0, -FLATNESS_SAMPLE_DISTANCE}
-        };
-        for (int[] offset : offsets) {
-            BlockPos neighbor = new BlockPos(
-                    candidate.getX() + offset[0], candidate.getY(), candidate.getZ() + offset[1]);
-            int neighborY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, neighbor).getY();
-            maxDelta = Math.max(maxDelta, Math.abs(neighborY - centerY));
-        }
-
-        return Math.max(0.0, 1.0 - (maxDelta / FLATNESS_MAX_DELTA));
-    }
-
-    @Override
-    public double hazardScore(Level level, BlockPos candidate) {
-        // Safe baseline: 1.0 (worst, disqualifying in choosePosition) for any of three real
-        // hazards --
-        //   - the resolved position itself sits in a fluid (open water/lava -- same
-        //     heightmap-lands-in-the-fluid signal the pre-Pregeneration materialize() used to
-        //     check);
-        //   - the column bottoms out at/near the world floor (a genuine "nothing found" void
-        //     column reads back at the heightmap's own floor sentinel);
-        //   - the block directly underfoot isn't actually solid. A ravine or cave mouth
-        //     breaching the surface can pull MOTION_BLOCKING_NO_LEAVES's own result down into
-        //     open space well above the world floor -- the two checks above can't see that at
-        //     all, which is exactly how a real playtest boss ended up placed at y=0 in a
-        //     -64..320 world, nowhere near either floor threshold.
-        // 0.0 otherwise. Not a locked algorithm.
-        if (!level.getBlockState(candidate).getFluidState().isEmpty()) {
-            return 1.0;
-        }
-        if (candidate.getY() <= level.getMinBuildHeight() + 1) {
-            return 1.0;
-        }
-        BlockPos below = candidate.below();
-        if (!level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
-            return 1.0;
-        }
-        return 0.0;
-    }
-
-    // FRO_120 (Cairn): safe-baseline flatness floor for footprintSuitable() below -- a tuning
-    // number, not part of the shared BossRules contract (flatnessScore's own continuous score is
-    // the contract; where to draw a boolean pass/fail line on it is this implementation's call,
-    // same as every other threshold in this class).
-    private static final double FOOTPRINT_MIN_FLATNESS = 0.5;
-
-    @Override
-    public boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
-        int half = size / 2;
-        for (int dx = -half; dx <= half; dx++) {
-            for (int dz = -half; dz <= half; dz++) {
-                BlockPos column = center.offset(dx, 0, dz);
-                BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
-
-                if (hazardScore(level, ground) >= 1.0) {
-                    return false;
-                }
-                if (flatnessScore(level, ground) < FOOTPRINT_MIN_FLATNESS) {
-                    return false;
-                }
-                for (int dy = 1; dy <= clearance; dy++) {
-                    if (!level.getBlockState(ground.above(dy)).isAir()) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
     }
 
     // ── Keeper stats (boss.md § Keeper stats) ───────────────────────────────

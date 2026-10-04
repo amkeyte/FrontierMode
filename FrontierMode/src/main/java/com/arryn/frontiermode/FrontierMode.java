@@ -7,6 +7,7 @@ import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeI
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.difficulty.DifficultyModule;
 import com.arryn.frontiermode.diorite.DioriteItems;
+import com.arryn.frontiermode.siting.SitingModule;
 import com.arryn.frontiermode.coordination.SpawnCoordinator;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
@@ -168,6 +169,10 @@ public final class FrontierMode {
         // FRO_068: the stat ladder. Depends on Border for the ambient Difficulty lookup; Boss calls
         // into it for Sentinels, never the reverse.
         DifficultyModule.init();
+
+        // FRO_212: the shared terrain check and the new-world starting-site search. Depends on Border
+        // for geometry; Boss and structure depend on it, never the reverse.
+        SitingModule.init();
 
         // FRO_118 (RM_FRO_033, "Marilyn"): Admin Compass + shared core. No fixture/init-order
         // dependency on Border or Boss's own module init -- it reaches BossAPI/BorderAPI from

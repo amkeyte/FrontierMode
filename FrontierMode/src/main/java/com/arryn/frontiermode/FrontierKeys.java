@@ -354,5 +354,14 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
+    // FRO_212: the siting module's tick-free signal subscription point (the starting-site search) --
+    // no bundle/fixture, same shape as ADMIN_TOOLS_JIG. See SitingModule.init().
+
+    public static final JigKey<LevelJig> SITING_JIG =
+            new JigKey<>(
+                    "frontiermode:siting_jig",
+                    LevelJig.class
+            );
+
     private FrontierKeys() {}
 }

@@ -8,6 +8,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossPositionListeners;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.frontiermode.structure.common.blocks.CairnCapBlock;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnRecord;
@@ -65,7 +66,7 @@ public final class StructureModule {
     private static final double PLACEMENT_RADIUS_FRACTION = 0.30;
     private static final int PAD_SIZE = 3;
     private static final int PILLAR_HEIGHT = 3; // 2 Mossy Cobblestone + 1 cap
-    private static final int FOOTPRINT_CLEARANCE = 5; // shared number, per boss.md's own spec
+    private static final int FOOTPRINT_CLEARANCE = SitingAPI.FOOTPRINT_CLEARANCE; // the one shared number (siting.md)
     private static final int DEAD_SPHERE_RADIUS = 100;
 
     // Capstone explosion power. Playtest found 1.0F effectively harmless -- Level.explode()'s
@@ -253,9 +254,7 @@ public final class StructureModule {
 
         BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, candidateXZ);
 
-        boolean suitable = BossAPI.RULES(level)
-                .map(r -> r.footprintSuitable(level, ground, PAD_SIZE, FOOTPRINT_CLEARANCE))
-                .orElse(false);
+        boolean suitable = SitingAPI.footprintSuitable(level, ground, PAD_SIZE, FOOTPRINT_CLEARANCE);
 
         if (!suitable) {
             // Failed the footprint check outright (not just unloaded) -- resample a NEW point
