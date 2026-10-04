@@ -49,6 +49,17 @@ public final class DifficultyAPI {
         return entity instanceof IronGolem || (entity instanceof Wolf wolf && wolf.isTame());
     }
 
+    /**
+     * Puts a Feral mob -- fresh in the Wilds, where there is no Relevant Border and so no ordinary rung --
+     * on the {@code feral} rung with Feral's own multipliers (FRO_219). Feral sits off the stat ladder's
+     * formula, but its numbers live in the same {@code frontiermode:ladder} MobData namespace so the one
+     * damage handler scales its hits and the first rung to reach a mob still wins. {@code false} if a
+     * rung already had it.
+     */
+    public static boolean applyFeralRung(Mob mob, double healthMultiplier, double damageMultiplier) {
+        return Ladder.apply(mob, Ladder.RUNG_FERAL, healthMultiplier, damageMultiplier);
+    }
+
     /** The Keeper's health growth: the ordinary growth plus the Keeper's (boss.md § Keeper stats). */
     public static double keeperHealthGrowthTotal() {
         DifficultyRules rules = DifficultyRules.ACTIVE;

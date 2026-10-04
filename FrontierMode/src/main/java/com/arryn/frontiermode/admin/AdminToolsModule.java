@@ -11,6 +11,7 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
+import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
 import com.arryn.satchel.common.lifecycle.PlayerAttackSignal;
 import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -52,6 +53,7 @@ public final class AdminToolsModule {
                         .on(LivingDropsSignal.class, AdminToolHandlers::onLivingDrops)
                         .on(PlayerRespawnSignal.class, AdminToolHandlers::onPlayerRespawn)
                         .on(PlayerAttackSignal.class, AdminToolHandlers::onPlayerAttack)
+                        .on(LivingHurtSignal.class, AdminToolHandlers::onLivingHurt)
                         .build();
 
         // Exists purely to get a signal subscription point: no bundle or fixture, and no tick

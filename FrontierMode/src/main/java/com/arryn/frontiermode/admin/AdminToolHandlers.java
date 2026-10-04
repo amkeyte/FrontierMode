@@ -2,6 +2,7 @@ package com.arryn.frontiermode.admin;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
+import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
 import com.arryn.satchel.common.lifecycle.PlayerAttackSignal;
 import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.util.StackData;
@@ -12,7 +13,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -25,8 +25,8 @@ import java.util.UUID;
 /**
  * The admin tools' handler bodies: the soulbound paths (death-drop stash, respawn hand-back, toss
  * cancel), Death Touch's damage override, and Inspect's cancel-and-report. {@code AdminToolsModule}
- * only installs the signal handlers; the two raw Forge subscribers here ({@code LivingHurtEvent},
- * {@code ItemTossEvent}) have no Satchel signal yet. See wiki admin-tools.md.
+ * only installs the signal handlers; the one raw Forge subscriber here ({@code ItemTossEvent}) has no
+ * Satchel signal yet. See wiki admin-tools.md.
  */
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID)
 public final class AdminToolHandlers {
@@ -114,15 +114,14 @@ public final class AdminToolHandlers {
      * (armor/absorption/death handling). {@code DamageSource.getEntity()} is the true causer, checked
      * against their main hand item specifically, since that's what actually landed the hit.
      */
-    @SubscribeEvent
-    public static void onLivingHurt(LivingHurtEvent event) {
-        if (!(event.getSource().getEntity() instanceof LivingEntity attacker)) {
+    static void onLivingHurt(LivingHurtSignal signal) {
+        if (!(signal.source().getEntity() instanceof LivingEntity attacker)) {
             return;
         }
         if (StackData.enchantmentLevel(attacker.getMainHandItem(), AdminToolsModule.DEATH_TOUCH.get()) <= 0) {
             return;
         }
-        event.setAmount(Float.MAX_VALUE);
+        signal.setAmount(Float.MAX_VALUE);
     }
 
     /**

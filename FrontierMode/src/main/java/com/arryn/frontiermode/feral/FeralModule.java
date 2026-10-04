@@ -2,6 +2,7 @@ package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.common.bundle.FeralPackBundle;
@@ -28,6 +29,7 @@ import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
+import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
@@ -47,7 +49,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
@@ -164,6 +165,10 @@ public final class FeralModule {
     // land either.
     private static final boolean densityCompanionEnabled = false;
     private static final boolean legacyDistanceDespawnEnabled = false;
+
+    // The MobData key that owns a pack member's raised follow range (FRO_219): one modifier per key.
+    private static final net.minecraft.resources.ResourceLocation PACK_FOLLOW_RANGE_KEY =
+            new net.minecraft.resources.ResourceLocation("frontiermode", "feral_pack_follow_range");
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
@@ -633,10 +638,9 @@ public final class FeralModule {
      * notices and starts pursuing the moment it spawns, anywhere in the cone.
      */
     private static void applyPackFollowRange(Mob mob) {
-        var followRange = mob.getAttribute(Attributes.FOLLOW_RANGE);
-        if (followRange != null) {
-            followRange.setBaseValue(FeralRules.packFollowRange());
-        }
+        // A modifier owned by this key, set to a target reach: MobData keeps it across a conversion and
+        // never writes the attribute's base (FRO_219).
+        MobData.setFollowRange(mob, PACK_FOLLOW_RANGE_KEY, FeralRules.packFollowRange());
     }
 
     /**
@@ -1206,20 +1210,12 @@ public final class FeralModule {
 
     /**
      * Continuous, uncapped stat scaling by {@code intensity}: {@code 1 + healthScale x intensity} on
-     * max health and attack damage, keyed off {@link FeralLogic#intensity}. Feral sits off the stat
-     * ladder (difficulty.md), so this stays its own.
+     * max health and on the damage of every hit, keyed off {@link FeralLogic#intensity}. Feral sits off
+     * the stat ladder's formula (difficulty.md), but its multipliers are kept on the mob through
+     * {@code DifficultyAPI} like every other rung, so no mob's attributes are written here (FRO_219).
      */
     private static void applyStatScaling(Mob mob, double intensity) {
         double factor = 1.0 + (FeralRules.healthScale() * intensity);
-
-        var healthAttr = mob.getAttribute(Attributes.MAX_HEALTH);
-        if (healthAttr != null) {
-            healthAttr.setBaseValue(healthAttr.getBaseValue() * factor);
-            mob.setHealth(mob.getMaxHealth());
-        }
-        var damageAttr = mob.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (damageAttr != null) {
-            damageAttr.setBaseValue(damageAttr.getBaseValue() * factor);
-        }
+        DifficultyAPI.applyFeralRung(mob, factor, factor);
     }
 }

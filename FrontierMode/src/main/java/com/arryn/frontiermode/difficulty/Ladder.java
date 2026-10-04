@@ -17,6 +17,7 @@ final class Ladder {
 
     static final String RUNG_ORDINARY = "ordinary";
     static final String RUNG_ALLY = "ally";
+    static final String RUNG_FERAL = "feral";
     static final String RUNG_SENTINEL = "sentinel";
     static final String RUNG_KEEPER = "keeper";
     static final String RUNG_KEEPER_SUMMON = "keeper_summon";
