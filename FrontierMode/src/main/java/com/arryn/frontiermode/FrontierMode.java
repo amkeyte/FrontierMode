@@ -6,6 +6,7 @@ import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.difficulty.DifficultyModule;
+import com.arryn.frontiermode.diorite.DioriteItems;
 import com.arryn.frontiermode.coordination.SpawnCoordinator;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
@@ -128,6 +129,8 @@ public final class FrontierMode {
         BossTellModule.ITEMS.register(modBus);
         // The sun ward's register lives on BossModule for the same reason.
         BossModule.ITEMS.register(modBus);
+        // FRO_211: the diorite module's items live on their own holder, wired the same way.
+        DioriteItems.ITEMS.register(modBus);
         // FRO_121: same reasoning as ITEMS above.
         BossTellModule.ENCHANTMENTS.register(modBus);
 

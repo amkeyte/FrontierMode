@@ -22,10 +22,7 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
 import java.util.HashMap;
@@ -305,33 +302,21 @@ final class BossJigHandlers {
     }
 
     /**
-     * FRO_112: flat placeholder reward ahead of Boss Discovery's fuller, randomized,
-     * difficulty-scaled loot table (Tier 2/3, still unclaimed) -- see boss.md's own "Placeholder
-     * defeat loot" section. {@code record.layer()} diamonds (layers start at 1, so the first
-     * kill pays out 1). FRO_160: only reached for a player-credited defeat, so there is
-     * always a credited player -- the reward is a world drop at the death position either way.
+     * The Keeper's defeat reward: vanilla-format loot tables rolled and dropped by {@link KeeperLoot}
+     * (boss.md § Defeat loot; FRO_213). FRO_160: only reached for a player-credited defeat, so there is
+     * always a credited player. FRO_134: a real item drop at the death position, never a direct inventory
+     * insert, so it reads as a reward the player walks over and picks up.
      *
-     * <p>FRO_134 (project owner ask): a real item drop at the boss's death position, not a direct
-     * inventory insert -- previously inserted straight into the killing player's inventory,
-     * falling back to a drop only for whatever overflow didn't fit. Now always drops, same as any
-     * other mob's own death loot, so it reads as a real reward the player has to walk over and
-     * pick up rather than money silently appearing in their pockets.
-     *
-     * <p>Deliberately not called from {@code BossAPI.forceDefeat} (the {@code /boss defeat}
-     * admin path) -- per the standing rule that the two cascade sites don't share code, and per
-     * the same "no free loot without a real fight" reasoning FRO_110/111's own Feral drop
-     * cancellation just settled: an admin command force-defeating bosses for diamonds is exactly
-     * the kind of riskless exploit that shouldn't exist.
+     * <p>Deliberately not called from {@code BossAPI.forceDefeat} (the {@code /boss defeat} admin path):
+     * per the standing rule that the two cascade sites don't share code, and because an admin command
+     * force-defeating bosses for loot is exactly the kind of riskless exploit that shouldn't exist.
      */
     private static void grantDefeatLoot(BossRecord record, ServerPlayer credited, Mob mob, Level level) {
         OUT.debug("[Boss] grantDefeatLoot: paying " + credited.getGameProfile().getName()
                 + " for bossId=" + Ids.shortId(record.bossId()));
-
-        int diamonds = record.layer();
-        ItemStack stack = new ItemStack(Items.DIAMOND, diamonds);
-        BlockPos deathLocation = mob.blockPosition();
-        Containers.dropItemStack(level, deathLocation.getX() + 0.5, deathLocation.getY() + 0.5,
-                deathLocation.getZ() + 0.5, stack);
+        if (level instanceof ServerLevel serverLevel) {
+            KeeperLoot.pay(serverLevel, mob, record, credited);
+        }
     }
 
     private static void reconcilePathAgainstBossRecords(Level level, BossFixture fixture) {
