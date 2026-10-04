@@ -2,12 +2,17 @@
   "type": "minecraft:entity",
   "pools": [
     {
-      "rolls": 1.0,
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 2.0,
+        "max": 3.0
+      },
       "bonus_rolls": 0.0,
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:diamond",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -18,32 +23,22 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:golden_carrot",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": 4.0
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:experience_bottle",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -54,16 +49,11 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:ender_pearl",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",

@@ -133,6 +133,11 @@ public final class BossRulesFacet {
         return RULES.keeperPlayerShare();
     }
 
+    /** See {@link BossRules#bossLeashRadius()}. */
+    public int bossLeashRadius() {
+        return RULES.bossLeashRadius();
+    }
+
     /** See {@link BossRules#bossBarLingerTicks()}. */
     public int bossBarLingerTicks() {
         return RULES.bossBarLingerTicks();

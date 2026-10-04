@@ -57,7 +57,12 @@ public final class DifficultyAPI {
      * rung already had it.
      */
     public static boolean applyFeralRung(Mob mob, double healthMultiplier, double damageMultiplier) {
-        return Ladder.apply(mob, Ladder.RUNG_FERAL, healthMultiplier, damageMultiplier);
+        return Ladder.apply(mob, Ladder.RUNG_FERAL, 0, healthMultiplier, damageMultiplier);
+    }
+
+    /** The mob's place on the stat ladder as one Inspect Stick line (level, rung, multipliers), if it has one. */
+    public static java.util.Optional<String> describe(Mob mob) {
+        return Ladder.describe(mob);
     }
 
     /** The Keeper's health growth: the ordinary growth plus the Keeper's (boss.md § Keeper stats). */
@@ -77,8 +82,9 @@ public final class DifficultyAPI {
      * multipliers, which Boss works out from its stat tables (boss.md § Keeper stats). {@code false}
      * if a rung already had it.
      */
-    public static boolean applyKeeperRung(Mob mob, double healthMultiplier, double damageMultiplier) {
-        return Ladder.apply(mob, Ladder.RUNG_KEEPER, healthMultiplier, damageMultiplier);
+    public static boolean applyKeeperRung(Mob mob, int keeperPathPosition, double healthMultiplier,
+                                          double damageMultiplier) {
+        return Ladder.apply(mob, Ladder.RUNG_KEEPER, keeperPathPosition, healthMultiplier, damageMultiplier);
     }
 
     /**
@@ -93,7 +99,7 @@ public final class DifficultyAPI {
                 rules.sentinelHealthGrowthFar(), rules.sentinelHealthGrowthNear(), difficultyIntensity);
         double damageGrowth = LadderMath.sentinelGrowth(rules.ordinaryDamageGrowth(),
                 rules.sentinelDamageGrowthFar(), rules.sentinelDamageGrowthNear(), difficultyIntensity);
-        return Ladder.apply(mob, Ladder.RUNG_SENTINEL,
+        return Ladder.apply(mob, Ladder.RUNG_SENTINEL, keeperPathPosition,
                 LadderMath.multiplier(healthGrowth, keeperPathPosition),
                 LadderMath.multiplier(damageGrowth, keeperPathPosition));
     }

@@ -12,6 +12,8 @@ import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Wolf;
@@ -50,7 +52,7 @@ final class DifficultyHandlers {
         if (mob instanceof Vex vex && vex.getOwner() != null
                 && Ladder.RUNG_KEEPER.equals(Ladder.rungOf(vex.getOwner()))) {
             DifficultyRules rules = DifficultyRules.ACTIVE;
-            Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 1.0, rules.keeperVexDamage() / rules.vexReferenceHit());
+            Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 0, 1.0, rules.keeperVexDamage() / rules.vexReferenceHit());
             return;
         }
 
@@ -69,8 +71,17 @@ final class DifficultyHandlers {
     static void onAnimalTame(AnimalTameSignal signal) {
         if (signal.animal() instanceof Wolf wolf
                 && wolf.level() instanceof ServerLevel level
-                && !Ladder.claimed(wolf)) {
-            applyAmbientRung(level, wolf, Ladder.RUNG_ALLY);
+                && !Ladder.claimed(wolf)
+                && applyAmbientRung(level, wolf, Ladder.RUNG_ALLY)) {
+            // Taming is still to come: vanilla then sets the wolf's base health and its health to 20,
+            // which would leave it at 20 of a higher maximum. One tick on, with the tame done, heal it
+            // to its real maximum.
+            MinecraftServer server = level.getServer();
+            server.tell(new TickTask(server.getTickCount() + 1, () -> {
+                if (wolf.isAlive() && wolf.isTame()) {
+                    wolf.setHealth(wolf.getMaxHealth());
+                }
+            }));
         }
     }
 
@@ -78,19 +89,21 @@ final class DifficultyHandlers {
      * The ordinary growth at the mob's own position: the ambient Difficulty there, if it is 2 or more.
      * Ordinary hostiles and allies share the numbers and differ only in the rung they record.
      */
-    private static void applyAmbientRung(ServerLevel level, Mob mob, String rung) {
+    private static boolean applyAmbientRung(ServerLevel level, Mob mob, String rung) {
         OptionalInt difficulty = ambientDifficulty(level, mob.blockPosition());
         if (difficulty.isEmpty() || difficulty.getAsInt() < 2) {
-            return;
+            return false;
         }
 
         DifficultyRules rules = DifficultyRules.ACTIVE;
         int n = difficulty.getAsInt();
-        if (Ladder.apply(mob, rung,
+        boolean applied = Ladder.apply(mob, rung, n,
                 LadderMath.multiplier(rules.ordinaryHealthGrowth(), n),
-                LadderMath.multiplier(rules.ordinaryDamageGrowth(), n))) {
+                LadderMath.multiplier(rules.ordinaryDamageGrowth(), n));
+        if (applied) {
             OUT.debug("[Difficulty] " + rung + " rung n=" + n + " on " + mob.getType() + " at " + mob.blockPosition());
         }
+        return applied;
     }
 
     /**

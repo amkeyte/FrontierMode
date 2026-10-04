@@ -104,12 +104,14 @@ public final class DefaultBorderRules implements BorderRules {
      *
      * <p>Each wave is a half-cosine sweep of {@code borderWaveLength} steps, from
      * {@code 1 + borderWaveAmplitude} down to exactly 1.0 (a flat step, which still recenters), then
-     * the next wave opens wide again. Defaults (20, 0.5, 5) give factors 1.5, 1.43, 1.25, 1.07, 1.0 and
-     * radii 30, 43, 54, 57, 57, 86, 123, 154, 165, 165, 247 for positions 1-11.
+     * the next wave opens wide again. Defaults (5, 0.5, 5) give factors 1.5, 1.43, 1.25, 1.07, 1.0 and
+     * radii 8, 11, 13, 14, 14, 22, 31, 38, 41, 41, 62 for positions 1-11 (owner 2026-10-03: a much smaller
+     * start; the base was 20, radii 30, 43, 54, ... ). The base is the Tunable {@code borderBaseRadius}: a
+     * row already in a config CSV wins over this default.
      */
     @Override
     public int radiusForPathPosition(Level level, int pathPosition) {
-        int base = new Tunable("borderBaseRadius", 1, 1000, 20).intValue();
+        int base = new Tunable("borderBaseRadius", 1, 1000, 5).intValue();
         float amplitude = new Tunable("borderWaveAmplitude", 0f, 2f, 0.5f).floatValue();
         int waveLength = borderWaveLength();
 

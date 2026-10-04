@@ -61,6 +61,7 @@ final class BossJigHandlers {
         if (level instanceof ServerLevel serverLevel) {
             BossHealthBarHandlers.onBossTick(serverLevel, fixture);
             BossDefenseHandlers.onBossTick(serverLevel, bundle);
+            BossLeashHandlers.onBossTick(serverLevel, fixture);
         }
 
         // FRO_108: fires any delayed force-flush a defeat cascade scheduled -- see

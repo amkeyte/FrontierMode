@@ -2,12 +2,17 @@
   "type": "minecraft:entity",
   "pools": [
     {
-      "rolls": 1.0,
+      "rolls": {
+        "type": "minecraft:uniform",
+        "min": 2.0,
+        "max": 3.0
+      },
       "bonus_rolls": 0.0,
       "entries": [
         {
           "type": "minecraft:item",
           "name": "minecraft:iron_ingot",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -18,64 +23,44 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:cooked_beef",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": 4.0
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:arrow",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": 8.0
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:torch",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
               "count": 16.0
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "frontiermode:diorite_dust",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",
@@ -86,16 +71,11 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "rolls": 1.0,
-      "bonus_rolls": 0.0,
-      "entries": [
+        },
         {
           "type": "minecraft:item",
           "name": "minecraft:amethyst_shard",
+          "weight": 1,
           "functions": [
             {
               "function": "minecraft:set_count",

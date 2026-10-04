@@ -395,7 +395,7 @@ public final class DefaultBossRules implements BossRules {
                 damageMultiplier = LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
             }
         }
-        DifficultyAPI.applyKeeperRung(mob, healthMultiplier, damageMultiplier);
+        DifficultyAPI.applyKeeperRung(mob, pathPosition, healthMultiplier, damageMultiplier);
     }
 
     // Boss invariant (boss.md Scope): no fire damage for any boss. A permanent Fire Resistance
@@ -510,6 +510,11 @@ public final class DefaultBossRules implements BossRules {
     @Override
     public double keeperPlayerShare() {
         return new Tunable("keeperPlayerShare", 0f, 1f, 0.5f).floatValue();
+    }
+
+    @Override
+    public int bossLeashRadius() {
+        return new Tunable("bossLeashRadius", 8, 512, 40).intValue();
     }
 
     @Override

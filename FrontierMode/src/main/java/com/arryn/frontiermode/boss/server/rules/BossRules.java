@@ -159,6 +159,12 @@ public interface BossRules {
      */
     double keeperPlayerShare();
 
+    /**
+     * How far, in blocks, a present boss may be from its recorded position before it is teleported back
+     * (border-pregeneration.md § Movement). Safe baseline 40.
+     */
+    int bossLeashRadius();
+
     /** How long a player keeps seeing a boss's health bar after they last held its kill credit. */
     int bossBarLingerTicks();
 
