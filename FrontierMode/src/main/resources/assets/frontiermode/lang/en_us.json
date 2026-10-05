@@ -10,6 +10,7 @@
   "enchantment.frontiermode.resonance": "Resonance",
   "enchantment.frontiermode.death_touch": "Death Touch",
   "enchantment.frontiermode.inspect": "Inspect",
+  "message.frontiermode.keeper_defeated": "%s defeated the Amethyst Keeper, and the frontier has grown.",
   "subtitles.frontiermode.entry_cue": "Frontier crossed",
   "subtitles.frontiermode.cairn_ping": "Cairn pulses",
   "subtitles.frontiermode.boss_tell_1": "Distant presence",

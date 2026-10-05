@@ -518,6 +518,11 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
+    public int bossLeashRadiusFirst() {
+        return new Tunable("bossLeashRadiusFirst", 8, 512, 20).intValue();
+    }
+
+    @Override
     public int bossBarLingerTicks() {
         return new Tunable("bossBarLingerTicks", 1, 72000, 600).intValue();
     }

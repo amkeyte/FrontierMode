@@ -165,6 +165,13 @@ public interface BossRules {
      */
     int bossLeashRadius();
 
+    /**
+     * The leash for the level 1 Keeper (path position 1, the Rabbit), in place of
+     * {@link #bossLeashRadius()}: a Rabbit is fast and small, and the first Border is radius 8, so the
+     * standard 40 lets it be kited far outside its own Border. Safe baseline 20.
+     */
+    int bossLeashRadiusFirst();
+
     /** How long a player keeps seeing a boss's health bar after they last held its kill credit. */
     int bossBarLingerTicks();
 

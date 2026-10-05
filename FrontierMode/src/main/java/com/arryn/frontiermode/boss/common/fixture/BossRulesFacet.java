@@ -138,6 +138,11 @@ public final class BossRulesFacet {
         return RULES.bossLeashRadius();
     }
 
+    /** See {@link BossRules#bossLeashRadiusFirst()}. */
+    public int bossLeashRadiusFirst() {
+        return RULES.bossLeashRadiusFirst();
+    }
+
     /** See {@link BossRules#bossBarLingerTicks()}. */
     public int bossBarLingerTicks() {
         return RULES.bossBarLingerTicks();

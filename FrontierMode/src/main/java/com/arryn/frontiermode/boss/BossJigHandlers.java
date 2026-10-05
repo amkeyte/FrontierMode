@@ -20,6 +20,7 @@ import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
@@ -240,6 +241,11 @@ final class BossJigHandlers {
                     + bossId.get() + ": " + result.message() + " -- not calling createBoss.");
             return;
         }
+
+        // FRO_233: tells a new player what just happened -- the Keeper fell and the frontier grew.
+        // Server-wide, and only once the Border has actually grown.
+        credited.server.getPlayerList().broadcastSystemMessage(
+                Component.translatable("message.frontiermode.keeper_defeated", credited.getDisplayName()), false);
 
         BossAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());

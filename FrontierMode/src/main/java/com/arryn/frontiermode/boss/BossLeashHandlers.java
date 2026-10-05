@@ -24,11 +24,13 @@ final class BossLeashHandlers {
     }
 
     static void onBossTick(ServerLevel level, BossFixture fixture) {
-        double radius = fixture.RULES.bossLeashRadius();
-        double radiusSq = radius * radius;
-
         PresentBosses.forEach(level, fixture, present -> {
             Mob boss = present.boss();
+            // The level 1 Keeper (the Rabbit) has its own, shorter leash.
+            double radius = BossAPI.pathPositionOf(present.record()) <= 1
+                    ? fixture.RULES.bossLeashRadiusFirst()
+                    : fixture.RULES.bossLeashRadius();
+            double radiusSq = radius * radius;
             BlockPos home = present.record().position();
             // A home chunk that isn't loaded can't be teleported into; it is tried again next tick.
             if (home == null || !boss.isAlive() || !level.isLoaded(home)) {
