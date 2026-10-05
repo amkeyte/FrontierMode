@@ -2,7 +2,6 @@ package com.arryn.frontiermode.boss.common.fixture;
 
 import com.arryn.frontiermode.boss.BossPositionListeners;
 import com.arryn.frontiermode.boss.common.BossPlatform;
-import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
@@ -66,6 +65,27 @@ public final class BossSpawnFacet {
             // copy still held in this loop's own `record` variable.
             fixture.CRUD.get(record.bossId()).ifPresent(updated ->
                     BossPositionListeners.fire(level, updated));
+
+            announcePlaced(level);
+        }
+    }
+
+    /**
+     * Tells players a Keeper now waits in the frontier, once its Border has pregenerated and its
+     * position has committed. Says nothing about where (boss.md's client-secrecy policy). The first
+     * Keeper of a world -- none defeated yet -- gets "An Amethyst Keeper waits..."; any later one gets
+     * "A new Amethyst Keeper waits...". Not sent from the admin force-materialize path.
+     */
+    private void announcePlaced(Level level) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        boolean first = fixture.all().stream().allMatch(BossRecord::alive);
+        Component message = Component.translatable(first
+                ? "message.frontiermode.keeper_waits_first"
+                : "message.frontiermode.keeper_waits_next");
+        for (var player : serverLevel.players()) {
+            player.sendSystemMessage(message);
         }
     }
 
@@ -91,33 +111,12 @@ public final class BossSpawnFacet {
             fixture.RULES.materialize(level, xz, record).ifPresent(mob -> {
                 fixture.CRUD.materialize(record.bossId(), mob.getUUID());
                 onMaterialized.accept(mob.getUUID());
-                announceSpawn(level);
                 if (MobScope.getFor(mob).isEmpty()) {
                     OUT.warn("[Boss] materializeUnresolved(): MobScope.getFor rejected a mob just"
                             + " spawned (bossId=" + Ids.shortId(record.bossId()) + ") -- presence poll will"
                             + " still pick it up once ready.");
                 }
             });
-        }
-    }
-
-    /**
-     * Chat-log broadcast for a real (tick-driven) materialization -- not the location or the layer,
-     * just that one now exists, so this doesn't touch boss.md's client-secrecy policy on
-     * position (see {@code BOSS_JIG}'s own "Module wiring" section). Player-facing wording is
-     * FRO_182's. Deliberately not called
-     * from {@link #forceMaterialize} -- that's an admin/debug action (a player command), and
-     * broadcasting chat for every admin test-materialize would be noise, the same "no free
-     * reward without a real trigger" reasoning already applied elsewhere in this codebase (e.g.
-     * placeholder defeat loot skipping the {@code forceDefeat} admin path).
-     */
-    private static void announceSpawn(Level level) {
-        if (!(level instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        Component message = Component.literal("An " + DefaultBossRules.BOSS_NAME + " has emerged.");
-        for (var player : serverLevel.players()) {
-            player.sendSystemMessage(message);
         }
     }
 

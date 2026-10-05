@@ -11,6 +11,8 @@
   "enchantment.frontiermode.death_touch": "Death Touch",
   "enchantment.frontiermode.inspect": "Inspect",
   "message.frontiermode.keeper_defeated": "%s defeated the Amethyst Keeper, and the frontier has grown.",
+  "message.frontiermode.keeper_waits_first": "An Amethyst Keeper waits somewhere within the frontier.",
+  "message.frontiermode.keeper_waits_next": "A new Amethyst Keeper waits somewhere within the frontier.",
   "subtitles.frontiermode.entry_cue": "Frontier crossed",
   "subtitles.frontiermode.cairn_ping": "Cairn pulses",
   "subtitles.frontiermode.boss_tell_1": "Distant presence",

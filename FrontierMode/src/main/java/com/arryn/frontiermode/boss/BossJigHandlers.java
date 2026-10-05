@@ -63,6 +63,8 @@ final class BossJigHandlers {
             BossHealthBarHandlers.onBossTick(serverLevel, fixture);
             BossDefenseHandlers.onBossTick(serverLevel, bundle);
             BossLeashHandlers.onBossTick(serverLevel, fixture);
+            // FRO_224: a scaled Keeper's path advances like a Sentinel's.
+            PresentBosses.forEach(serverLevel, fixture, present -> WidePathing.advanceIfOnWaypoint(present.boss()));
         }
 
         // FRO_108: fires any delayed force-flush a defeat cascade scheduled -- see
