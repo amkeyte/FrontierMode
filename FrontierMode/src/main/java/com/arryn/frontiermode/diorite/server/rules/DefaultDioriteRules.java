@@ -29,4 +29,9 @@ public final class DefaultDioriteRules implements DioriteRules {
     public int strikerBlastDurability() {
         return new Tunable("strikerBlastDurability", 1, 64, 16).intValue();
     }
+
+    @Override
+    public int edgeStonePoofParticles() {
+        return new Tunable("edgeStonePoofParticles", 1, 64, 12).intValue();
+    }
 }

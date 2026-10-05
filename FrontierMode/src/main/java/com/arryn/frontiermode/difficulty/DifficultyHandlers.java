@@ -18,6 +18,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraft.world.entity.monster.Vex;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.piglin.Piglin;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 import java.util.Optional;
@@ -57,7 +60,7 @@ final class DifficultyHandlers {
         }
 
         String rung = DifficultyAPI.isAlly(mob) ? Ladder.RUNG_ALLY
-                : DifficultyAPI.isLadderHostile(mob) ? Ladder.RUNG_ORDINARY : null;
+                : DifficultyAPI.isLadderHostile(mob) || isNetherPiglinKin(level, mob) ? Ladder.RUNG_ORDINARY : null;
         if (rung != null) {
             applyAmbientRung(level, mob, rung);
         }
@@ -90,7 +93,9 @@ final class DifficultyHandlers {
      * Ordinary hostiles and allies share the numbers and differ only in the rung they record.
      */
     private static boolean applyAmbientRung(ServerLevel level, Mob mob, String rung) {
-        OptionalInt difficulty = ambientDifficulty(level, mob.blockPosition());
+        OptionalInt difficulty = Ladder.RUNG_ORDINARY.equals(rung) && level.dimension() == Level.NETHER
+                ? netherDifficulty(level)
+                : ambientDifficulty(level, mob.blockPosition());
         if (difficulty.isEmpty() || difficulty.getAsInt() < 2) {
             return false;
         }
@@ -117,6 +122,26 @@ final class DifficultyHandlers {
             return;
         }
         signal.setAmount((float) (signal.amount() * Ladder.damageMultiplier(data)));
+    }
+
+    /**
+     * Owner's ruling (FRO_230): "all Nether mobs" scale, so in the Nether the Piglin and the Hoglin
+     * join the ladder hostiles. {@link DifficultyAPI#isLadderHostile} leaves both out (the Piglin is a
+     * barterer, the Hoglin an {@code Animal}), and everywhere else they stay vanilla.
+     */
+    private static boolean isNetherPiglinKin(ServerLevel level, Mob mob) {
+        return level.dimension() == Level.NETHER && (mob instanceof Piglin || mob instanceof Hoglin);
+    }
+
+    /**
+     * The Nether has no Borders and so no ground to read (difficulty.md § The Nether): its hostiles
+     * take the Overworld path tip's 1-based position as {@code n}. Empty with no path or before the
+     * Overworld's Border facet is ready, so the mob stays vanilla.
+     */
+    private static OptionalInt netherDifficulty(ServerLevel nether) {
+        return BorderAPI.PATH(nether.getServer().overworld())
+                .map(path -> OptionalInt.of(path.size()))
+                .orElseGet(OptionalInt::empty);
     }
 
     /** The ambient Difficulty at {@code pos}; empty with no Relevant Border or before Border is ready. */

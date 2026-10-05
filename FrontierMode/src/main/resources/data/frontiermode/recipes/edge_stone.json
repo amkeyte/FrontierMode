@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "minecraft:flint" },
+    { "item": "frontiermode:diorite_dust" }
+  ],
+  "result": {
+    "item": "frontiermode:edge_stone",
+    "count": 4
+  }
+}

@@ -4,6 +4,8 @@
   "item.frontiermode.diorite_dust": "Diorite Dust",
   "item.frontiermode.diorite_shard": "Diorite Shard",
   "item.frontiermode.diorite_striker": "Diorite Striker",
+  "item.frontiermode.edge_stone": "Edge Stone",
+  "entity.frontiermode.edge_stone": "Edge Stone",
   "enchantment.frontiermode.intuition": "Intuition",
   "enchantment.frontiermode.resonance": "Resonance",
   "enchantment.frontiermode.death_touch": "Death Touch",

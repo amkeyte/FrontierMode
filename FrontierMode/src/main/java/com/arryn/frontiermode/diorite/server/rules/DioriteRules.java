@@ -19,4 +19,7 @@ public interface DioriteRules {
 
     /** Durability a strike costs off the Overworld, instead of 1. */
     int strikerBlastDurability();
+
+    /** White poof particles an Edge Stone makes where it crosses the Frontier line. */
+    int edgeStonePoofParticles();
 }

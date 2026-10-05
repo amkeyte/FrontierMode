@@ -6,6 +6,7 @@ import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.difficulty.DifficultyModule;
+import com.arryn.frontiermode.diorite.DioriteEntities;
 import com.arryn.frontiermode.diorite.DioriteItems;
 import com.arryn.frontiermode.siting.SitingModule;
 import com.arryn.frontiermode.coordination.SpawnCoordinator;
@@ -132,6 +133,7 @@ public final class FrontierMode {
         BossModule.ITEMS.register(modBus);
         // FRO_211: the diorite module's items live on their own holder, wired the same way.
         DioriteItems.ITEMS.register(modBus);
+        DioriteEntities.ENTITY_TYPES.register(modBus);
         // FRO_121: same reasoning as ITEMS above.
         BossTellModule.ENCHANTMENTS.register(modBus);
 

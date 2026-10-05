@@ -52,6 +52,40 @@ final class SentinelJigHandlers {
         bundle.sentinels().ifPresent(g -> SentinelInterests.MAP.put(level, g.recordIds()));
         bundle.boss().ifPresent(boss -> BossAPI.sentinelMarkers(level).ifPresent(pub -> pub.setTrail(
                 boss.RULES.trailIntervalTicks(), boss.RULES.trailLifetimeTicks(), boss.RULES.trailRadius())));
+        diagnose(level, bundle);
+    }
+
+    /**
+     * FRO_224 TEMPORARY diagnostic: every 100 ticks, one {@code [Sentinel] diag} line per present
+     * sentinel -- where it is, whether it moves, which goals run, its navigation and target. Remove
+     * once the idle-at-spawn cause is found.
+     */
+    private static void diagnose(Level level, BossBundle bundle) {
+        if (!(level instanceof ServerLevel serverLevel) || level.getGameTime() % 100 != 0) return;
+        bundle.sentinels().ifPresent(g -> {
+            for (UUID uuid : g.recordIds()) {
+                if (!(serverLevel.getEntity(uuid) instanceof Mob mob)) continue;
+                StringBuilder running = new StringBuilder();
+                mob.goalSelector.getRunningGoals().forEach(w -> running.append(w.getGoal().getClass().getSimpleName())
+                        .append("@").append(w.getPriority()).append(' '));
+                StringBuilder targeting = new StringBuilder();
+                mob.targetSelector.getRunningGoals().forEach(w -> targeting.append(w.getGoal().getClass().getSimpleName())
+                        .append("@").append(w.getPriority()).append(' '));
+                OUT.debug("[Sentinel] diag " + Ids.shortId(uuid) + " " + mob.getType().builtInRegistryHolder().key().location()
+                        + " pos=" + mob.blockPosition().toShortString()
+                        + " moveSq=" + String.format("%.4f", mob.getDeltaMovement().horizontalDistanceSqr())
+                        + " scale=" + String.format("%.2f", mob.getBbHeight() / mob.getType().getHeight())
+                        + " step=" + mob.maxUpStep()
+                        + " onGround=" + mob.onGround()
+                        + " noAi=" + mob.isNoAi()
+                        + " navDone=" + mob.getNavigation().isDone()
+                        + " target=" + (mob.getTarget() == null ? "none" : mob.getTarget().getName().getString())
+                        + " head=" + mob.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).getItem()
+                        + " goals=[" + running + "] targetGoals=[" + targeting + "]"
+                        + " nearestPlayer=" + (serverLevel.getNearestPlayer(mob, 64) == null ? "none"
+                                : String.format("%.1f", mob.distanceTo(serverLevel.getNearestPlayer(mob, 64)))));
+            }
+        });
     }
 
     /**

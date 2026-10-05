@@ -10,6 +10,7 @@ import com.arryn.satchel.common.lifecycle.BlockBreakSignal;
 import com.arryn.satchel.common.lifecycle.CreateWorldSpawnSignal;
 import com.arryn.satchel.common.lifecycle.ItemPickupSignal;
 import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
+import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
 import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
 import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
@@ -34,6 +35,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.AnimalTameEvent;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
+import net.minecraftforge.event.entity.living.LivingConversionEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
@@ -531,6 +533,17 @@ public final class ServerForgeIngress {
         if (e.getEntity().level().isClientSide()) return;
         if (!Satchel.isReady()) return;
         Satchel.require().eventBus().post(new LivingChangeTargetSignal(e));
+    }
+
+    /**
+     * Posts {@link LivingConversionSignal} before a mob converts (SAT_101); a subscriber's
+     * {@code cancel()} keeps it unconverted. Conversion runs server-side; the guard is cheap insurance.
+     */
+    @SubscribeEvent
+    public static void onLivingConversionPre(LivingConversionEvent.Pre e) {
+        if (e.getEntity().level().isClientSide()) return;
+        if (!Satchel.isReady()) return;
+        Satchel.require().eventBus().post(new LivingConversionSignal(e));
     }
 
     /** Posts {@link AnimalTameSignal}. Taming is server-side; the guard is cheap insurance. */

@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
+import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -39,6 +40,19 @@ final class KeeperCombatHandlers {
     static void onChangeTarget(LivingChangeTargetSignal signal) {
         LivingEntity target = signal.newTarget();
         if (target != null && DifficultyAPI.isAlly(signal.entity()) && BossMarkers.isLiveBoss(target)) {
+            signal.cancel();
+        }
+    }
+
+    /**
+     * A live Keeper never converts (owner's ruling, SAT_101): a Zombie Keeper standing in water would
+     * otherwise become a Drowned that is no longer tracked as the Keeper -- its record, size marker,
+     * health bar and loot all keyed to the old entity. Cancelling keeps it the Keeper. Ordinary mobs
+     * still convert. A conversion that skips Forge's Pre check (a Skeleton freezing into a Stray) is
+     * not covered.
+     */
+    static void onConversion(LivingConversionSignal signal) {
+        if (BossMarkers.isLiveBoss(signal.entity())) {
             signal.cancel();
         }
     }

@@ -23,6 +23,7 @@ public final class DioriteCreativeTabs {
             event.accept(DioriteItems.DIORITE_SHARD);
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(DioriteItems.DIORITE_STRIKER);
+            event.accept(DioriteItems.EDGE_STONE);
         }
     }
 }

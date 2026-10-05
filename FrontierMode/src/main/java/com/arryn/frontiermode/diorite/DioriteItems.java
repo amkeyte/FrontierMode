@@ -2,6 +2,7 @@ package com.arryn.frontiermode.diorite;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.diorite.common.items.DioriteStrikerItem;
+import com.arryn.frontiermode.diorite.common.items.EdgeStoneItem;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -27,6 +28,10 @@ public final class DioriteItems {
     /** Reads how dangerous a patch of claimed ground is: 64 durability, like flint and steel. */
     public static final RegistryObject<Item> DIORITE_STRIKER =
             ITEMS.register("diorite_striker", () -> new DioriteStrikerItem(new Item.Properties().durability(64)));
+
+    /** A throwable that poofs when it crosses the Frontier line; shapeless from flint and diorite dust. */
+    public static final RegistryObject<Item> EDGE_STONE =
+            ITEMS.register("edge_stone", () -> new EdgeStoneItem(new Item.Properties()));
 
     private DioriteItems() {
     }
