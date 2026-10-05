@@ -22,6 +22,9 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID)
 public final class BossScaleEvents {
 
+    // Vanilla's mob step height, in blocks.
+    private static final float VANILLA_STEP_HEIGHT = 0.6F;
+
     private BossScaleEvents() {
     }
 
@@ -31,6 +34,13 @@ public final class BossScaleEvents {
         if (scale != 1.0F) {
             EntityDimensions scaled = event.getNewSize().scale(scale);
             event.setNewSize(scaled, true);
+        }
+        if (scale > 1.0F) {
+            // A mob that is bigger should clear what its size clears: vanilla's 0.6 step height is for a
+            // 1-block-wide, 2-tall body. The step also drives pathfinding, so a big mob plans over taller
+            // steps too. Never lowers one, so it is safe on every dimension refresh. It is not saved and
+            // is not a jump: vanilla has no jump-height attribute for mobs.
+            event.getEntity().setMaxUpStep(Math.max(event.getEntity().maxUpStep(), VANILLA_STEP_HEIGHT * scale));
         }
     }
 }

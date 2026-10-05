@@ -11,6 +11,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -111,15 +113,29 @@ public final class DioriteStrikerItem extends Item {
         // A line across the face, perpendicular to its normal: horizontal on a wall, east-west on a floor or ceiling.
         double tx = face.getAxis() == Direction.Axis.Y ? 1.0 : -face.getStepZ();
         double tz = face.getAxis() == Direction.Axis.Y ? 0.0 : face.getStepX();
+        int delay = rules.strikerSparkDelayTicks();
+        MinecraftServer server = level.getServer();
         for (int i = 0; i < count; i++) {
             double s = (i - (count - 1) / 2.0) * 0.4;
-            // Count 0 makes the offsets a velocity: out along the normal, spreading along the line.
-            EffectsAPI.broadcastParticle(level, dust,
-                    x + tx * s * 0.25, y, z + tz * s * 0.25,
-                    0, face.getStepX() * 0.25 + tx * s * 0.15, 0.05 + face.getStepY() * 0.25,
-                    face.getStepZ() * 0.25 + tz * s * 0.15, 1.0);
+            // Spread along the line, and fanned wider the farther from the middle, so they part company.
+            double px = x + tx * s * 0.45;
+            double pz = z + tz * s * 0.45;
+            double vx = face.getStepX() * 0.25 + tx * s * 0.5;
+            double vy = 0.05 + face.getStepY() * 0.25;
+            double vz = face.getStepZ() * 0.25 + tz * s * 0.5;
+            Runnable fire = () -> {
+                // Count 0 makes the offsets a velocity: out along the normal, spreading along the line.
+                EffectsAPI.broadcastParticle(level, dust, px, y, pz, 0, vx, vy, vz, 1.0);
+                // A click per spark, so the count can be heard as well as seen.
+                EffectsAPI.broadcastSound(level, px, y, pz, SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS,
+                        0.6F, level.getRandom().nextFloat() * 0.4F + 0.8F);
+            };
+            if (i == 0 || delay <= 0) {
+                fire.run();
+            } else {
+                // Staggered in time: one spark, then the next, rather than a single burst.
+                server.tell(new TickTask(server.getTickCount() + i * delay, fire));
+            }
         }
-        EffectsAPI.broadcastSound(level, x, y, z, SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS, 1.0F,
-                level.getRandom().nextFloat() * 0.4F + 0.8F);
     }
 }

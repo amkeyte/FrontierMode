@@ -11,6 +11,9 @@ public interface DioriteRules {
     /** Sparks fired by a strike that has a color but no count (the Relevant Border is off the path). */
     int strikerColorOnlySparks();
 
+    /** Ticks between one spark and the next, so each can be counted; 0 fires them all together. */
+    int strikerSparkDelayTicks();
+
     /** Power of the explosion a strike makes off the Overworld. */
     float strikerBlastPower();
 

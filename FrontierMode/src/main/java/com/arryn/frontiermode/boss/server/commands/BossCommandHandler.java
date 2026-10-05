@@ -238,11 +238,19 @@ public final class BossCommandHandler {
                 ctx.getSource().sendSuccess(() -> msg("Force-spawned boss " + id), false);
                 yield 1;
             }
-            case ALREADY_MATERIALIZED -> {
-                ctx.getSource().sendSuccess(
-                        () -> msg("Boss " + id + " already has a spawned entity -- skipped."),
-                        false
-                );
+            case SPAWNED_REPLACING -> {
+                ctx.getSource().sendSuccess(() -> msg("Boss " + id + " was recorded as spawned but no entity"
+                        + " was present -- spawned a fresh one at its spot."), false);
+                yield 1;
+            }
+            case TELEPORTED_HOME -> {
+                ctx.getSource().sendSuccess(() -> msg("Boss " + id + " was already alive -- teleported it back"
+                        + " to its spot."), false);
+                yield 1;
+            }
+            case NOT_POSITIONED -> {
+                ctx.getSource().sendFailure(msg("Boss " + id + " has no spot yet: its home Border is still"
+                        + " pregenerating. Try again in a moment."));
                 yield 0;
             }
             case NO_RECORD -> {
@@ -252,8 +260,8 @@ public final class BossCommandHandler {
             }
             case DECLINED -> {
                 ctx.getSource().sendFailure(msg("Could not spawn boss " + id
-                        + " -- no valid ground at its stored position (e.g. an all-liquid"
-                        + " column). See server log."));
+                        + " -- the entity could not be created or added at its stored position."
+                        + " See the server log."));
                 yield 0;
             }
         };

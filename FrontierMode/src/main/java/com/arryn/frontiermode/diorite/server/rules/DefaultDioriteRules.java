@@ -16,6 +16,11 @@ public final class DefaultDioriteRules implements DioriteRules {
     }
 
     @Override
+    public int strikerSparkDelayTicks() {
+        return new Tunable("strikerSparkDelayTicks", 0, 20, 4).intValue();
+    }
+
+    @Override
     public float strikerBlastPower() {
         return new Tunable("strikerBlastPower", 0.1f, 4f, 1.0f).floatValue();
     }

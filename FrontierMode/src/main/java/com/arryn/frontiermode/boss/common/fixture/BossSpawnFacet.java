@@ -7,6 +7,7 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -135,18 +136,38 @@ public final class BossSpawnFacet {
         }
         BossRecord record = recordOpt.get();
 
-        if (record.materialized()) {
-            return MaterializeOutcome.ALREADY_MATERIALIZED;
-        }
-
         if (!record.positioned()) {
             OUT.warn("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId)
                     + " has no finalized position yet (home border still pregenerating)"
                     + " -- cannot force-materialize.");
-            return MaterializeOutcome.DECLINED;
+            return MaterializeOutcome.NOT_POSITIONED;
         }
 
         BlockPos xz = record.position();
+        boolean replacing = false;
+        if (record.materialized()) {
+            // The record says it has an entity. If that entity is alive out in the world, an admin who
+            // asked for a spawn wants it home: teleport it, as the leash would.
+            Optional<net.minecraft.world.entity.Entity> existing =
+                    Satchel.require().egress().getEntity(level, record.bossEntityId());
+            if (existing.isPresent() && existing.get() instanceof Mob live && live.isAlive()) {
+                live.teleportTo(xz.getX() + 0.5, xz.getY(), xz.getZ() + 0.5);
+                live.setTarget(null);
+                live.getNavigation().stop();
+                OUT.info("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId) + " was alive at "
+                        + live.blockPosition() + " -- teleported it back to " + xz);
+                return MaterializeOutcome.TELEPORTED_HOME;
+            }
+            // No live entity: it was removed without a death event, converted, or is in an unloaded
+            // chunk. An admin override replaces it; if the old one is only unloaded it may reappear.
+            OUT.warn("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId) + " is recorded as"
+                    + " materialized (entity " + Ids.shortId(record.bossEntityId()) + ") but none is present"
+                    + " -- clearing the stale entity and spawning a fresh one. If the old entity was only"
+                    + " unloaded it may reappear later.");
+            fixture.CRUD.dematerialize(bossId);
+            replacing = true;
+        }
+
         OUT.info("[Boss] forceMaterialize(): forcing chunk load at " + xz
                 + " for bossId=" + Ids.shortId(bossId));
         level.getChunk(xz);
@@ -172,7 +193,7 @@ public final class BossSpawnFacet {
                     + " (bossId=" + Ids.shortId(bossId) + ") -- presence poll will still pick it up.");
         }
 
-        return MaterializeOutcome.SPAWNED;
+        return replacing ? MaterializeOutcome.SPAWNED_REPLACING : MaterializeOutcome.SPAWNED;
     }
 
     // ── private helpers ───────────────────────────────────────────────────────
