@@ -138,6 +138,21 @@ tasks.named('jar', Jar).configure {
                 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         )
     }
+
+    // License and credits ship inside the jar: CREDITS_<mod_id>.md from this module, and the
+    // repo-root MIT LICENSE renamed to LICENSE_<mod_id>. Gradle silently skips a missing `from`
+    // source, so doFirst fails the build instead of shipping a jar without them.
+    def creditsFile = file("CREDITS_${mod_id}.md")
+    def licenseFile = file("${projectDir}/../LICENSE")
+    from(creditsFile)
+    from(licenseFile) { rename('^LICENSE$', "LICENSE_${mod_id}") }
+    doFirst {
+        [creditsFile, licenseFile].each {
+            if (!it.exists()) {
+                throw new GradleException("Missing file for the jar's license/credits: ${it}")
+            }
+        }
+    }
 }
 
 // ------------------------------------------------------------

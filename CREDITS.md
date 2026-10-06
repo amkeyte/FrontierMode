@@ -27,6 +27,7 @@ Created for this project by Arryn:
 
 - Entity overlay textures: the boss eye layers (`textures/entity/boss_eyes/*.png`)
 - Particle texture: the frontier ring (`textures/particle/frontier_ring.png`)
+- Item textures: `textures/item/diorite_shard.png` and `textures/item/edge_stone.png`
 
 Adapted by Arryn from Minecraft's own assets:
 
@@ -34,6 +35,9 @@ Adapted by Arryn from Minecraft's own assets:
   repurposed from the vanilla compass texture by Mojang Studios. Mojang's artwork is not covered by this
   project's MIT license; it remains subject to the [Minecraft EULA](https://www.minecraft.net/eula) and
   Mojang's usage guidelines.
+- Item textures: `textures/item/diorite_dust.png` (recolored from the vanilla redstone dust texture) and
+  `textures/item/diorite_striker.png` (recolored from the vanilla flint and steel texture), by Mojang
+  Studios. Same terms as the compass frames above.
 
 ## Built on
 

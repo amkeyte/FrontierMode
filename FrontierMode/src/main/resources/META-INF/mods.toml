@@ -8,6 +8,7 @@ modId="frontiermode"
 version="${mod_version}"
 displayName="Frontier Mode"
 authors="Arryn"
+credits="Sound and art credits: see CREDITS_frontiermode.md"
 description='''
 Frontier Mode: Gameplay and world-tuning modifications for Minecraft.
 '''
