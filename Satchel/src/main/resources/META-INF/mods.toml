@@ -7,12 +7,12 @@ modId="${mod_id}"
 version="${mod_version}"
 displayName="${mod_name}"
 authors="${mod_authors}"
-credits="See CREDITS_satchel.md"
+credits="See CREDITS_satchel_ecosystem.md"
 description="${mod_description}"
 
-[[dependencies.satchel]]
+[[dependencies.satchel_ecosystem]]
 modId="minecraft"
 mandatory=true
-versionRange="[1.20.1,)"
+versionRange="${minecraft_version_range}"
 ordering="NONE"
 side="BOTH"

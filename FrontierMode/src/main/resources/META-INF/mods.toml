@@ -2,6 +2,7 @@
 modLoader="javafml"
 loaderVersion="[47,)"
 license="${mod_license}"
+issueTrackerURL="https://www.curseforge.com/minecraft/mc-mods/frontier-mode/issues"
 
 [[mods]]
 modId="frontiermode"
@@ -9,6 +10,7 @@ version="${mod_version}"
 displayName="Frontier Mode"
 authors="Arryn"
 credits="Sound and art credits: see CREDITS_frontiermode.md"
+displayURL="https://www.curseforge.com/minecraft/mc-mods/frontier-mode"
 description='''
 Frontier Mode: Gameplay and world-tuning modifications for Minecraft.
 '''
@@ -27,12 +29,12 @@ side="BOTH"
 [[dependencies.frontiermode]]
 modId="minecraft"
 mandatory=true
-versionRange="[1.20.1,1.21)"
+versionRange="${minecraft_version_range}"
 ordering="NONE"
 side="BOTH"
 
 [[dependencies.frontiermode]]
-modId="satchel"
+modId="satchel_ecosystem"
 mandatory=true
 versionRange="[${satchel_min_version},)"
 ordering="AFTER"

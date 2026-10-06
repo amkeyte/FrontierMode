@@ -21,7 +21,7 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 @Mod(SatchelMod.MODID)
 public class SatchelMod {
-    public static final String MODID = "satchel";
+    public static final String MODID = "satchel_ecosystem";
 
     public SatchelMod() {
         OUT.info("HELLO SATCHEL");
