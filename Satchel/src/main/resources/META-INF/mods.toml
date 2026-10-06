@@ -1,6 +1,7 @@
 modLoader="javafml"
 loaderVersion="[47,)"
 license="${mod_license}"
+issueTrackerURL="https://www.curseforge.com/minecraft/mc-mods/frontier-mode/issues"
 
 [[mods]]
 modId="${mod_id}"
@@ -8,6 +9,7 @@ version="${mod_version}"
 displayName="${mod_name}"
 authors="${mod_authors}"
 credits="See CREDITS_satchel_ecosystem.md"
+displayURL="https://www.curseforge.com/minecraft/mc-mods/satchel"
 description="${mod_description}"
 
 [[dependencies.satchel_ecosystem]]
