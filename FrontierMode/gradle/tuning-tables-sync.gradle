@@ -1,0 +1,81 @@
+// ------------------------------------------------------------
+// Tuning tables dev sync (FRO_216): after a run stops, copy that run's live tuning tables into this
+// mod's resources so the next jar ships them. Spec: wiki satchel/architecture/tuning-tables.md.
+// Same model as tunables-sync.gradle: one copy task per run task, each copying only its own live
+// directory; whichever run stopped last wins.
+//
+//   source:      run-server/config/satchel-tables/<mod_id>/   (runServer)
+//                run/config/satchel-tables/<mod_id>/          (runClient)
+//   destination: src/main/resources/satchel-tables/<mod_id>/  (same relative layout; a table id with
+//                a '/' in it is a subdirectory, so the copy recurses)
+//
+// Only this mod's own namespace directory is touched -- other mods' tables are theirs. A destination
+// file the source lacks is never deleted. Satchel writes each live file at load time, so even a
+// killed run leaves complete files to copy.
+// Applied from build.gradle via `apply from:`, so file()/tasks/logger resolve against this project.
+// ------------------------------------------------------------
+def tableNamespace = mod_id
+def tablesDest = file("src/main/resources/satchel-tables/${tableNamespace}")
+
+def syncTuningTables = { File sourceDir ->
+    if (!sourceDir.isDirectory()) return            // this run never loaded a table; silent by design
+
+    int copied = 0
+    sourceDir.eachFileRecurse(groovy.io.FileType.FILES) { File live ->
+        if (!live.name.endsWith('.csv')) return
+
+        def rel = sourceDir.toPath().relativize(live.toPath())
+        byte[] bytes = live.bytes
+        String text = new String(bytes, 'UTF-8')
+        def lines = text.readLines()
+        def first = lines ? lines[0].trim() : ''
+
+        // Guards, per file: never let a broken or half-written file overwrite a shipped table.
+        if (first.isEmpty() || !first.contains(',')) {
+            logger.warn("Tuning table sync skipped ${rel}: no usable header line.")
+            return
+        }
+        if (lines.drop(1).every { it.trim().isEmpty() }) {
+            logger.warn("Tuning table sync skipped ${rel}: no data rows.")
+            return
+        }
+        if (!text.endsWith('\n')) {
+            logger.warn("Tuning table sync skipped ${rel}: doesn't end with a newline (looks truncated).")
+            return
+        }
+
+        File dest = tablesDest.toPath().resolve(rel).toFile()
+        if (dest.exists() && Arrays.equals(dest.bytes, bytes)) return    // already identical
+
+        // Write beside the destination then move, so a failure can't leave a half-written table.
+        dest.parentFile.mkdirs()
+        File tmp = new File(dest.parentFile, dest.name + '.tmp')
+        try {
+            tmp.bytes = bytes
+            java.nio.file.Files.move(tmp.toPath(), dest.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            tmp.delete()
+        }
+        copied++
+        logger.lifecycle("Tuning table synced: ${rel}")
+    }
+    if (copied > 0) {
+        logger.lifecycle("Tuning tables synced: ${copied} file(s) ${sourceDir} -> ${tablesDest}")
+    }
+}
+
+tasks.register('syncTuningTablesFromServer') {
+    group = 'frontiermode'
+    description = "Copies run-server/config/satchel-tables/${tableNamespace}/ into src/main/resources (guarded)."
+    doLast { syncTuningTables(project.file("run-server/config/satchel-tables/${tableNamespace}")) }
+}
+
+tasks.register('syncTuningTablesFromClient') {
+    group = 'frontiermode'
+    description = "Copies run/config/satchel-tables/${tableNamespace}/ into src/main/resources (guarded)."
+    doLast { syncTuningTables(project.file("run/config/satchel-tables/${tableNamespace}")) }
+}
+
+tasks.matching { it.name == 'runServer' }.configureEach { finalizedBy tasks.named('syncTuningTablesFromServer') }
+tasks.matching { it.name == 'runClient' }.configureEach { finalizedBy tasks.named('syncTuningTablesFromClient') }

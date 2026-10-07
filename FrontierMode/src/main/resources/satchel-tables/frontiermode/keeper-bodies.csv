@@ -1,0 +1,10 @@
+body,entityType,referenceHit,sizePast20,sizeGrowth,poolWeight
+rabbit,minecraft:rabbit,0.0,1.0,,1.0
+killer_bunny,minecraft:rabbit,8.0,1.0,,1.0
+spider,minecraft:spider,2.0,1.5,,1.0
+zombie,minecraft:zombie,3.0,2.0,0.1,1.0
+skeleton,minecraft:skeleton,4.0,2.3,,1.0
+zombified_piglin,minecraft:zombified_piglin,8.0,2.0,,1.0
+pillager,minecraft:pillager,4.0,2.0,,1.0
+vindicator,minecraft:vindicator,13.0,1.7,,1.0
+evoker,minecraft:evoker,6.0,1.0,,1.0
