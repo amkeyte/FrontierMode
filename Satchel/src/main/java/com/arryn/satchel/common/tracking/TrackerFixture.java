@@ -23,19 +23,23 @@ public final class TrackerFixture extends SatchelFixture {
 
     public void countLoaded() {
         loads++;
+        markDirty();
     }
 
     public void countUnloaded() {
         unloads++;
+        markDirty();
     }
 
     public void countExternalTick() {
         externalTicks++;
+        //does not mark dirty. catch it at unload.
     }
 
     @Override
     public void onJigTick() {
         internalTicks++;
+        //does not mark dirty. catch it at unload.
     }
 
     @Override

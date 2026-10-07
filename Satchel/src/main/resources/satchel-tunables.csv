@@ -91,4 +91,4 @@ DefaultDioriteRules:strikerBlastPower,FLOAT,0.1,4.0,1.0,1.0,1.0
 DefaultDioriteRules:strikerSparkDelayTicks,INT,0,20,4,4,4
 DefaultDioriteRules:strikerSparkSize,FLOAT,0.25,4.0,1.0,1.0,1.0
 DefaultDioriteRules:edgeStonePoofParticles,INT,1,64,12,12,12
-DefaultBossRules:bossLeashRadiusFirst,INT,8,512,20,20,
+DefaultBossRules:bossLeashRadiusFirst,INT,8,512,20,20,20
