@@ -784,12 +784,25 @@ public final class FeralModule {
      */
     private static void sweepFeralCleanup(ServerLevel level) {
         Set<UUID> packMembers = FeralPackHandlers.members(level);
+
+        // Collect first, act after: getAllEntities() is a live view of the level's entity map, and
+        // everything below removes entities (discard, kill, a slime's split children), which breaks
+        // an iterator still walking that map (ArrayIndexOutOfBoundsException from fastutil's
+        // Int2ObjectLinkedOpenHashMap iterator).
+        List<Mob> feral = new ArrayList<>();
         for (Entity entity : level.getAllEntities()) {
             if (!(entity instanceof Mob monster) || monster.getType().getCategory() != MobCategory.MONSTER) {
                 continue;
             }
             Team team = monster.getTeam();
-            if (team == null || !"feral".equals(team.getName())) {
+            if (team != null && "feral".equals(team.getName())) {
+                feral.add(monster);
+            }
+        }
+
+        for (Mob monster : feral) {
+            // An earlier iteration (a slime's split cleanup) or vanilla may already have removed it.
+            if (monster.isRemoved()) {
                 continue;
             }
 

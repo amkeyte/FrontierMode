@@ -16,8 +16,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.schedule.SchedulerClock;
-import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
@@ -30,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * MobJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
@@ -114,7 +111,7 @@ final class MobHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        MobInterestRegistry.register(MOB_JIG, () -> SatchelHealth.INTERESTS);
+        MobInterestRegistry.registerPerLevel(MOB_JIG, SatchelHealth::interestsIn);
 
         Satchel.registerJigConfig(config);
     }
@@ -180,16 +177,13 @@ final class MobHealthCheck {
         // Checkpoint, not routine noise -- specifically the canary's own teardown, not every
         // ambient mob real gameplay happens to put under tracking (those stay .debug above,
         // same as load -- a busy server can tear down many ordinary tracked mobs per minute).
-        if (scope.uuid().equals(canaryUuid)) {
+        if (isCanary(scope)) {
             OUT.info(
                     "[SatchelHealth] MobJig canary teardown check passed: side=" + side
                             + " uuid=" + Ids.shortId(scope.uuid())
             );
         }
     }
-
-    private static final Map<UUID, Integer> tickCounters = new ConcurrentHashMap<>();
-    private static final int MOB_TICK_LOG_EVERY_N_TICKS = 100;
 
     private static void onMobScopeTick(ScopeEvent.Tick event) {
         ScopeInfo info = event.info();
@@ -203,23 +197,7 @@ final class MobHealthCheck {
 
         jig.ask(info.scope(), MOB_BUNDLE)
                 .flatMap(b -> b.get(MOB_TRACKER))
-                .ifPresent(f -> {
-                    f.countExternalTick();
-
-                    int count = tickCounters.merge(scope.uuid(), 1, Integer::sum);
-                    if (count % MOB_TICK_LOG_EVERY_N_TICKS == 0) {
-                        // Commented out for now (2026-08-29 playtest): still reaching the dev
-                        // console at forge.logging.console.level=debug even after the .debug
-                        // downgrade, and OUT funnels all call sites through one shared logger
-                        // (see OUT.java), so there's no per-class filter to reach for yet.
-                        // Re-enable (or replace with a real per-class filter) once that's built.
-                        // OUT.debug(
-                        //         "[SatchelHealth] TICK mob=" + scope.mob().getType()
-                        //                 + " scope=" + scope.debugName()
-                        //                 + " side=" + Satchel.require().side()
-                        // );
-                    }
-                });
+                .ifPresent(TrackerFixture::countExternalTick);
     }
 
     // =================================================================
@@ -231,9 +209,12 @@ final class MobHealthCheck {
     // canaryEntityType()'s own doc.
     // =================================================================
 
-    private static final TickThrottler CANARY_CHECK_THROTTLE =
-            new TickThrottler(200, new SchedulerClock.AutoClock());
-    private static volatile UUID canaryUuid;
+    /**
+     * Whether {@code scope} is this world's canary.
+     */
+    private static boolean isCanary(MobScope scope) {
+        return SatchelHealth.canaryUuid().filter(scope.uuid()::equals).isPresent();
+    }
 
     /**
      * Ensures a live canary mob exists under {@code MOB_JIG}, so its CLIENT/BOTH poll path has
@@ -283,11 +264,13 @@ final class MobHealthCheck {
             return;
         }
 
-        if (!CANARY_CHECK_THROTTLE.allow()) {
+        HealthState state = SatchelHealth.state();
+
+        if (!state.canaryCheck.allow()) {
             return;
         }
 
-        UUID existing = canaryUuid;
+        UUID existing = state.canaryUuid;
         if (existing != null
                 && Satchel.require().egress().getEntity(serverLevel, existing).isPresent()) {
             return;
@@ -298,7 +281,8 @@ final class MobHealthCheck {
             return;
         }
 
-        canaryUuid = canary.getUUID();
+        UUID canaryUuid = canary.getUUID();
+        state.canaryUuid = canaryUuid;
         SatchelHealth.watch(serverLevel, canaryUuid);
         MobScope.getFor(canary);
 

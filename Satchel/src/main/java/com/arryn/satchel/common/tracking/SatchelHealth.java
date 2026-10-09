@@ -1,12 +1,13 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.config.SatchelConfig;
+import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.level.Level;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * this file holds only what's genuinely shared across all three and what code outside this
  * package actually calls: {@link #init()}, the {@link #watch}/{@link #unwatch}/{@link
  * #currentInterests} surface {@code MobTrackCommands} uses, and the {@link
- * #PENDING_HEALTH_CHECKS}/{@link #pumpPendingHealthChecks()} deferred-check queue {@code
+ * #defer}/{@link #pumpPendingHealthChecks} deferred-check queue {@code
  * LevelHealthCheck}/{@code PlayerHealthCheck} enqueue onto and {@code ServerForgeIngress} drains.
  * Same package, same conceptual "one home" as before the split -- just not one literal file.
  *
@@ -66,30 +67,91 @@ public final class SatchelHealth {
     private SatchelHealth() {
     }
 
-    // RM_SAT_022 ("Roger"): widened from Map<ServerLevel, Set<UUID>> to Map<Level, Set<UUID>> --
-    // MobJig's poll now resolves through ForgeEgress, not a ServerLevel cast, so this registry
-    // (and MobInterestSupplier's own signature) can honestly accept either side's Level. Callers
-    // that only ever pass a ServerLevel (MobTrackCommands, all server-only chat commands) keep
-    // compiling unchanged -- a ServerLevel is still legal wherever a Level is asked for.
-    static final Map<Level, Set<UUID>> INTERESTS = new ConcurrentHashMap<>();
+    // =================================================================
+    // Per-world state. Everything this module holds that belongs to one running world lives in a
+    // HealthState, found by the world's identity token (WorldIdentityContext -- side-bound, so
+    // this stays common code with no server type in it), and is dropped when that server stops:
+    // an integrated server restarts inside one JVM, so state kept anywhere longer-lived is
+    // inherited by the next one. This map is the one anchor.
+    // =================================================================
+
+    private static final Map<UUID, HealthState> STATES = new ConcurrentHashMap<>();
 
     /**
-     * Registers manual interest in {@code uuid} within {@code level} -- unchanged from
-     * {@code MobTrackingModule}, still the surface {@code MobTrackCommands} calls.
+     * The state of the world the calling thread's side is in, if it has any yet.
+     */
+    private static Optional<HealthState> existing() {
+        return WorldIdentityContext.current().map(STATES::get);
+    }
+
+    /**
+     * The state of the world the calling thread's side is in, created on first use.
+     *
+     * @throws IllegalStateException before that side has a world identity -- a caller on a bound
+     *         thread with a world loaded always has one
+     */
+    static HealthState state() {
+        UUID world = WorldIdentityContext.current().orElseThrow(() -> new IllegalStateException(
+                "SatchelHealth state requested before the world identity token is bound"));
+        return STATES.computeIfAbsent(world, k -> new HealthState());
+    }
+
+    /**
+     * Called before a server creates any level. Only one server runs per JVM, so anything still
+     * held is the leftover of one that ended without a stop event (a crash).
+     */
+    public static void onServerAboutToStart() {
+        STATES.clear();
+    }
+
+    /**
+     * Called after a server's last level has unloaded: drops its state, including any deferred
+     * check its shutdown queued that can never be pumped now.
+     */
+    public static void onServerStopped() {
+        STATES.clear();
+    }
+
+    // =================================================================
+    // Manual interest -- the surface MobTrackCommands uses, and the supplier MobJig's health
+    // registration answers its per-level question from.
+    // =================================================================
+
+    /**
+     * Registers manual interest in {@code uuid} within {@code level}.
      */
     public static void watch(Level level, UUID uuid) {
-        INTERESTS.computeIfAbsent(level, l -> ConcurrentHashMap.newKeySet()).add(uuid);
+        state().interests.computeIfAbsent(level, l -> ConcurrentHashMap.newKeySet()).add(uuid);
     }
 
     public static void unwatch(Level level, UUID uuid) {
-        Set<UUID> set = INTERESTS.get(level);
-        if (set != null) {
-            set.remove(uuid);
-        }
+        existing().ifPresent(state -> {
+            Set<UUID> set = state.interests.get(level);
+            if (set != null) {
+                set.remove(uuid);
+            }
+        });
     }
 
     public static Map<Level, Set<UUID>> currentInterests() {
-        return Map.copyOf(INTERESTS);
+        return existing().<Map<Level, Set<UUID>>>map(state -> new HashMap<>(state.interests))
+                .orElse(Map.of());
+    }
+
+    /**
+     * This world's canary, once it has spawned one.
+     */
+    static Optional<UUID> canaryUuid() {
+        return existing().map(state -> state.canaryUuid);
+    }
+
+    /**
+     * The per-level interest answer: a live view of the watched set, empty for a level nothing is
+     * watched in. Runs on every mob death and every mob leaving a level (see {@code
+     * MobInterestPerLevel}), so it is two lookups and no copying.
+     */
+    static Set<UUID> interestsIn(Level level) {
+        return existing().map(state -> state.interests.get(level)).orElse(Set.of());
     }
 
     // =================================================================
@@ -114,25 +176,29 @@ public final class SatchelHealth {
     }
 
     // =================================================================
-    // Deferred violation checks -- LevelHealthCheck/PlayerHealthCheck enqueue onto this from
-    // their own onXScopeUnloaded handlers; drained once per real server tick from
-    // ServerForgeIngress#onExecutionPulse, a genuinely later call chain than the one that
-    // queued each check. Plain ArrayDeque, not a concurrent collection: every enqueue happens
-    // from a Forge event fired on the server thread, and the only drain point
-    // (pumpPendingHealthChecks) also runs on the server thread.
+    // Deferred violation checks -- LevelHealthCheck/PlayerHealthCheck defer onto the server's
+    // HealthState from their own onXScopeUnloaded handlers; drained once per real server tick from
+    // ServerForgeIngress#onExecutionPulse, a genuinely later call chain than the one that queued
+    // each check. Plain ArrayDeque, not a concurrent collection: every defer happens from a Forge
+    // event fired on the server thread, and the only drain point also runs on the server thread.
     // =================================================================
-    static final Deque<Runnable> PENDING_HEALTH_CHECKS = new ArrayDeque<>();
+
+    static void defer(Runnable check) {
+        state().pendingChecks.add(check);
+    }
 
     /**
-     * Called once per server tick by {@code ServerForgeIngress#onExecutionPulse}. Drains and
-     * runs every check queued since the last pump. Drains the whole queue every call rather than
-     * just the head -- these checks are cheap (a single map/list lookup each) and there's no
-     * reason to spread them across multiple ticks.
+     * Called once per server tick by {@code ServerForgeIngress#onExecutionPulse}. Drains and runs
+     * every check queued since the last pump. Drains the whole queue every call rather than just
+     * the head -- these checks are cheap (a single map/list lookup each) and there's no reason to
+     * spread them across multiple ticks.
      */
     public static void pumpPendingHealthChecks() {
-        Runnable check;
-        while ((check = PENDING_HEALTH_CHECKS.poll()) != null) {
-            check.run();
-        }
+        existing().ifPresent(state -> {
+            Runnable check;
+            while ((check = state.pendingChecks.poll()) != null) {
+                check.run();
+            }
+        });
     }
 }

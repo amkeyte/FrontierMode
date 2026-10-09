@@ -168,7 +168,7 @@ final class PlayerHealthCheck {
      * teardown just tears down, uncontested, same as any ordinary scope unload elsewhere in
      * Satchel.
      *
-     * <p><b>Deferred via {@link SatchelHealth#PENDING_HEALTH_CHECKS}</b>, same reasoning as {@link
+     * <p><b>Deferred via {@link SatchelHealth#defer}</b>, same reasoning as {@link
      * LevelHealthCheck#onLevelScopeUnloaded}: a same-instant check would false-positive on every
      * ordinary logout, since {@code PlayerList#remove} fires {@code PlayerLoggedOutEvent} before
      * actually removing the player from the online list. Queuing the check for the next server
@@ -203,8 +203,6 @@ final class PlayerHealthCheck {
                     );
                 });
 
-        playerTickCounters.remove(scope.uuid());
-
         // BOTH-applicability (SAT_063): the deferred violation check below only makes sense
         // server-side -- see this method's own doc. A client-side teardown skips it entirely.
         if (!(scope.player() instanceof ServerPlayer player)) {
@@ -217,7 +215,7 @@ final class PlayerHealthCheck {
             UUID playerUuid = player.getUUID();
             String playerName = player.getGameProfile().getName();
 
-            SatchelHealth.PENDING_HEALTH_CHECKS.add(() -> {
+            SatchelHealth.defer(() -> {
                 boolean stillOnline = server.getPlayerList().getPlayer(playerUuid) != null;
 
                 if (stillOnline) {
@@ -239,12 +237,6 @@ final class PlayerHealthCheck {
         }
     }
 
-    // Per-scope tick counter, keyed by scope UUID, purely for throttling this debug tool's own
-    // log output. Named distinctly from MobHealthCheck's own tickCounters -- separate classes now,
-    // no longer sharing one file's namespace, but kept distinctly named anyway for clarity.
-    private static final Map<UUID, Integer> playerTickCounters = new ConcurrentHashMap<>();
-    private static final int PLAYER_TICK_LOG_EVERY_N_TICKS = 100; // ~5s at 20 TPS
-
     private static void onPlayerScopeTick(ScopeEvent.Tick event) {
         ScopeInfo info = event.info();
 
@@ -257,19 +249,6 @@ final class PlayerHealthCheck {
 
         jig.ask(info.scope(), PLAYER_BUNDLE)
                 .flatMap(b -> b.get(PLAYER_TRACKER))
-                .ifPresent(f -> {
-                    f.countExternalTick();
-
-                    int count = playerTickCounters.merge(scope.uuid(), 1, Integer::sum);
-                    if (count % PLAYER_TICK_LOG_EVERY_N_TICKS == 0) {
-                        // Commented out for now (2026-08-29 playtest) -- same reasoning as the
-                        // mob TICK log in MobHealthCheck; see that comment.
-                        // OUT.debug(
-                        //         "[PlayerTracking] TICK player=" + scope.player().getGameProfile().getName()
-                        //                 + " scope=" + scope.debugName()
-                        //                 + " dim=" + scope.player().serverLevel().dimension().location()
-                        // );
-                    }
-                });
+                .ifPresent(TrackerFixture::countExternalTick);
     }
 }

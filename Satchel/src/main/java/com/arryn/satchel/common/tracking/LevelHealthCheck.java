@@ -130,12 +130,12 @@ final class LevelHealthCheck {
      * stale-reference bug like RM_SAT_014's) would produce. Server-side only -- see {@link
      * SatchelHealth}'s own docs for why there's no client-side equivalent yet.
      *
-     * <p><b>Deferred via {@link SatchelHealth#PENDING_HEALTH_CHECKS}, not a direct check.</b>
+     * <p><b>Deferred via {@link SatchelHealth#defer}, not a direct check.</b>
      * {@code BlockableEventLoop#execute} runs its task INLINE when called from the thread that
      * already owns the loop, and this whole call chain ({@code MinecraftServer.stopServer()} ->
      * {@code LevelEvent.Unload} -> this handler) always runs on the server thread, so a
      * same-instant check would false-positive on every legitimate unload too. Queuing onto {@link
-     * SatchelHealth#PENDING_HEALTH_CHECKS}, drained once per server tick from a genuinely later
+     * SatchelHealth#defer}, drained once per server tick from a genuinely later
      * call chain ({@code ServerForgeIngress#onExecutionPulse}, the next tick's execution pulse),
      * is what makes the check observe the real post-unload state. On final process shutdown
      * specifically, the tick loop has already stopped before {@code stopServer()} fires this
@@ -164,7 +164,7 @@ final class LevelHealthCheck {
             var server = serverLevel.getServer();
             var dimension = serverLevel.dimension();
 
-            SatchelHealth.PENDING_HEALTH_CHECKS.add(() -> {
+            SatchelHealth.defer(() -> {
                 boolean stillRegistered = server.getLevel(dimension) == serverLevel;
 
                 if (stillRegistered) {

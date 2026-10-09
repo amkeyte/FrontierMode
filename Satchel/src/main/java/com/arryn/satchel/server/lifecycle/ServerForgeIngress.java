@@ -47,6 +47,7 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -125,6 +126,16 @@ public final class ServerForgeIngress {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onServerAboutToStart(ServerAboutToStartEvent e) {
         TunableManager.load();
+        SatchelHealth.onServerAboutToStart();
+    }
+
+    /**
+     * After the last level has unloaded: SatchelHealth drops this server's state, including the
+     * checks that unload queued, which can never be pumped now.
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent e) {
+        SatchelHealth.onServerStopped();
     }
 
     @SubscribeEvent
