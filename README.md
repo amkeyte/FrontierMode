@@ -1,17 +1,41 @@
 # FrontierMode & Satchel
 
-<!-- TODO: one-line pitch for the GitHub repo description and the top of this page. -->
+**@ Your Own Risk.**
+
 Two Minecraft Forge mods, developed together:
 
-- **FrontierMode** -- gameplay and world-expansion systems: the world is bounded by a border that
-  grows as you defeat bosses, and the game teaches you to find them.
+- **FrontierMode** -- the game: a safe, known area that only grows when you defeat the Amethyst Keeper
+  hiding in it, and a deadly Wild beyond.
 - **Satchel** -- the core data and utility framework FrontierMode is built on (scoped state,
   networking, persistence, and a lifecycle-signal layer over Forge's events).
 
-> **Status:** early development. Worlds are not compatible between versions; expect to start a new
-> one after updating.
+<!-- TODO: screenshots / a short GIF of a Keeper fight would go here (needs captures). -->
 
-<!-- TODO: screenshots / a short GIF of a boss encounter would go here. -->
+## The Wild
+
+There is no surviving beyond the Frontier. In the Wild, there is only death and disease.
+
+## The Amethyst Keepers
+
+Powerful enemies that must be defeated to expand the "safe" known areas and push back the Wild -- if
+you can find them.
+
+## The Unknown
+
+Discover new materials and tools to aid your mission and navigate dangerous territory. Explore the
+ever-growing safe areas to find the next Amethyst Keeper. Learn to build or find structures to guide
+your journey.
+
+## Expansive
+
+The Wild is as big as the Overworld itself -- and the Keeper is always ready, waiting to do battle!
+
+## Progress
+
+Structures are currently partially implemented, and game balancing is in progress. At release this is
+a hard, fast start, and there are no difficulty levels yet. Expect to die working out how to stay
+alive. Multiplayer is supported, but the system is currently geared to single player. Worlds are not
+guaranteed to be portable between versions; expect to start a new one after updating.
 
 ## Requirements
 
@@ -21,21 +45,12 @@ Two Minecraft Forge mods, developed together:
 
 ## Installation
 
-<!-- TODO: point at GitHub Releases once jars are published there. -->
 1. Install Forge for Minecraft 1.20.1.
-2. Put `satchel-<version>.jar` and `frontiermode-<version>.jar` in your `mods` folder.
-3. Start a **new world**.
+2. Download `satchel-<version>.jar` and `frontiermode-<version>.jar` from
+   [Releases](https://github.com/amkeyte/FrontierMode/releases) -- take both, at the same version.
+3. Put them in your `mods` folder.
+4. Start a **new world**.
 
-## Playing
-
-<!-- TODO: a short "how it works" for players (border, bosses, discovery tools). -->
-Commands are operator-only (permission level 2): `/border`, `/boss`, `/feral`, `/admin`.
-
-## Balance values
-
-Game-balance numbers are kept in `config/satchel-tunables.csv`. The jar ships a default copy and
-writes it out on first run; edit the file, stop the server, and start it again to apply changes.
-This is a developer/tuning file, not a supported player setting.
 
 ## Building
 
@@ -63,6 +78,10 @@ Third-party assets (the sound files) keep their own licenses, listed per file in
 [CREDITS.md](CREDITS.md).
 
 ## Credits
+
+All visual assets for Frontier Mode are created by Arryn77. Audio assets are created and edited by
+Arryn77, or by an attributed creator. System design and code architecture by Arryn77. The source has
+been vibecoded by Arryn77 using Claude Code.
 
 Sounds, art, and the tools and frameworks this project stands on are credited in
 **[CREDITS.md](CREDITS.md)**.

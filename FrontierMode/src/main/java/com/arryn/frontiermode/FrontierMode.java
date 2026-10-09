@@ -112,6 +112,12 @@ public final class FrontierMode {
                     "cairn_ping",
                     () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "cairn_ping")));
 
+    // The Edge Stone's poof where it crosses the Frontier line. Same registration shape.
+    public static final RegistryObject<SoundEvent> EDGE_STONE =
+            SOUND_EVENTS.register(
+                    "edge_stone",
+                    () -> SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath(MODID, "edge_stone")));
+
     // ------------------------------------------------------------
     // Constructor – module bootstrap
     // ------------------------------------------------------------

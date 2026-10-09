@@ -58,5 +58,11 @@
       "frontiermode:cairn_ping3",
       "frontiermode:cairn_ping4"
     ]
+  },
+  "edge_stone": {
+    "subtitle": "subtitles.frontiermode.edge_stone",
+    "sounds": [
+      "frontiermode:edge_stone"
+    ]
   }
 }
