@@ -62,10 +62,7 @@ public final class ServerSpawnIngress {
      */
     @SubscribeEvent
     public static void onFinalizeSpawn(MobSpawnEvent.FinalizeSpawn e) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[MobSpawnFinalizeSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new MobSpawnFinalizeSignal(e));
     }
@@ -82,10 +79,7 @@ public final class ServerSpawnIngress {
      */
     @SubscribeEvent
     public static void onSpawnPlacementCheck(MobSpawnEvent.SpawnPlacementCheck e) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[SpawnPlacementCheckSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new SpawnPlacementCheckSignal(e));
     }
@@ -102,10 +96,7 @@ public final class ServerSpawnIngress {
      */
     @SubscribeEvent
     public static void onSpawnPositionCheck(MobSpawnEvent.PositionCheck e) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[SpawnPositionCheckSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new SpawnPositionCheckSignal(e));
     }
@@ -125,10 +116,7 @@ public final class ServerSpawnIngress {
     public static void onEntityJoinLevel(EntityJoinLevelEvent e) {
         if (e.getLevel().isClientSide()) return;
 
-        if (!Satchel.isReady()) {
-            OUT.debug("[EntityJoinLevelSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new EntityJoinLevelSignal(e));
     }

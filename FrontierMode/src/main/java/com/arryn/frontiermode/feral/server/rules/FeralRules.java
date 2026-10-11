@@ -326,12 +326,12 @@ public final class FeralRules {
 
     /** Nearest distance (blocks) a pack member can spawn from the player, within the cone above. */
     public static float packSpawnMinDistance() {
-        return new Tunable("packSpawnMinDistance", 0f, 128f, 20f).floatValue();
+        return new Tunable("packSpawnMinDistance", 0f, 128f, 12f).floatValue();
     }
 
     /** Farthest distance (blocks) a pack member can spawn from the player, within the cone above. */
     public static float packSpawnMaxDistance() {
-        return new Tunable("packSpawnMaxDistance", 1f, 256f, 45f).floatValue();
+        return new Tunable("packSpawnMaxDistance", 1f, 256f, 32f).floatValue();
     }
 
     /**

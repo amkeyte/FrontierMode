@@ -212,10 +212,7 @@ public final class ServerForgeIngress {
         if (!(e.getLevel() instanceof ServerLevel level)) return;
 
         BOOTER.bindFoundation();
-        if (!Satchel.isReady()) {
-            OUT.debug("[CreateWorldSpawnSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         ServerLevelData data = e.getSettings();
         int x = data.getXSpawn(), y = data.getYSpawn(), z = data.getZSpawn();
@@ -293,10 +290,7 @@ public final class ServerForgeIngress {
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer)) return;
-        if (!Satchel.isReady()) {
-            OUT.debug("[PlayerRespawnSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new PlayerRespawnSignal(e));
     }
@@ -315,10 +309,7 @@ public final class ServerForgeIngress {
     @SubscribeEvent
     public static void onPlayerAttack(AttackEntityEvent e) {
         if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) {
-            OUT.debug("[PlayerAttackSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new PlayerAttackSignal(e));
     }
@@ -363,10 +354,7 @@ public final class ServerForgeIngress {
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent e) {
         if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) {
-            OUT.debug("[MobDied] gate: Satchel not ready -- " + Ids.shortId(e.getEntity().getUUID()));
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         UUID uuid = e.getEntity().getUUID();
         if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)) return;
@@ -430,10 +418,7 @@ public final class ServerForgeIngress {
      */
     @SubscribeEvent
     public static void onItemPickup(EntityItemPickupEvent e) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[ItemPickupSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new ItemPickupSignal(e));
     }
@@ -452,10 +437,7 @@ public final class ServerForgeIngress {
     public static void onBlockBreak(BlockEvent.BreakEvent e) {
         if (!(e.getLevel() instanceof ServerLevel level)) return;
 
-        if (!Satchel.isReady()) {
-            OUT.debug("[BlockBreakSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new BlockBreakSignal(level, e));
     }
@@ -478,10 +460,7 @@ public final class ServerForgeIngress {
      */
     @SubscribeEvent
     public static void onLivingDrops(LivingDropsEvent e) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[LivingDropsSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new LivingDropsSignal(e));
     }
@@ -502,10 +481,7 @@ public final class ServerForgeIngress {
      */
     @SubscribeEvent
     public static void onLivingExperienceDrop(LivingExperienceDropEvent e) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[LivingExperienceDropSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new LivingExperienceDropSignal(e));
     }
@@ -561,10 +537,7 @@ public final class ServerForgeIngress {
     @SubscribeEvent
     public static void onAnimalTame(AnimalTameEvent e) {
         if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) {
-            OUT.debug("[AnimalTameSignal] gate: Satchel not ready -- skipping");
-            return;
-        }
+        if (!Satchel.isReady()) return;
         Satchel.require().eventBus().post(new AnimalTameSignal(e));
     }
 
