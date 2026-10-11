@@ -527,6 +527,11 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
+    public double keeperLootStep() {
+        return new Tunable("keeperLootStep", 0f, 2f, 0.3f).floatValue();
+    }
+
+    @Override
     public int bossLeashRadius() {
         return new Tunable("bossLeashRadius", 8, 512, 40).intValue();
     }

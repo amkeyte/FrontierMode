@@ -160,6 +160,13 @@ public interface BossRules {
     double keeperPlayerShare();
 
     /**
+     * How much a Keeper's wave and milestone loot grows for each milestone its path position has passed
+     * beyond 20: the multiplier is {@code 1 + keeperLootStep x k} (boss.md § Defeat loot; FRO_242).
+     * Safe baseline 0.3.
+     */
+    double keeperLootStep();
+
+    /**
      * How far, in blocks, a present boss may be from its recorded position before it is teleported back
      * (border-pregeneration.md § Movement). Safe baseline 40.
      */

@@ -133,6 +133,11 @@ public final class BossRulesFacet {
         return RULES.keeperPlayerShare();
     }
 
+    /** See {@link BossRules#keeperLootStep()}. */
+    public double keeperLootStep() {
+        return RULES.keeperLootStep();
+    }
+
     /** See {@link BossRules#bossLeashRadius()}. */
     public int bossLeashRadius() {
         return RULES.bossLeashRadius();

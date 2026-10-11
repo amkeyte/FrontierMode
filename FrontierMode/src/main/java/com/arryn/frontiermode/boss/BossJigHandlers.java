@@ -211,7 +211,8 @@ final class BossJigHandlers {
         // itself gates on (trivially true for an off-path record), independent of whether growth
         // actually fires afterward. See grantDefeatLoot's own doc.
         if (lastStanding) {
-            defeatedRecord.ifPresent(record -> grantDefeatLoot(record, credited, mob, level));
+            double lootStep = fixture.RULES.keeperLootStep();
+            defeatedRecord.ifPresent(record -> grantDefeatLoot(record, credited, mob, level, lootStep));
         }
 
         if (borderId.isEmpty()) {
@@ -320,11 +321,12 @@ final class BossJigHandlers {
      * per the standing rule that the two cascade sites don't share code, and because an admin command
      * force-defeating bosses for loot is exactly the kind of riskless exploit that shouldn't exist.
      */
-    private static void grantDefeatLoot(BossRecord record, ServerPlayer credited, Mob mob, Level level) {
+    private static void grantDefeatLoot(BossRecord record, ServerPlayer credited, Mob mob, Level level,
+                                        double lootStep) {
         OUT.debug("[Boss] grantDefeatLoot: paying " + credited.getGameProfile().getName()
                 + " for bossId=" + Ids.shortId(record.bossId()));
         if (level instanceof ServerLevel serverLevel) {
-            KeeperLoot.pay(serverLevel, mob, record, credited);
+            KeeperLoot.pay(serverLevel, mob, record, credited, lootStep);
         }
     }
 
