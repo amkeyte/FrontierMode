@@ -48,7 +48,13 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "frontiermode:amethyst_compass"
+          "name": "frontiermode:edge_stone",
+          "functions": [
+            {
+              "function": "minecraft:set_count",
+              "count": 4.0
+            }
+          ]
         }
       ]
     },

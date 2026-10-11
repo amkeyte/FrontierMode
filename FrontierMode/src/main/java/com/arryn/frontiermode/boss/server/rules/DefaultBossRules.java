@@ -180,23 +180,24 @@ public final class DefaultBossRules implements BossRules {
 
     /** The rows a fresh {@code keeper-bodies} table starts with, and what the seed formulas read. */
     private record BodyDefault(String name, EntityType<?> type, float referenceHit, float sizePast20,
-                               String sizeGrowth, float poolWeight) {
+                               String sizeGrowth, String poolWeight, String eggChance) {
     }
 
     // referenceHit: one ordinary hit on Normal (0: an ordinary Rabbit deals none). The Killer Bunny is a
     // Rabbit variant, hence a body named apart from its entity type. The pool past 20 is a placeholder:
-    // the authored bodies plus the Killer Bunny, at equal weight (the Game Designer's to design).
+    // the authored bodies at equal weight (the Game Designer's to design). The Killer Bunny is an easter
+    // egg: no pool weight, an eggChance of its own (FRO_229).
     private static final List<BodyDefault> BODY_DEFAULTS = List.of(
-            new BodyDefault("rabbit", EntityType.RABBIT, 0f, 1f, "", 1f),
-            new BodyDefault("killer_bunny", EntityType.RABBIT, 8f, 1f, "", 1f),
-            new BodyDefault("spider", EntityType.SPIDER, 2f, 1.5f, "", 1f),
+            new BodyDefault("rabbit", EntityType.RABBIT, 0f, 1f, "", "1.0", ""),
+            new BodyDefault("killer_bunny", EntityType.RABBIT, 8f, 1f, "", "", "0.05"),
+            new BodyDefault("spider", EntityType.SPIDER, 2f, 1.5f, "", "1.0", ""),
             // The one body that keeps growing past 20 ("bigger and bigger"): 0.1 per path position.
-            new BodyDefault("zombie", EntityType.ZOMBIE, 3f, 2f, "0.1", 1f),
-            new BodyDefault("skeleton", EntityType.SKELETON, 4f, 2.3f, "", 1f),
-            new BodyDefault("zombified_piglin", EntityType.ZOMBIFIED_PIGLIN, 8f, 2f, "", 1f),
-            new BodyDefault("pillager", EntityType.PILLAGER, 4f, 2f, "", 1f),
-            new BodyDefault("vindicator", EntityType.VINDICATOR, 13f, 1.7f, "", 1f),
-            new BodyDefault("evoker", EntityType.EVOKER, 6f, 1f, "", 1f));
+            new BodyDefault("zombie", EntityType.ZOMBIE, 3f, 2f, "0.1", "1.0", ""),
+            new BodyDefault("skeleton", EntityType.SKELETON, 4f, 2.3f, "", "1.0", ""),
+            new BodyDefault("zombified_piglin", EntityType.ZOMBIFIED_PIGLIN, 8f, 2f, "", "1.0", ""),
+            new BodyDefault("pillager", EntityType.PILLAGER, 4f, 2f, "", "1.0", ""),
+            new BodyDefault("vindicator", EntityType.VINDICATOR, 13f, 1.7f, "", "1.0", ""),
+            new BodyDefault("evoker", EntityType.EVOKER, 6f, 1f, "", "1.0", ""));
 
     // The authored ladder, by path position 1-20: Rabbit, Spider x3, Zombie x3, Skeleton x3,
     // Zombified Piglin x3, Pillager x3, Vindicator x3, Evoker.
@@ -249,10 +250,11 @@ public final class DefaultBossRules implements BossRules {
                 .column("referenceHit", CellType.FLOAT)
                 .column("sizePast20", CellType.FLOAT)
                 .optionalColumn("sizeGrowth", CellType.FLOAT)
-                .optionalColumn("poolWeight", CellType.FLOAT);
+                .optionalColumn("poolWeight", CellType.FLOAT)
+                .optionalColumn("eggChance", CellType.FLOAT);
         for (BodyDefault d : BODY_DEFAULTS) {
             builder.defaultRow(d.name(), EntityType.getKey(d.type()).toString(), Float.toString(d.referenceHit()),
-                    Float.toString(d.sizePast20()), d.sizeGrowth(), Float.toString(d.poolWeight()));
+                    Float.toString(d.sizePast20()), d.sizeGrowth(), d.poolWeight(), d.eggChance());
         }
         return builder.build();
     }
@@ -279,16 +281,27 @@ public final class DefaultBossRules implements BossRules {
                 * LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
     }
 
-    /** Authored body through path position 20; past it, a body rolled by pool weight. */
+    /**
+     * Authored body through path position 20. Past it, in two steps (boss.md § Keeper bodies): each body
+     * with an {@code eggChance} gets one roll, in table order, and the first success is the body (the
+     * Killer Bunny, 5%); otherwise a body is picked by {@code poolWeight} among the rows with no
+     * {@code eggChance}. A row with an {@code eggChance} is never in the weighted pool, so a leftover
+     * pool weight in a live config can't give it a second chance.
+     */
     @Override
     public String chooseBody(int pathPosition) {
         int p = Math.max(pathPosition, 1);
         if (p <= AUTHORED_THROUGH) {
             return KEEPER_BODY.row(p).getString("value");
         }
+        for (TuningTable.Row row : KEEPER_BODIES.rows()) {
+            if (row.has("eggChance") && rng.nextDouble() < row.getFloat("eggChance")) {
+                return row.key();
+            }
+        }
         double total = 0.0;
         for (TuningTable.Row row : KEEPER_BODIES.rows()) {
-            if (row.has("poolWeight")) {
+            if (!row.has("eggChance") && row.has("poolWeight")) {
                 total += Math.max(0f, row.getFloat("poolWeight"));
             }
         }
@@ -298,7 +311,7 @@ public final class DefaultBossRules implements BossRules {
         }
         double roll = rng.nextDouble() * total;
         for (TuningTable.Row row : KEEPER_BODIES.rows()) {
-            if (!row.has("poolWeight")) {
+            if (row.has("eggChance") || !row.has("poolWeight")) {
                 continue;
             }
             roll -= Math.max(0f, row.getFloat("poolWeight"));
@@ -307,7 +320,8 @@ public final class DefaultBossRules implements BossRules {
             }
         }
         // Float rounding only: the last weighted row.
-        return KEEPER_BODIES.rows().stream().filter(r -> r.has("poolWeight")).reduce((a, b) -> b).orElseThrow().key();
+        return KEEPER_BODIES.rows().stream().filter(r -> !r.has("eggChance") && r.has("poolWeight"))
+                .reduce((a, b) -> b).orElseThrow().key();
     }
 
     /**

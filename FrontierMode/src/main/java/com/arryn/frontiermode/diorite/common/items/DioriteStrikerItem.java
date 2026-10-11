@@ -91,9 +91,12 @@ public final class DioriteStrikerItem extends Item {
     }
 
     /**
-     * {@code count} separate colored sparks, each one countable: one single-particle broadcast apiece,
-     * fanned across the struck face. An off-path Relevant Border gives color only, a few sparks so the
-     * color still reads.
+     * {@code count} separate colored sparks in a circle, each one countable (diorite-tools.md § The
+     * sparks): one single-particle broadcast apiece, on a circle of {@code strikerCircleRadius} in the
+     * plane of the struck face, evenly spaced -- one, two opposite, five a pentagon -- firing clockwise
+     * as seen from outside, the whole ring turned to a random angle each strike so it doesn't land in
+     * the same places every time. An off-path Relevant Border gives color only, a few sparks on the
+     * same circle.
      */
     private static void spark(ServerLevel level, DioriteRules rules, Border relevant, Direction face,
                               double x, double y, double z) {
@@ -110,24 +113,42 @@ public final class DioriteStrikerItem extends Item {
         int count = pathIndex >= 0 ? borderRules.waveStep(pathIndex + 1) : rules.strikerColorOnlySparks();
 
         DustParticleOptions dust = new DustParticleOptions(new Vector3f(rgb[0], rgb[1], rgb[2]), rules.strikerSparkSize());
-        // A line across the face, perpendicular to its normal: horizontal on a wall, east-west on a floor or ceiling.
-        double tx = face.getAxis() == Direction.Axis.Y ? 1.0 : -face.getStepZ();
-        double tz = face.getAxis() == Direction.Axis.Y ? 0.0 : face.getStepX();
+        // The face's own axes: the normal, "top" (world up on a wall, north on a floor or ceiling) and the
+        // viewer's right as seen from outside the face (top x normal).
+        double nx = face.getStepX();
+        double ny = face.getStepY();
+        double nz = face.getStepZ();
+        double ux = 0.0;
+        double uy = face.getAxis() == Direction.Axis.Y ? 0.0 : 1.0;
+        double uz = face.getAxis() == Direction.Axis.Y ? -1.0 : 0.0;
+        double rx = uy * nz - uz * ny;
+        double ry = uz * nx - ux * nz;
+        double rz = ux * ny - uy * nx;
+        double radius = rules.strikerCircleRadius();
         int delay = rules.strikerSparkDelayTicks();
         MinecraftServer server = level.getServer();
+        // The sparks stay evenly spaced, so the count still reads, but the whole ring starts at a random
+        // angle each strike, so they don't land in the same places every time. They fire clockwise.
+        double phase = level.getRandom().nextDouble() * 2.0 * Math.PI;
         for (int i = 0; i < count; i++) {
-            double s = (i - (count - 1) / 2.0) * 0.4;
-            // Spread along the line, and fanned wider the farther from the middle, so they part company.
-            double px = x + tx * s * 0.45;
-            double pz = z + tz * s * 0.45;
-            double vx = face.getStepX() * 0.25 + tx * s * 0.5;
-            double vy = 0.05 + face.getStepY() * 0.25;
-            double vz = face.getStepZ() * 0.25 + tz * s * 0.5;
+            double angle = phase + 2.0 * Math.PI * i / count;
+            double sin = Math.sin(angle);
+            double cos = Math.cos(angle);
+            double ox = rx * sin + ux * cos;
+            double oy = ry * sin + uy * cos;
+            double oz = rz * sin + uz * cos;
+            double px = x + ox * radius;
+            double py = y + oy * radius;
+            double pz = z + oz * radius;
+            // Out along the normal, with a small push away from the centre so the circle opens as it rises.
+            double vx = nx * 0.25 + ox * 0.06;
+            double vy = ny * 0.25 + oy * 0.06;
+            double vz = nz * 0.25 + oz * 0.06;
             Runnable fire = () -> {
-                // Count 0 makes the offsets a velocity: out along the normal, spreading along the line.
-                EffectsAPI.broadcastParticle(level, dust, px, y, pz, 0, vx, vy, vz, 1.0);
+                // Count 0 makes the offsets a velocity.
+                EffectsAPI.broadcastParticle(level, dust, px, py, pz, 0, vx, vy, vz, 1.0);
                 // A click per spark, so the count can be heard as well as seen.
-                EffectsAPI.broadcastSound(level, px, y, pz, SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS,
+                EffectsAPI.broadcastSound(level, px, py, pz, SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS,
                         0.6F, level.getRandom().nextFloat() * 0.4F + 0.8F);
             };
             if (i == 0 || delay <= 0) {

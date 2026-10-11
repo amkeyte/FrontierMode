@@ -52,7 +52,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{StoredEnchantments:[{id:\"frontiermode:intuition\",lvl:1s}]}"
+              "tag": "{StoredEnchantments:[{id:\"minecraft:protection\",lvl:3s}]}"
             }
           ]
         }

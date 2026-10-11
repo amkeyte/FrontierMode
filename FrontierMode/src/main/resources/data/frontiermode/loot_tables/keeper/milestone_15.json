@@ -52,7 +52,7 @@
           "functions": [
             {
               "function": "minecraft:set_nbt",
-              "tag": "{StoredEnchantments:[{id:\"minecraft:protection\",lvl:3s}]}"
+              "tag": "{StoredEnchantments:[{id:\"frontiermode:intuition\",lvl:1s}]}"
             }
           ]
         }
@@ -71,6 +71,16 @@
               "count": 2.0
             }
           ]
+        }
+      ]
+    },
+    {
+      "rolls": 1.0,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "frontiermode:amethyst_compass"
         }
       ]
     }

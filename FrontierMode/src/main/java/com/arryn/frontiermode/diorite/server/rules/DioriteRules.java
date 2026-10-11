@@ -8,6 +8,9 @@ public interface DioriteRules {
     /** Size of each spark's dust particle. */
     float strikerSparkSize();
 
+    /** Radius (blocks) of the circle the sparks sit on, in the plane of the struck face. */
+    float strikerCircleRadius();
+
     /** Sparks fired by a strike that has a color but no count (the Relevant Border is off the path). */
     int strikerColorOnlySparks();
 

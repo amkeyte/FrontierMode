@@ -9,7 +9,6 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.bosstell.BossTellModule;
-import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -356,20 +355,15 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * {@code Amethyst Keeper, level N}, plus the boss's short id on the Admin Compass
-     * (special-compass.md § Tooltip). Runs on the client, where boss records don't exist, so it reads
+     * {@code Amethyst Keeper, level N}, the same on both compasses (special-compass.md § Tooltip;
+     * FRO_225 dropped the boss id). Runs on the client, where boss records don't exist, so it reads
      * only what attunement wrote onto the stack. No line for an unattuned compass.
      */
     @Override
     public void appendHoverText(@NotNull ItemStack stack, Level level, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
         super.appendHoverText(stack, level, tooltip, flag);
 
-        CompassAttunement.bossLevel(stack).ifPresent(bossLevel -> {
-            String line = DefaultBossRules.BOSS_NAME + ", level " + bossLevel;
-            if (CompassAttunement.isAdmin(stack)) {
-                line += CompassAttunement.bossId(stack).map(id -> " -- #" + Ids.shortId(id)).orElse("");
-            }
-            tooltip.add(Component.literal(line));
-        });
+        CompassAttunement.bossLevel(stack).ifPresent(bossLevel ->
+                tooltip.add(Component.literal(DefaultBossRules.BOSS_NAME + ", level " + bossLevel)));
     }
 }

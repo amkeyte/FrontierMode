@@ -7,7 +7,12 @@ public final class DefaultDioriteRules implements DioriteRules {
 
     @Override
     public float strikerSparkSize() {
-        return new Tunable("strikerSparkSize", 0.25f, 4f, 1.0f).floatValue();
+        return new Tunable("strikerSparkSize", 0.25f, 4f, 2.0f).floatValue();
+    }
+
+    @Override
+    public float strikerCircleRadius() {
+        return new Tunable("strikerCircleRadius", 0.05f, 2f, 0.35f).floatValue();
     }
 
     @Override
@@ -17,7 +22,7 @@ public final class DefaultDioriteRules implements DioriteRules {
 
     @Override
     public int strikerSparkDelayTicks() {
-        return new Tunable("strikerSparkDelayTicks", 0, 20, 4).intValue();
+        return new Tunable("strikerSparkDelayTicks", 0, 20, 1).intValue();
     }
 
     @Override

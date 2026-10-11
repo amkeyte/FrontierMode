@@ -1,5 +1,7 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
+import com.arryn.satchel.common.util.Ids;
+
 /**
  * Human-readable formatting helper for Boss command feedback -- presentation-only, mirrors
  * {@code BorderDisplay}'s role for Border.
@@ -27,7 +29,8 @@ public final class BossDisplay {
 
         // FRO_082: borderId -- "none" for a hand-placed off-path boss (/boss add), the actual
         // border id for anything paired with real border-growth (see BossRecord's own doc).
-        String borderText = r.borderId().map(Object::toString).orElse("none");
+        // FRO_225: shown as the short id, like the boss id and the entity.
+        String borderText = r.borderId().map(Ids::shortId).orElse("none");
 
         return "idx=" + listIndex
                 + " | id=" + r.displayBossId()
@@ -36,6 +39,6 @@ public final class BossDisplay {
                 + " | border=" + borderText
                 + " | defeated=" + !r.alive()
                 + " | spawned=" + r.materialized()
-                + (r.materialized() ? " | entity=" + r.bossEntityId() : "");
+                + (r.materialized() ? " | entity=" + Ids.shortId(r.bossEntityId()) : "");
     }
 }
