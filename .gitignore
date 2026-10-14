@@ -85,5 +85,6 @@ backhaul/
 # --------------------
 # Scrapyard
 # --------------------
-Scrapyard/assets/
+# Scratch space (diagrams, source art, generators): local working files, not part of the mods.
+/Scrapyard/
 .aider*
