@@ -78,6 +78,9 @@ depmods/
 # previously tracked; untracked via `git rm -r --cached backhaul/` in the
 # same commit that added this line.
 backhaul/
+# The generated dashboard at the repo root links only into backhaul/, so it is
+# dead on GitHub. Same working state; ignored the same way.
+/BACKHAUL.md
 
 # --------------------
 # Scrapyard

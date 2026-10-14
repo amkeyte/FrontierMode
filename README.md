@@ -80,8 +80,7 @@ Third-party assets (the sound files) keep their own licenses, listed per file in
 ## Credits
 
 All visual assets for Frontier Mode are created by Arryn77. Audio assets are created and edited by
-Arryn77, or by an attributed creator. System design and code architecture by Arryn77. The source has
-been vibecoded by Arryn77 using Claude Code.
+Arryn77, or by an attributed creator. System design and code architecture by Arryn77. Source code by Arryn77 assisted by Claude Code.
 
 Sounds, art, and the tools and frameworks this project stands on are credited in
 **[CREDITS.md](CREDITS.md)**.

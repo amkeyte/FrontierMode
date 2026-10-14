@@ -52,15 +52,3 @@ Adapted by Arryn from Minecraft's own assets:
 
 Audacity (sound editing), Inkscape and GIMP (art), ffmpeg (audio conversion). Not required by any
 license; credited for thanks.
-
-## Adding an entry
-
-When you add a sound, texture, model, or a bundled library, add a row above **in the same change**:
-
-1. Shipped file (path under `assets/`).
-2. Original title, author, and a link to the source page.
-3. The license, copied from the source page, and whether it needs attribution or forbids commercial use.
-4. What you changed.
-
-If you can't fill in the license, leave it _unverified_ rather than guessing.
-
