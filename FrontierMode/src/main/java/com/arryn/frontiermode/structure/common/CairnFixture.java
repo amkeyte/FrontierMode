@@ -22,6 +22,9 @@ import java.util.function.UnaryOperator;
  * by {@code StructureModule} (see cairn.md's "Real persistence has to be wired explicitly"
  * note) -- this class itself just registers the field, the same {@code registerCustom} shape
  * {@code BossFixture} already establishes.
+ *
+ * <p>A boss can have several Cairns (FRO_226), so everything here is keyed by a record's own
+ * {@code cairnId}, never by {@code bossId}.
  */
 public final class CairnFixture extends SatchelFixture {
 
@@ -29,24 +32,9 @@ public final class CairnFixture extends SatchelFixture {
 
     private final List<CairnRecord> cairns = new ArrayList<>();
 
-    // Transient, not persisted -- StructureModule's own "same fixed candidate, never a new
-    // random guess" while waiting on a chunk to load (cairn.md's own wording for the identical
-    // Boss materialization precedent). Losing this across a restart just means a fresh candidate
-    // gets resampled -- an acceptable, rare edge case, not a correctness requirement worth
-    // persisting for.
-    private final Map<UUID, BlockPos> pendingCandidates = new HashMap<>();
-
-    public BlockPos pendingCandidate(UUID bossId) {
-        return pendingCandidates.get(bossId);
-    }
-
-    public void setPendingCandidate(UUID bossId, BlockPos pos) {
-        pendingCandidates.put(bossId, pos);
-    }
-
-    public void clearPendingCandidate(UUID bossId) {
-        pendingCandidates.remove(bossId);
-    }
+    // Transient, not persisted: how many candidate spots each Cairn has had rejected so far. Losing it
+    // across a restart just gives the Cairn a fresh allowance -- not worth persisting.
+    private final Map<UUID, Integer> failedCandidates = new HashMap<>();
 
     public CairnFixture() {
         registerCustom(KEY_CAIRNS, this::saveCairns, this::loadCairns);
@@ -56,8 +44,13 @@ public final class CairnFixture extends SatchelFixture {
         return List.copyOf(cairns);
     }
 
-    public Optional<CairnRecord> get(UUID bossId) {
-        return cairns.stream().filter(c -> c.bossId().equals(bossId)).findFirst();
+    public Optional<CairnRecord> get(UUID cairnId) {
+        return cairns.stream().filter(c -> c.cairnId().equals(cairnId)).findFirst();
+    }
+
+    /** Every Cairn of {@code bossId}, in the order they were created. */
+    public List<CairnRecord> forBoss(UUID bossId) {
+        return cairns.stream().filter(c -> c.bossId().equals(bossId)).toList();
     }
 
     /** Finds the Cairn (if any) whose committed {@code anchorPos} matches {@code pos} exactly. */
@@ -66,38 +59,49 @@ public final class CairnFixture extends SatchelFixture {
     }
 
     /**
-     * Creates a fresh, unplaced record for {@code bossId} if none exists yet -- idempotent, same
-     * "if absent" shape {@code BossTellFixture.createTellCurveIfAbsent}/{@code
-     * BossSentinelsFixture.ensureSentinelCurves} already establish for paired-creation call
-     * sites. Returns the existing record unchanged if one is already there (defends against
-     * {@code BossPositionListeners} somehow firing twice for the same boss).
-     *
-     * <p>[Arryn] examine why the Result value is never used.
-     *
+     * Creates {@code count} fresh, unplaced records for {@code bossId}, all at once -- unless the
+     * boss already has any, in which case nothing is created and the existing ones are returned
+     * (defends against {@code BossPositionListeners} somehow firing twice for the same boss). Returns
+     * the records now held for the boss.
      */
-    @SuppressWarnings("UnusedReturnValue")
-    public CairnRecord createIfAbsent(UUID bossId, BlockPos lastKnownBossPos) {
-        Optional<CairnRecord> existing = get(bossId);
-        if (existing.isPresent()) {
-            return existing.get();
+    public List<CairnRecord> createForBoss(UUID bossId, BlockPos lastKnownBossPos, int count) {
+        List<CairnRecord> existing = forBoss(bossId);
+        if (!existing.isEmpty() || count <= 0) {
+            return existing;
         }
-        CairnRecord record = new CairnRecord(bossId, null, lastKnownBossPos);
-        cairns.add(record);
+        for (int i = 0; i < count; i++) {
+            cairns.add(new CairnRecord(UUID.randomUUID(), bossId, null, lastKnownBossPos));
+        }
         markDirty();
-        return record;
+        return forBoss(bossId);
     }
 
-    public void updateAnchor(UUID bossId, BlockPos anchorPos) {
-        replace(bossId, r -> r.withAnchor(anchorPos));
+    /** Commits {@code cairnId}'s spot; its rejected-candidate count no longer matters. */
+    public void updateAnchor(UUID cairnId, BlockPos anchorPos) {
+        failedCandidates.remove(cairnId);
+        replace(cairnId, r -> r.withAnchor(anchorPos));
     }
 
-    public void updateLastKnownBossPos(UUID bossId, BlockPos pos) {
-        replace(bossId, r -> r.withLastKnownBossPos(pos));
+    public void updateLastKnownBossPos(UUID cairnId, BlockPos pos) {
+        replace(cairnId, r -> r.withLastKnownBossPos(pos));
     }
 
-    private void replace(UUID bossId, UnaryOperator<CairnRecord> fn) {
+    /** Counts one more rejected candidate for {@code cairnId} and returns the new total. */
+    public int recordFailedCandidate(UUID cairnId) {
+        return failedCandidates.merge(cairnId, 1, Integer::sum);
+    }
+
+    /** Drops {@code cairnId}'s record -- a Cairn that gave up finding ground. */
+    public void remove(UUID cairnId) {
+        failedCandidates.remove(cairnId);
+        if (cairns.removeIf(c -> c.cairnId().equals(cairnId))) {
+            markDirty();
+        }
+    }
+
+    private void replace(UUID cairnId, UnaryOperator<CairnRecord> fn) {
         for (int i = 0; i < cairns.size(); i++) {
-            if (cairns.get(i).bossId().equals(bossId)) {
+            if (cairns.get(i).cairnId().equals(cairnId)) {
                 cairns.set(i, fn.apply(cairns.get(i)));
                 markDirty();
                 return;

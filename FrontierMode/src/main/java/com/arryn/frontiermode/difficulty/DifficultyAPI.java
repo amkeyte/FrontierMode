@@ -50,6 +50,16 @@ public final class DifficultyAPI {
     }
 
     /**
+     * Whether a mob takes the ally rung as it joins the level: an {@link #isAlly ally}, or any wolf, wild
+     * or tame (difficulty.md § Allies). Wider than {@code isAlly} on purpose -- {@code isAlly} drives
+     * targeting, and a wild wolf is not an ally to the player -- so a wolf is on the ladder from the
+     * moment it exists and taming changes nothing about its rung.
+     */
+    public static boolean isLadderAlly(Entity entity) {
+        return isAlly(entity) || entity instanceof Wolf;
+    }
+
+    /**
      * Puts a Feral mob -- fresh in the Wilds, where there is no Relevant Border and so no ordinary rung --
      * on the {@code feral} rung with Feral's own multipliers (FRO_219). Feral sits off the stat ladder's
      * formula, but its numbers live in the same {@code frontiermode:ladder} MobData namespace so the one

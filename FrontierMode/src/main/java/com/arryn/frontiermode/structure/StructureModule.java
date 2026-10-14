@@ -11,6 +11,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.frontiermode.structure.common.blocks.CairnCapBlock;
 import com.arryn.frontiermode.structure.common.CairnFixture;
+import com.arryn.frontiermode.structure.common.CairnPlacement;
 import com.arryn.frontiermode.structure.common.CairnRecord;
 import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.frontiermode.structure.server.commands.StructureCommands;
@@ -24,10 +25,12 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.BlockBreakSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -62,8 +65,6 @@ public final class StructureModule {
     // codebase) -- not part of any wiki-ratified contract, this module's own build decisions.
     // ------------------------------------------------------------
 
-    private static final int QUALIFYING_BORDER_RADIUS = 200;
-    private static final double PLACEMENT_RADIUS_FRACTION = 0.30;
     private static final int PAD_SIZE = 3;
     private static final int PILLAR_HEIGHT = 3; // 2 Mossy Cobblestone + 1 cap
     private static final int FOOTPRINT_CLEARANCE = SitingAPI.FOOTPRINT_CLEARANCE; // the one shared number (siting.md)
@@ -156,24 +157,23 @@ public final class StructureModule {
     }
 
     // ------------------------------------------------------------
-    // Record creation -- "the moment a qualifying boss's own position commits" (cairn.md).
+    // Record creation -- "the moment a boss's own position commits" (cairn.md). A boss gets
+    // floor((pathPosition - 15) / 5) Cairns, all created at once.
     // ------------------------------------------------------------
 
     private static void onBossPositioned(Level level, BossRecord record) {
-        Optional<UUID> borderIdOpt = record.borderId();
-        if (borderIdOpt.isEmpty()) {
-            return;
-        }
-        Optional<Border> borderOpt = BorderAPI.CRUD(level).flatMap(crud -> crud.get(borderIdOpt.get()));
-        if (borderOpt.isEmpty()) {
-            return;
-        }
-        if (borderOpt.get().radius() <= QUALIFYING_BORDER_RADIUS) {
+        // The record's own path position, not BossAPI.pathPositionOf: that falls back to the layer, which
+        // would hand an off-path boss Cairns it never earned.
+        int count = CairnPlacement.count(record.pathPosition());
+        if (count == 0) {
             return;
         }
 
-        cairnFixture(level).ifPresent(fixture ->
-                fixture.createIfAbsent(record.bossId(), record.position()));
+        cairnFixture(level).ifPresent(fixture -> {
+            int created = fixture.createForBoss(record.bossId(), record.position(), count).size();
+            OUT.info("[Structure] boss " + Ids.shortId(record.bossId()) + " earns " + count
+                    + " Cairn(s); " + created + " held for it.");
+        });
     }
 
     /** Public for {@code StructureCommands} -- same "standby, don't crash" resolver as
@@ -224,51 +224,79 @@ public final class StructureModule {
         }
     }
 
+    /**
+     * One candidate spot per Cairn per tick (cairn.md § Placement): a point 50-100% of the boss's home
+     * Border radius from the boss. A candidate that fails any rule is dropped and a new point is
+     * sampled next tick; after {@code cairnMaxAttempts} of them the Cairn gives up.
+     */
     private static void attemptPlacement(Level level, CairnFixture fixture, CairnRecord record) {
-        UUID bossId = record.bossId();
-
-        Optional<BossRecord> bossOpt = BossAPI.bosses(level).flatMap(f -> f.get(bossId));
+        Optional<BossRecord> bossOpt = BossAPI.bosses(level).flatMap(f -> f.get(record.bossId()));
         if (bossOpt.isEmpty()) {
             return;
         }
-        Optional<Border> borderOpt = bossOpt.get().borderId()
+        BossRecord boss = bossOpt.get();
+        Optional<Border> homeOpt = boss.borderId()
                 .flatMap(id -> BorderAPI.CRUD(level).flatMap(c -> c.get(id)));
-        if (borderOpt.isEmpty()) {
+        // bordersContaining throws while the Border facet isn't resolvable; stand by instead.
+        if (homeOpt.isEmpty() || BorderAPI.RULES(level).isEmpty()) {
             return;
         }
 
-        BlockPos candidateXZ = fixture.pendingCandidate(bossId);
-        if (candidateXZ == null) {
-            int sampleRadius = Math.max(1,
-                    (int) Math.round(borderOpt.get().radius() * PLACEMENT_RADIUS_FRACTION));
-            candidateXZ = BorderMath.randomPointInDisk(RNG, bossOpt.get().position(), sampleRadius);
-            fixture.setPendingCandidate(bossId, candidateXZ);
-        }
+        int radius = homeOpt.get().radius();
+        BlockPos candidate = BorderMath.randomPointInAnnulus(RNG, boss.position(),
+                CairnPlacement.innerRadius(radius), CairnPlacement.outerRadius(radius));
 
-        // Chunk-loaded check FIRST, before touching heightmap/block data -- same "no forced
-        // load" discipline boss.md's own materialization check follows. Same candidate,
-        // recheck next tick if not loaded yet (never a new random guess for this reason alone).
-        if (!level.isLoaded(candidateXZ)) {
+        Optional<BlockPos> ground = suitableGround(level, candidate);
+        if (ground.isEmpty()) {
+            rejectCandidate(fixture, record, boss);
             return;
         }
 
-        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, candidateXZ);
+        buildStructure(level, ground.get());
+        fixture.updateAnchor(record.cairnId(), ground.get());
 
-        boolean suitable = SitingAPI.footprintSuitable(level, ground, PAD_SIZE, FOOTPRINT_CLEARANCE);
+        OUT.info("[Structure] Cairn " + Ids.shortId(record.cairnId()) + " placed for boss "
+                + Ids.shortId(record.bossId()) + " at " + ground.get().getX() + ", "
+                + ground.get().getY() + ", " + ground.get().getZ());
+    }
 
-        if (!suitable) {
-            // Failed the footprint check outright (not just unloaded) -- resample a NEW point
-            // next tick, per cairn.md's own "Placement" section.
-            fixture.clearPendingCandidate(bossId);
+    /**
+     * The ground to build on at {@code candidate}, or empty if the spot fails a rule. In order, cheapest
+     * first: it is claimed ground (a Border contains it -- never the Wilds) whose terrain is generated
+     * (a containing Border reports {@code isPregenReady}); then its footprint's chunks are loaded --
+     * from disk, since the terrain already exists -- and the shared terrain-suitability check runs.
+     */
+    private static Optional<BlockPos> suitableGround(Level level, BlockPos candidate) {
+        boolean claimedAndGenerated = BorderAPI.bordersContaining(level, candidate).stream()
+                .anyMatch(border -> BorderAPI.isPregenReady(level, border.id()));
+        if (!claimedAndGenerated) {
+            return Optional.empty();
+        }
+
+        // Unlike Boss's own materialization, which waits on Level.isLoaded, a Cairn can sit most of a
+        // Border radius from any player: load the (at most four) chunks rather than wait for a visit.
+        for (ChunkPos chunk : CairnPlacement.footprintChunks(candidate, PAD_SIZE)) {
+            level.getChunk(chunk.x, chunk.z);
+        }
+        BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, candidate);
+        return SitingAPI.footprintSuitable(level, ground, PAD_SIZE, FOOTPRINT_CLEARANCE)
+                ? Optional.of(ground)
+                : Optional.empty();
+    }
+
+    /** Counts a dropped candidate against {@code record}; at {@code cairnMaxAttempts} the Cairn gives up. */
+    private static void rejectCandidate(CairnFixture fixture, CairnRecord record, BossRecord boss) {
+        int failed = fixture.recordFailedCandidate(record.cairnId());
+        int max = CairnRules.cairnMaxAttempts();
+        if (failed < max) {
             return;
         }
 
-        buildStructure(level, ground);
-        fixture.updateAnchor(bossId, ground);
-        fixture.clearPendingCandidate(bossId);
-
-        OUT.info("[Structure] Cairn placed for boss " + bossId + " at " + ground.getX() + ", "
-                + ground.getY() + ", " + ground.getZ());
+        fixture.remove(record.cairnId());
+        long placed = fixture.forBoss(boss.bossId()).stream().filter(CairnRecord::placed).count();
+        OUT.warn("[Structure] A Cairn for boss " + Ids.shortId(boss.bossId()) + " found no ground after "
+                + max + " candidates and was dropped; " + placed + " of "
+                + CairnPlacement.count(boss.pathPosition()) + " placed.");
     }
 
     /**
@@ -319,18 +347,19 @@ public final class StructureModule {
         if (recordOpt.isEmpty()) {
             return;
         }
-        UUID bossId = recordOpt.get().bossId();
+        CairnRecord cairn = recordOpt.get();
+        UUID bossId = cairn.bossId();
 
         BlockPos target;
         if (BossAPI.isBossAlive(level, bossId)) {
-            // "Just points to what it knows" -- overwrite the cache on a successful live read,
+            // "Just points to what it knows" -- overwrite this Cairn's cache on a successful live read,
             // leave it untouched (and still use it) on failure. No fallback chain beyond this.
             Optional<BlockPos> liveOpt = BossAPI.resolveLivePosition(level, bossId);
             if (liveOpt.isPresent()) {
-                fixture.updateLastKnownBossPos(bossId, liveOpt.get());
+                fixture.updateLastKnownBossPos(cairn.cairnId(), liveOpt.get());
                 target = liveOpt.get();
             } else {
-                target = fixture.get(bossId).map(CairnRecord::lastKnownBossPos).orElse(anchorPos);
+                target = cairn.lastKnownBossPos();
             }
         } else {
             // Dead path touches no boss state at all -- re-rolled every trigger, never cached.

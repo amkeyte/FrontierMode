@@ -39,8 +39,9 @@ final class DifficultyHandlers {
     /**
      * A fresh join (not {@code loadedFromDisk}: a reloaded mob already has its values) of a ladder
      * hostile that no rung has reached takes the ordinary rung, if the ambient Difficulty at its own
-     * position is 2 or more. Joining the level, not spawn-finalize, catches spawners, reinforcements,
-     * raids and slime splits as well as natural spawns.
+     * position is 2 or more; an iron golem or any wolf, wild or tame ({@link DifficultyAPI#isLadderAlly}),
+     * takes the ally rung on the same condition. Joining the level, not spawn-finalize, catches spawners,
+     * reinforcements, raids and slime splits as well as natural spawns.
      */
     static void onEntityJoinLevel(EntityJoinLevelSignal signal) {
         if (signal.loadedFromDisk()
@@ -59,7 +60,7 @@ final class DifficultyHandlers {
             return;
         }
 
-        String rung = DifficultyAPI.isAlly(mob) ? Ladder.RUNG_ALLY
+        String rung = DifficultyAPI.isLadderAlly(mob) ? Ladder.RUNG_ALLY
                 : DifficultyAPI.isLadderHostile(mob) || isNetherPiglinKin(level, mob) ? Ladder.RUNG_ORDINARY : null;
         if (rung != null) {
             applyAmbientRung(level, mob, rung);
@@ -67,25 +68,29 @@ final class DifficultyHandlers {
     }
 
     /**
-     * A wild wolf becomes an ally the moment it is tamed (the signal fires just before it applies),
-     * so that is where it is put on the ally rung (difficulty.md § Allies). Other animals are not
-     * allies. A wolf born tame, and an iron golem, take the rung on join instead.
+     * Taming a wolf (the signal fires just before it applies), difficulty.md § Allies. A wolf is on the
+     * ally rung from the moment it joins the level, so this does two things and neither is the rung
+     * change: it falls back to the rung for a wolf that has none (it spawned where there is no Relevant
+     * Border and is tamed on claimed ground), and it heals every wolf to its real maximum health. Other
+     * animals are not allies.
      */
     static void onAnimalTame(AnimalTameSignal signal) {
-        if (signal.animal() instanceof Wolf wolf
-                && wolf.level() instanceof ServerLevel level
-                && !Ladder.claimed(wolf)
-                && applyAmbientRung(level, wolf, Ladder.RUNG_ALLY)) {
-            // Taming is still to come: vanilla then sets the wolf's base health and its health to 20,
-            // which would leave it at 20 of a higher maximum. One tick on, with the tame done, heal it
-            // to its real maximum.
-            MinecraftServer server = level.getServer();
-            server.tell(new TickTask(server.getTickCount() + 1, () -> {
-                if (wolf.isAlive() && wolf.isTame()) {
-                    wolf.setHealth(wolf.getMaxHealth());
-                }
-            }));
+        if (!(signal.animal() instanceof Wolf wolf) || !(wolf.level() instanceof ServerLevel level)) {
+            return;
         }
+        if (!Ladder.claimed(wolf)) {
+            applyAmbientRung(level, wolf, Ladder.RUNG_ALLY);
+        }
+
+        // Taming is still to come: vanilla then sets the wolf's base health and its health to 20, which
+        // would leave a scaled wolf at 20 of a higher maximum -- claimed or not. One tick on, with the
+        // tame done, heal it to its real maximum.
+        MinecraftServer server = level.getServer();
+        server.tell(new TickTask(server.getTickCount() + 1, () -> {
+            if (wolf.isAlive() && wolf.isTame()) {
+                wolf.setHealth(wolf.getMaxHealth());
+            }
+        }));
     }
 
     /**

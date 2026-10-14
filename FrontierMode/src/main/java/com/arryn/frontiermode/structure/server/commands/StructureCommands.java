@@ -8,6 +8,7 @@ import com.arryn.frontiermode.structure.StructureModule;
 import com.arryn.frontiermode.structure.common.CairnRecord;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -21,8 +22,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Registers {@code /boss structure debug goto <selector>} -- teleports to the Cairn tracking a
- * selected boss, mirroring {@code BossCommandHandler.debugGoto}'s own shape exactly. Merged into
+ * Registers {@code /boss structure debug goto <selector> [<cairn>]} -- teleports to a Cairn tracking a
+ * selected boss (the first, or the 1-based {@code <cairn>}th: a boss can have several), mirroring
+ * {@code BossCommandHandler.debugGoto}'s own shape. Merged into
  * {@code BossCommands}' existing {@code boss} root, same verified Brigadier merge behavior
  * {@code BossTellCommands} already relies on for {@code /boss debug compass}.
  */
@@ -41,8 +43,16 @@ public final class StructureCommands {
                                                 .then(Commands.argument("selector", BossSelectorArgumentType.selector())
                                                         .executes(ctx -> goTo(
                                                                 ctx,
-                                                                BossSelectorArgumentType.getSelector(ctx, "selector")
+                                                                BossSelectorArgumentType.getSelector(ctx, "selector"),
+                                                                1
                                                         ))
+                                                        .then(Commands.argument("cairn", IntegerArgumentType.integer(1))
+                                                                .executes(ctx -> goTo(
+                                                                        ctx,
+                                                                        BossSelectorArgumentType.getSelector(ctx, "selector"),
+                                                                        IntegerArgumentType.getInteger(ctx, "cairn")
+                                                                ))
+                                                        )
                                                 )
                                         )
                                 )
@@ -54,7 +64,7 @@ public final class StructureCommands {
         return Component.literal("[Structure] " + m);
     }
 
-    private static int goTo(CommandContext<CommandSourceStack> ctx, BossSelectorResult selector)
+    private static int goTo(CommandContext<CommandSourceStack> ctx, BossSelectorResult selector, int cairnNumber)
             throws CommandSyntaxException {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
@@ -87,17 +97,22 @@ public final class StructureCommands {
             return 0;
         }
 
-        var recordOpt = fixtureOpt.get().get(bossId);
-        if (recordOpt.isEmpty()) {
-            ctx.getSource().sendFailure(msg("Boss " + bossId + " has no Cairn record -- its home"
-                    + " border may not have crossed the 200-radius threshold yet."));
+        List<CairnRecord> cairns = fixtureOpt.get().forBoss(bossId);
+        if (cairns.isEmpty()) {
+            ctx.getSource().sendFailure(msg("Boss " + bossId + " has no Cairn record -- a Keeper earns its"
+                    + " first at path position 20, or its Cairns gave up finding ground."));
             return 0;
         }
-        CairnRecord record = recordOpt.get();
+        if (cairnNumber > cairns.size()) {
+            ctx.getSource().sendFailure(msg("Boss " + bossId + " has " + cairns.size()
+                    + " Cairn(s); there is no number " + cairnNumber + "."));
+            return 0;
+        }
+        CairnRecord record = cairns.get(cairnNumber - 1);
 
         if (!record.placed()) {
-            ctx.getSource().sendFailure(msg("Boss " + bossId
-                    + "'s Cairn hasn't been placed yet -- still waiting on a valid candidate."));
+            ctx.getSource().sendFailure(msg("Boss " + bossId + "'s Cairn " + cairnNumber + " of "
+                    + cairns.size() + " hasn't been placed yet -- still waiting on a valid candidate."));
             return 0;
         }
 
@@ -112,7 +127,8 @@ public final class StructureCommands {
         sp.teleportTo(standingSpot.getX() + 0.5, standingSpot.getY(), standingSpot.getZ() + 0.5);
 
         ctx.getSource().sendSuccess(
-                () -> msg("Teleported to boss " + bossId + "'s Cairn."), false);
+                () -> msg("Teleported to boss " + bossId + "'s Cairn " + cairnNumber + " of "
+                        + cairns.size() + "."), false);
         return 1;
     }
 }

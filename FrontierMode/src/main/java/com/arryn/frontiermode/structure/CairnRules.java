@@ -11,6 +11,15 @@ public final class CairnRules {
     private CairnRules() {
     }
 
+    /**
+     * How many candidate spots a Cairn tries before giving up (cairn.md § Placement). One candidate
+     * is tried per Cairn per tick, so a boss ringed by water or the Wilds gets fewer Cairns instead of
+     * a placement loop that never ends.
+     */
+    public static int cairnMaxAttempts() {
+        return new Tunable("cairnMaxAttempts", 10, 2000, 200).intValue();
+    }
+
     /** Volume of the ping played at the cap when the pulse fires. */
     public static float pingVolume() {
         return new Tunable("pingVolume", 0f, 4f, 0.25f).floatValue();
