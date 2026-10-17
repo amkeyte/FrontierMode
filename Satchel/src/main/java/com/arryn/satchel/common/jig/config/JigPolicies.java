@@ -42,6 +42,7 @@ public final class JigPolicies {
         IMMEDIATE, DEFERRED
     }
 
+    //reserved as future for when client networking requests are built out.
     public enum SyncMode {
         NONE, SERVER_TO_CLIENT
     }
