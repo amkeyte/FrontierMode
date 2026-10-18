@@ -61,8 +61,10 @@ public final class HostJigs {
         if (registered) return;
         registered = true;
 
-        Satchel.registerJigConfig(level());
-        Satchel.registerJigConfig(player());
+        // BOTH sides, one shared config: contributions are filtered by side where the Trinkets are
+        // built, so the two foundations need not hold separate copies.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> level());
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> player());
     }
 
     // =================================================================
@@ -107,7 +109,6 @@ public final class HostJigs {
     private static LevelJigConfig level() {
         if (levelConfig == null) {
             LevelJigConfig c = new LevelJigConfig(LEVEL_HOST);
-            c.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
             c.bundles().schema(new JigBundles.Schema<>(List.of()));
             c.execution().lifecycle(JigPolicies.Lifecycle.defaults().withTick(true));
             levelConfig = c;
@@ -118,7 +119,6 @@ public final class HostJigs {
     private static PlayerJigConfig player() {
         if (playerConfig == null) {
             PlayerJigConfig c = new PlayerJigConfig(PLAYER_HOST);
-            c.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
             c.bundles().schema(new JigBundles.Schema<>(List.of()));
             c.execution().lifecycle(JigPolicies.Lifecycle.defaults().withTick(true));
             playerConfig = c;

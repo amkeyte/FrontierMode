@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.util;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.SatchelMod;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -40,6 +41,7 @@ import java.util.UUID;
  * Server-side only. A client-side mob has no container: {@link #read} returns an empty compound,
  * and a write throws. Not synced -- anything the client must see goes through a synced fixture.
  */
+@PlatformBound(reason = "Data saved on a mob, through the MobDataStore capability")
 public final class MobData {
 
     /** Satchel's own namespace: the stat changes it has made, for re-application on conversion. */

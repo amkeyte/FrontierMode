@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.util;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.nbt.CompoundTag;
@@ -57,6 +58,7 @@ import java.util.Optional;
  * Side-agnostic: client code reads stacks too. Pure static utility -- no fixture, no bundle, no
  * {@code JigConfig}.
  */
+@PlatformBound(reason = "The one place module code reads or writes item-stack data")
 public final class StackData {
 
     private StackData() {

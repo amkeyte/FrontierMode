@@ -5,11 +5,14 @@ import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.jig.config.JigConfig;
+import com.arryn.satchel.common.ingress.IngressConfig;
+import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.trinket.Trinket;
 import net.minecraftforge.fml.LogicalSide;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -59,6 +62,25 @@ public final class Satchel {
     public static Optional<LogicalFoundation> foundation() {
         Optional<LogicalSide> sideOpt = LogicalSideContext.current();
         return sideOpt.map(FOUNDATIONS::get);
+    }
+
+    /**
+     * The foundation bound to the calling thread, or null if none is: {@link #foundation()} without
+     * the allocation, for the guard that runs on every Forge event a module listens to.
+     */
+    public static LogicalFoundation peekFoundation() {
+        LogicalSide side = LogicalSideContext.peek();
+        return side == null ? null : FOUNDATIONS.get(side);
+    }
+
+    /**
+     * The one switch for failure behavior, read from Forge's production flag: true in a development
+     * run, false in a release. In development a failure in module code a Satchel path runs (a
+     * resolver, a module event's constructor, a consumer) propagates and crashes, and a SatchelHealth
+     * violation throws; in release the failure is logged with the module id and the work continues.
+     */
+    public static boolean isDevelopment() {
+        return !FMLEnvironment.production;
     }
 
     public static boolean isInstalled(LogicalSide side) {
@@ -120,6 +142,40 @@ public final class Satchel {
         }
     }
 
+    /**
+     * Registers a jig as a side-keyed factory. Each side's booter calls the factories registered for
+     * its side at its own foundation boot: a {@code SERVER} or {@code CLIENT} factory runs only on
+     * that side, and a {@code BOTH} factory runs once per side and must return a fresh config each
+     * time, so the two foundations share nothing. The registration owns the side: leave the config's
+     * {@code sideApplicability} unset (a config that sets a different one crashes boot).
+     *
+     * <p>
+     * Write the factory as a lambda that calls a static builder in a holder class
+     * ({@code () -> TrackingJig.build()}), never a method reference: a method reference resolves its
+     * class when the call site links, which would load a client-only config's classes on a dedicated
+     * server. A registration made after its side has booted, or a second one for the same key and
+     * side, fails.
+     */
+    public static void registerJig(JigPolicies.SideApplicability side, Supplier<? extends JigConfig<?, ?>> factory) {
+        JigConfigCompiler.register(side, factory);
+    }
+
+    /**
+     * Registers an ingress as a side-keyed factory, on the same terms as {@link #registerJig}: each
+     * side's booter calls the factories for its side after its jigs and installs the config with its
+     * own foundation. The ingress declares no side of its own.
+     */
+    public static void registerIngress(JigPolicies.SideApplicability side, Supplier<IngressConfig> factory) {
+        IngressRegistry.register(side, factory);
+    }
+
+    /**
+     * The adapter for a config already built at mod init: registers {@code () -> config} under the
+     * config's own {@code sideApplicability}. A config that declares no side reads as {@code SERVER},
+     * with a warning. Gives no lazy class loading, and a {@code BOTH} config registered this way is
+     * one object shared by both sides' foundations; {@link #registerJig} gives each foundation a
+     * fresh config.
+     */
     public static void registerJigConfig(JigConfig<?, ?> config) {
         JigConfigCompiler.register(config);
     }

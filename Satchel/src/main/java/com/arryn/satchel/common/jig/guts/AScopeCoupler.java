@@ -232,6 +232,9 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         TrinketSet unloading = trinkets.get(info);
         if (unloading != null) unloading.retireTicking();
 
+        // The scope's own event consumers end with it, whether or not their subscriber remembers to.
+        info.dropSubscriptions();
+
         requireReady(info);
 
         beforeUnload(info);

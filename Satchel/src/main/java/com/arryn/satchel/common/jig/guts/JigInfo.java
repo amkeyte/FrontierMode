@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.LongSupplier;
 
 /**
  * Runtime record for one installed jig -- pairs a {@link JigKey}, a {@link SatchelJig}
@@ -35,9 +34,7 @@ public final class JigInfo implements IJigConfigurable {
 
     private final ScopeCoupler coupler;
     private final int registrationIndex;
-    private final LongSupplier scopeSequence;
-    private final TrinketTick trinketTick;
-    private final LogicalSide side;
+    private final LogicalFoundation foundation;
 
     private final Map<SatchelScope, ScopeInfo> scopeInfos =
             new ConcurrentHashMap<>();
@@ -54,29 +51,30 @@ public final class JigInfo implements IJigConfigurable {
     /**
      * @param registrationIndex this jig's position in the order its config was registered, which is
      *                          the order the foundation walks jigs
-     * @param scopeSequence     the foundation's counter, drawn once per scope in {@link #addScope}
-     * @param trinketTick       the foundation's global Trinket list, which this jig's couplers add
-     *                          their scopes' ticking Trinkets to
-     * @param side              the side of the foundation this jig is installed in
+     * @param foundation        the foundation this jig is installed in: the source of the scope
+     *                          creation counter, the global Trinket list, the event bus and the side
      */
     public JigInfo(
             JigKey<?> key,
             SatchelJig<?> jig,
             ScopeCoupler coupler,
             int registrationIndex,
-            LongSupplier scopeSequence,
-            TrinketTick trinketTick,
-            LogicalSide side
+            LogicalFoundation foundation
     ) {
         this.key = Objects.requireNonNull(key, "key");
         this.jig = Objects.requireNonNull(jig, "jig");
         this.coupler = Objects.requireNonNull(coupler, "coupler");
         this.registrationIndex = registrationIndex;
-        this.scopeSequence = Objects.requireNonNull(scopeSequence, "scopeSequence");
-        this.trinketTick = Objects.requireNonNull(trinketTick, "trinketTick");
-        this.side = Objects.requireNonNull(side, "side");
+        this.foundation = Objects.requireNonNull(foundation, "foundation");
 
         JigKey.validateTypes(key, jig);
+    }
+
+    /**
+     * The foundation this jig is installed in.
+     */
+    public LogicalFoundation foundation() {
+        return foundation;
     }
 
     /**
@@ -84,14 +82,14 @@ public final class JigInfo implements IJigConfigurable {
      * JigInfo}s, one per side.
      */
     public LogicalSide side() {
-        return side;
+        return foundation.side();
     }
 
     /**
      * The foundation's global Trinket list this jig's scopes belong to.
      */
     public TrinketTick trinketTick() {
-        return trinketTick;
+        return foundation.trinketTick();
     }
 
     /**
@@ -141,7 +139,7 @@ public final class JigInfo implements IJigConfigurable {
 
         validateScopeType(scope);
 
-        ScopeInfo info = new ScopeInfo(scope, source, scopeSequence.getAsLong());
+        ScopeInfo info = new ScopeInfo(scope, source, foundation.nextScopeSequence());
         info.installJigConfig(compiledConfig());
         info.installJigInfo(this);
 

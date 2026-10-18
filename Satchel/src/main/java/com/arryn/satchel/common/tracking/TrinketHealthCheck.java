@@ -145,9 +145,7 @@ final class TrinketHealthCheck {
     }
 
     private static void violation(String message) {
-        String full = "[SatchelHealth] VIOLATION: Trinket " + message;
-        OUT.error(full);
-        throw new IllegalStateException(full);
+        SatchelHealth.violation("[SatchelHealth] VIOLATION: Trinket " + message);
     }
 
     private static Optional<TrinketProbeFixture> fixtureOf(ScopeInfo info) {

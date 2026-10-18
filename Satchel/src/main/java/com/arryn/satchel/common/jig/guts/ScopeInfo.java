@@ -6,23 +6,31 @@ import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.jig.player.PlayerScope;
+import com.arryn.satchel.common.lifecycle.ContextKeyed;
+import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 import net.minecraft.world.level.Level;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Authoritative runtime record for a single scope instance.
  *
  * Lifecycle truth only. No policy enforcement.
  */
-public final class ScopeInfo implements IJigConfigurable {
+public final class ScopeInfo implements IJigConfigurable, ContextKeyed {
 
     private final SatchelScope scope;
     private final Object source;
     private final long creationSequence;
+
+    /** Subscriptions made through {@link #listenFor}, dropped when the scope unloads. */
+    private final List<SatchelEventBus.Subscription> subscriptions = new ArrayList<>();
 
     private Phase phase = Phase.NEW;
 
@@ -261,6 +269,67 @@ public final class ScopeInfo implements IJigConfigurable {
             throw new IllegalStateException("No owning jig for scope: " + debugName());
         }
         return jigInfo.coupler().getOrCreate(this, key);
+    }
+
+    // ---------------------------------------------------------------------
+    // Scope-bound event consumers
+    // ---------------------------------------------------------------------
+
+    /**
+     * The key this scope's subscriptions are filed under on the event bus: the scope's id. A module
+     * event whose context is this {@code ScopeInfo} reaches the consumers subscribed here.
+     */
+    @Override
+    public Object contextKey() {
+        return scope.uuid();
+    }
+
+    /**
+     * Hears a module event for this scope only: {@code handler} runs when an event of exactly {@code
+     * type} is posted with this scope as its context, at normal priority, and not for a cancelled
+     * event.
+     *
+     * <p>
+     * Owned by the scope: Satchel removes the subscription when the scope unloads, even if the
+     * subscriber forgets. The handle ends it sooner. Typically called from a Trinket's {@code
+     * onAttach}.
+     *
+     * @return a handle for unsubscribing sooner
+     */
+    public <E> SatchelEventBus.Subscription listenFor(Class<E> type, Consumer<? super E> handler) {
+        return listenFor(type, SatchelEventBus.Priority.NORMAL, false, handler);
+    }
+
+    /**
+     * {@link #listenFor(Class, Consumer)} with an explicit bus priority and whether a cancelled
+     * event is delivered ({@code receiveCancelled}).
+     */
+    public <E> SatchelEventBus.Subscription listenFor(
+            Class<E> type,
+            SatchelEventBus.Priority priority,
+            boolean receiveCancelled,
+            Consumer<? super E> handler
+    ) {
+        if (jigInfo == null) {
+            throw new IllegalStateException("No owning jig for scope: " + debugName());
+        }
+        if (phase == Phase.UNLOADING || phase == Phase.UNLOADED) {
+            throw new IllegalStateException("Cannot listen for " + type.getSimpleName()
+                    + " on a scope that is unloading: " + debugName());
+        }
+
+        SatchelEventBus.Subscription subscription = jigInfo.foundation().eventBus().subscribe(
+                type, contextKey(), priority, receiveCancelled, jigInfo.key.name, handler);
+        subscriptions.add(subscription);
+        return subscription;
+    }
+
+    /**
+     * Ends every subscription made through {@link #listenFor}. Called when the scope unloads.
+     */
+    void dropSubscriptions() {
+        for (SatchelEventBus.Subscription s : subscriptions) s.unsubscribe();
+        subscriptions.clear();
     }
 
     // ---------------------------------------------------------------------

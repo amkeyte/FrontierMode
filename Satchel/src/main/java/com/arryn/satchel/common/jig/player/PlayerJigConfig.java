@@ -14,11 +14,11 @@ import net.minecraft.world.entity.player.Player;
  * {@link LevelJigConfig}'s four-category-lens shape exactly. Real consumers: FrontierMode's
  * {@code BorderModule} (per-player border evaluation) and Satchel's own {@code
  * PlayerHealthCheck}. Source type widened from {@code ServerPlayer} to the abstract {@link
- * Player} by SAT_063 -- see {@link PlayerScope}'s own class doc for why; {@code
- * sideApplicability} still defaults to {@code SERVER} below, same as {@link LevelJigConfig}'s
- * own default, for the same reason: a consumer opts into {@code BOTH} explicitly when it
- * actually wants the client-side path (see {@code PlayerHealthCheck.register()} for the first
- * real consumer doing exactly that).
+ * Player} by SAT_063 -- see {@link PlayerScope}'s own class doc for why. The config declares no
+ * side of its own: the registration supplies it ({@code Satchel.registerJig(side, factory)}), and
+ * a config registered through {@code registerJigConfig} that leaves it unset reads as {@code
+ * SERVER}. A consumer registers {@code BOTH} when it actually wants the client-side path (see
+ * {@code PlayerHealthCheck.register()} for the first real consumer doing exactly that).
  */
 public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
 
@@ -44,11 +44,8 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
         p.binding.couplerClass = PlayerScopeCoupler.class; // REQUIRED -- must be set by author
         p.binding.scopeType = PlayerScope.class;
         p.binding.sourceType = Player.class;
-        // SERVER by default, same as LevelJigConfig's own default -- a consumer that actually
-        // wants the client-side path (SAT_063 made that real) opts into BOTH explicitly, the
-        // same way Border overrides LevelJigConfig's own SERVER default for its own
-        // client-rendering needs.
-        p.binding.sideApplicability = JigPolicies.SideApplicability.SERVER;
+        // sideApplicability intentionally left unset: the registration supplies it. A consumer that
+        // actually wants the client-side path (SAT_063 made that real) registers BOTH.
         p.binding.scopeResolver = PlayerResolver::resolveScope;
         p.binding.uuidDeterminer = PlayerResolver::determineUUID;
         // No referenceLevel default, deliberately -- unlike LevelScope, a PlayerScope has no

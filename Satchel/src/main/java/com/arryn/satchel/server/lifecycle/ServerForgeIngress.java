@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
@@ -91,6 +92,7 @@ import java.util.UUID;
         modid = SatchelMod.MODID,
         bus = Mod.EventBusSubscriber.Bus.FORGE
 )
+@PlatformBound(reason = "Satchel's server-side Forge ingress: the one path in from the game")
 public final class ServerForgeIngress {
 
     private static final ServerFoundationBooter BOOTER =

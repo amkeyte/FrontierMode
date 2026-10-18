@@ -33,7 +33,7 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
         p.binding.couplerClass = LevelScopeCoupler.class; // REQUIRED – must be set by author
         p.binding.scopeType = LevelScope.class;
         p.binding.sourceType = Level.class;
-        p.binding.sideApplicability = JigPolicies.SideApplicability.SERVER;
+        // sideApplicability intentionally left unset: the registration supplies it.
         p.binding.scopeResolver = LevelResolver::resolveScope;
         p.binding.uuidDeterminer = LevelResolver::determineUUID;
         // A LevelScope already holds its own Level directly (see LevelScope.level()) -- no

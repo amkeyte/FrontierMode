@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.tracking;
 
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.config.SatchelConfig;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.util.out.OUT;
@@ -155,6 +156,23 @@ public final class SatchelHealth {
     }
 
     // =================================================================
+    // Violations -- one switch, Satchel.isDevelopment(): a development run throws, a release run
+    // logs a warning and carries on.
+    // =================================================================
+
+    /**
+     * Reports a broken invariant. In a development run it logs at ERROR and throws, so a regression
+     * is found the moment it happens; in a release run it logs a warning and returns.
+     */
+    static void violation(String message) {
+        if (Satchel.isDevelopment()) {
+            OUT.error(message);
+            throw new IllegalStateException(message);
+        }
+        OUT.warn(message);
+    }
+
+    // =================================================================
     // Registration
     // =================================================================
 
@@ -174,6 +192,7 @@ public final class SatchelHealth {
         PlayerHealthCheck.register();
         TrinketHealthCheck.register();
         HostHealthCheck.register();
+        RegistrationHealthCheck.register();
     }
 
     // =================================================================

@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.jig.guts;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -25,6 +26,7 @@ import java.util.UUID;
  * {@code LogicalFoundation.booter()} is private (see SAT_038), and this interface's whole reason
  * for existing is to give side-agnostic callers like {@code MobJig} a path that never needs it.
  */
+@PlatformBound(reason = "The read seam into the world, answered differently by each side")
 public interface ForgeEgress {
 
     Optional<Entity> getEntity(Level level, UUID uuid);

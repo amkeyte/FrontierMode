@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.util;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.SatchelMod;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -34,6 +35,7 @@ import java.util.Optional;
  * are invalid; doing it this way means {@code reviveCaps()} really brings the data back, which is
  * what copying data off a mob that conversion has just discarded relies on.
  */
+@PlatformBound(reason = "The container behind MobData: a Forge capability on the mob")
 public final class MobDataStore {
 
     public static final ResourceLocation ID = new ResourceLocation(SatchelMod.MODID, "mob_data");

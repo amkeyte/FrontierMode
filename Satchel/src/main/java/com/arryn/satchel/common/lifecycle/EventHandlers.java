@@ -57,7 +57,7 @@ public final class EventHandlers {
         /**
          * Subscribe a handler to a specific event type.
          */
-        public <E> Builder on(
+        public <E> Builder listenFor(
                 Class<E> eventType,
                 Consumer<? super E> handler
         ) {
@@ -66,6 +66,17 @@ public final class EventHandlers {
 
             installers.add(bus -> bus.subscribe(eventType, handler));
             return this;
+        }
+
+        /**
+         * The previous name of {@link #listenFor}, kept so existing modules compile. One verb per
+         * job: {@code listenFor} hears an event, and {@code on*} is a hook a class implements.
+         */
+        public <E> Builder on(
+                Class<E> eventType,
+                Consumer<? super E> handler
+        ) {
+            return listenFor(eventType, handler);
         }
 
         /**

@@ -5,6 +5,7 @@ import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.lifecycle.*;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
+import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketTick;
@@ -72,9 +73,7 @@ public final class LogicalFoundation {
                     cfg,
                     booter().engine());
 
-            var info = new JigInfo(
-                    key, jig, coupler, orderedJigInfos.size(), scopeSequence::getAndIncrement, trinketTick,
-                    side);
+            var info = new JigInfo(key, jig, coupler, orderedJigInfos.size(), this);
             info.installJigConfig(cfg);
             if (jigInfos.putIfAbsent(key, info) == null) {
                 orderedJigInfos.add(info);
@@ -126,6 +125,14 @@ public final class LogicalFoundation {
             if (d.owner() != null) sb.append(" | from ").append(d.owner());
         }
         OUT.info(sb.toString());
+    }
+
+    /**
+     * Builds and installs the ingress configs registered for this foundation's side, each with this
+     * foundation as its own. Called once by the booter, after {@link #installConfigs}.
+     */
+    public void installIngress() {
+        IngressRegistry.installFor(this);
     }
 
     /**
@@ -187,6 +194,10 @@ public final class LogicalFoundation {
 
     /** Per-foundation counter behind {@link ScopeInfo#creationSequence()}. */
     private final AtomicLong scopeSequence = new AtomicLong();
+
+    long nextScopeSequence() {
+        return scopeSequence.getAndIncrement();
+    }
 
     /** The global, sorted list of every ready scope's ticking Trinkets. */
     private final TrinketTick trinketTick = new TrinketTick();

@@ -43,9 +43,7 @@ final class HostHealthCheck {
     }
 
     private static void violation(String message) {
-        String full = "[SatchelHealth] VIOLATION: Host " + message;
-        OUT.error(full);
-        throw new IllegalStateException(full);
+        SatchelHealth.violation("[SatchelHealth] VIOLATION: Host " + message);
     }
 
     /** The late-contribution check runs once, on the first level probe to attach. */

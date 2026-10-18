@@ -46,6 +46,7 @@ public class ServerFoundationBooter extends ASatchelFoundationBooter {
                 JigConfigCompiler.compileForSide(LogicalSide.SERVER);
 
         foundation.installConfigs(configs);
+        foundation.installIngress();
     }
 
     @Override

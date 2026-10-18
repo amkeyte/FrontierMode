@@ -96,6 +96,15 @@ public abstract class JigBindingConfig<S extends SatchelScope, SRC> {
         return this;
     }
 
+    /**
+     * Declares the side this jig applies to.
+     *
+     * @deprecated the registration owns the side: register with {@code Satchel.registerJig(side,
+     *             factory)} and leave this unset, and the booter stamps the registration's side on.
+     *             A config that sets a side other than the one it is registered under crashes boot.
+     *             Kept for configs registered through {@code Satchel.registerJigConfig(config)}.
+     */
+    @Deprecated
     public JigBindingConfig<S, SRC> sideApplicability(
             JigPolicies.SideApplicability side
     ) {

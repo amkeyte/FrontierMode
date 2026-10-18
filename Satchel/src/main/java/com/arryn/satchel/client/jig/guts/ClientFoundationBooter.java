@@ -68,6 +68,10 @@ public final class ClientFoundationBooter extends ASatchelFoundationBooter {
 
         foundation.installConfigs(configs);
 
+        // Ingress after jigs: the booter runs this side's registered factories, so a client-only
+        // ingress's classes load only here.
+        foundation.installIngress();
+
         // NOTE:
         // No jig materialization
         // No scope introduction

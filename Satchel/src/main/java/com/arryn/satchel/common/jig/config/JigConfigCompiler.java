@@ -1,6 +1,5 @@
 package com.arryn.satchel.common.jig.config;
 
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
@@ -9,11 +8,19 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
- * Collects {@link JigConfig} declarations during mod initialization
- * and compiles them into fully materialized {@link CompiledJigConfig}
- * instances for a specific logical side.
+ * Collects jig registrations during mod initialization and compiles them into fully materialized
+ * {@link CompiledJigConfig} instances for a specific logical side.
+ *
+ * <p>
+ * A registration is a side ({@code SERVER}, {@code CLIENT} or {@code BOTH}) and a factory. Each
+ * side's booter calls {@link #compileForSide} at its own foundation boot, which runs the factories
+ * registered for that side, so a {@code CLIENT} factory is never invoked on a dedicated server (the
+ * classes it names never load there) and a {@code BOTH} factory is invoked once per side, giving
+ * each foundation a fresh, independent config. The registration owns the side: the booter stamps it
+ * onto the config, and a config that explicitly sets a different one crashes boot.
  *
  * <p>
  * Compilation is a one-way process:
@@ -24,11 +31,21 @@ import java.util.*;
  *   <li>Couplers are configured via {@code installConfigs}</li>
  *   <li>Raw configuration never escapes this class</li>
  * </ul>
+ *
+ * <p>
+ * Registration order is kept, and it is the order the foundation walks jigs.
  */
 public final class JigConfigCompiler {
 
-    private static final Map<JigKey<?>, JigConfig<?, ?>> CONFIGS =
-            new LinkedHashMap<>();
+    private record Registration(
+            JigPolicies.SideApplicability side,
+            Supplier<? extends JigConfig<?, ?>> factory
+    ) {}
+
+    private static final List<Registration> REGISTRATIONS = new ArrayList<>();
+
+    /** Sides whose factories have run: a registration for one of them is refused. */
+    private static final Set<LogicalSide> BOOTED = EnumSet.noneOf(LogicalSide.class);
 
     private static boolean frozen = false;
 
@@ -36,7 +53,7 @@ public final class JigConfigCompiler {
     }
 
     /**
-     * Whether compilation has begun, after which a registration or a host contribution is refused.
+     * Whether compilation has begun for any side, after which a host contribution is refused.
      */
     public static boolean isFrozen() {
         return frozen;
@@ -46,89 +63,119 @@ public final class JigConfigCompiler {
      * Registration (mod init phase)
      * ========================================================== */
 
+    /**
+     * Registers a jig: {@code factory} is called by each foundation boot the registration applies
+     * to, and must return a fresh config each time. Write the factory as a lambda that calls a static
+     * builder in a holder class, not as a method reference, so a client-only config's classes load
+     * only when its factory runs.
+     *
+     * @throws IllegalStateException if a side this applies to has already booted
+     */
+    public static synchronized void register(
+            JigPolicies.SideApplicability side,
+            Supplier<? extends JigConfig<?, ?>> factory
+    ) {
+        Objects.requireNonNull(side, "side");
+        Objects.requireNonNull(factory, "factory");
+
+        for (LogicalSide logical : LogicalSide.values()) {
+            if (appliesToSide(side, logical) && BOOTED.contains(logical)) {
+                throw new IllegalStateException(
+                        "Cannot register a jig for " + side + " after the " + logical
+                                + " foundation has booted"
+                );
+            }
+        }
+
+        REGISTRATIONS.add(new Registration(side, factory));
+    }
+
+    /**
+     * The adapter for a config built at mod init: registers {@code () -> config} under the config's
+     * own {@code sideApplicability}. An unset one reads as {@code SERVER}, the old default, with a
+     * deprecation warning. Gives no lazy class loading, and a {@code BOTH} config registered this
+     * way is one object shared by both sides' foundations.
+     */
+    @SuppressWarnings("deprecation")
     public static void register(JigConfig<?, ?> config) {
         Objects.requireNonNull(config, "config");
 
-        if (frozen) {
-            throw new IllegalStateException(
-                    "Cannot register JigConfig after compilation has begun"
-            );
-        }
-
         JigKey<?> key = Objects.requireNonNull(config.jigKey(), "config.jigKey");
-
-        if (CONFIGS.containsKey(key)) {
-            throw new IllegalStateException(
-                    "Duplicate JigConfig for key " + key +
-                            ". Exactly one JigConfig per JigKey is allowed."
-            );
+        JigPolicies.SideApplicability side = config.binding().sideApplicability();
+        if (side == null) {
+            OUT.warn("[JigConfigCompiler] Jig " + key.name + " was registered with registerJigConfig and "
+                    + "declares no side; reading it as SERVER. Register with Satchel.registerJig(side, "
+                    + "factory) so the registration owns the side.");
+            side = JigPolicies.SideApplicability.SERVER;
         }
 
-        CONFIGS.put(key, config);
-
-        // FRO_025 diagnostic: a real client run produced a JigNotFound crash for
-        // frontiermode:borders_jig (BOTH-applicability) despite registration completing without
-        // error and the equivalent server run installing all 3 registered configs correctly. This
-        // line plus the matching one in compileForSide() lets a re-run pin down whether CLIENT
-        // ever sees fewer entries than were actually registered (map identity / cross-thread
-        // visibility) or whether registration itself is silently short-circuiting on CLIENT only.
-        // Remove once FRO_025 is resolved.
-        OUT.debug(
-                "[JigConfigCompiler] register() key=" + key
-                        + " thread=" + Thread.currentThread().getName()
-                        + " mapIdentity=" + System.identityHashCode(CONFIGS)
-                        + " sizeAfter=" + CONFIGS.size()
-        );
+        register(side, () -> config);
+        OUT.debug("[JigConfigCompiler] register() key=" + key + " side=" + side);
     }
 
     /* =============================================================
      * Compilation (foundation boot phase)
      * ========================================================== */
 
-    public static List<CompiledJigConfig> compileForSide(LogicalSide side) {
+    /**
+     * Runs the factories registered for {@code side}, stamps the side on each config, validates it
+     * and compiles it. Called once by that side's booter. Freezes registration for this side.
+     */
+    @SuppressWarnings("deprecation")
+    public static synchronized List<CompiledJigConfig> compileForSide(LogicalSide side) {
         Objects.requireNonNull(side, "side");
 
         frozen = true;
-
-        // FRO_025 diagnostic -- see the matching log in register(). If mapIdentity here differs
-        // from what register() reported, that's two different CONFIGS instances (classloader
-        // duplication). If mapIdentity matches but sizeSeen is lower than the last sizeAfter
-        // register() reported for this side's JVM, that's a visibility/ordering bug instead.
-        OUT.debug(
-                "[JigConfigCompiler] compileForSide() side=" + side
-                        + " thread=" + Thread.currentThread().getName()
-                        + " mapIdentity=" + System.identityHashCode(CONFIGS)
-                        + " sizeSeen=" + CONFIGS.size()
-        );
+        BOOTED.add(side);
 
         List<CompiledJigConfig> result = new ArrayList<>();
+        Set<JigKey<?>> seen = new HashSet<>();
 
-        for (var entry : CONFIGS.entrySet()) {
-
-            JigKey<?> jigKey = entry.getKey();
-            JigConfig<?, ?> cfg = entry.getValue();
-
-            JigConfig.Presets<?, ?> p = cfg.presets();
-
-            if (!appliesToSide(p.binding.sideApplicability, side)) {
+        for (Registration registration : REGISTRATIONS) {
+            if (!appliesToSide(registration.side(), side)) {
                 continue;
             }
 
+            JigConfig<?, ?> cfg = Objects.requireNonNull(
+                    registration.factory().get(),
+                    "A jig factory returned null"
+            );
+            JigKey<?> jigKey = Objects.requireNonNull(cfg.jigKey(), "config.jigKey");
+
+            // The registration owns the side. Unset takes the registration's; an explicit different
+            // value is a crash, in development and release alike.
+            JigPolicies.SideApplicability declared = cfg.binding().sideApplicability();
+            if (declared != null && declared != registration.side()) {
+                throw new IllegalStateException(
+                        "Jig " + jigKey.name + " declares sideApplicability " + declared
+                                + " but is registered for " + registration.side()
+                                + ". The registration owns the side; leave the config's unset."
+                );
+            }
+            cfg.binding().sideApplicability(registration.side());
+
+            if (!seen.add(jigKey)) {
+                throw new IllegalStateException(
+                        "Duplicate JigConfig for key " + jigKey + " on side " + side +
+                                ". Exactly one JigConfig per JigKey is allowed."
+                );
+            }
+
+            JigConfig.Presets<?, ?> p = cfg.presets();
+
             JigConfigValidator.validate(jigKey, p);
 
-            CompiledJigConfig compiled =
-                    new CompiledJigConfig(
-                            jigKey,
-                            cfg.binding(),
-                            cfg.execution(),
-                            cfg.policies(),
-                            cfg.bundles(),
-                            cfg.trinkets()
-                    );
-
-            result.add(compiled);
+            result.add(new CompiledJigConfig(
+                    jigKey,
+                    cfg.binding(),
+                    cfg.execution(),
+                    cfg.policies(),
+                    cfg.bundles(),
+                    cfg.trinkets()
+            ));
         }
 
+        OUT.debug("[JigConfigCompiler] compileForSide() side=" + side + " compiled=" + result.size());
         return List.copyOf(result);
     }
 

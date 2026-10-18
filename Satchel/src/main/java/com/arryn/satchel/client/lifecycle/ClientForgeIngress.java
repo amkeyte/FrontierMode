@@ -1,5 +1,6 @@
 package com.arryn.satchel.client.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.client.jig.guts.ClientFoundationBooter;
@@ -33,6 +34,7 @@ import java.util.UUID;
         value = Dist.CLIENT
 )
 
+@PlatformBound(reason = "Satchel's client-side Forge ingress: the one path in from the game")
 public final class ClientForgeIngress {
 
     private static final ClientFoundationBooter BOOTER =
