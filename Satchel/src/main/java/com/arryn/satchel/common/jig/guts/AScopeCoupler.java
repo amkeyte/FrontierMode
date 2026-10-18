@@ -243,7 +243,12 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         // but only after the unload below has run; the set is dropped either way.
         try {
             TrinketSet set = trinkets.get(info);
-            if (set != null) set.detachAll(info);
+            if (set != null) {
+                // A mob scope has a reason it left; the Leaving Trinkets hear it before any onDetach.
+                LeaveReason reason = info.leaveReason();
+                if (reason != null) set.leaveAll(info, reason);
+                set.detachAll(info);
+            }
         } finally {
             try {
                 engine().unload(info);

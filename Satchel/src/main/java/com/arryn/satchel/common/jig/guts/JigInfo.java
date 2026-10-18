@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,6 +38,14 @@ public final class JigInfo implements IJigConfigurable {
     private final LogicalFoundation foundation;
 
     private final Map<SatchelScope, ScopeInfo> scopeInfos =
+            new ConcurrentHashMap<>();
+
+    /**
+     * The same scopes by id, kept beside the map above in {@link #addScope} and {@link
+     * #removeScope}. A lookup by id needs no scope instance, so a resolver on a hot event does not
+     * allocate one per firing.
+     */
+    private final Map<UUID, ScopeInfo> scopeInfosById =
             new ConcurrentHashMap<>();
     private CompiledJigConfig compiled;
 
@@ -126,6 +135,19 @@ public final class JigInfo implements IJigConfigurable {
     }
 
     /**
+     * This jig's scope with the given id, if it has one, without a scope instance to look it up
+     * with. Scope equality is id-based, so this is the same answer as {@link #scopeInfo(SatchelScope)}
+     * for a scope with that id.
+     */
+    public Optional<ScopeInfo> scopeInfo(UUID scopeId) {
+        return Optional.ofNullable(scopeInfosById.get(scopeId));
+    }
+
+    public boolean hasScope(UUID scopeId) {
+        return scopeInfosById.containsKey(scopeId);
+    }
+
+    /**
      * Constructs and registers a new {@link ScopeInfo} for {@code scope} under this jig,
      * installing both this jig's compiled config and the {@link ScopeInfo}'s back-reference
      * to this {@code JigInfo}. Throws {@code SatchelException.Generic} if a {@link ScopeInfo}
@@ -150,6 +172,7 @@ public final class JigInfo implements IJigConfigurable {
                             scope.debugName()
             );
         }
+        scopeInfosById.put(scope.uuid(), info);
 
         return info;
     }
@@ -171,6 +194,7 @@ public final class JigInfo implements IJigConfigurable {
                             ": " + scope.debugName()
             );
         }
+        scopeInfosById.remove(scope.uuid(), removed);
     }
 
     public Class<?> scopeType() {

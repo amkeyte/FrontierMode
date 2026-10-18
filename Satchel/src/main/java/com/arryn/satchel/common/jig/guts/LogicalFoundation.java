@@ -7,9 +7,11 @@ import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
+import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketTick;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.world.entity.Mob;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
@@ -125,6 +127,37 @@ public final class LogicalFoundation {
             if (d.owner() != null) sb.append(" | from ").append(d.owner());
         }
         OUT.info(sb.toString());
+    }
+
+    /**
+     * A mob left its level: every mob jig unloads its scope for it (and builds-then-unloads one for
+     * an admitted mob that had none), so its {@code Unloaded} handlers and {@code Leaving} Trinkets
+     * run with a reason. Called from Satchel's ingress for {@code EntityLeaveLevelEvent}, on the
+     * thread bound to this foundation.
+     */
+    public void mobLeft(Mob mob) {
+        for (JigInfo ji : orderedJigInfos) {
+            if (ji.jig instanceof MobJig mobJig) {
+                mobJig.onMobLeft(ji, mob);
+            }
+        }
+    }
+
+    /**
+     * Whether any mob jig on this side holds interest in {@code uuid} in its own list.
+     */
+    public boolean anyMobInterest(UUID uuid) {
+        return MobJig.anyInterested(this, uuid);
+    }
+
+    /**
+     * Resets every jig, in registration order: called when a server stops or a client logs out, so
+     * nothing a stopped world left in a jig reaches the next one.
+     */
+    public void reset() {
+        for (JigInfo ji : orderedJigInfos) {
+            ji.jig.reset(ji);
+        }
     }
 
     /**

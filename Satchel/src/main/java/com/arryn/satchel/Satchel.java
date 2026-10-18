@@ -10,6 +10,7 @@ import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.host.HostJigs;
+import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.Trinket;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -85,6 +86,25 @@ public final class Satchel {
 
     public static boolean isInstalled(LogicalSide side) {
         return FOUNDATIONS.containsKey(side);
+    }
+
+    /**
+     * The foundation installed for {@code side}, whichever thread asks, or empty if none is.
+     */
+    public static Optional<LogicalFoundation> foundationFor(LogicalSide side) {
+        return Optional.ofNullable(FOUNDATIONS.get(side));
+    }
+
+    /**
+     * The mob jig {@code key} names, on the side the calling thread is bound to: the instance whose
+     * interest API ({@code interest}, {@code scopeFor}, {@code lostInterest}, ...) a module calls.
+     * There is no side-free entry point, so a call introduces a mob into the one jig it is made on.
+     *
+     * @throws SatchelException.JigNotFound if the jig is not installed on this side
+     */
+    public static MobJig mobJig(JigKey<MobJig> key) {
+        Objects.requireNonNull(key, "key");
+        return (MobJig) require().requireJigInfo(key).jig;
     }
 
     /**

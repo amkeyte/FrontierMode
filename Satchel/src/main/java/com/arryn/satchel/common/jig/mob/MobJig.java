@@ -3,10 +3,14 @@ package com.arryn.satchel.common.jig.mob;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.ASatchelJig;
+import com.arryn.satchel.common.jig.guts.ForgeEgress;
 import com.arryn.satchel.common.jig.guts.JigInfo;
+import com.arryn.satchel.common.jig.guts.LeaveReason;
+import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
@@ -15,7 +19,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,20 +27,38 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * The fourth real jig kind (RM_SAT_021, "Frank") -- the mob/entity generalization of
- * {@code Scope}. Mirrors {@link com.arryn.satchel.common.jig.player.PlayerJig}'s shape for the
- * scope/config plumbing; the one genuinely new piece is {@link #reconcile}, since presence for a
- * tagged {@link Mob} must be actively re-verified rather than assumed from a Forge join/leave
- * event -- see Jig & Scope Runtime's MobJig section for the full design.
+ * The mob jig kind. The jig keeps the interest itself: a UUID entry for each mob a module cares
+ * about, whether or not the mob is in the level. When the mob is in the level the jig builds a scope
+ * for it, on request ({@link #scopeFor}, {@link #interest}) and by a per-tick sweep. When the mob
+ * leaves, the scope unloads, at once, and the interest stays. The module alone decides when to stop
+ * caring ({@link #lostInterest}).
+ *
+ * <p>
+ * A mob scope is a <i>live</i> scope: it exists only while its mob is in the level. Interest is
+ * explicit; no call registers it as a side effect. Satchel does the same thing for every leave and
+ * never acts on the {@link LeaveReason} it records.
+ *
+ * <p>
+ * The previous model, a polled {@link MobInterestRegistry} a module registers a supplier with, still
+ * runs beside this one until the modules that use it have moved: its introduction half keeps running
+ * (throttled), and either an entry in this jig's list or a registration there counts as interest.
+ * Its teardown half is gone: the leave event and a per-tick {@code isRemoved()} check unload scopes.
+ *
+ * <p>
+ * Design: Mob Interest in the Satchel wiki; the contract of {@link #scopeFor} is the Mob
+ * {@code scopeFor()} Contract.
  */
 public final class MobJig extends ASatchelJig<MobScope> {
 
-    // Roughly every 20 ticks, matching PlayerTrackingModule's own cadence precedent -- not a
-    // hard requirement, tunable once there's something real to measure against. One MobJig
-    // instance exists per compiled JigConfig (per JigKey), so this throttle is naturally scoped
-    // per-consumer, never shared/global.
-    private final TickThrottler throttler =
+    // The old registry's introduction poll runs roughly every 20 ticks. One MobJig instance exists per
+    // compiled JigConfig (per JigKey), so this throttle is naturally scoped per-consumer.
+    private final TickThrottler legacyPoll =
             new TickThrottler(20, new SchedulerClock.AutoClock());
+
+    private final InterestList<Level> interests = new InterestList<>();
+
+    /** The over-cap warning in a release run is repeated this often, not on every add. */
+    private static final int CAP_WARNING_EVERY = 50;
 
     public MobJig() {
     }
@@ -75,6 +96,319 @@ public final class MobJig extends ASatchelJig<MobScope> {
     }
 
     /* =============================================================
+     * The interest API
+     * ========================================================== */
+
+    /**
+     * Adds interest in {@code uuid}: from now on the jig builds a scope for this mob whenever it is
+     * in the level. If it is in the level now, the scope is built in this call and returned, with
+     * its Trinkets attached ({@code Loaded} has fired inside the call).
+     *
+     * <p>
+     * Idempotent. Past the jig's cap ({@code policies().maxInterest()}, default 500) a development
+     * run throws and a release run warns, naming the jig and a few UUIDs.
+     *
+     * @return the scope, or empty if the mob is not in the level (the sweep builds it when it is)
+     */
+    public Optional<MobScope> interest(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid");
+
+        if (interests.wouldExceed(uuid, policies().maxInterest())) {
+            overCap(uuid);
+        }
+        interests.add(uuid);
+
+        return scopeFor(uuid);
+    }
+
+    /**
+     * The scope of an interest-listed mob that is in the level, built now if it has none. Empty
+     * means "not usable right now", never an error: the foundation is not ready, the UUID is not
+     * admitted (nothing is registered as a side effect), or the mob is not in the level or is already
+     * removed. Idempotent. The returned scope is not a handle to hold across ticks: when the mob
+     * leaves, the scope unloads.
+     *
+     * <p>
+     * Must be called on a thread bound to this jig's side.
+     */
+    public Optional<MobScope> scopeFor(UUID uuid) {
+        return infoFor(uuid).map(info -> (MobScope) info.scope());
+    }
+
+    /**
+     * {@link #scopeFor} as the {@code ScopeInfo}, which is what a Trinket or a bundle lookup wants.
+     */
+    public Optional<ScopeInfo> infoFor(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid");
+
+        LogicalFoundation foundation = Satchel.peekFoundation();
+        if (foundation == null || !foundation.isReady()) return Optional.empty();
+
+        Optional<JigInfo> found = foundation.askJigInfo(jigKey());
+        if (found.isEmpty() || found.get().jig != this) return Optional.empty();
+        JigInfo info = found.get();
+
+        if (!admitsUuid(foundation, uuid)) return Optional.empty();
+
+        Optional<ScopeInfo> existing = info.scopeInfo(uuid);
+        if (existing.isPresent()) return existing;
+
+        return resolve(foundation, uuid).flatMap(mob -> introduce(info, mob));
+    }
+
+    /**
+     * The scope of {@code mob} if this jig admits it, built now if it has none: what a module
+     * event's resolver asks ({@code Scopes.of}). An admitted mob that is in the level always gets its
+     * scope, so an event for it is delivered even if it lands before the sweep has built the scope;
+     * a mob this jig does not admit is empty. Empty, too, when the foundation is not ready or the
+     * mob is already removed and has no scope.
+     */
+    public Optional<ScopeInfo> infoFor(Mob mob) {
+        Objects.requireNonNull(mob, "mob");
+
+        LogicalFoundation foundation = Satchel.peekFoundation();
+        if (foundation == null || !foundation.isReady()) return Optional.empty();
+
+        Optional<JigInfo> found = foundation.askJigInfo(jigKey());
+        if (found.isEmpty() || found.get().jig != this) return Optional.empty();
+
+        if (!admits(mob)) return Optional.empty();
+        return introduce(found.get(), mob);
+    }
+
+    /**
+     * Whether this jig admits {@code mob}: the resolver's gate, O(1) per jig. A mob is admitted
+     * whether or not it has a live scope.
+     */
+    public boolean admits(Mob mob) {
+        Objects.requireNonNull(mob, "mob");
+        UUID uuid = mob.getUUID();
+        return interests.contains(uuid) || legacyAdmits(mob.level(), uuid);
+    }
+
+    /**
+     * Whether {@code uuid} is on this jig's list. O(1).
+     */
+    public boolean isInterested(UUID uuid) {
+        return interests.contains(uuid);
+    }
+
+    /**
+     * Stops caring about {@code uuid}: idempotent, safe inside a handler, and effective at once. It
+     * does not unload a live scope; the scope lives until its mob leaves or is {@link #release}d,
+     * so a mob that dies mid-fight keeps its scope and its {@code Unloaded} handler runs the cleanup.
+     * Once the mob has left, nothing rebuilds it.
+     */
+    public void lostInterest(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid");
+        interests.remove(uuid);
+    }
+
+    /**
+     * Unloads the live scope of {@code uuid} now (it runs {@code Unloaded}, then {@code onLeave} and
+     * {@code onDetach} on each Trinket). The interest is unchanged, so the sweep rebuilds the scope
+     * if the mob is still in the level. An explicit unload, not a collection: scope lifetime is
+     * "admitted and present", never a function of how often it was requested.
+     */
+    public void release(UUID uuid) {
+        Objects.requireNonNull(uuid, "uuid");
+
+        LogicalFoundation foundation = Satchel.peekFoundation();
+        if (foundation == null) return;
+        Optional<JigInfo> found = foundation.askJigInfo(jigKey());
+        if (found.isEmpty() || found.get().jig != this) return;
+
+        JigInfo info = found.get();
+        info.scopeInfo(uuid).ifPresent(scope -> {
+            LeaveReason reason = scope.scope() instanceof MobScope mobScope
+                    ? LeaveReasons.of(mobScope.mob())
+                    : LeaveReason.UNKNOWN;
+            unload(info, scope, reason);
+        });
+    }
+
+    /**
+     * {@link #lostInterest} and {@link #release}.
+     */
+    public void drop(UUID uuid) {
+        lostInterest(uuid);
+        release(uuid);
+    }
+
+    /**
+     * How many mobs this jig holds interest in, for the dump and the cap.
+     */
+    public int interestCount() {
+        return interests.size();
+    }
+
+    /**
+     * A copy of the listed UUIDs.
+     */
+    public List<UUID> interestedUuids() {
+        return interests.snapshot();
+    }
+
+    /**
+     * Whether any mob jig on {@code foundation} holds interest in {@code uuid}: the gate for the
+     * death and removal signals, which also ask the old registry.
+     */
+    public static boolean anyInterested(LogicalFoundation foundation, UUID uuid) {
+        for (JigInfo info : foundation.jigInfos()) {
+            if (info.jig instanceof MobJig mobJig && mobJig.interests.contains(uuid)) return true;
+        }
+        return false;
+    }
+
+    private void overCap(UUID uuid) {
+        int cap = policies().maxInterest();
+        String message = "Mob jig " + jigKey().name + " would hold more than its cap of " + cap
+                + " interest entries (adding " + Ids.shortId(uuid) + "). A module is not calling "
+                + "lostInterest. Listed, for example: " + shortIds(interests.sample(5));
+
+        if (Satchel.isDevelopment()) {
+            throw new IllegalStateException(message);
+        }
+        if ((interests.size() - cap) % CAP_WARNING_EVERY == 0) {
+            OUT.warn("[MobJig] " + message);
+        }
+    }
+
+    private static String shortIds(List<UUID> uuids) {
+        List<String> out = new ArrayList<>();
+        for (UUID u : uuids) out.add(Ids.shortId(u));
+        return out.toString();
+    }
+
+    /* =============================================================
+     * Introduction
+     * ========================================================== */
+
+    /**
+     * Builds and loads the scope for {@code mob}, in the caller's call stack, and returns it.
+     * Idempotent through the UUID index. The scope is in the jig's list before {@code onScopeLoad}
+     * runs, so a {@code scopeFor} or {@code interest} call from an {@code onAttach} or a {@code
+     * Loaded} handler finds it and returns it rather than building a second one. When this returns,
+     * a normally loading scope is {@code LOADED} with its Trinkets attached.
+     */
+    private Optional<ScopeInfo> introduce(JigInfo info, Mob mob) {
+        Optional<ScopeInfo> existing = info.scopeInfo(mob.getUUID());
+        if (existing.isPresent()) return existing;
+        if (mob.isRemoved()) return Optional.empty();
+
+        return Optional.of(build(info, mob));
+    }
+
+    private ScopeInfo build(JigInfo info, Mob mob) {
+        ScopeInfo scopeInfo = info.addScope(new MobScope(mob), mob);
+        // Converge now: the readiness check, onScopeLoad (Trinkets attached), then Loaded. A mob jig's
+        // readiness is IMMEDIATE, so nothing waits for the next pulse. A scope the pulse finds already
+        // LOADED skips this branch.
+        handleExecutionPulse(scopeInfo);
+        return scopeInfo;
+    }
+
+    /**
+     * Looks {@code uuid} up through the egress: the level the mob was last seen in first, then the
+     * others. Empty unless it is a live, non-removed {@link Mob}.
+     */
+    private Optional<Mob> resolve(LogicalFoundation foundation, UUID uuid) {
+        ForgeEgress egress = foundation.egress();
+
+        Level hint = interests.hint(uuid);
+        if (hint != null) {
+            Optional<Mob> found = liveMob(egress.getEntity(hint, uuid));
+            if (found.isPresent()) return found;
+        }
+
+        for (Level level : egress.levels()) {
+            if (level == hint) continue;
+            Optional<Mob> found = liveMob(egress.getEntity(level, uuid));
+            if (found.isPresent()) {
+                interests.setHint(uuid, level);
+                return found;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static Optional<Mob> liveMob(Optional<Entity> entity) {
+        if (entity.isPresent() && entity.get() instanceof Mob mob && !mob.isRemoved()) {
+            return Optional.of(mob);
+        }
+        return Optional.empty();
+    }
+
+    private boolean admitsUuid(LogicalFoundation foundation, UUID uuid) {
+        return interests.contains(uuid) || legacyAdmits(foundation, null, uuid);
+    }
+
+    /* =============================================================
+     * Teardown
+     * ========================================================== */
+
+    /**
+     * A mob left its level (the {@code EntityLeaveLevelEvent}, from Satchel's ingress). Unloads this
+     * jig's scope for it. An admitted mob that leaves with no scope has one built, then unloaded, so
+     * {@code Unloaded} fires and {@code Leaving} is called with a reason for every admitted mob that
+     * was in the level. The interest is untouched.
+     *
+     * <p>
+     * A scope built for a different {@code Mob} object with the same UUID is left alone: that is the
+     * destination of a level change, not this leave.
+     */
+    public void onMobLeft(JigInfo info, Mob mob) {
+        Optional<ScopeInfo> existing = info.scopeInfo(mob.getUUID());
+
+        if (existing.isPresent()) {
+            ScopeInfo scopeInfo = existing.get();
+            if (scopeInfo.scope() instanceof MobScope mobScope && mobScope.mob() != mob) return;
+            unload(info, scopeInfo, LeaveReasons.of(mob));
+            return;
+        }
+
+        if (!admits(mob)) return;
+        unload(info, build(info, mob), LeaveReasons.of(mob));
+    }
+
+    /**
+     * Unloads {@code scopeInfo} for {@code reason}: records the reason where {@code Unloaded}
+     * handlers and {@code Leaving} Trinkets can read it, then the generic unload.
+     */
+    private void unload(JigInfo info, ScopeInfo scopeInfo, LeaveReason reason) {
+        if (scopeInfo.phase() == ScopeInfo.Phase.UNLOADING || scopeInfo.phase() == ScopeInfo.Phase.UNLOADED) {
+            return;
+        }
+
+        scopeInfo.setLeaveReason(reason);
+
+        if (scopeInfo.phase() == ScopeInfo.Phase.NEW) {
+            // Never loaded: no Loaded was posted and no Trinket attached, so there is nothing to
+            // unload, only a scope to forget.
+            info.removeScope(scopeInfo.scope());
+            return;
+        }
+
+        this.onUnload(scopeInfo);
+    }
+
+    /* =============================================================
+     * Reset
+     * ========================================================== */
+
+    /**
+     * Unloads every scope and clears the interest, so nothing outlives its world. The foundation
+     * calls this when a server stops or a client logs out.
+     */
+    @Override
+    public void reset(JigInfo info) {
+        for (ScopeInfo scopeInfo : new ArrayList<>(info.scopeInfos())) {
+            unload(info, scopeInfo, LeaveReason.UNKNOWN);
+        }
+        interests.clear();
+    }
+
+    /* =============================================================
      * Additive mob-kind signals (SAT_044)
      * ========================================================== */
 
@@ -107,52 +441,67 @@ public final class MobJig extends ASatchelJig<MobScope> {
     }
 
     /* =============================================================
-     * Poll-driven reconciliation
+     * Per-pulse work
      * ========================================================== */
 
     /**
-     * Poll-driven presence reconciliation -- called once per {@link JigInfo} per foundation pulse
-     * (see {@code FoundationLifecycleDispatcher.pulse()}), throttled to roughly every 20 ticks so
-     * it doesn't run every single pulse. Not a new Forge tick hook: it rides the existing
-     * {@code TickEvent.ServerTickEvent -> foundationLifecycle().pulse()} path every other jig
-     * kind already walks.
-     *
-     * <p>
-     * Two phases, both reason-agnostic by design (a chunk unload and a genuine removal are
-     * indistinguishable via {@link com.arryn.satchel.common.jig.guts.ForgeEgress#getEntity} and
-     * are treated identically):
+     * Called once per {@link JigInfo} per foundation pulse, in this jig's slot of the internal walk
+     * (see {@code FoundationLifecycleDispatcher.pulse()}). Three duties:
      * <ol>
-     *   <li>Introduce: for every UUID any registered {@link MobInterestSupplier} reports, resolve
-     *   it via {@code Satchel.require().egress().getEntity(level, uuid)} and introduce it if it
-     *   resolves to a live, non-removed {@link Mob}.</li>
-     *   <li>Tear down: any UUID this jig currently has a scope for that did not resolve this
-     *   cycle gets torn down.</li>
+     *   <li><b>Teardown check.</b> A live scope whose mob has been removed unloads, with the mob's
+     *   removal reason. Needs no lookup. The leave event unloads most scopes before this runs; this
+     *   is the backstop.</li>
+     *   <li><b>The sweep.</b> Each interest entry with no scope is tried against the levels, the
+     *   last level seen first, and a scope is built for a mob that is in the level. It builds scopes
+     *   for mobs no event touches, so their Trinkets tick, and catches a mob whose chunk's tracking
+     *   ended and restarted before the chunk unloaded and one that joined while its chunk was not
+     *   yet accessible. Every tick.</li>
+     *   <li><b>The old registry's introduction poll,</b> about every 20 ticks, for modules that
+     *   still register a supplier.</li>
      * </ol>
-     *
-     * <p>
-     * RM_SAT_022 ("Roger"): both phases used to cast to {@code ServerLevel} directly, which is
-     * why a {@code CLIENT}/{@code BOTH}-applicability consumer's scopes were torn down every
-     * cycle regardless of the mob's real state -- Phase 2's cast guard simply {@code continue}d
-     * for anything that wasn't a {@code ServerLevel}. Resolving through {@code ForgeEgress}
-     * instead fixes that as a consequence of unifying the mechanism, not a separate patch: a
-     * client-side scope now re-resolves through {@code ClientForgeEgress} exactly like a
-     * server-side one resolves through {@code ServerForgeEgress}.
      */
     @Override
     public void reconcile(JigInfo info) {
         Objects.requireNonNull(info, "info");
 
-        if (!throttler.allow()) {
-            return;
+        // A snapshot: unloading a scope removes it from the map this walk reads.
+        for (ScopeInfo scopeInfo : new ArrayList<>(info.scopeInfos())) {
+            if (scopeInfo.scope() instanceof MobScope mobScope && mobScope.mob().isRemoved()) {
+                unload(info, scopeInfo, LeaveReasons.of(mobScope.mob()));
+            }
         }
 
+        sweep(info);
+
+        if (legacyPoll.allow()) {
+            introduceFromRegistry(info);
+        }
+    }
+
+    private void sweep(JigInfo info) {
+        if (interests.size() == 0) return;
+
+        LogicalFoundation foundation = info.foundation();
+        for (UUID uuid : interests.snapshot()) {
+            // An entry lostInterest removed since the snapshot is no longer wanted.
+            if (!interests.contains(uuid) || info.hasScope(uuid)) continue;
+
+            resolve(foundation, uuid).ifPresent(mob -> introduce(info, mob));
+        }
+    }
+
+    /**
+     * The old model's introduction half: every UUID a registered {@link MobInterestSupplier} or
+     * {@link MobInterestPerLevel} reports that resolves to a live, non-removed {@link Mob} is
+     * introduced the way it always was, through the foundation, and so reaches every mob jig.
+     * Its teardown half is gone; the leave event does that now.
+     */
+    private void introduceFromRegistry(JigInfo info) {
         MobInterestSupplier supplier = MobInterestRegistry.get(info.key);
-        Map<Level, Set<UUID>> interests = supplier.interestedMobs();
+        Map<Level, Set<UUID>> registered = supplier.interestedMobs();
 
-        Set<UUID> resolvedThisCycle = new HashSet<>();
-
-        for (Map.Entry<Level, Set<UUID>> entry : interests.entrySet()) {
-            introduceResolvable(entry.getKey(), entry.getValue(), resolvedThisCycle);
+        for (Map.Entry<Level, Set<UUID>> entry : registered.entrySet()) {
+            introduceResolvable(entry.getKey(), entry.getValue());
         }
 
         // Per-level registration (SAT_098), beside the old form: asked once for each level this
@@ -160,85 +509,55 @@ public final class MobJig extends ASatchelJig<MobScope> {
         MobInterestPerLevel perLevel = MobInterestRegistry.getPerLevel(info.key);
         if (perLevel != null) {
             for (Level level : Satchel.require().egress().levels()) {
-                introduceResolvable(level, perLevel.interestedIn(level), resolvedThisCycle);
-            }
-        }
-
-        // Snapshot before tearing down: info.scopeInfos() is backed by JigInfo's own
-        // ConcurrentHashMap, and onUnload(...) below mutates that same map (via
-        // ScopeLifecycleDispatcher.signalScopeUnloaded -> JigInfo.removeScope). A snapshot keeps
-        // this pass's view stable instead of relying on weakly-consistent iteration semantics.
-        List<ScopeInfo> snapshot = new ArrayList<>(info.scopeInfos());
-
-        // Second chance for a scope the interest walk above never touched -- most notably one
-        // introduced via MobScope.getFor(), which deliberately bypasses the interest walk for
-        // its immediate-attachment guarantee (see mobscope-getfor.md). Without this pass, any
-        // such scope would be a teardown candidate on the very next cycle no matter how
-        // resolvable the mob still is, since resolvedThisCycle above only ever gets populated
-        // from registered interest -- confirmed wrong by real testing (SAT_035 log, 2026-08-22):
-        // a getFor'd scope was torn down about one throttle cycle after attaching, with the mob
-        // still standing right there, unmoved. So every currently-scoped UUID the interest walk
-        // didn't already reconfirm gets its own direct re-resolution here, via the same
-        // ForgeEgress mechanism Phase 1 uses -- reason-agnostic teardown still applies, it now
-        // just applies uniformly to every scoped mob, not only interest-backed ones.
-        //
-        // RM_SAT_022 ("Roger"): this used to guard with `instanceof ServerLevel`, `continue`-ing
-        // for anything else -- exactly why a client-scoped MobScope was torn down every cycle
-        // regardless of the mob's real state. mob().level() is already Level-typed (Entity's own
-        // field), so there is no cast to guard here anymore; ForgeEgress handles both sides.
-        for (ScopeInfo scopeInfo : snapshot) {
-            UUID scopedUuid = scopeInfo.scope().uuid();
-            if (resolvedThisCycle.contains(scopedUuid)) {
-                continue;
-            }
-            if (!(scopeInfo.scope() instanceof MobScope mobScope)) {
-                continue;
-            }
-            Level level = mobScope.mob().level();
-            Optional<Entity> reresolved = Satchel.require().egress().getEntity(level, scopedUuid);
-            if (reresolved.isPresent() && reresolved.get() instanceof Mob mob && !mob.isRemoved()) {
-                resolvedThisCycle.add(scopedUuid);
-            }
-        }
-
-        Set<UUID> currentlyScoped = new HashSet<>();
-        for (ScopeInfo scopeInfo : snapshot) {
-            currentlyScoped.add(scopeInfo.scope().uuid());
-        }
-
-        Set<UUID> teardowns =
-                MobReconcileLogic.computeTeardowns(resolvedThisCycle, currentlyScoped);
-
-        if (teardowns.isEmpty()) {
-            return;
-        }
-
-        for (ScopeInfo scopeInfo : snapshot) {
-            if (teardowns.contains(scopeInfo.scope().uuid())) {
-                // LogicalFoundation.tryRemoveSource can't be used here -- it re-resolves the
-                // scope from a live source object, and there is none once a UUID stops
-                // resolving. onUnload directly on the already-known ScopeInfo is the correct
-                // substitute: it drives ScopeLifecycleDispatcher.signalScopeUnloaded, which
-                // evicts the entry from JigInfo's own map -- no leaked ScopeInfo.
-                this.onUnload(scopeInfo);
+                introduceResolvable(level, perLevel.interestedIn(level));
             }
         }
     }
 
-    /**
-     * Phase 1 for one level's interest set: every UUID that resolves to a live, non-removed
-     * {@link Mob} is introduced and recorded in {@code resolved}.
-     */
-    private static void introduceResolvable(Level level, Set<UUID> uuids, Set<UUID> resolved) {
+    private static void introduceResolvable(Level level, Set<UUID> uuids) {
         for (UUID uuid : uuids) {
             Optional<Entity> entity = Satchel.require().egress().getEntity(level, uuid);
             if (entity.isPresent() && entity.get() instanceof Mob mob && !mob.isRemoved()) {
-                resolved.add(uuid);
-                // Idempotent via JigInfo.hasScope's existing guard -- safe to call every cycle
-                // even for a mob already scoped, same reliance MobScope.getFor has on this same
-                // guard.
+                // Idempotent via JigInfo.hasScope's existing guard -- safe to call every cycle even
+                // for a mob already scoped.
                 Satchel.require().introduceSource(mob);
             }
         }
+    }
+
+    /* =============================================================
+     * The old registry as interest
+     * ========================================================== */
+
+    /**
+     * Whether the old registry names {@code uuid} for this jig's key, in {@code level} (or in any
+     * level, if null).
+     */
+    private boolean legacyAdmits(Level level, UUID uuid) {
+        return legacyAdmits(Satchel.peekFoundation(), level, uuid);
+    }
+
+    private boolean legacyAdmits(LogicalFoundation foundation, Level level, UUID uuid) {
+        JigKey<MobJig> key = jigKey();
+
+        MobInterestSupplier supplier = MobInterestRegistry.get(key);
+        Map<Level, Set<UUID>> registered = supplier.interestedMobs();
+        if (level != null) {
+            Set<UUID> set = registered.get(level);
+            if (set != null && set.contains(uuid)) return true;
+        } else {
+            for (Set<UUID> set : registered.values()) {
+                if (set.contains(uuid)) return true;
+            }
+        }
+
+        MobInterestPerLevel perLevel = MobInterestRegistry.getPerLevel(key);
+        if (perLevel == null) return false;
+        if (level != null) return perLevel.interestedIn(level).contains(uuid);
+        if (foundation == null) return false;
+        for (Level each : foundation.egress().levels()) {
+            if (perLevel.interestedIn(each).contains(uuid)) return true;
+        }
+        return false;
     }
 }

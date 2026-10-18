@@ -1,0 +1,76 @@
+// ------------------------------------------------------------
+// World control for Satchel's dedicated server (run-server/<level-name>). Same tasks and options as
+// FrontierMode's build.gradle; kept as its own copy because Satchel must build without FrontierMode.
+//
+// Default behavior: the server keeps whatever world is already on disk -- nothing here changes that
+// unless you opt in.
+//   Fresh start:     ./gradlew runServer -PfreshWorld        (wipes the world, then starts)
+//   Reset only:      ./gradlew resetServerWorld
+//   Switch world:    ./gradlew runServer -PworldName=other [-Pseed=123]   (deletes nothing)
+//   Switch only:     ./gradlew setServerWorld -PworldName=other [-Pseed=123]
+// Applied from build.gradle via `apply from:`, so file()/tasks/logger resolve against Satchel.
+// ------------------------------------------------------------
+tasks.register('resetServerWorld') {
+    group = 'satchel'
+    description = "Deletes the dedicated server's world save so the next runServer starts fresh."
+
+    doLast {
+        def propsFile = project.file('run-server/server.properties')
+        def levelName = 'world'
+        if (propsFile.exists()) {
+            def props = new Properties()
+            propsFile.withInputStream { props.load(it) }
+            levelName = props.getProperty('level-name', 'world')
+        }
+        def worldDir = project.file("run-server/${levelName}")
+        if (worldDir.exists()) {
+            project.delete(worldDir)
+            logger.lifecycle("Deleted server world: ${worldDir}")
+        } else {
+            logger.lifecycle("No existing server world at ${worldDir} -- next runServer will generate fresh anyway.")
+        }
+    }
+}
+
+// Switch the dedicated server to a different world WITHOUT deleting the current one. Rewrites
+// level-name (and level-seed if -Pseed is given) in run-server/server.properties. The old world
+// folder is left untouched; switching back is just -PworldName=<old name>. A new name generates a
+// fresh world on first launch; an existing folder is loaded as-is. The change persists.
+tasks.register('setServerWorld') {
+    group = 'satchel'
+    description = "Points server.properties at -PworldName (optionally -Pseed) without deleting any world."
+
+    doLast {
+        if (!project.hasProperty('worldName')) {
+            throw new GradleException("setServerWorld needs -PworldName=<folder name>.")
+        }
+        def newName = project.property('worldName').toString().trim()
+        if (!(newName ==~ /[A-Za-z0-9_.\- ]+/) || newName.contains('..')) {
+            throw new GradleException("Invalid worldName '${newName}' -- use letters, digits, space, _ . - only.")
+        }
+        def propsFile = project.file('run-server/server.properties')
+        if (!propsFile.exists()) {
+            throw new GradleException("${propsFile} not found -- run the server once so it generates server.properties.")
+        }
+        def text = propsFile.getText('UTF-8')
+        text = text.replaceFirst(/(?m)^level-name=.*$/, java.util.regex.Matcher.quoteReplacement("level-name=${newName}"))
+        if (project.hasProperty('seed')) {
+            text = text.replaceFirst(/(?m)^level-seed=.*$/, java.util.regex.Matcher.quoteReplacement("level-seed=${project.property('seed')}"))
+        }
+        propsFile.setText(text, 'UTF-8')
+        def exists = project.file("run-server/${newName}").exists()
+        logger.lifecycle("Server world set to '${newName}' (${exists ? 'existing folder will be loaded' : 'new world will be generated'}).")
+    }
+}
+
+// -PfreshWorld together with -PworldName wipes the NEW target world, not the old one.
+tasks.named('resetServerWorld').configure { mustRunAfter tasks.named('setServerWorld') }
+
+tasks.matching { it.name == 'runServer' }.configureEach {
+    if (project.hasProperty('worldName')) {
+        dependsOn tasks.named('setServerWorld')
+    }
+    if (project.hasProperty('freshWorld')) {
+        dependsOn tasks.named('resetServerWorld')
+    }
+}

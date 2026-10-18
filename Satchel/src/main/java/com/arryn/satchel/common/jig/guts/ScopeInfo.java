@@ -38,6 +38,9 @@ public final class ScopeInfo implements IJigConfigurable, ContextKeyed {
     private Instant loadedAt;
     private Instant unloadedAt;
 
+    /** Why this scope unloaded; set only for a mob scope, before its {@code Unloaded} event. */
+    private LeaveReason leaveReason;
+
     private long lastExecutionPulse = -1;
     private long lastJigTick = -1;
 
@@ -130,6 +133,22 @@ public final class ScopeInfo implements IJigConfigurable, ContextKeyed {
         if (next == Phase.UNLOADED) {
             unloadedAt = Instant.now();
         }
+    }
+
+    /**
+     * Why this scope is unloading, or null if it is not (yet) or its kind has no reason. Set by the
+     * mob jig before {@code ScopeEvent.Unloaded} fires, so an {@code Unloaded} handler can read it;
+     * advisory (see {@link LeaveReason}).
+     */
+    public LeaveReason leaveReason() {
+        return leaveReason;
+    }
+
+    /**
+     * Records why this scope is unloading. Satchel's mob jig calls this; module code does not.
+     */
+    public void setLeaveReason(LeaveReason reason) {
+        this.leaveReason = Objects.requireNonNull(reason, "reason");
     }
 
     public boolean isReady() {

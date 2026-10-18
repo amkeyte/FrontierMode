@@ -113,7 +113,13 @@ public final class MobScope extends ASatchelScope implements PersistStitch {
      * further to retry synchronously -- a mob that becomes resolvable later is the poll's job to
      * pick up, not this call's. The returned {@code MobScope} is not a handle safe to hold across
      * ticks; once a mob's chunk becomes unresolvable, the poll tears the scope down.
+     *
+     * @deprecated a shim until FrontierMode's callers move. It is jig-agnostic: it introduces the
+     *             mob into every mob jig and registers no interest. Hold interest in the jig that
+     *             owns the mob ({@code Satchel.mobJig(key).interest(uuid)}) and ask {@code
+     *             scopeFor(uuid)}; the mob leaving, not a poll, unloads the scope.
      */
+    @Deprecated
     public static Optional<MobScope> getFor(Mob mob) {
         Objects.requireNonNull(mob, "mob");
 

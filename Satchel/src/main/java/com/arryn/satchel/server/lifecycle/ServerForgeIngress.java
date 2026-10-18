@@ -52,6 +52,7 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;
@@ -143,6 +144,13 @@ public final class ServerForgeIngress {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent e) {
         TunableManager.save();
+
+        // Every jig resets as the server begins to stop, while its levels and storage are still up, so
+        // a mob scope's Unloaded handlers and terminal flush run against a live world and nothing a
+        // stopped world held reaches the next integrated session (SAT_122). Before this, a stopped
+        // server left its mob scopes in the jig, because the poll that would clear them had stopped.
+        BOOTER.bindFoundation();
+        Satchel.foundationFor(LogicalSide.SERVER).ifPresent(LogicalFoundation::reset);
     }
 
     /* =============================================================
@@ -359,7 +367,9 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         UUID uuid = e.getEntity().getUUID();
-        if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)) return;
+        // Interest is either form: the old registry, or an entry in a mob jig's own list.
+        if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)
+                && !Satchel.require().anyMobInterest(uuid)) return;
 
         OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
@@ -389,7 +399,8 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         UUID uuid = entity.getUUID();
-        if (!MobInterestRegistry.isAnyInterested(e.getLevel(), uuid)) return;
+        if (!MobInterestRegistry.isAnyInterested(e.getLevel(), uuid)
+                && !Satchel.require().anyMobInterest(uuid)) return;
 
         Entity.RemovalReason reason = entity.getRemovalReason();
         if (reason == null) {
@@ -400,6 +411,22 @@ public final class ServerForgeIngress {
 
         OUT.debug("[MobRemoved] posting for " + Ids.shortId(uuid) + " reason=" + reason);
         Satchel.require().eventBus().post(new MobRemoved(e.getLevel(), uuid, entity, reason));
+    }
+
+    /**
+     * Unloads a mob's scope the moment the mob leaves its level (SAT_123): whatever the reason, a
+     * kill, a chunk unload, a level change, and with the interest left as it is. Replaces the
+     * teardown half of the old reconcile poll. A separate handler from {@link #onEntityLeaveLevel}
+     * and at LOW priority, so the {@link MobRemoved} signal posts first and its consumers still find
+     * the scope they were tracking, as they did when teardown trailed by a poll cycle.
+     */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onMobLeaveScopes(EntityLeaveLevelEvent e) {
+        if (e.getLevel().isClientSide()) return;
+        if (!(e.getEntity() instanceof Mob mob)) return;
+        if (!Satchel.isReady()) return;
+
+        Satchel.require().mobLeft(mob);
     }
 
     /* =============================================================

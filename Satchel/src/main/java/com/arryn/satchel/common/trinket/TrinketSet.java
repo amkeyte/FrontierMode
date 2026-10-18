@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.trinket;
 
+import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 
 import java.util.ArrayList;
@@ -65,6 +66,16 @@ public final class TrinketSet {
     }
 
     /**
+     * Tells each {@link Leaving} Trinket why the scope is unloading, in declaration order, ahead of
+     * {@link #detachAll}.
+     */
+    public void leaveAll(ScopeInfo info, LeaveReason reason) {
+        for (Slot s : slots.values()) {
+            if (s.trinket() instanceof Leaving leaving) leaving.onLeave(info, reason);
+        }
+    }
+
+    /**
      * Puts every {@link Ticking} Trinket in the foundation's global list. They first run in the next
      * tick, since a tick walks a snapshot taken before this call.
      */
@@ -109,6 +120,7 @@ public final class TrinketSet {
     public static List<String> abilitiesOf(Trinket trinket) {
         List<String> out = new ArrayList<>();
         if (trinket instanceof Ticking) out.add("Ticking");
+        if (trinket instanceof Leaving) out.add("Leaving");
         return out;
     }
 }

@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.trinket;
 
+import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.SatchelException;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 
@@ -16,8 +17,8 @@ import java.util.stream.Collectors;
  * tracked mob subscribes the behaviors it wants.
  *
  * <ul>
- *   <li><b>Fan-out.</b> The host forwards {@code onAttach} and {@code onDetach} to its subscribers
- *   in subscription order. A subscriber that implements {@link Ticking} is not ticked by the host: it
+ *   <li><b>Fan-out.</b> The host forwards {@code onAttach}, {@code onDetach} and, for a mob scope,
+ *   {@code onLeave} (to subscribers that implement {@link Leaving}) in subscription order. A subscriber that implements {@link Ticking} is not ticked by the host: it
  *   is its own entry in the foundation's global, sorted list ({@link TrinketTick}), with the {@code
  *   order} it subscribed with, so it runs where that order puts it.</li>
  *   <li><b>Subscribing to a loaded scope</b> attaches the subscriber at once. A subscriber added in
@@ -41,7 +42,7 @@ import java.util.stream.Collectors;
  * Used from the thread of the scope's own side, like every Trinket. <b>Unstable:</b> see {@link
  * Trinket}.
  */
-public final class DynamicTrinket implements Trinket {
+public final class DynamicTrinket implements Trinket, Leaving {
 
     private enum Phase {NEW, ATTACHED, DETACHING, DETACHED}
 
@@ -179,6 +180,21 @@ public final class DynamicTrinket implements Trinket {
             for (Subscriber s : new ArrayList<>(subscribers)) {
                 checkTicking(s.trinket);
                 attach(s);
+            }
+        });
+    }
+
+    /**
+     * Forwards why a mob scope is unloading to the attached subscribers that implement {@link
+     * Leaving}, in subscription order, before this host's own {@link #onDetach}.
+     */
+    @Override
+    public void onLeave(ScopeInfo info, LeaveReason reason) {
+        fanOut(() -> {
+            for (Subscriber s : new ArrayList<>(subscribers)) {
+                if (s.state == State.ATTACHED && s.trinket instanceof Leaving leaving) {
+                    leaving.onLeave(info, reason);
+                }
             }
         });
     }

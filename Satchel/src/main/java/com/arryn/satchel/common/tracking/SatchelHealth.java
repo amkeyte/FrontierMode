@@ -103,6 +103,10 @@ public final class SatchelHealth {
      */
     public static void onServerAboutToStart() {
         STATES.clear();
+
+        // If an earlier server ran and stopped in this JVM, nothing of its mob scopes or interest may
+        // have carried over.
+        MobHealthCheck.checkNothingCarriedOver();
     }
 
     /**
@@ -193,6 +197,7 @@ public final class SatchelHealth {
         TrinketHealthCheck.register();
         HostHealthCheck.register();
         RegistrationHealthCheck.register();
+        ModuleEventHealthCheck.register();
     }
 
     // =================================================================

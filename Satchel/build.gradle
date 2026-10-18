@@ -266,3 +266,6 @@ tasks.register('release', Copy) {
 tasks.matching { it.name == 'runServer' }.configureEach {
     standardInput = System.in
 }
+
+// World control for the dedicated server (reset / switch world) -- see gradle/server-world.gradle
+apply from: 'gradle/server-world.gradle'

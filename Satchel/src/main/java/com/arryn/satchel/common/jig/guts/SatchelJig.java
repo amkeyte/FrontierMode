@@ -74,6 +74,19 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
     }
 
     /**
+     * Clears this jig of anything that must not outlive its world, called by the foundation when a
+     * server stops or a client logs out (an integrated server starts and stops many times inside one
+     * JVM, so nothing a stopped world left behind may reach the next). The default does nothing
+     * beyond what scope unload already does: level and player scopes unload with their level and
+     * their login. A mob jig unloads its scopes and clears its interest.
+     *
+     * @param info the {@code JigInfo} this jig kind is compiled into for this side
+     */
+    default void reset(JigInfo info) {
+        // no-op
+    }
+
+    /**
      * Get a bundle that must already exist for {@code scope} under this jig. Throws {@code
      * SatchelException.BundleNotFound} if it hasn't been created yet -- see {@link
      * #getOrCreate} for the create-on-demand variant. Delegates to this jig's own {@link

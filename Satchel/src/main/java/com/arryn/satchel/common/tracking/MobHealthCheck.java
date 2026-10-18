@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * MobJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
@@ -139,11 +140,12 @@ final class MobHealthCheck {
     }
 
     /**
-     * A {@link MobScope} that reaches teardown with its backing {@link Mob#isRemoved()} still
-     * {@code false} has been torn down for a reason other than the two MobJig's reason-agnostic
-     * contract allows (chunk unload, genuine removal -- both set {@code isRemoved()} true by
-     * construction). That is exactly the shape of the latent client-side bug RM_SAT_022
-     * documents and exists to fix.
+     * A mob scope unloads on its mob's leave event, which can come while {@link Mob#isRemoved()} is
+     * still {@code false}: a chunk's tracking ends before the removal is recorded. So the old rule,
+     * "torn down while the mob is still present", is not a violation any more. The invariant is the
+     * leak: see {@link #onMobScopeTick}. This handler counts the unload, forgets the leak counter, and
+     * logs the reason the scope carried, which is how a real chunk unload's reason (UNLOADED or
+     * UNKNOWN) is found.
      */
     private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
         ScopeInfo info = event.info();
@@ -154,37 +156,45 @@ final class MobHealthCheck {
 
         var jig = info.jigInfo().jig;
         MobScope scope = (MobScope) info.scope();
-        Mob mob = scope.mob();
         LogicalSide side = Satchel.require().side();
 
         jig.ask(info.scope(), MOB_BUNDLE)
                 .flatMap(b -> b.get(MOB_TRACKER))
                 .ifPresent(TrackerFixture::countUnloaded);
 
-        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side);
+        ABSENT.remove(side + ":" + scope.uuid());
 
-        if (!mob.isRemoved()) {
-            String message = "[SatchelHealth] VIOLATION: MobScope torn down on side=" + side
-                    + " while its backing mob is still present (isRemoved()=false). "
-                    + "mob=" + mob.getType() + " uuid=" + Ids.shortId(scope.uuid())
-                    + " -- this is the RM_SAT_022 latent teardown bug (or a new regression of the "
-                    + "same shape) caught live. See SAT_039 / RM_SAT_022 before treating this as "
-                    + "a surprise.";
-            OUT.error(message);
-            throw new IllegalStateException(message);
-        }
+        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side
+                + " reason=" + info.leaveReason());
 
         // Checkpoint, not routine noise -- specifically the canary's own teardown, not every
         // ambient mob real gameplay happens to put under tracking (those stay .debug above,
         // same as load -- a busy server can tear down many ordinary tracked mobs per minute).
         if (isCanary(scope)) {
             OUT.info(
-                    "[SatchelHealth] MobJig canary teardown check passed: side=" + side
+                    "[SatchelHealth] MobJig canary unloaded: side=" + side
                             + " uuid=" + Ids.shortId(scope.uuid())
+                            + " reason=" + info.leaveReason()
+                            + " mobRemoved=" + scope.mob().isRemoved()
             );
         }
     }
 
+    /**
+     * Mob scopes the leak check is counting against: {@code side:uuid} to how many checks in a row
+     * found the mob absent from the lookup.
+     */
+    private static final Map<String, Integer> ABSENT = new ConcurrentHashMap<>();
+
+    /** The leak check runs every this many ticks, and a scope is leaked after this many misses. */
+    private static final int LEAK_CHECK_EVERY = 10;
+    private static final int LEAK_MISSES = 3;
+
+    /**
+     * Counts the tick, and runs the leak invariant: a scope alive after its mob has been absent from
+     * the lookup for more than a few ticks. A scope unloads on its mob's leave event or once the mob
+     * is removed, so one still alive while the lookup can no longer find its mob has missed both.
+     */
     private static void onMobScopeTick(ScopeEvent.Tick event) {
         ScopeInfo info = event.info();
 
@@ -198,6 +208,54 @@ final class MobHealthCheck {
         jig.ask(info.scope(), MOB_BUNDLE)
                 .flatMap(b -> b.get(MOB_TRACKER))
                 .ifPresent(TrackerFixture::countExternalTick);
+
+        if (info.jigInfo().trinketTick().tickNumber() % LEAK_CHECK_EVERY != 0) {
+            return;
+        }
+
+        LogicalSide side = info.jigInfo().side();
+        String key = side + ":" + scope.uuid();
+        Mob mob = scope.mob();
+        boolean present = info.jigInfo().foundation().egress().getEntity(mob.level(), scope.uuid()).isPresent();
+        if (present) {
+            ABSENT.remove(key);
+            return;
+        }
+
+        int misses = ABSENT.merge(key, 1, Integer::sum);
+        if (misses > LEAK_MISSES) {
+            SatchelHealth.violation("[SatchelHealth] VIOLATION: MobScope leaked on side=" + side
+                    + ": its mob " + mob.getType() + " " + Ids.shortId(scope.uuid()) + " has been absent from "
+                    + "the lookup for " + (misses * LEAK_CHECK_EVERY) + "+ ticks and the scope is still alive "
+                    + "(isRemoved()=" + mob.isRemoved() + "). A scope unloads on its mob's leave event or "
+                    + "once the mob is removed; this one missed both.");
+        }
+    }
+
+    /**
+     * The reset check: when a server starts after another stopped in this JVM, no mob scope and no
+     * interest may have been carried over. Called as the new server is about to start; the foundation
+     * is reset as the previous one stopped.
+     */
+    static void checkNothingCarriedOver() {
+        Satchel.foundationFor(LogicalSide.SERVER).ifPresent(foundation -> {
+            int scopes = 0;
+            int interests = 0;
+            for (var ji : foundation.jigInfos()) {
+                if (ji.jig instanceof MobJig mobJig) {
+                    scopes += ji.scopeInfos().size();
+                    interests += mobJig.interestCount();
+                }
+            }
+            if (scopes != 0 || interests != 0) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: a new server is starting with " + scopes
+                        + " mob scope(s) and " + interests + " interest entr(ies) carried over from the last one."
+                        + " The foundation resets every jig as a server stops.");
+                return;
+            }
+            OUT.info("[SatchelHealth] Reset check passed: no mob scope or interest was carried over into the "
+                    + "new server");
+        });
     }
 
     // =================================================================
