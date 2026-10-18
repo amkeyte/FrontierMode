@@ -14,18 +14,32 @@ import java.util.Optional;
  * order. Built and driven by {@code AScopeCoupler}; module code never sees one.
  *
  * <p>
- * Nothing here catches: a Trinket that throws propagates to the caller, by design.
+ * The set attaches and detaches its Trinkets and registers the {@link Ticking} ones with the
+ * foundation's {@link TrinketTick}, which runs them. Nothing here catches: a Trinket that throws
+ * propagates to the caller, by design.
  */
 public final class TrinketSet {
 
-    private final Map<Class<? extends Trinket>, Trinket> trinkets = new LinkedHashMap<>();
-    private final List<Ticking> tickers = new ArrayList<>();
+    /**
+     * One held Trinket with what its declaration gave it.
+     *
+     * @param declIndex the position of its declaration among those that apply on this side
+     * @param owner     the module that contributed it to a host jig, or null for a jig's own
+     *                  declaration
+     */
+    public record Slot(Class<? extends Trinket> type, Trinket trinket, int order, int declIndex, String owner) {
+    }
+
+    private final Map<Class<? extends Trinket>, Slot> slots = new LinkedHashMap<>();
+    private final List<TrinketTick.Entry> entries = new ArrayList<>();
 
     /**
-     * Constructs every declared Trinket, attaching none yet.
+     * Constructs every Trinket in {@code decls}, attaching none yet. The caller passes the
+     * declarations that apply on its side, in declaration order.
      */
     public static TrinketSet construct(List<TrinketDecl<?>> decls) {
         TrinketSet set = new TrinketSet();
+        int declIndex = 0;
         for (TrinketDecl<?> decl : decls) {
             Trinket t = decl.factory().get();
             if (t == null) {
@@ -37,34 +51,56 @@ public final class TrinketSet {
                         "Trinket factory for " + decl.type().getName() + " returned a "
                                 + t.getClass().getName());
             }
-            set.trinkets.put(decl.type(), t);
-            if (t instanceof Ticking ticking) set.tickers.add(ticking);
+            set.slots.put(decl.type(), new Slot(decl.type(), t, decl.order(), declIndex++, decl.owner()));
         }
         return set;
     }
 
     public void attachAll(ScopeInfo info) {
-        for (Trinket t : trinkets.values()) t.onAttach(info);
+        for (Slot s : slots.values()) s.trinket().onAttach(info);
     }
 
     public void detachAll(ScopeInfo info) {
-        for (Trinket t : trinkets.values()) t.onDetach(info);
+        for (Slot s : slots.values()) s.trinket().onDetach(info);
     }
 
-    public void tickBefore(ScopeInfo info) {
-        for (Ticking t : tickers) t.onTickBefore(info);
+    /**
+     * Puts every {@link Ticking} Trinket in the foundation's global list. They first run in the next
+     * tick, since a tick walks a snapshot taken before this call.
+     */
+    public void registerTicking(ScopeInfo info, TrinketTick tick) {
+        for (Slot s : slots.values()) {
+            if (s.trinket() instanceof Ticking ticking) {
+                entries.add(tick.add(info, ticking, s.order(), s.declIndex(), 0L));
+            }
+        }
     }
 
-    public void tickAfter(ScopeInfo info) {
-        for (Ticking t : tickers) t.onTickAfter(info);
+    /**
+     * Takes this set's Trinkets, and the ticking subscribers of a {@link DynamicTrinket} it holds,
+     * out of the global list. A tick already running skips them from its next call, and never runs
+     * one after this returns.
+     */
+    public void retireTicking() {
+        for (TrinketTick.Entry e : entries) e.retire();
+        entries.clear();
+        for (Slot s : slots.values()) {
+            if (s.trinket() instanceof DynamicTrinket host) host.retireSubscribers();
+        }
     }
 
     public <T extends Trinket> Optional<T> get(Class<T> type) {
-        return Optional.ofNullable(trinkets.get(type)).map(type::cast);
+        return Optional.ofNullable(slots.get(type)).map(s -> type.cast(s.trinket()));
     }
 
     public List<Trinket> all() {
-        return Collections.unmodifiableList(new ArrayList<>(trinkets.values()));
+        List<Trinket> out = new ArrayList<>(slots.size());
+        for (Slot s : slots.values()) out.add(s.trinket());
+        return Collections.unmodifiableList(out);
+    }
+
+    public List<Slot> slots() {
+        return List.copyOf(slots.values());
     }
 
     /**

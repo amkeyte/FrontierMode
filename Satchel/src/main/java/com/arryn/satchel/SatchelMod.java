@@ -1,6 +1,7 @@
 package com.arryn.satchel;
 
 import com.arryn.satchel.common.config.SatchelConfig;
+import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tunable.TunableManager;
@@ -70,6 +71,10 @@ public class SatchelMod {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
+            // The level and player host jigs, which modules contribute Trinkets to. Registered
+            // first so they come first in the jig walk.
+            HostJigs.register();
+
             // SAT_039/SAT_040/SAT_060 -- SatchelHealth is the single registration point for
             // every jig kind's health check: MobJig, LevelJig (both sideApplicability BOTH), and
             // PlayerJig (stays SERVER -- PlayerScope has no client-side existence to widen

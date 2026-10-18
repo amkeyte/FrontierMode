@@ -4,16 +4,19 @@ import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.*;
+import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Default {@link ScopeCoupler} implementation every real coupler ({@code
@@ -159,12 +162,17 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         // Every declared Trinket is constructed first, then attached in declaration order, so a
         // sibling always exists during onAttach. The set is registered before attaching so a
         // sibling lookup from inside onAttach resolves.
-        List<TrinketDecl<?>> decls = bundles().trinkets();
+        List<TrinketDecl<?>> decls = declaredFor(info);
         if (decls.isEmpty()) return;
 
         TrinketSet set = TrinketSet.construct(decls);
         trinkets.put(info, set);
         set.attachAll(info);
+
+        // Ticking Trinkets join the foundation's global list once attached, so one whose attach
+        // threw never ticks. The tick under way, if any, has its snapshot already: they first run
+        // in the next one.
+        set.registerTicking(info, info.jigInfo().trinketTick());
     }
 
     @Override
@@ -184,17 +192,46 @@ public abstract class AScopeCoupler implements ScopeCoupler {
 
         if (!execution().lifecycle().participatesInTick()) return;
 
+        // The scope's internal tick only: Trinkets run in the foundation's global steps around the
+        // walk this belongs to, in TrinketTick's order.
         beforeTick(info);
-        TrinketSet set = trinkets.get(info);
-        if (set != null) set.tickBefore(info);
         engine().onJigTick(info);
-        if (set != null) set.tickAfter(info);
         afterTick(info);
+    }
+
+    @Override
+    public final void tickTrinketBefore(ScopeInfo info, Ticking trinket) {
+        if (mayTick(info, trinket)) trinket.onTickBefore(info);
+    }
+
+    @Override
+    public final void tickTrinketAfter(ScopeInfo info, Ticking trinket) {
+        if (mayTick(info, trinket)) trinket.onTickAfter(info);
+    }
+
+    /**
+     * The gate every call in the global Trinket list goes through: the jig's tick policy, then this
+     * coupler's readiness for the scope, then the Trinket's own.
+     */
+    private boolean mayTick(ScopeInfo info, Ticking trinket) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(trinket, "trinket");
+        requireConfig();
+
+        return execution().lifecycle().participatesInTick()
+                && isReady(info)
+                && trinket.isReady(info);
     }
 
     @Override
     public void onScopeUnload(ScopeInfo info) {
         requireConfig();
+
+        // First, before anything can throw: a tick under way must never run a Trinket whose scope
+        // is unloading.
+        TrinketSet unloading = trinkets.get(info);
+        if (unloading != null) unloading.retireTicking();
+
         requireReady(info);
 
         beforeUnload(info);
@@ -227,7 +264,17 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     @Override
     public final boolean declaresTrinket(Class<? extends Trinket> type) {
         requireConfig();
-        return bundles().trinkets().stream().anyMatch(d -> d.type() == type);
+        return trinketsConfig.declarations().stream().anyMatch(d -> d.type() == type);
+    }
+
+    /**
+     * The declarations this scope gets: the jig's, minus any contributed for the other side.
+     */
+    private List<TrinketDecl<?>> declaredFor(ScopeInfo info) {
+        LogicalSide side = info.jigInfo().side();
+        return trinketsConfig.declarations().stream()
+                .filter(d -> d.appliesTo(side))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -236,24 +283,26 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         Objects.requireNonNull(type, "type");
         requireConfig();
 
-        if (!declaresTrinket(type)) {
+        if (declaredFor(info).stream().noneMatch(d -> d.type() == type)) {
             throw new SatchelException.Generic(
-                    "Jig " + debugName() + " does not declare Trinket " + type.getName());
+                    "Jig " + debugName() + " does not declare Trinket " + type.getName()
+                            + " on side " + info.jigInfo().side());
         }
 
         if (!isReady(info)) return Optional.empty();
 
-        // The Trinket's existence is the readiness answer: before onScopeLoad has attached the
-        // set, there is nothing to return.
+        // Before onScopeLoad has attached the set, there is nothing to return. Once it has, the
+        // Trinket exists, but until its own isReady says so, a lookup answers empty.
         TrinketSet set = trinkets.get(info);
-        return set == null ? Optional.empty() : set.get(type);
+        if (set == null) return Optional.empty();
+        return set.get(type).filter(t -> t.isReady(info));
     }
 
     @Override
-    public final List<Trinket> trinkets(ScopeInfo info) {
+    public final List<TrinketSet.Slot> trinkets(ScopeInfo info) {
         Objects.requireNonNull(info, "info");
         TrinketSet set = trinkets.get(info);
-        return set == null ? List.of() : set.all();
+        return set == null ? List.of() : set.slots();
     }
 
     // ---------------------------------------------------------------------
@@ -355,6 +404,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     private JigExecutionConfig execution;
     private JigPoliciesConfig policies;
     private JigBundlesConfig<?> bundles;
+    private JigTrinketsConfig trinketsConfig;
 
     @Override
     public void installJigConfig(CompiledJigConfig config) {
@@ -362,6 +412,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         execution = config.execution();
         policies = config.policies();
         bundles = config.bundles();
+        trinketsConfig = config.trinkets();
     }
 
     protected final void requireConfig() {

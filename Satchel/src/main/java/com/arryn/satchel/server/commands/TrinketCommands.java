@@ -47,11 +47,15 @@ public final class TrinketCommands {
         List<String> lines = new ArrayList<>();
         for (JigInfo ji : Satchel.require().jigInfos()) {
             for (ScopeInfo info : ji.scopeInfos()) {
-                for (Trinket t : ji.coupler().trinkets(info)) {
+                for (TrinketSet.Slot slot : ji.coupler().trinkets(info)) {
+                    Trinket t = slot.trinket();
                     String abilities = TrinketSet.abilitiesOf(t).toString();
                     String describe = t.describe();
                     lines.add(ji.key.name + " | " + info.debugName() + " | "
                             + t.getClass().getSimpleName() + " " + abilities
+                            + " | order " + slot.order()
+                            + (slot.owner() == null ? "" : " | from " + slot.owner())
+                            + (t.isReady(info) ? "" : " | not ready")
                             + (describe.isEmpty() ? "" : " | " + describe));
                 }
             }

@@ -26,6 +26,7 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
     private final Bundles bundles = new Bundles();
     private final Policies policies = new Policies();
     private final Execution execution = new Execution();
+    private final Trinkets trinkets = new Trinkets();
 
     public PlayerJigConfig(JigKey<? extends SatchelJig<PlayerScope>> key) {
         super(key);
@@ -68,8 +69,6 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
         // Execution
         // -------------------------------------------------
         p.execution.lifecycle = PlayerJigLifecycle.VALUE;
-        p.execution.executionPriority = JigPolicies.ExecutionPriority.NORMAL;
-        p.execution.tickOrder = JigPolicies.TickOrder.UNORDERED;
 
         // -------------------------------------------------
         // Policies
@@ -110,6 +109,11 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
         return execution;
     }
 
+    @Override
+    public JigTrinketsConfig trinkets() {
+        return trinkets;
+    }
+
     private final class Binding
             extends JigBindingConfig<PlayerScope, Player> {
 
@@ -143,6 +147,15 @@ public class PlayerJigConfig extends JigConfig<PlayerScope, Player> {
         @Override
         protected Presets presets() {
             return PlayerJigConfig.this.presets().execution;
+        }
+    }
+
+    private final class Trinkets
+            extends JigTrinketsConfig {
+
+        @Override
+        protected Presets presets() {
+            return PlayerJigConfig.this.presets().trinkets;
         }
     }
 

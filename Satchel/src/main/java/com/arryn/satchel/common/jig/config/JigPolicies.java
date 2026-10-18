@@ -26,14 +26,6 @@ public final class JigPolicies {
         ALWAYS, ON_DEMAND, NEVER
     }
 
-    public enum ExecutionPriority {
-        LOW, NORMAL, HIGH
-    }
-
-    public enum TickOrder {
-        UNORDERED, BEFORE_BUNDLES, AFTER_BUNDLES
-    }
-
     public enum SideApplicability {
         CLIENT, SERVER, BOTH
     }

@@ -6,7 +6,9 @@ import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 
+import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.Trinket;
+import com.arryn.satchel.common.trinket.TrinketSet;
 
 import java.util.List;
 import java.util.Optional;
@@ -182,7 +184,21 @@ public interface ScopeCoupler extends IJigConfigurable {
     <T extends Trinket> Optional<T> trinket(ScopeInfo info, Class<T> type);
 
     /**
-     * Every Trinket this scope currently holds, in declaration order; empty if none attached.
+     * Every Trinket this scope currently holds, with its {@code order}, in declaration order; empty
+     * if none attached. Not readiness-gated: this is the view {@code /satchel trinkets} prints.
      */
-    List<Trinket> trinkets(ScopeInfo info);
+    List<TrinketSet.Slot> trinkets(ScopeInfo info);
+
+    /**
+     * Runs {@code trinket}'s {@code onTickBefore} for this scope, if it may run: the jig participates
+     * in tick, the scope is ready under this coupler, and the Trinket's own {@link Trinket#isReady}
+     * is true. Otherwise a no-op. Called from the foundation's global Trinket list, not from the
+     * coupler's own tick.
+     */
+    void tickTrinketBefore(ScopeInfo info, Ticking trinket);
+
+    /**
+     * The after-step counterpart of {@link #tickTrinketBefore}.
+     */
+    void tickTrinketAfter(ScopeInfo info, Ticking trinket);
 }

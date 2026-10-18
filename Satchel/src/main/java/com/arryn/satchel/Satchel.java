@@ -6,6 +6,8 @@ import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.jig.config.JigConfig;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
+import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.trinket.Trinket;
 import net.minecraftforge.fml.LogicalSide;
 
@@ -13,6 +15,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Primary public access point for Satchel.
@@ -119,6 +122,45 @@ public final class Satchel {
 
     public static void registerJigConfig(JigConfig<?, ?> config) {
         JigConfigCompiler.register(config);
+    }
+
+    /**
+     * Contributes a Trinket to the <b>level host</b> -- a Satchel-owned jig with no bundles -- so a
+     * module with no jig of its own gets per-level runtime behavior and a tick. For every ready level
+     * scope on {@code side}, Satchel creates the Trinket and drops it at unload. Call at mod init: the
+     * set freezes when the jig configs compile, and a later call throws.
+     *
+     * <p>
+     * Look it up with {@code Satchel.trinket(HostJigs.LEVEL_HOST, levelScope, type)}. Existence says
+     * only that the level scope is ready, so a Trinket that depends on a module's own bundles gates
+     * itself with {@code Trinket#isReady}.
+     *
+     * @param moduleId the contributing module, shown by {@code /satchel trinkets}
+     * @param side     the side or sides the Trinket exists on, so its code never checks the side
+     * @param order    its place in the global tick; see {@code Order}
+     */
+    public static <T extends Trinket> void contributeLevelTrinket(
+            String moduleId,
+            JigPolicies.SideApplicability side,
+            int order,
+            Class<T> type,
+            Supplier<? extends T> factory
+    ) {
+        HostJigs.contributeToLevels(moduleId, side, order, type, factory);
+    }
+
+    /**
+     * Contributes a Trinket to the <b>player host</b>, per player scope. Otherwise as {@link
+     * #contributeLevelTrinket}; look it up with {@code HostJigs.PLAYER_HOST}.
+     */
+    public static <T extends Trinket> void contributePlayerTrinket(
+            String moduleId,
+            JigPolicies.SideApplicability side,
+            int order,
+            Class<T> type,
+            Supplier<? extends T> factory
+    ) {
+        HostJigs.contributeToPlayers(moduleId, side, order, type, factory);
     }
 
     /* =============================================================

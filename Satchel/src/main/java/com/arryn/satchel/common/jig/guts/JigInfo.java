@@ -2,12 +2,17 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.config.*;
+import com.arryn.satchel.common.trinket.TrinketDecl;
+import com.arryn.satchel.common.trinket.TrinketTick;
+import net.minecraftforge.fml.LogicalSide;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.LongSupplier;
 
 /**
  * Runtime record for one installed jig -- pairs a {@link JigKey}, a {@link SatchelJig}
@@ -29,6 +34,10 @@ public final class JigInfo implements IJigConfigurable {
     public final SatchelJig<?> jig;
 
     private final ScopeCoupler coupler;
+    private final int registrationIndex;
+    private final LongSupplier scopeSequence;
+    private final TrinketTick trinketTick;
+    private final LogicalSide side;
 
     private final Map<SatchelScope, ScopeInfo> scopeInfos =
             new ConcurrentHashMap<>();
@@ -42,16 +51,64 @@ public final class JigInfo implements IJigConfigurable {
     private JigPoliciesConfig policies;
     private JigBundlesConfig<?> bundles;
 
+    /**
+     * @param registrationIndex this jig's position in the order its config was registered, which is
+     *                          the order the foundation walks jigs
+     * @param scopeSequence     the foundation's counter, drawn once per scope in {@link #addScope}
+     * @param trinketTick       the foundation's global Trinket list, which this jig's couplers add
+     *                          their scopes' ticking Trinkets to
+     * @param side              the side of the foundation this jig is installed in
+     */
     public JigInfo(
             JigKey<?> key,
             SatchelJig<?> jig,
-            ScopeCoupler coupler
+            ScopeCoupler coupler,
+            int registrationIndex,
+            LongSupplier scopeSequence,
+            TrinketTick trinketTick,
+            LogicalSide side
     ) {
         this.key = Objects.requireNonNull(key, "key");
         this.jig = Objects.requireNonNull(jig, "jig");
         this.coupler = Objects.requireNonNull(coupler, "coupler");
+        this.registrationIndex = registrationIndex;
+        this.scopeSequence = Objects.requireNonNull(scopeSequence, "scopeSequence");
+        this.trinketTick = Objects.requireNonNull(trinketTick, "trinketTick");
+        this.side = Objects.requireNonNull(side, "side");
 
         JigKey.validateTypes(key, jig);
+    }
+
+    /**
+     * The side of the foundation this jig is installed in. A {@code BOTH} config yields two {@code
+     * JigInfo}s, one per side.
+     */
+    public LogicalSide side() {
+        return side;
+    }
+
+    /**
+     * The foundation's global Trinket list this jig's scopes belong to.
+     */
+    public TrinketTick trinketTick() {
+        return trinketTick;
+    }
+
+    /**
+     * The Trinkets this jig declares, in declaration order.
+     */
+    public List<TrinketDecl<?>> trinketDecls() {
+        requireConfig();
+        return compiled.trinkets().declarations();
+    }
+
+    /**
+     * Where this jig's config sits in registration order -- the order the booter ran the
+     * registrations. The foundation walks jigs in this order, and it is the second key of the
+     * Trinket sort.
+     */
+    public int registrationIndex() {
+        return registrationIndex;
     }
 
     // =============================================================
@@ -84,7 +141,7 @@ public final class JigInfo implements IJigConfigurable {
 
         validateScopeType(scope);
 
-        ScopeInfo info = new ScopeInfo(scope, source);
+        ScopeInfo info = new ScopeInfo(scope, source, scopeSequence.getAsLong());
         info.installJigConfig(compiledConfig());
         info.installJigInfo(this);
 

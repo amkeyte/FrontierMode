@@ -28,6 +28,7 @@ public class MobJigConfig extends JigConfig<MobScope, Mob> {
     private final Bundles bundles = new Bundles();
     private final Policies policies = new Policies();
     private final Execution execution = new Execution();
+    private final Trinkets trinkets = new Trinkets();
 
     public MobJigConfig(JigKey<? extends SatchelJig<MobScope>> key) {
         super(key);
@@ -62,8 +63,6 @@ public class MobJigConfig extends JigConfig<MobScope, Mob> {
         // Execution
         // -------------------------------------------------
         p.execution.lifecycle = MobJigLifecycle.VALUE;
-        p.execution.executionPriority = JigPolicies.ExecutionPriority.NORMAL;
-        p.execution.tickOrder = JigPolicies.TickOrder.UNORDERED;
 
         // -------------------------------------------------
         // Policies
@@ -104,6 +103,11 @@ public class MobJigConfig extends JigConfig<MobScope, Mob> {
         return execution;
     }
 
+    @Override
+    public JigTrinketsConfig trinkets() {
+        return trinkets;
+    }
+
     private final class Binding
             extends JigBindingConfig<MobScope, Mob> {
 
@@ -137,6 +141,15 @@ public class MobJigConfig extends JigConfig<MobScope, Mob> {
         @Override
         protected Presets presets() {
             return MobJigConfig.this.presets().execution;
+        }
+    }
+
+    private final class Trinkets
+            extends JigTrinketsConfig {
+
+        @Override
+        protected Presets presets() {
+            return MobJigConfig.this.presets().trinkets;
         }
     }
 

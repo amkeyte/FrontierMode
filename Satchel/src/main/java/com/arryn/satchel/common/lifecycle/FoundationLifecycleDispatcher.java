@@ -2,6 +2,7 @@ package com.arryn.satchel.common.lifecycle;
 
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.trinket.TrinketTick;
 
 import java.util.Objects;
 
@@ -57,6 +58,16 @@ public final class FoundationLifecycleDispatcher {
         // STARTED → STOPPED
         if (phase == Phase.STARTED) {
 
+            // The tick in three steps. One snapshot of the global Trinket list serves the first and
+            // the last, so a Trinket attached or detached during the middle one changes the next
+            // tick's list, not this one's.
+            TrinketTick.Snapshot trinkets = foundation.trinketTick().begin();
+
+            // 1. Before: every Trinket's onTickBefore, in sorted order.
+            trinkets.runBefore();
+
+            // 2. Internal walk. jigInfos() is registration order, so the walk is the same on every
+            // run. All internal work finishes before any Trinket runs its after step.
             for (var jInfo:foundation.jigInfos()){
                 // RM_SAT_021: poll-driven scope reconciliation, ahead of the per-ScopeInfo walk
                 // below. No-op for every jig kind except MobJig -- see SatchelJig.reconcile's
@@ -68,6 +79,9 @@ public final class FoundationLifecycleDispatcher {
                     jInfo.jig.onTick(sInfo);
                 }
             }
+
+            // 3. After: every Trinket's onTickAfter, in sorted order. Module logic runs here.
+            trinkets.runAfter();
 
 
             if (shouldStop()) {

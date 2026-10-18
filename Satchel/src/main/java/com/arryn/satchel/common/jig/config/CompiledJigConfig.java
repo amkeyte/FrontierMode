@@ -12,19 +12,22 @@ public final class CompiledJigConfig {
     private final JigExecutionConfig execution;
     private final JigPoliciesConfig policies;
     private final JigBundlesConfig<?> bundles;
+    private final JigTrinketsConfig trinkets;
 
     public CompiledJigConfig(
             JigKey<?> jigKey,
             JigBindingConfig<?,?> binding,
             JigExecutionConfig execution,
             JigPoliciesConfig policies,
-            JigBundlesConfig<?> bundles
+            JigBundlesConfig<?> bundles,
+            JigTrinketsConfig trinkets
     ) {
         this.jigKey = Objects.requireNonNull(jigKey);
         this.binding = Objects.requireNonNull(binding);
         this.execution = Objects.requireNonNull(execution);
         this.policies = Objects.requireNonNull(policies);
         this.bundles = Objects.requireNonNull(bundles);
+        this.trinkets = Objects.requireNonNull(trinkets);
     }
 
     public JigKey<?> jigKey() { return jigKey; }
@@ -32,4 +35,5 @@ public final class CompiledJigConfig {
     public JigExecutionConfig execution() { return execution; }
     public JigPoliciesConfig policies() { return policies; }
     public JigBundlesConfig<?> bundles() { return bundles; }
+    public JigTrinketsConfig trinkets() { return trinkets; }
 }

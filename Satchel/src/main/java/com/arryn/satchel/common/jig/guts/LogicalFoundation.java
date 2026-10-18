@@ -6,11 +6,15 @@ import com.arryn.satchel.common.lifecycle.*;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
+import com.arryn.satchel.common.trinket.TrinketDecl;
+import com.arryn.satchel.common.trinket.TrinketTick;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class LogicalFoundation {
 
@@ -68,9 +72,13 @@ public final class LogicalFoundation {
                     cfg,
                     booter().engine());
 
-            var info = new JigInfo(key,jig,coupler);
+            var info = new JigInfo(
+                    key, jig, coupler, orderedJigInfos.size(), scopeSequence::getAndIncrement, trinketTick,
+                    side);
             info.installJigConfig(cfg);
-            jigInfos.putIfAbsent(key,info);
+            if (jigInfos.putIfAbsent(key, info) == null) {
+                orderedJigInfos.add(info);
+            }
 
             EventHandlers handlers = cfg.execution().eventHandlers();
             if (handlers != null) {
@@ -82,6 +90,54 @@ public final class LogicalFoundation {
 
         OUT.debug("Installed " + configs.size() +
                 " jig configs for side " + side);
+        logJigOrder();
+        logTrinketOrder();
+    }
+
+    /**
+     * Prints the order the declared Trinkets will tick in, once per foundation after its configs
+     * install: by {@code order}, then jig registration index, then declaration index. A scope's
+     * creation sequence, the next key, exists only once scopes do; it orders the same Trinket across
+     * scopes of one jig.
+     */
+    private void logTrinketOrder() {
+        record Declared(TrinketTick.Key key, JigKey<?> jig, String type, String owner) {}
+
+        List<Declared> declared = new ArrayList<>();
+        for (JigInfo ji : orderedJigInfos) {
+            int declIndex = 0;
+            for (TrinketDecl<?> decl : ji.trinketDecls()) {
+                if (!decl.appliesTo(side)) continue;
+                declared.add(new Declared(
+                        new TrinketTick.Key(decl.order(), ji.registrationIndex(), 0L, declIndex++, 0L),
+                        ji.key,
+                        decl.type().getSimpleName(),
+                        decl.owner()));
+            }
+        }
+        if (declared.isEmpty()) return;
+
+        declared.sort(Comparator.comparing(Declared::key));
+        StringBuilder sb = new StringBuilder("Trinket order for side ").append(side).append(':');
+        for (Declared d : declared) {
+            sb.append("\n  order ").append(d.key().order())
+                    .append(" | jig ").append(d.key().jigIndex()).append(' ').append(d.jig())
+                    .append(" | ").append(d.type());
+            if (d.owner() != null) sb.append(" | from ").append(d.owner());
+        }
+        OUT.info(sb.toString());
+    }
+
+    /**
+     * Prints the order the pulse walks jigs in, once per foundation after its configs install. The
+     * walk is registration order, so the same mod set prints the same list on every run.
+     */
+    private void logJigOrder() {
+        StringBuilder sb = new StringBuilder("Jig order for side ").append(side).append(':');
+        for (JigInfo ji : orderedJigInfos) {
+            sb.append("\n  ").append(ji.registrationIndex()).append(". ").append(ji.key);
+        }
+        OUT.info(sb.toString());
     }
 
     /**
@@ -119,16 +175,35 @@ public final class LogicalFoundation {
      * ========================================================== */
 
 
-    /** Single source of truth for all jig-owned runtime state */
+    /** Single source of truth for all jig-owned runtime state, for lookup by key */
     private final Map<JigKey<?>, JigInfo> jigInfos =
             new ConcurrentHashMap<>();
 
-    public Collection<JigKey<?>> registeredJigs() {
-        return jigInfos.keySet();
+    /**
+     * The same {@link JigInfo}s in registration order. Appended to only while configs install, so
+     * the pulse and the commands iterate it without a map's arbitrary order.
+     */
+    private final List<JigInfo> orderedJigInfos = new CopyOnWriteArrayList<>();
+
+    /** Per-foundation counter behind {@link ScopeInfo#creationSequence()}. */
+    private final AtomicLong scopeSequence = new AtomicLong();
+
+    /** The global, sorted list of every ready scope's ticking Trinkets. */
+    private final TrinketTick trinketTick = new TrinketTick();
+
+    public TrinketTick trinketTick() {
+        return trinketTick;
     }
 
-    public Collection<JigInfo> jigInfos() {
-        return jigInfos.values();
+    public Collection<JigKey<?>> registeredJigs() {
+        return orderedJigInfos.stream().<JigKey<?>>map(ji -> ji.key).toList();
+    }
+
+    /**
+     * Every installed jig, in registration order.
+     */
+    public List<JigInfo> jigInfos() {
+        return Collections.unmodifiableList(orderedJigInfos);
     }
 
     public Optional<JigInfo> askJigInfo(JigKey<?> key) {
@@ -153,7 +228,9 @@ public final class LogicalFoundation {
 
         boolean matched = false;
 
-        for (JigInfo ji : jigInfos.values()) {
+        // Registration order, so one source's scopes get creation sequences in the same order on
+        // every run.
+        for (JigInfo ji : orderedJigInfos) {
 
             Optional<SatchelScope> opt = ji.resolveScope(source);
             if (opt.isEmpty()) continue;
@@ -182,7 +259,7 @@ public final class LogicalFoundation {
     public void tryRemoveSource(Object source) {
         Objects.requireNonNull(source, "source");
 
-        for (JigInfo ji : jigInfos.values()) {
+        for (JigInfo ji : orderedJigInfos) {
 
             Optional<SatchelScope> opt = ji.resolveScope(source);
             if (opt.isEmpty()) continue;

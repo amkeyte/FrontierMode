@@ -35,6 +35,13 @@ public final class JigConfigCompiler {
     private JigConfigCompiler() {
     }
 
+    /**
+     * Whether compilation has begun, after which a registration or a host contribution is refused.
+     */
+    public static boolean isFrozen() {
+        return frozen;
+    }
+
     /* =============================================================
      * Registration (mod init phase)
      * ========================================================== */
@@ -115,7 +122,8 @@ public final class JigConfigCompiler {
                             cfg.binding(),
                             cfg.execution(),
                             cfg.policies(),
-                            cfg.bundles()
+                            cfg.bundles(),
+                            cfg.trinkets()
                     );
 
             result.add(compiled);

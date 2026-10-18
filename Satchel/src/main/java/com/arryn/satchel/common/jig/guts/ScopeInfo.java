@@ -22,6 +22,7 @@ public final class ScopeInfo implements IJigConfigurable {
 
     private final SatchelScope scope;
     private final Object source;
+    private final long creationSequence;
 
     private Phase phase = Phase.NEW;
 
@@ -34,10 +35,12 @@ public final class ScopeInfo implements IJigConfigurable {
 
     public ScopeInfo(
             SatchelScope scope,
-            Object source
+            Object source,
+            long creationSequence
     ) {
         this.scope = Objects.requireNonNull(scope, "scope");
         this.source = source;
+        this.creationSequence = creationSequence;
 
         // Was OUT.debug("[ScopeInfo] CREATED ...") -- a ScopeInfo is constructed for every scope
         // of every entity in the world (a bat, a chicken, anything MobJig ever sees), so this
@@ -64,6 +67,15 @@ public final class ScopeInfo implements IJigConfigurable {
 
     public String debugName() {
         return scope.debugName();
+    }
+
+    /**
+     * Where this scope falls in its foundation's order of creation: a counter drawn once per scope
+     * as {@link JigInfo#addScope} builds it. Unique within a foundation and independent of the
+     * scope's hash, so it can break a tie between two scopes without depending on map iteration.
+     */
+    public long creationSequence() {
+        return creationSequence;
     }
 
     @SuppressWarnings("unchecked")
@@ -227,6 +239,28 @@ public final class ScopeInfo implements IJigConfigurable {
             throw new IllegalStateException("No owning jig for scope: " + debugName());
         }
         return jigInfo.coupler().ask(this, key);
+    }
+
+    /**
+     * This scope's bundle, created and hydrated if it doesn't exist yet, through the jig's coupler:
+     * the same readiness gate and hooks as every other bundle access.
+     *
+     * <p>
+     * For a Trinket that needs persisted state at attach. Trinkets are constructed when the scope
+     * loads, before the module's own {@code Loaded} handler creates its bundles, so {@link #ask} is
+     * empty in {@code onAttach}; this creates the bundle there instead, and the module's later
+     * {@code getOrCreate} finds it. On the server the bundle hydrates from saved data in the call; on
+     * the client it is created and waits for its parcel as it always does.
+     *
+     * @throws SatchelException.AccessFailed if the scope is not ready under its coupler. A jig with
+     *         {@code IMMEDIATE} readiness (every jig kind's default) is ready at attach; one with
+     *         {@code DEFERRED} readiness is not until its scope has loaded.
+     */
+    public <B extends SatchelBundle> B getOrCreate(BundleKey<B> key) {
+        if (jigInfo == null) {
+            throw new IllegalStateException("No owning jig for scope: " + debugName());
+        }
+        return jigInfo.coupler().getOrCreate(this, key);
     }
 
     // ---------------------------------------------------------------------

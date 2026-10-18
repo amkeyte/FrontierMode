@@ -173,6 +173,7 @@ public final class SatchelHealth {
         LevelHealthCheck.register();
         PlayerHealthCheck.register();
         TrinketHealthCheck.register();
+        HostHealthCheck.register();
     }
 
     // =================================================================
