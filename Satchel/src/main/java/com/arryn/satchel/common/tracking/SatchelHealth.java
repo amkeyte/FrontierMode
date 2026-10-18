@@ -118,45 +118,26 @@ public final class SatchelHealth {
     }
 
     // =================================================================
-    // Manual interest -- the surface MobTrackCommands uses, and the supplier MobJig's health
-    // registration answers its per-level question from.
+    // The health mob jig -- what /satchel mobtrack drives
     // =================================================================
 
     /**
-     * Registers manual interest in {@code uuid} within {@code level}.
+     * The key of SatchelHealth's mob jig, for the command surface.
      */
-    public static void watch(Level level, UUID uuid) {
-        state().interests.computeIfAbsent(level, l -> ConcurrentHashMap.newKeySet()).add(uuid);
+    public static com.arryn.satchel.common.identity.JigKey<com.arryn.satchel.common.jig.mob.MobJig> mobJigKey() {
+        return MobHealthCheck.MOB_JIG;
     }
 
-    public static void unwatch(Level level, UUID uuid) {
-        existing().ifPresent(state -> {
-            Set<UUID> set = state.interests.get(level);
-            if (set != null) {
-                set.remove(uuid);
-            }
-        });
-    }
-
-    public static Map<Level, Set<UUID>> currentInterests() {
-        return existing().<Map<Level, Set<UUID>>>map(state -> new HashMap<>(state.interests))
-                .orElse(Map.of());
-    }
+    // =================================================================
+    // The canary
+    // =================================================================
 
     /**
-     * This world's canary, once it has spawned one.
+     * This side's canary, once it has one: the server's is the mob it spawned, a client's is the one
+     * the synced canary fixture names.
      */
     static Optional<UUID> canaryUuid() {
         return existing().map(state -> state.canaryUuid);
-    }
-
-    /**
-     * The per-level interest answer: a live view of the watched set, empty for a level nothing is
-     * watched in. Runs on every mob death and every mob leaving a level (see {@code
-     * MobInterestPerLevel}), so it is two lookups and no copying.
-     */
-    static Set<UUID> interestsIn(Level level) {
-        return existing().map(state -> state.interests.get(level)).orElse(Set.of());
     }
 
     // =================================================================
@@ -198,6 +179,7 @@ public final class SatchelHealth {
         HostHealthCheck.register();
         RegistrationHealthCheck.register();
         ModuleEventHealthCheck.register();
+        InterestHealthCheck.register();
     }
 
     // =================================================================

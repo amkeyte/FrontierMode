@@ -2,14 +2,10 @@ package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
-import net.minecraft.world.level.Level;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Everything {@link SatchelHealth} holds for one running world. An integrated server starts and
@@ -18,9 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * leaves nothing for the next server to inherit.
  *
  * <p>
- * Server-thread state, except {@link #interests}, which is read from the server thread by the
- * mob-death and mob-leave gates and written by commands on the same thread; it is concurrent only
- * because {@code MobJig}'s poll reads it as a live view.
+ * Side-thread state: each side's thread reads and writes its own world's instance.
  */
 final class HealthState {
 
@@ -31,14 +25,15 @@ final class HealthState {
     final Deque<Runnable> pendingChecks = new ArrayDeque<>();
 
     /**
-     * Mobs under manual interest ({@link SatchelHealth#watch}), per level.
-     */
-    final Map<Level, Set<UUID>> interests = new ConcurrentHashMap<>();
-
-    /**
-     * The Overworld canary this server spawned, if it has.
+     * The canary this side knows of: the Overworld mob a server spawned, or, on a client, the one
+     * the synced canary fixture names. Cleared with the world.
      */
     volatile UUID canaryUuid;
+
+    /**
+     * The interest probe's progress on this server; null until it starts. Server-thread only.
+     */
+    InterestHealthCheck.Run interestProbe;
 
     /**
      * Spaces out the canary's "is it still alive" check.

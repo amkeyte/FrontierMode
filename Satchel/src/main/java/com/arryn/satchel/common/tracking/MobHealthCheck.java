@@ -4,9 +4,10 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.trinket.Leaving;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -112,7 +113,8 @@ final class MobHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        MobInterestRegistry.registerPerLevel(MOB_JIG, SatchelHealth::interestsIn);
+        // Reacts when each side builds the canary's scope, and checks the reason it leaves with.
+        config.trinkets().declare(CanaryMobTrinket.class, CanaryMobTrinket::new);
 
         Satchel.registerJigConfig(config);
     }
@@ -275,83 +277,13 @@ final class MobHealthCheck {
     }
 
     /**
-     * Ensures a live canary mob exists under {@code MOB_JIG}, so its CLIENT/BOTH poll path has
-     * a guaranteed-present subject to exercise continuously rather than depending on real
-     * gameplay putting a mob under tracking.
-     *
-     * <p>
-     * Piggybacks on {@link LevelHealthCheck}'s own {@code LEVEL_JIG} tick, not {@code MOB_JIG}'s
-     * -- {@code MOB_JIG} has zero scopes whenever no canary currently exists, so it can never
-     * wake itself up to spawn one, while {@code LEVEL_JIG} always has a scope for every loaded
-     * level, giving this a reliable clock to ride. Subscribed alongside {@link
-     * LevelHealthCheck}'s own handlers on the shared event bus (see {@link
-     * LevelHealthCheck#register()}), so this guards against {@code LEVEL_JIG}, not {@code
-     * MOB_JIG} -- the usual jig-key guard, just checking a different jig than the rest of this
-     * file's handlers do.
-     *
-     * <p>
-     * Once spawned, the canary needs no further scanning/rediscovery logic of its own:
-     * registering its UUID via {@link SatchelHealth#watch} feeds {@code MOB_JIG}'s own
-     * interest-driven poll ({@code MobInterestRegistry}), which already resolves interested
-     * UUIDs through {@code ForgeEgress} on both sides independently -- that poll, not anything
-     * specific to this method, is what actually proves the CLIENT/BOTH path.
+     * Spawns a synthetic mob (a bat) at the Overworld's shared spawn, persistent so it survives a
+     * chunk's unloading. The canary and the interest probe use it. Wiring the canary to the mob jig
+     * is {@link CanaryHealthCheck}: the server's Trinket on the level jig keeps one alive, registers
+     * interest and writes its UUID to a synced fixture, and each side mirrors that into its own mob
+     * jig.
      */
-    static void maintainCanary(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-
-        if (!LevelHealthCheck.LEVEL_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        if (!(info.scope() instanceof LevelScope levelScope)) {
-            return;
-        }
-
-        if (!(levelScope.level() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-
-        // Pinned to the Overworld -- the only dimension guaranteed to have a keep-loaded spawn
-        // region with nobody in it. A canary spawned in the Nether/End (no player, no force-load
-        // ticket) can go chunk-unresolvable between MobJig.reconcile() polls without ever being
-        // isRemoved(), which reads as a false teardown violation rather than an unsuitable spawn
-        // site. SatchelHealth as a whole assumes Overworld context for now; per-dimension coverage
-        // is a future refactor, not attempted here. Checked before the throttle below so a
-        // non-Overworld tick doesn't consume the throttle window.
-        if (!serverLevel.dimension().equals(Level.OVERWORLD)) {
-            return;
-        }
-
-        HealthState state = SatchelHealth.state();
-
-        if (!state.canaryCheck.allow()) {
-            return;
-        }
-
-        UUID existing = state.canaryUuid;
-        if (existing != null
-                && Satchel.require().egress().getEntity(serverLevel, existing).isPresent()) {
-            return;
-        }
-
-        Mob canary = spawnCanary(serverLevel);
-        if (canary == null) {
-            return;
-        }
-
-        UUID canaryUuid = canary.getUUID();
-        state.canaryUuid = canaryUuid;
-        SatchelHealth.watch(serverLevel, canaryUuid);
-        MobScope.getFor(canary);
-
-        OUT.info(
-                "[SatchelHealth] Canary spawned: " + canary.getType()
-                        + " uuid=" + Ids.shortId(canaryUuid)
-                        + " dim=" + serverLevel.dimension().location()
-        );
-    }
-
-    private static Mob spawnCanary(ServerLevel level) {
+    static Mob spawnSyntheticMob(ServerLevel level) {
         Mob mob = canaryEntityType().create(level);
         if (mob == null) {
             return null;
@@ -371,12 +303,41 @@ final class MobHealthCheck {
     /**
      * Deliberately a method, not a {@code static final} field -- this is the actual fix for
      * SAT_050's {@code NoSuchFieldError: BAT} crash. A method body isn't evaluated until called;
-     * {@link EntityType#BAT} is only ever touched from inside {@link #spawnCanary}'s own call to
-     * this method, itself only reached once {@link #maintainCanary} has already decided a
+     * {@link EntityType#BAT} is only ever touched from inside {@link #spawnSyntheticMob}'s own call to
+     * this method, itself only reached once the canary's Trinket has already decided a
      * canary needs spawning -- never at class-load time, regardless of whether any static
      * member of this class has been touched.
      */
     private static EntityType<Bat> canaryEntityType() {
         return EntityType.BAT;
+    }
+
+    /**
+     * On the health mob jig, on both sides, for every mob scope under it (the jig also receives mobs
+     * other modules introduce). For the canary it confirms the Trinket machinery reaches a mob scope:
+     * it attaches when the side builds the scope, and, as a {@link Leaving} Trinket, it hears the
+     * reason the scope unloads for, which must be the one the {@code ScopeInfo} carries.
+     */
+    public static final class CanaryMobTrinket implements Leaving {
+
+        @Override
+        public void onAttach(ScopeInfo info) {
+            MobScope scope = (MobScope) info.scope();
+            if (!isCanary(scope)) return;
+            OUT.info("[SatchelHealth] Canary scoped on the " + info.jigInfo().side() + " side: uuid="
+                    + Ids.shortId(scope.uuid()) + " phase=" + info.phase());
+        }
+
+        @Override
+        public void onLeave(ScopeInfo info, LeaveReason reason) {
+            if (reason != info.leaveReason()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: a Leaving Trinket was told " + reason
+                        + " but the scope's ScopeInfo carries " + info.leaveReason());
+            }
+            MobScope scope = (MobScope) info.scope();
+            if (!isCanary(scope)) return;
+            OUT.info("[SatchelHealth] Canary leaving on the " + info.jigInfo().side() + " side: uuid="
+                    + Ids.shortId(scope.uuid()) + " reason=" + reason);
+        }
     }
 }

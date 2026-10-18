@@ -62,20 +62,24 @@ final class LevelHealthCheck {
                         List.of(trackerFixture)
                 );
 
+        // Two bundles, because they need different things: the tracker persists and syncs; the
+        // canary's UUID is synced and never saved, so no stale UUID survives a restart.
         JigBundles.Schema<LevelScope> bundles =
-                new JigBundles.Schema<>(List.of(trackingBundle));
+                new JigBundles.Schema<>(List.of(trackingBundle, CanaryHealthCheck.bundleDecl()));
 
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(ScopeEvent.Loaded.class, LevelHealthCheck::onLevelScopeLoaded)
-                        .on(ScopeEvent.Unloaded.class, LevelHealthCheck::onLevelScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, LevelHealthCheck::onLevelScopeTick)
-                        // MobJig's canary (SAT_060) piggybacks on this jig's own reliable tick --
-                        // see MobHealthCheck.maintainCanary's own doc for why.
-                        .on(ScopeEvent.Tick.class, MobHealthCheck::maintainCanary)
+                        .listenFor(ScopeEvent.Loaded.class, LevelHealthCheck::onLevelScopeLoaded)
+                        .listenFor(ScopeEvent.Unloaded.class, LevelHealthCheck::onLevelScopeUnloaded)
+                        .listenFor(ScopeEvent.Tick.class, LevelHealthCheck::onLevelScopeTick)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(LEVEL_JIG);
+
+        // MobJig's canary rides this jig, which has a scope for every loaded level on both sides: on the
+        // server it spawns the canary and registers interest, on both sides it mirrors the synced
+        // fixture into that side's mob jig.
+        config.trinkets().declare(CanaryHealthCheck.CanaryTrinket.class, CanaryHealthCheck.CanaryTrinket::new);
 
         // Was SERVER (TrackingModule's original call, LevelJigConfig's own default). BOTH lets a
         // server/client pair running only Satchel (no FrontierMode, no Border) still prove
