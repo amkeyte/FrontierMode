@@ -18,13 +18,6 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
  * a consumer needs it.
  *
  * <p>
- * <b>Rules for Trinket code.</b> Write it as common code typed on {@code Level} and {@link
- * ScopeInfo}: no server types and no casts, side-specific work behind {@code level.isClientSide()}.
- * Vanilla API calls are allowed; Forge-specific APIs (events, capabilities, registries) are not --
- * those stay in Satchel's platform layer. A Trinket that throws crashes, uncaught, like a fixture's
- * tick.
- *
- * <p>
  * <b>Unstable:</b> this API may change until a FrontierMode consumer has exercised it.
  */
 public interface Trinket {
