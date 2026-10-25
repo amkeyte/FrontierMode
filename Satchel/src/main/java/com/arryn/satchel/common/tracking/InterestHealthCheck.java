@@ -25,8 +25,8 @@ import java.util.UUID;
 /**
  * The interest API's slice of SatchelHealth (SAT_124) -- see {@link SatchelHealth}. A mob jig of its
  * own (server only, cap 3, one {@link ProbeTrinket}) and a scripted run against one synthetic mob,
- * driven from the Overworld's level scope on the server. The run confirms, loudly (it throws in a
- * development run, like every SatchelHealth check):
+ * driven from the Overworld's level scope on the server. The run confirms, loudly (a failed check
+ * is logged as a violation and the run goes on, unless it cannot):
  * <ol>
  *   <li><b>No interest, no scope.</b> {@code scopeFor} is empty for a mob not on the list, and
  *   registers nothing;</li>
@@ -77,6 +77,13 @@ final class InterestHealthCheck {
 
     private static void check(boolean ok, String message) {
         if (!ok) violation(message);
+    }
+
+    /** Ends a run that cannot go on after a violation: its later steps need what the failed one should have made. */
+    private static void abandon(Run run, MobJig jig) {
+        jig.lostInterest(run.mob);
+        run.entity.discard();
+        run.done = true;
     }
 
     /**
@@ -193,7 +200,11 @@ final class InterestHealthCheck {
 
             case 2 -> {   // request-built
                 Optional<MobScope> scope = jig.interest(run.mob);
-                check(scope.isPresent(), "interest() returned no scope for a mob that is in the level");
+                if (scope.isEmpty()) {
+                    violation("interest() returned no scope for a mob that is in the level");
+                    abandon(run, jig);
+                    return;
+                }
                 ScopeInfo info = ji.scopeInfo(run.mob).orElseThrow();
                 run.firstScope = info;
                 check(info.phase() == ScopeInfo.Phase.LOADED,
@@ -229,8 +240,10 @@ final class InterestHealthCheck {
 
             case 5 -> {   // sweep-built
                 if (!ji.hasScope(run.mob)) {
-                    check(tick <= run.deadline, "the sweep did not rebuild a released mob's scope in "
-                            + SWEEP_TICKS + " ticks");
+                    if (tick > run.deadline) {
+                        violation("the sweep did not rebuild a released mob's scope in " + SWEEP_TICKS + " ticks");
+                        abandon(run, jig);
+                    }
                     return;
                 }
                 check(run.attaches == 2, "the rebuilt scope attached " + run.attaches + " Trinkets in total");
@@ -281,8 +294,8 @@ final class InterestHealthCheck {
                     check(jig.interestCount() == CAP, "a refused entry was added anyway");
                 } else {
                     check(!threw, "entry past the cap threw in a release run, which should warn");
-                    jig.lostInterest(over);
                 }
+                jig.lostInterest(over);   // idempotent: clears the entry if a failed check let it in
                 for (UUID fake : fakes) jig.lostInterest(fake);
 
                 run.entity.discard();

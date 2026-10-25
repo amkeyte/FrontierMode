@@ -7,11 +7,14 @@ import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
+import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketTick;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
@@ -31,6 +34,14 @@ public final class LogicalFoundation {
         this.side = Objects.requireNonNull(side, "side");
     }
 
+    /**
+     * The side this foundation serves.
+     *
+     * @deprecated Discouraged, and probably going to be removed: it hands Forge's {@code LogicalSide} to module
+     *             code. A thread asks which side it is on with {@code Satchel.isClient()} and {@code
+     *             Satchel.isServer()}.
+     */
+    @Deprecated
     public LogicalSide side() {
         return side;
     }
@@ -252,6 +263,26 @@ public final class LogicalFoundation {
 
     public Optional<JigInfo> askJigInfo(JigKey<?> key) {
         return Optional.ofNullable(jigInfos.get(key));
+    }
+
+    /**
+     * SAT_144, the arrival push: sends {@code player} the networked bundles of every ready level scope
+     * in the level they are now in, and no one else. Called when the player joins that audience: at
+     * login, on a dimension change and on a respawn. A duplicate of an earlier send is harmless, since
+     * every parcel is the bundle's whole state.
+     */
+    public void pushLevelBundlesTo(ServerPlayer player) {
+        Objects.requireNonNull(player, "player");
+        Level level = player.level();
+
+        for (JigInfo ji : orderedJigInfos) {
+            for (ScopeInfo info : ji.scopeInfos()) {
+                if (!(info.scope() instanceof LevelScope levelScope) || levelScope.level() != level) continue;
+                if (!info.isReady()) continue;
+
+                ji.coupler().pushTo(info, player);
+            }
+        }
     }
 
     public JigInfo requireJigInfo(JigKey<?> key) {

@@ -9,6 +9,7 @@ import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
@@ -183,6 +184,13 @@ public abstract class AScopeCoupler implements ScopeCoupler {
         if (!execution().lifecycle().participatesInExecutionPulse()) return;
 
         engine().onExecutionPulse(info);
+    }
+
+    @Override
+    public void pushTo(ScopeInfo info, ServerPlayer player) {
+        requireConfig();
+
+        engine().pushTo(info, player);
     }
 
     @Override

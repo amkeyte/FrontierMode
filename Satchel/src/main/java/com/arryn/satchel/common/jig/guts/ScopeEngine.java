@@ -4,6 +4,7 @@ import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Optional;
 
@@ -63,4 +64,12 @@ public interface ScopeEngine extends IJigConfigurable {
      * Client implementations clear storage.
      */
     void unload(ScopeInfo info);
+
+    /**
+     * Sends this scope's networked bundles to one player, who has just joined its audience (SAT_144).
+     *
+     * Server implementations send. Client implementations do nothing.
+     */
+    default void pushTo(ScopeInfo info, ServerPlayer player) {
+    }
 }

@@ -1,6 +1,5 @@
 package com.arryn.satchel.common.tracking;
 
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.config.SatchelConfig;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.util.out.OUT;
@@ -56,8 +55,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * load/tick/unload path is genuinely exercised -- an exception anywhere in it still crashes loudly
  * -- just not this specific violation check.
  *
- * <p><b>Crash is unconditional whenever this module is enabled at all</b> -- see {@link
- * SatchelConfig#HEALTH_ENABLED} (SAT_060) for the real switch: {@code false} means {@link
+ * <p><b>A violation is logged and the run carries on</b> ({@link #violation}): SatchelHealth is the
+ * exception to Satchel's crash policy, so one run can show several errors, and it finds and reports
+ * them itself with no code inside Satchel. An exception Satchel throws through a probe is not a
+ * violation and still crashes. The switch is {@link
+ * SatchelConfig#HEALTH_ENABLED} (SAT_060): {@code false} means {@link
  * #init()} registers none of the three jig configs, so no tracker bundle, no violation check,
  * and no synthetic exercise of any kind runs at all. Intended for a release/production profile,
  * or whenever this module's synthetic activity is unwanted -- there is no finer-grained
@@ -81,7 +83,7 @@ public final class SatchelHealth {
     /**
      * The state of the world the calling thread's side is in, if it has any yet.
      */
-    private static Optional<HealthState> existing() {
+    static Optional<HealthState> existing() {
         return WorldIdentityContext.current().map(STATES::get);
     }
 
@@ -103,6 +105,7 @@ public final class SatchelHealth {
      */
     public static void onServerAboutToStart() {
         STATES.clear();
+        RealEventTally.reset();
 
         // If an earlier server ran and stopped in this JVM, nothing of its mob scopes or interest may
         // have carried over.
@@ -115,6 +118,23 @@ public final class SatchelHealth {
      */
     public static void onServerStopped() {
         STATES.clear();
+        RealEventTally.reset();
+    }
+
+    /**
+     * True the first time {@code key} is offered in this world, on either side: an integrated server's
+     * client and server share one world identity, so a key that is per side names the side.
+     */
+    static boolean firstTime(String key) {
+        return state().logged.add(key);
+    }
+
+    /**
+     * Logs {@code message} at INFO once per world for {@code key}: the one line a probe prints per
+     * side. Include the side in the key.
+     */
+    static void logOnce(String key, String message) {
+        if (firstTime(key)) OUT.info(message);
     }
 
     // =================================================================
@@ -141,20 +161,16 @@ public final class SatchelHealth {
     }
 
     // =================================================================
-    // Violations -- one switch, Satchel.isDevelopment(): a development run throws, a release run
-    // logs a warning and carries on.
+    // Violations -- logged at ERROR and the run carries on, in every run.
     // =================================================================
 
     /**
-     * Reports a broken invariant. In a development run it logs at ERROR and throws, so a regression
-     * is found the moment it happens; in a release run it logs a warning and returns.
+     * Reports a broken invariant: logs {@code message} at ERROR and returns. The run goes on, so one run
+     * can show several violations (grep for {@code VIOLATION}). A probe that cannot continue after one
+     * ends its own run.
      */
     static void violation(String message) {
-        if (Satchel.isDevelopment()) {
-            OUT.error(message);
-            throw new IllegalStateException(message);
-        }
-        OUT.warn(message);
+        OUT.error(message);
     }
 
     // =================================================================
@@ -173,12 +189,20 @@ public final class SatchelHealth {
         );
 
         MobHealthCheck.register();
+        MobJoinHealthCheck.register();
+        MobDataHealthCheck.register();
         LevelHealthCheck.register();
         PlayerHealthCheck.register();
         TrinketHealthCheck.register();
         HostHealthCheck.register();
+        HostOrderHealthCheck.register();
+        PlayerLifeHealthCheck.register();
         RegistrationHealthCheck.register();
         ModuleEventHealthCheck.register();
+        ResultHealthCheck.register();
+        HotEventHealthCheck.register();
+        CanaryEventHealthCheck.register();
+        RealEventHealthCheck.register();
         InterestHealthCheck.register();
     }
 

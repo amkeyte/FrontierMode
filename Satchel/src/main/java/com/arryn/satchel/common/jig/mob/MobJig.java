@@ -25,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The mob jig kind. The jig keeps the interest itself: a UUID entry for each mob a module cares
@@ -56,6 +57,17 @@ public final class MobJig extends ASatchelJig<MobScope> {
             new TickThrottler(20, new SchedulerClock.AutoClock());
 
     private final InterestList<Level> interests = new InterestList<>();
+
+    /**
+     * The UUIDs whose scope is unloading, from the start of the unload until the last Trinket has
+     * detached. While a UUID is here this jig builds no second scope for it, even though the mob is
+     * still in the level (a chunk unload, a {@link #release}, a {@link #reset}). See Mob Interest,
+     * "No introduction during an unload".
+     */
+    private final Set<UUID> unloading = ConcurrentHashMap.newKeySet();
+
+    /** True for the whole of {@link #reset}: no scope is built, for any UUID. */
+    private volatile boolean resetting;
 
     /** The over-cap warning in a release run is repeated this often, not on every add. */
     private static final int CAP_WARNING_EVERY = 50;
@@ -108,7 +120,12 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * Idempotent. Past the jig's cap ({@code policies().maxInterest()}, default 500) a development
      * run throws and a release run warns, naming the jig and a few UUIDs.
      *
-     * @return the scope, or empty if the mob is not in the level (the sweep builds it when it is)
+     * <p>
+     * The entry is recorded even when no scope can be built now: the mob is not in the level, its scope
+     * is unloading, or the jig is resetting. The sweep builds the scope once it can.
+     *
+     * @return the scope, or empty if the mob is not in the level or has not joined it, or its scope is
+     *         unloading (the sweep builds it when it can)
      */
     public Optional<MobScope> interest(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
@@ -124,9 +141,10 @@ public final class MobJig extends ASatchelJig<MobScope> {
     /**
      * The scope of an interest-listed mob that is in the level, built now if it has none. Empty
      * means "not usable right now", never an error: the foundation is not ready, the UUID is not
-     * admitted (nothing is registered as a side effect), or the mob is not in the level or is already
-     * removed. Idempotent. The returned scope is not a handle to hold across ticks: when the mob
-     * leaves, the scope unloads.
+     * admitted (nothing is registered as a side effect), the mob is not in the level, has not joined it
+     * yet or is already removed, or its scope is unloading (from the start of the unload until its
+     * Trinkets have detached) or the jig is resetting, when no second scope is built. Idempotent. The
+     * returned scope is not a handle to hold across ticks: when the mob leaves, the scope unloads.
      *
      * <p>
      * Must be called on a thread bound to this jig's side.
@@ -150,6 +168,10 @@ public final class MobJig extends ASatchelJig<MobScope> {
 
         if (!admitsUuid(foundation, uuid)) return Optional.empty();
 
+        // Checked before the existing scope: a scope that is unloading is no longer available, and none
+        // is rebuilt for its mob until the unload has finished.
+        if (blocked(uuid)) return Optional.empty();
+
         Optional<ScopeInfo> existing = info.scopeInfo(uuid);
         if (existing.isPresent()) return existing;
 
@@ -160,8 +182,14 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * The scope of {@code mob} if this jig admits it, built now if it has none: what a module
      * event's resolver asks ({@code Scopes.of}). An admitted mob that is in the level always gets its
      * scope, so an event for it is delivered even if it lands before the sweep has built the scope;
-     * a mob this jig does not admit is empty. Empty, too, when the foundation is not ready or the
-     * mob is already removed and has no scope.
+     * a mob this jig does not admit is empty. Empty, too, when the foundation is not ready, the mob
+     * has not joined the level (its own {@code EntityJoinLevelEvent} is posted before it does, and
+     * may be cancelled) or is already removed and has no scope, or its scope is unloading or the jig
+     * is resetting.
+     *
+     * <p>
+     * A mob whose UUID already has a scope gets that scope, even if it was built for another {@code
+     * Mob} object (the copy a level change creates); the original's leave unloads it.
      */
     public Optional<ScopeInfo> infoFor(Mob mob) {
         Objects.requireNonNull(mob, "mob");
@@ -173,6 +201,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
         if (found.isEmpty() || found.get().jig != this) return Optional.empty();
 
         if (!admits(mob)) return Optional.empty();
+        if (blocked(mob.getUUID())) return Optional.empty();
         return introduce(found.get(), mob);
     }
 
@@ -290,13 +319,29 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * runs, so a {@code scopeFor} or {@code interest} call from an {@code onAttach} or a {@code
      * Loaded} handler finds it and returns it rather than building a second one. When this returns,
      * a normally loading scope is {@code LOADED} with its Trinkets attached.
+     *
+     * <p>
+     * Builds only for a mob that has joined the level and is not removed: Forge sets {@code
+     * isAddedToWorld()} after the join, and posts the mob's own {@code EntityJoinLevelEvent} before it,
+     * where the join can still be cancelled or refused for a duplicate UUID, so a scope built then
+     * could exist for a mob that never joined. Nor does it build while the UUID's scope is unloading
+     * or the jig is resetting.
      */
     private Optional<ScopeInfo> introduce(JigInfo info, Mob mob) {
         Optional<ScopeInfo> existing = info.scopeInfo(mob.getUUID());
         if (existing.isPresent()) return existing;
-        if (mob.isRemoved()) return Optional.empty();
+        if (blocked(mob.getUUID())) return Optional.empty();
+        if (!mob.isAddedToWorld() || mob.isRemoved()) return Optional.empty();
 
         return Optional.of(build(info, mob));
+    }
+
+    /**
+     * Whether no scope may be built for {@code uuid} right now: its scope is unloading, or the jig is
+     * resetting.
+     */
+    private boolean blocked(UUID uuid) {
+        return resetting || unloading.contains(uuid);
     }
 
     private ScopeInfo build(JigInfo info, Mob mob) {
@@ -367,7 +412,9 @@ public final class MobJig extends ASatchelJig<MobScope> {
             return;
         }
 
-        if (!admits(mob)) return;
+        // A leave event from inside an unload (a detach that removes the mob) must not build a second
+        // scope just to unload it.
+        if (!admits(mob) || blocked(mob.getUUID())) return;
         unload(info, build(info, mob), LeaveReasons.of(mob));
     }
 
@@ -389,7 +436,16 @@ public final class MobJig extends ASatchelJig<MobScope> {
             return;
         }
 
-        this.onUnload(scopeInfo);
+        // From here until the last Trinket has detached, no second scope is built for this mob, even
+        // though it is still in the level. Removed in a finally: a throw in a detach must not leave
+        // the UUID blocked.
+        UUID uuid = scopeInfo.scopeId();
+        unloading.add(uuid);
+        try {
+            this.onUnload(scopeInfo);
+        } finally {
+            unloading.remove(uuid);
+        }
     }
 
     /* =============================================================
@@ -402,10 +458,18 @@ public final class MobJig extends ASatchelJig<MobScope> {
      */
     @Override
     public void reset(JigInfo info) {
-        for (ScopeInfo scopeInfo : new ArrayList<>(info.scopeInfos())) {
-            unload(info, scopeInfo, LeaveReason.UNKNOWN);
+        // For the whole reset no scope is built, for any UUID: one rebuilt by a detach would not be in
+        // this loop's snapshot and would survive into the next world. An interest recorded meanwhile
+        // is cleared with the rest.
+        resetting = true;
+        try {
+            for (ScopeInfo scopeInfo : new ArrayList<>(info.scopeInfos())) {
+                unload(info, scopeInfo, LeaveReason.UNKNOWN);
+            }
+            interests.clear();
+        } finally {
+            resetting = false;
         }
-        interests.clear();
     }
 
     /* =============================================================
@@ -479,12 +543,13 @@ public final class MobJig extends ASatchelJig<MobScope> {
     }
 
     private void sweep(JigInfo info) {
-        if (interests.size() == 0) return;
+        if (interests.size() == 0 || resetting) return;
 
         LogicalFoundation foundation = info.foundation();
         for (UUID uuid : interests.snapshot()) {
-            // An entry lostInterest removed since the snapshot is no longer wanted.
-            if (!interests.contains(uuid) || info.hasScope(uuid)) continue;
+            // An entry lostInterest removed since the snapshot is no longer wanted; one whose scope is
+            // unloading is built again once the unload has finished.
+            if (!interests.contains(uuid) || info.hasScope(uuid) || blocked(uuid)) continue;
 
             resolve(foundation, uuid).ifPresent(mob -> introduce(info, mob));
         }

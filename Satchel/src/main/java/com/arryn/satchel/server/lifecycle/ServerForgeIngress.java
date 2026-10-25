@@ -282,12 +282,14 @@ public final class ServerForgeIngress {
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer player)) return;
         syncWorldIdentityToken(player);
+        pushLevelBundles(player);
     }
 
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer player)) return;
         syncWorldIdentityToken(player);
+        pushLevelBundles(player);
     }
 
     /**
@@ -299,10 +301,24 @@ public final class ServerForgeIngress {
      */
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
-        if (!(e.getEntity() instanceof ServerPlayer)) return;
+        if (!(e.getEntity() instanceof ServerPlayer player)) return;
         if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new PlayerRespawnSignal(e));
+
+        // A respawn fires no dimension-change event, and the event does not say where the player was, so
+        // every respawn is pushed: a duplicate of an earlier send is harmless.
+        pushLevelBundles(player);
+    }
+
+    /**
+     * SAT_144, the arrival push: the player has joined a level's audience, so they get that level's
+     * networked bundles now and do not wait for the timer. To that player only.
+     */
+    private static void pushLevelBundles(ServerPlayer player) {
+        if (!Satchel.isReady()) return;
+
+        Satchel.require().pushLevelBundlesTo(player);
     }
 
     /**

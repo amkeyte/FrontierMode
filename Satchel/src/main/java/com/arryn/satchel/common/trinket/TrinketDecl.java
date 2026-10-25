@@ -44,7 +44,12 @@ public record TrinketDecl<T extends Trinket>(
 
     /**
      * Whether a scope on {@code logicalSide} gets this Trinket.
+     *
+     * @deprecated Discouraged, and probably going to be removed: it takes Forge's {@code LogicalSide}, and a
+     *             module has no need to ask. A Trinket's side is declared with {@code SideApplicability} when it is
+     *             contributed, and Satchel applies it.
      */
+    @Deprecated
     public boolean appliesTo(LogicalSide logicalSide) {
         return switch (side) {
             case BOTH -> true;

@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link LateProbe}.
  *
  * <p>
- * On a real scope the probes confirm, loudly (they throw, like every SatchelHealth check):
+ * On a real scope the probes confirm, loudly (a failure is logged as a violation and the run goes on):
  * <ul>
  *   <li><b>attach</b> -- exactly once per scope load;</li>
  *   <li><b>both tick phases</b> -- strictly alternating {@code before}, {@code after}, and, while the

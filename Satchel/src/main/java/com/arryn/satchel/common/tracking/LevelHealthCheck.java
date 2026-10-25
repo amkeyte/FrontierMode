@@ -81,6 +81,9 @@ final class LevelHealthCheck {
         // fixture into that side's mob jig.
         config.trinkets().declare(CanaryHealthCheck.CanaryTrinket.class, CanaryHealthCheck.CanaryTrinket::new);
 
+        // Notices a client whose synced canary data never arrives or is dropped on apply (SAT_126).
+        config.trinkets().declare(ClientSyncHealthCheck.SyncProbe.class, ClientSyncHealthCheck.SyncProbe::new);
+
         // Was SERVER (TrackingModule's original call, LevelJigConfig's own default). BOTH lets a
         // server/client pair running only Satchel (no FrontierMode, no Border) still prove
         // LevelJig's client-side lifecycle path works, rather than depending on Border to be the
@@ -179,8 +182,8 @@ final class LevelHealthCheck {
                             + "LevelEvent.Unload for this exact level (see "
                             + "ServerForgeIngress#onLevelUnload) -- something called "
                             + "tryRemoveSource for a level that never actually unloaded.";
-                    OUT.error(message);
-                    throw new IllegalStateException(message);
+                    SatchelHealth.violation(message);
+                    return;
                 }
 
                 // Checkpoint, not routine noise -- fires once per level unload (in practice,

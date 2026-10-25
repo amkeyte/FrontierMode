@@ -8,6 +8,7 @@ import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.net.SatchelNetwork;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Terminal parcel egress emitter.
@@ -61,5 +62,21 @@ public final class ParcelEgressSink {
         } else {
             SatchelNetwork.send(scopeInfo, parcel);
         }
+    }
+
+    /**
+     * Emits the snapshot to one player only (SAT_144): the arrival push of a level scope's bundle to a
+     * player who has just joined its audience. A player scope's bundle already goes to its one player
+     * through {@link #emit}.
+     */
+    public void emitTo(ServerPlayer player, CompoundTag snapshot) {
+        S2cBundleParcel parcel = new S2cBundleParcel(
+                scopeInfo.scopeId(),
+                key.id,
+                key.name,
+                snapshot
+        );
+
+        SatchelNetwork.sendToPlayer(player, scopeInfo, parcel);
     }
 }

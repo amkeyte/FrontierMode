@@ -225,8 +225,8 @@ final class PlayerHealthCheck {
                             + "only ever follow a real PlayerLoggedOutEvent (see "
                             + "ServerForgeIngress#onPlayerScopeUnload) -- something called "
                             + "tryRemoveSource for a player who never actually logged out.";
-                    OUT.error(message);
-                    throw new IllegalStateException(message);
+                    SatchelHealth.violation(message);
+                    return;
                 }
 
                 // Checkpoint, not routine noise -- fires once per logout, not per tick/per load.

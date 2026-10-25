@@ -20,6 +20,7 @@ import com.arryn.satchel.common.persistence.SavedDataHydrationSource;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 
 import java.util.*;
@@ -378,6 +379,15 @@ public final class ScopeEngine_Server implements ScopeEngine {
             bundle.onLoaded();
             Satchel.require().bundleLifecycle()
                     .signalBundleLoaded(info, bundle);
+
+            // SAT_144, the activation sync: a networked bundle that has just become ACTIVE is sent at
+            // once, so a client does not wait for the timer. scheduleSync skips a dimension with nobody
+            // in it, and a jig that does not allow networking never sends. The state sent is what the
+            // bundle holds now; a module that changes it after getOrCreate calls forceSync() or waits
+            // for the timer.
+            if ((bundle.required() & Capability.NETWORKING.bit()) != 0) {
+                scheduleSync(info, key, bundle);
+            }
         }
     }
 
@@ -523,6 +533,35 @@ public final class ScopeEngine_Server implements ScopeEngine {
         ParcelEgressSink
                 .forBundle(info, key)
                 .emit(bundle.saveAll());
+    }
+
+    /**
+     * SAT_144, the arrival push: sends this scope's networked bundles to {@code player} alone, who has
+     * just joined its audience (a login, a dimension change, a respawn). The "nobody would receive
+     * this" skip does not apply, since the player is the audience. A bundle that does not declare
+     * NETWORKING, or is not yet LOADED or ACTIVE, is left to the timer, and a jig that does not allow
+     * networking never sends.
+     */
+    @Override
+    public void pushTo(ScopeInfo info, ServerPlayer player) {
+        Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
+        if (map == null || map.isEmpty()) return;
+
+        for (BundleKey<?> key : List.copyOf(map.keySet())) {
+            SatchelBundle bundle = map.get(key);
+            if (bundle == null) continue;
+            if ((bundle.required() & Capability.NETWORKING.bit()) == 0) continue;
+
+            LifecycleState state = bundle.lifeCycleState();
+            if (state != LifecycleState.LOADED && state != LifecycleState.ACTIVE) continue;
+
+            OUT.TRACE().log("[server engine] Pushing Parcel for bundle: " + key.id + " to "
+                    + player.getGameProfile().getName());
+
+            ParcelEgressSink
+                    .forBundle(info, key)
+                    .emitTo(player, bundle.saveAll());
+        }
     }
 
     /**

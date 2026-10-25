@@ -84,13 +84,27 @@ public final class Satchel {
         return !FMLEnvironment.production;
     }
 
+    /**
+     * Whether a foundation is installed for {@code side}, whichever thread asks.
+     *
+     * @deprecated Discouraged, and probably going to be removed: it puts Forge's {@code LogicalSide} on Satchel's
+     *             API and invites code on one side to look at the other's. A thread asks which side it is on with
+     *             {@link Satchel#isClient()} and {@link Satchel#isServer()}.
+     */
+    @Deprecated
     public static boolean isInstalled(LogicalSide side) {
         return FOUNDATIONS.containsKey(side);
     }
 
     /**
      * The foundation installed for {@code side}, whichever thread asks, or empty if none is.
+     *
+     * @deprecated Discouraged, and probably going to be removed: it puts Forge's {@code LogicalSide} on Satchel's
+     *             API, and code that reaches the other side's foundation breaks the per-side split. Module code
+     *             uses {@link Satchel#foundation()}, the calling thread's own, and {@link Satchel#isClient()}
+     *             and {@link Satchel#isServer()} to ask which side that is.
      */
+    @Deprecated
     public static Optional<LogicalFoundation> foundationFor(LogicalSide side) {
         return Optional.ofNullable(FOUNDATIONS.get(side));
     }
@@ -211,6 +225,13 @@ public final class Satchel {
      * only that the level scope is ready, so a Trinket that depends on a module's own bundles gates
      * itself with {@code Trinket#isReady}.
      *
+     * <p>
+     * <b>Write the factory as a lambda,</b> {@code Type.class, () -> new Type()}, never as a method reference
+     * ({@code Type::new}). The class is named at mod init on every side, and a method reference links and
+     * verifies it there: a Trinket whose body names a client-only type then stops a dedicated server from booting,
+     * where the lambda links nothing until it runs. A Trinket that keeps client-only types out of its own body is
+     * safe either way, but write the lambda regardless.
+     *
      * @param moduleId the contributing module, shown by {@code /satchel trinkets}
      * @param side     the side or sides the Trinket exists on, so its code never checks the side
      * @param order    its place in the global tick; see {@code Order}
@@ -227,7 +248,8 @@ public final class Satchel {
 
     /**
      * Contributes a Trinket to the <b>player host</b>, per player scope. Otherwise as {@link
-     * #contributeLevelTrinket}; look it up with {@code HostJigs.PLAYER_HOST}.
+     * #contributeLevelTrinket}, including its rule that the factory is a lambda and never a method reference; look
+     * it up with {@code HostJigs.PLAYER_HOST}.
      */
     public static <T extends Trinket> void contributePlayerTrinket(
             String moduleId,
@@ -361,8 +383,33 @@ public final class Satchel {
             ) ;
         }
     }
-    public static boolean isServer(){
+
+    /**
+     * Whether the calling thread is the server's: the module-facing side check, so module code guards what
+     * differs between the sides with a Satchel call and never with Forge's {@code LogicalSide} or a
+     * level's {@code isClientSide()}. Exactly one of {@link #isServer()} and {@link #isClient()} is true.
+     *
+     * <p>
+     * Reads the side through the thread binding, like {@link #require()}: it answers on a thread Satchel's
+     * ingress bound (every tick, module event and Trinket call).
+     *
+     * @throws IllegalStateException on a thread no side is bound to, or if no foundation is installed for
+     *         its side
+     */
+    public static boolean isServer() {
         var side = require().side();
         return side == LogicalSide.SERVER;
+    }
+
+    /**
+     * Whether the calling thread is the client's: the module-facing side check, the counterpart of
+     * {@link #isServer()} with the same thread binding and the same failures.
+     *
+     * @throws IllegalStateException on a thread no side is bound to, or if no foundation is installed for
+     *         its side
+     */
+    public static boolean isClient() {
+        var side = require().side();
+        return side == LogicalSide.CLIENT;
     }
 }

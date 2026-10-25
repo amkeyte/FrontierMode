@@ -20,7 +20,9 @@ import java.lang.annotation.Target;
  * meant to share.
  *
  * <p>
- * A direction, not a gate: nothing enforces it at build time.
+ * A class with a direct Forge listener ({@code @SubscribeEvent}, {@code @Mod.EventBusSubscriber} or a call to
+ * {@code addListener}) must carry it, with a reason: a build-time test fails otherwise. Elsewhere it is a
+ * direction, not a gate.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
@@ -28,7 +30,10 @@ import java.lang.annotation.Target;
 public @interface PlatformBound {
 
     /**
-     * Why this class holds platform references, for the reader who finds it. Optional.
+     * Why this class holds platform references, for the reader who finds it: the concern it serves
+     * ({@code registration}, {@code commands}, {@code render}, {@code pre-level-listeners},
+     * {@code health-probe}). Required, and not empty, on a class with a direct Forge listener; optional
+     * elsewhere.
      */
     String reason() default "";
 }

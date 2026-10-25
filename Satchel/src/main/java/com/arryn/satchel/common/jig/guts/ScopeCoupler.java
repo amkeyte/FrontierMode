@@ -9,6 +9,7 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.trinket.TrinketSet;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
 import java.util.Optional;
@@ -111,6 +112,13 @@ public interface ScopeCoupler extends IJigConfigurable {
     void onJigTick(ScopeInfo info);
 
     void onScopeUnload(ScopeInfo info);
+
+    /**
+     * Sends this scope's networked bundles to one player, who has just joined its audience (SAT_144).
+     * Forwarded to the engine; a client's does nothing.
+     */
+    default void pushTo(ScopeInfo info, ServerPlayer player) {
+    }
 
     /**
      * Called immediately before the engine's per-jig-tick pass for this scope, only when

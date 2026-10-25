@@ -18,8 +18,8 @@ import java.util.function.Function;
  *   bus will receive it: a global subscriber, or one filed under this firing's context. The event's
  *   class is learned from the first one built, so the first firing builds once regardless.</li>
  * </ol>
- * Then the event is bound to the native event's cancel state and posted, and closed after the last
- * consumer returns.
+ * Then the event is bound to the native event's cancel state, and to its result if the native event
+ * carries one ({@code @HasResult}), and posted, and closed after the last consumer returns.
  */
 final class Translation<N extends Event, C, S extends ModuleSignal<N, C>> extends SatchelEventHandler<N> {
 
@@ -63,8 +63,27 @@ final class Translation<N extends Event, C, S extends ModuleSignal<N, C>> extend
 
         S signal = resolver != null ? scopedCtor.apply(event, context) : unscopedCtor.apply(event);
         signal.bindCancelState(event::isCanceled);
+        if (event.hasResult()) {
+            signal.bindResult(() -> verdictOf(event.getResult()), v -> event.setResult(resultOf(v)));
+        }
         eventType = signal.getClass();
 
         post(signal);
+    }
+
+    private static ModuleSignal.Verdict verdictOf(Event.Result result) {
+        return switch (result) {
+            case ALLOW -> ModuleSignal.Verdict.ALLOW;
+            case DENY -> ModuleSignal.Verdict.DENY;
+            case DEFAULT -> ModuleSignal.Verdict.DEFAULT;
+        };
+    }
+
+    private static Event.Result resultOf(ModuleSignal.Verdict verdict) {
+        return switch (verdict) {
+            case ALLOW -> Event.Result.ALLOW;
+            case DENY -> Event.Result.DENY;
+            case DEFAULT -> Event.Result.DEFAULT;
+        };
     }
 }

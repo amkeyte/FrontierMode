@@ -155,6 +155,29 @@ public final class SatchelNetwork {
         );
     }
 
+    /**
+     * A level scope's bundle to one player who has just joined its audience (SAT_144): at login, on a
+     * dimension change, on a respawn. {@link #send(ScopeInfo, Object)} reaches everyone in the dimension;
+     * this reaches only {@code player}, so a second player joining does not resend to the first. The same
+     * silent no-op as the others for a jig that does not allow networking.
+     */
+    public static void sendToPlayer(
+            ServerPlayer player,
+            ScopeInfo info,
+            Object packet
+    ) {
+        Satchel.requireServer();
+
+        if (!info.policies().capabilities().allowsNetworking()) {
+            return;
+        }
+
+        CHANNEL.send(
+                PacketDistributor.PLAYER.with(() -> player),
+                packet
+        );
+    }
+
     private SatchelNetwork() {
     }
 }

@@ -21,15 +21,12 @@ import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The module-event slice of SatchelHealth (SAT_113) -- see {@link SatchelHealth}. A module like any
  * other: one ingress config registered for both sides, and a Trinket contributed to the level host.
- * It confirms, loudly (it throws in a development run, like every SatchelHealth check), on a real
+ * It confirms, loudly (a failure is logged as a violation and the run goes on), on a real
  * client and server:
  * <ul>
  *   <li><b>a firing on the other side is dropped.</b> {@code EntityJoinLevelEvent} fires on both
@@ -49,7 +46,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *   level host scope's own bus: a consumer that did not opt in is skipped once a higher one vetoes,
  *   one that opted in is not;</li>
  *   <li><b>the new-world spawn event reaches an unscoped global consumer.</b> Logged when a new world
- *   is created.</li>
+ *   is created;</li>
+ *   <li><b>a plain request event</b> (SAT_134 probe 5). An event of an unrelated class, not a module
+ *   event, posted with the bus from inside another consumer's dispatch, two deep, reaches the
+ *   {@code listenForAll} consumers of that exact class, in priority order.</li>
  * </ul>
  */
 final class ModuleEventHealthCheck {
@@ -120,7 +120,7 @@ final class ModuleEventHealthCheck {
     static final class Unwatched extends ModuleSignal<EntityJoinLevelEvent, Void> {
         Unwatched(EntityJoinLevelEvent e) {
             super(e, null);
-            UNWATCHED_BUILT.merge(LogicalSideContext.peek(), 1, Integer::sum);
+            SatchelHealth.state().unwatchedBuilt.merge(LogicalSideContext.peek(), 1, Integer::sum);
         }
     }
 
@@ -129,6 +129,14 @@ final class ModuleEventHealthCheck {
         WorldSpawn(LevelEvent.CreateSpawnPosition e) {
             super(e, null);
         }
+    }
+
+    /**
+     * Not a module event: a request posted with the bus by one consumer for others to answer. The bus
+     * delivers any class to the consumers of that exact class.
+     */
+    static final class RequestProbe {
+        final List<String> trail = new ArrayList<>();   // which consumers ran, in order
     }
 
     /** A native event of the probe's own, to carry a cancel state. */
@@ -167,14 +175,9 @@ final class ModuleEventHealthCheck {
     // The ingress
     // =================================================================
 
-    private static final Map<LogicalSide, JoinAny> PREVIOUS = new ConcurrentHashMap<>();
-    private static final Map<LogicalSide, Integer> FIRINGS = new ConcurrentHashMap<>();
-    private static final Map<LogicalSide, Integer> BOUNCED = new ConcurrentHashMap<>();
-    private static final Map<LogicalSide, Integer> UNWATCHED_BUILT = new ConcurrentHashMap<>();
-    private static final Set<String> LOGGED = ConcurrentHashMap.newKeySet();
-
+    /** Once per world; the key is prefixed because the world's printed-lines set is shared by every probe. */
     private static void logOnce(String key, String message) {
-        if (LOGGED.add(key)) OUT.info("[SatchelHealth] Module-event probe: " + message);
+        SatchelHealth.logOnce("moduleevents:" + key, "[SatchelHealth] Module-event probe: " + message);
     }
 
     static IngressConfig build() {
@@ -185,7 +188,7 @@ final class ModuleEventHealthCheck {
                 e -> Scopes.of(HostJigs.LEVEL_HOST, e.getLevel()), JoinInLevel::new);
         ingress.translate(EntityJoinLevelEvent.class, JoinAny::new);
         ingress.translate(EntityJoinLevelEvent.class, e -> {
-            BOUNCED.merge(LogicalSideContext.peek(), 1, Integer::sum);
+            SatchelHealth.state().joinBounced.merge(LogicalSideContext.peek(), 1, Integer::sum);
             return Optional.<Integer>empty();
         }, Never::new);
         ingress.translate(EntityJoinLevelEvent.class, Unwatched::new);
@@ -196,6 +199,13 @@ final class ModuleEventHealthCheck {
         ingress.listenForAll(JoinAny.class, ModuleEventHealthCheck::lastJoinConsumer)
                 .priority(SatchelEventBus.Priority.LOW);
         ingress.listenForAll(JoinAny.class, e -> e.trail.add("high"))
+                .priority(SatchelEventBus.Priority.HIGH);
+
+        // The request's consumers, also out of order; the request itself is posted from lastJoinConsumer.
+        ingress.listenForAll(RequestProbe.class, e -> e.trail.add("normal"));
+        ingress.listenForAll(RequestProbe.class, e -> e.trail.add("low"))
+                .priority(SatchelEventBus.Priority.LOW);
+        ingress.listenForAll(RequestProbe.class, e -> e.trail.add("high"))
                 .priority(SatchelEventBus.Priority.HIGH);
 
         ingress.listenForAll(WorldSpawn.class, e -> logOnce("spawn:" + LogicalSideContext.peek(),
@@ -219,6 +229,7 @@ final class ModuleEventHealthCheck {
     private static void lastJoinConsumer(JoinAny e) {
         e.trail.add("low");
         LogicalSide side = LogicalSideContext.peek();
+        HealthState state = SatchelHealth.state();
 
         if (!e.trail.equals(List.of("high", "normal", "low"))) {
             violation("global consumers ran as " + e.trail + " on the " + side
@@ -230,7 +241,7 @@ final class ModuleEventHealthCheck {
         }
 
         // The previous firing's event is closed by now: reading its native event must throw.
-        JoinAny previous = PREVIOUS.put(side, e);
+        JoinAny previous = state.previousJoin.put(side, e);
         if (previous != null) {
             boolean threw = false;
             try {
@@ -241,20 +252,33 @@ final class ModuleEventHealthCheck {
             if (!threw) violation("a closed event's native event was still readable on the " + side + " side");
         }
 
-        int firings = FIRINGS.merge(side, 1, Integer::sum);
+        // This consumer runs inside JoinAny's dispatch, one deep: a post from here is two deep.
+        if (SatchelHealth.firstTime("request:" + side)) {
+            RequestProbe request = new RequestProbe();
+            Satchel.require().eventBus().post(request);
+            if (!request.trail.equals(List.of("high", "normal", "low"))) {
+                violation("a request event posted from inside a consumer reached its consumers as "
+                        + request.trail + " on the " + side + " side, expected high, normal, low");
+            }
+            OUT.info("[SatchelHealth] Module-event probe: a request event of an unrelated class, posted from "
+                    + "inside another consumer's dispatch, reached its listenForAll consumers in priority order "
+                    + "on the " + side + " side");
+        }
+
+        int firings = state.joinFirings.merge(side, 1, Integer::sum);
         if (firings == 1) {
             logOnce("first:" + side, "an unscoped event reached its global consumers in priority order on the "
                     + side + " side, and no firing from the other side leaked in");
         }
         if (firings == 3) {
-            int built = UNWATCHED_BUILT.getOrDefault(side, 0);
+            int built = state.unwatchedBuilt.getOrDefault(side, 0);
             if (built > 1) {
                 violation("an event nobody subscribes to was built " + built + " times on the " + side
                         + " side; expected once, to learn its class");
             }
             logOnce("cheap:" + side, "on the " + side + " side an event with no subscriber was built " + built
                     + " time(s) in 3 firings, and a resolver that answers empty bounced "
-                    + BOUNCED.getOrDefault(side, 0) + " time(s) without building");
+                    + state.joinBounced.getOrDefault(side, 0) + " time(s) without building");
         }
     }
 

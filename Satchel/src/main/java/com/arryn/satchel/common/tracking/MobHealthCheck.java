@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.trinket.Leaving;
@@ -284,6 +285,23 @@ final class MobHealthCheck {
      * jig.
      */
     static Mob spawnSyntheticMob(ServerLevel level) {
+        Mob mob = createSyntheticMob(level);
+        if (mob == null) {
+            return null;
+        }
+
+        if (!level.addFreshEntity(mob)) {
+            return null;
+        }
+
+        return mob;
+    }
+
+    /**
+     * A synthetic mob placed at the Overworld's shared spawn but not added to the level, for a probe
+     * that needs to control the join ({@link MobJoinHealthCheck}).
+     */
+    static Mob createSyntheticMob(ServerLevel level) {
         Mob mob = canaryEntityType().create(level);
         if (mob == null) {
             return null;
@@ -292,11 +310,6 @@ final class MobHealthCheck {
         BlockPos pos = level.getSharedSpawnPos();
         mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0.0F, 0.0F);
         mob.setPersistenceRequired();
-
-        if (!level.addFreshEntity(mob)) {
-            return null;
-        }
-
         return mob;
     }
 
@@ -326,6 +339,17 @@ final class MobHealthCheck {
             if (!isCanary(scope)) return;
             OUT.info("[SatchelHealth] Canary scoped on the " + info.jigInfo().side() + " side: uuid="
                     + Ids.shortId(scope.uuid()) + " phase=" + info.phase());
+
+            // The scope-bound consumer of the canary's scoped module event (SAT_113).
+            CanaryEventHealthCheck.listen(info);
+
+            // One scope at a time per side: a second built during an unload attaches before the first
+            // has detached.
+            if (!SatchelHealth.state().canaryScopes(info.jigInfo().side()).add(scope.uuid())) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: a second scope for the canary "
+                        + Ids.shortId(scope.uuid()) + " attached on the " + info.jigInfo().side()
+                        + " side before the first had detached");
+            }
         }
 
         @Override
@@ -338,6 +362,43 @@ final class MobHealthCheck {
             if (!isCanary(scope)) return;
             OUT.info("[SatchelHealth] Canary leaving on the " + info.jigInfo().side() + " side: uuid="
                     + Ids.shortId(scope.uuid()) + " reason=" + reason);
+            checkNoSecondScope(info, "onLeave");
+        }
+
+        @Override
+        public void onDetach(ScopeInfo info) {
+            MobScope scope = (MobScope) info.scope();
+            if (isCanary(scope)) checkNoSecondScope(info, "onDetach");
+
+            // Removed whatever the canary is by now, so a canary that was replaced leaves nothing behind.
+            SatchelHealth.existing().ifPresent(state ->
+                    state.canaryScopes(info.jigInfo().side()).remove(scope.uuid()));
+        }
+
+        /**
+         * From inside the canary's own unload its mob is still in the level and still of interest, so a
+         * request for its scope would build a second one, unless the jig holds that back until the unload
+         * has finished (and for the whole of a reset). A lookup by UUID, by mob and through the module
+         * event resolver must all answer empty.
+         */
+        private static void checkNoSecondScope(ScopeInfo info, String call) {
+            MobScope scope = (MobScope) info.scope();
+            Mob mob = scope.mob();
+            MobJig jig = (MobJig) info.jigInfo().jig;
+            String where = call + " of the canary on the " + info.jigInfo().side() + " side";
+
+            if (jig.scopeFor(scope.uuid()).isPresent()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: scopeFor answered during " + where);
+            }
+            if (jig.infoFor(mob).isPresent()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: infoFor(Mob) answered during " + where);
+            }
+            if (Scopes.of(MOB_JIG, mob).isPresent()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: Scopes.of answered during " + where);
+            }
+            SatchelHealth.logOnce("mobunload:" + info.jigInfo().side() + ":" + call,
+                    "[SatchelHealth] Mob unload probe: during " + where + " scopeFor, infoFor(Mob) and Scopes.of "
+                            + "all answered empty, so no second scope was built");
         }
     }
 }

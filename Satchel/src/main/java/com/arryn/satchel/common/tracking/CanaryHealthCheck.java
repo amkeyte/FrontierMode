@@ -19,6 +19,7 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
@@ -42,6 +43,9 @@ import java.util.UUID;
 final class CanaryHealthCheck {
 
     private CanaryHealthCheck() {}
+
+    /** How long the canary is scoped before the unload probe releases it. */
+    private static final int UNLOAD_PROBE_AFTER_TICKS = 40;
 
     static final BundleKey<CanaryBundle> CANARY_BUNDLE =
             new BundleKey<>("satcheltracker:canary_bundle", CanaryBundle.class);
@@ -141,6 +145,55 @@ final class CanaryHealthCheck {
                 InterestHealthCheck.drive(info);
             }
             mirror(info);
+            driveUnload(info);
+        }
+
+        /** Ticks this Trinket has seen the canary scoped, before the unload probe runs. */
+        private int scopedTicks;
+
+        /**
+         * SAT_135: once per side per world, a little after the canary has a scope, releases it. The
+         * canary's own {@code Leaving} and detach then check that no second scope is built from inside
+         * the unload ({@link MobHealthCheck.CanaryMobTrinket}), and here, once the release has returned,
+         * that the scope is built again exactly once, since the mob is still in the level and still of
+         * interest. A client whose canary has left tracking range has no scope to release and is left
+         * alone.
+         */
+        private void driveUnload(ScopeInfo info) {
+            UUID canary = mirrored;
+            if (canary == null) {
+                canary = SatchelHealth.canaryUuid().orElse(null);
+            }
+            if (canary == null) return;
+
+            Optional<MobJig> jigFound = mobJig(info);
+            if (jigFound.isEmpty()) return;
+            MobJig jig = jigFound.get();
+
+            if (jig.scopeFor(canary).isEmpty()) {
+                scopedTicks = 0;
+                return;
+            }
+            if (++scopedTicks < UNLOAD_PROBE_AFTER_TICKS) return;
+
+            LogicalSide side = info.jigInfo().side();
+            if (!SatchelHealth.firstTime("mobunload:released:" + side)) return;
+
+            jig.release(canary);
+
+            if (jig.scopeFor(canary).isEmpty()) {
+                OUT.info("[SatchelHealth] Mob unload probe: the canary was released on the " + side
+                        + " side and its mob left the level before a scope could be built again");
+                return;
+            }
+            // Its attach recorded the new scope; a second attach before the first detached would have
+            // been refused there.
+            if (!SatchelHealth.state().canaryScopes(side).contains(canary)) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: the canary's scope was built again "
+                        + "on the " + side + " side but its attach was not recorded");
+            }
+            OUT.info("[SatchelHealth] Mob unload probe: the canary was released on the " + side
+                    + " side and its scope was built again once");
         }
 
         @Override
@@ -174,6 +227,15 @@ final class CanaryHealthCheck {
             HealthState state = SatchelHealth.state();
             if (!state.canaryCheck.allow()) return;
 
+            // A canary is persistent and the world keeps it, so every earlier run's canary is still at
+            // spawn carrying the mark, and this run's UUID is not remembered across a restart. Repeated on
+            // every pass, because a stray's chunk can finish loading a few ticks after the first.
+            int strays = discardStrays(serverLevel, state.canaryUuid);
+            if (strays > 0) {
+                OUT.info("[SatchelHealth] Canary cleanup: discarded " + strays + " stale canary(ies) left by an "
+                        + "earlier run");
+            }
+
             ForgeEgress egress = info.jigInfo().foundation().egress();
             UUID existing = state.canaryUuid;
             if (existing != null && egress.getEntity(serverLevel, existing).isPresent()) return;
@@ -187,6 +249,7 @@ final class CanaryHealthCheck {
 
             Mob canary = MobHealthCheck.spawnSyntheticMob(serverLevel);
             if (canary == null) return;
+            CanaryData.mark(canary);
 
             UUID uuid = canary.getUUID();
             state.canaryUuid = uuid;
@@ -204,6 +267,19 @@ final class CanaryHealthCheck {
             OUT.info("[SatchelHealth] Canary spawned: " + canary.getType()
                     + " uuid=" + Ids.shortId(uuid)
                     + " dim=" + serverLevel.dimension().location());
+        }
+
+        /**
+         * Discards every loaded canary in {@code level} except {@code keep} (null on a fresh boot, when
+         * every marked mob is a stray).
+         *
+         * @return how many it discarded
+         */
+        private static int discardStrays(ServerLevel level, UUID keep) {
+            List<? extends Mob> strays = level.getEntities(EntityTypeTest.forClass(Mob.class),
+                    mob -> CanaryData.isCanary(mob) && !mob.getUUID().equals(keep));
+            for (Mob stray : strays) stray.discard();
+            return strays.size();
         }
 
         /**

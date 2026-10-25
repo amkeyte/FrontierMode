@@ -4,7 +4,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.JigInfo;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import net.minecraft.world.entity.Mob;
@@ -28,9 +27,9 @@ public final class Scopes {
      * is built.
      *
      * <p>
-     * Cheap enough for a resolver, which runs for every firing of its native event: a lookup, and the
-     * jig's own resolution of the source. For a mob jig the answer is admission: see {@code
-     * MobJig.infoFor(Mob)}.
+     * Cheap enough for a resolver, which runs for every firing of its native event: a lookup by the id
+     * the jig derives from the source, with no scope built to look it up with. For a mob jig the answer
+     * is admission: see {@code MobJig.infoFor(Mob)}.
      */
     public static Optional<ScopeInfo> of(JigKey<?> jigKey, Object source) {
         if (source == null) return Optional.empty();
@@ -51,9 +50,6 @@ public final class Scopes {
             return mobJig.infoFor(mob).filter(ScopeInfo::isReady);
         }
 
-        Optional<SatchelScope> scope = ji.resolveScope(source);
-        if (scope.isEmpty()) return Optional.empty();
-
-        return ji.scopeInfo(scope.get()).filter(ScopeInfo::isReady);
+        return ji.scopeInfoFor(source).filter(ScopeInfo::isReady);
     }
 }

@@ -3,6 +3,7 @@ package com.arryn.satchel;
 import com.arryn.satchel.common.config.SatchelConfig;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.net.SatchelNetwork;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.MobDataStore;
@@ -20,6 +21,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
+@PlatformBound(reason = "registration")
 @Mod(SatchelMod.MODID)
 public class SatchelMod {
     public static final String MODID = "satchel_ecosystem";

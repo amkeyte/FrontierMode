@@ -89,7 +89,12 @@ public final class JigInfo implements IJigConfigurable {
     /**
      * The side of the foundation this jig is installed in. A {@code BOTH} config yields two {@code
      * JigInfo}s, one per side.
+     *
+     * @deprecated Discouraged, and probably going to be removed: it hands Forge's {@code LogicalSide} to module
+     *             code. A thread asks which side it is on with {@code Satchel.isClient()} and {@code
+     *             Satchel.isServer()}.
      */
+    @Deprecated
     public LogicalSide side() {
         return foundation.side();
     }
@@ -145,6 +150,28 @@ public final class JigInfo implements IJigConfigurable {
 
     public boolean hasScope(UUID scopeId) {
         return scopeInfosById.containsKey(scopeId);
+    }
+
+    /**
+     * This jig's scope for {@code source} (a {@code Level}, a player), found by the id the jig derives
+     * from it, so no scope instance is built to look it up with: {@link #resolveScope} followed by
+     * {@link #scopeInfo(SatchelScope)}, without the allocation. Empty for a null source, a source of a
+     * type this jig does not take, a foundation that is not ready (a level's id needs the world-identity
+     * token) and a source with no scope.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Optional<ScopeInfo> scopeInfoFor(Object source) {
+        requireConfig();
+
+        if (source == null || !binding().sourceType().isInstance(source) || !foundation.isReady()) {
+            return Optional.empty();
+        }
+
+        JigBinding.UuidDerterminer deriver = binding().uuidDeriver();
+        if (deriver == null) {
+            throw new IllegalStateException("uuidDeterminer cannot be null");
+        }
+        return scopeInfo(deriver.derive(source));
     }
 
     /**

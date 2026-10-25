@@ -108,7 +108,16 @@ public final class ClientForgeIngress {
         // so a mob scope's Unloaded handlers still run in a ready foundation and nothing this world
         // held reaches the next one.
         BOOTER.bindFoundation();
-        Satchel.foundationFor(LogicalSide.CLIENT).ifPresent(LogicalFoundation::reset);
+        Satchel.foundationFor(LogicalSide.CLIENT).ifPresent(foundation -> {
+            foundation.reset();
+
+            // Forge posts LevelEvent.Unload for the client's level only after this event, when the token
+            // below is already cleared: no level scope can be found then, and each would outlive its
+            // world. The level unloads here instead, in a ready foundation and after the mobs, as on a
+            // server stop. onLevelUnload then finds nothing.
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level != null) foundation.tryRemoveSource(level);
+        });
 
         // Session-scoped by design (see WorldIdentityContext's class docs) -- clear so a later
         // connection, to this server or a different one, never starts with a stale token left

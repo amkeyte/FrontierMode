@@ -2,6 +2,7 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
+import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobScope;
@@ -78,6 +79,18 @@ public final class ScopeInfo implements IJigConfigurable, ContextKeyed {
 
     public String debugName() {
         return scope.debugName();
+    }
+
+    /**
+     * The key of the jig this scope belongs to: {@code jigInfo().key}, without reaching through the
+     * {@link JigInfo}. What a handler on the shared event bus compares first, since every jig's scopes
+     * reach every handler.
+     */
+    public JigKey<?> jigKey() {
+        if (jigInfo == null) {
+            throw new IllegalStateException("No owning jig for scope: " + debugName());
+        }
+        return jigInfo.key;
     }
 
     /**
