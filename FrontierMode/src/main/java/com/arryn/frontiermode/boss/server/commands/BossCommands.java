@@ -55,13 +55,33 @@ public final class BossCommands {
             BossSelectorResult selector,
             BossOperator op
     ) throws CommandSyntaxException {
+        return applySelector(ctx, selector, op, false);
+    }
+
+    /**
+     * {@code livingOnly} drops already-defeated bosses from an {@code @all} match, for an operator
+     * that has nothing to do to them. A boss named by an index is never dropped: asking for a
+     * defeated one by name still gets the operator's own answer.
+     */
+    private static int applySelector(
+            CommandContext<CommandSourceStack> ctx,
+            BossSelectorResult selector,
+            BossOperator op,
+            boolean livingOnly
+    ) throws CommandSyntaxException {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
         List<BossRecord> bosses = BossSelector.resolve(selector, sp);
 
+        boolean filterToLiving = livingOnly && selector.mode == BossSelectorResult.Mode.ALL;
+        if (filterToLiving) {
+            bosses = bosses.stream().filter(BossRecord::alive).toList();
+        }
+
         if (bosses.isEmpty()) {
-            ctx.getSource().sendFailure(Component.literal("[Boss] No bosses matched selector."));
+            ctx.getSource().sendFailure(Component.literal(
+                    filterToLiving ? "[Boss] No living bosses matched selector." : "[Boss] No bosses matched selector."));
             return 0;
         }
 
@@ -177,7 +197,8 @@ public final class BossCommands {
      * FRO_130 (project owner ask): shortened from {@code /boss transform defeat <selector>} --
      * pure command-surface rename, no behavior change. Still forces
      * {@code BossCommandHandler::transformDefeat}'s own defeat-detection cascade (border growth,
-     * etc.), same as a real in-game defeat.
+     * etc.), same as a real in-game defeat. {@code @all} skips bosses already defeated, so
+     * repeating it to walk the path forward defeats only the Keeper standing at the tip.
      */
     private static ArgumentBuilder<CommandSourceStack, ?> defeat() {
         return Commands.literal("defeat")
@@ -185,7 +206,8 @@ public final class BossCommands {
                         .executes(ctx -> applySelector(
                                 ctx,
                                 BossSelectorArgumentType.getSelector(ctx, "selector"),
-                                BossCommandHandler::transformDefeat
+                                BossCommandHandler::transformDefeat,
+                                true
                         ))
                 );
     }

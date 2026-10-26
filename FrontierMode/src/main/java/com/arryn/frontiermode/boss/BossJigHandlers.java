@@ -244,9 +244,11 @@ final class BossJigHandlers {
         }
 
         // FRO_233: tells a new player what just happened -- the Keeper fell and the frontier grew.
-        // Server-wide, and only once the Border has actually grown.
+        // Server-wide, and only once the Border has actually grown. Names the Keeper's level, its path
+        // position; the record is there, since a borderId came from it.
         credited.server.getPlayerList().broadcastSystemMessage(
-                Component.translatable("message.frontiermode.keeper_defeated", credited.getDisplayName()), false);
+                Component.translatable("message.frontiermode.keeper_defeated", credited.getDisplayName(),
+                        defeatedRecord.map(BossAPI::pathPositionOf).orElseThrow()), false);
 
         BossAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());

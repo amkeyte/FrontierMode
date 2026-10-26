@@ -281,6 +281,10 @@ public final class BossCommandHandler {
     public static int transformDefeat(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
+        // Named with the Keeper's level (its path position), read before the defeat so every line
+        // below says which Keeper fell.
+        String fallen = Ids.shortId(id) + pathTag(level, id);
+
         BossAPI.DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
         Result result = outcome.borderResult();
 
@@ -290,7 +294,7 @@ public final class BossCommandHandler {
         // DefeatOutcome's own doc for why there's no real grow() outcome to report here).
         if (outcome.growthGated()) {
             ctx.getSource().sendSuccess(
-                    () -> msg("Boss " + Ids.shortId(id) + " force-defeated. " + result.message()),
+                    () -> msg("Boss " + fallen + " force-defeated. " + result.message()),
                     false
             );
             return 1;
@@ -298,7 +302,7 @@ public final class BossCommandHandler {
 
         if (!result.isSuccess()) {
             ctx.getSource().sendFailure(
-                    msg("Failed to force-defeat boss " + Ids.shortId(id) + ": " + result.message())
+                    msg("Failed to force-defeat boss " + fallen + ": " + result.message())
             );
             return 0;
         }
@@ -308,15 +312,30 @@ public final class BossCommandHandler {
         // carries the real BossRecord (or is honestly empty if createBoss itself couldn't
         // resolve a fixture for it -- see BossAPI.forceDefeat's own warn log for that case).
         String nextBossText = outcome.nextBoss()
-                .map(r -> Ids.shortId(r.bossId()))
+                .map(r -> Ids.shortId(r.bossId()) + pathTag(r))
                 .orElse("(none -- see server log)");
 
         ctx.getSource().sendSuccess(
-                () -> msg("Boss " + Ids.shortId(id) + " defeated -- border " + Ids.shortId(result.border().id())
+                () -> msg("Boss " + fallen + " defeated -- border " + Ids.shortId(result.border().id())
                         + " grown, next boss " + nextBossText + " queued."),
                 false
         );
         return 1;
+    }
+
+    /**
+     * " (level N)" for a boss, N being its path position -- what players are told a Keeper's level
+     * is -- so a defeat message says which Keeper it is about. Empty when there is no such record.
+     */
+    private static String pathTag(ServerLevel level, UUID id) {
+        return BossAPI.bosses(level)
+                .flatMap(fixture -> fixture.get(id))
+                .map(BossCommandHandler::pathTag)
+                .orElse("");
+    }
+
+    private static String pathTag(BossRecord record) {
+        return " (level " + BossAPI.pathPositionOf(record) + ")";
     }
 
     // ------------------------------------------------------------
