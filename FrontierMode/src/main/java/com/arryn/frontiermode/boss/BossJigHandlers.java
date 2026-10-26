@@ -13,7 +13,6 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -44,7 +43,7 @@ final class BossJigHandlers {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.BOSS_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.BOSS_JIG.equals(info.jigKey())) {
             return;
         }
 
@@ -54,8 +53,7 @@ final class BossJigHandlers {
         // FRO_104: the manual Satchel.isServer() check that used to live here was redundant --
         // BOSS_JIG is already declared SideApplicability.SERVER (BossModule.java), so this
         // handler is never invoked client-side to begin with; the branch could never fire.
-        var jig = (LevelJig) info.jigInfo().jig;
-        BossBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_BUNDLE);
+        BossBundle bundle = info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
         SentinelJigHandlers.onBossTick(level, bundle);
@@ -89,7 +87,7 @@ final class BossJigHandlers {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.BORDERS_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.BORDERS_JIG.equals(info.jigKey())) {
             return;
         }
 

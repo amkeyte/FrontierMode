@@ -89,8 +89,8 @@ public final class BossModule {
     }
 
     /**
-     * Sentinel conversion's entry point: called by {@code SpawnCoordinator}, the one subscriber to
-     * {@code MobSpawnFinalizeSignal}, in its fixed order after Feral's Slime/MagmaCube deny.
+     * Sentinel conversion's entry point: called by {@code SpawnCoordinator}, the one consumer of
+     * {@code MobSpawnFinalizing}, in its fixed order after Feral's Slime/MagmaCube deny.
      *
      * <p>Never cancels the spawn either way -- Sentinels is a modifier on an already-happening
      * spawn, not a summon. "Standby, don't crash": a {@link BossSentinelsFixture} that isn't

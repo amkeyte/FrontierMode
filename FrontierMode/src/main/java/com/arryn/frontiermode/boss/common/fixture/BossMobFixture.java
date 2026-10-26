@@ -8,7 +8,6 @@ import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -192,8 +191,7 @@ public final class BossMobFixture extends SatchelFixture {
         if (infoOpt.isEmpty()) {
             return Optional.empty();
         }
-        var jig = (MobJig) infoOpt.get().jigInfo().jig;
-        BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
+        BossMobBundle bundle = infoOpt.get().getOrCreate(FrontierKeys.BOSS_MOB_BUNDLE);
         return Optional.of(bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new));
     }
 }

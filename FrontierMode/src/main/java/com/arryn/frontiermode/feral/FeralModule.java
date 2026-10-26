@@ -119,7 +119,7 @@ import java.util.UUID;
  * for {@code ItemPickupSignal}/{@code BlockBreakSignal}. {@link #onMobSpawnFinalize} is the one
  * exception -- it stays a plain {@code (Mob, ServerLevel)} delegate target, called directly from
  * {@code SpawnCoordinator}, the cross-module fan-out, rather than
- * subscribing to {@code MobSpawnFinalizeSignal} itself, since Boss/Border/Feral all need a turn on
+ * listening for {@code MobSpawnFinalizing} itself, since Boss/Border/Feral all need a turn on
  * the same spawn in a specific order (Slime deny first) that independent bare-signal subscribers
  * can't guarantee.
  */
@@ -280,7 +280,7 @@ public final class FeralModule {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.FERAL_PLAYER_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.FERAL_PLAYER_JIG.equals(info.jigKey())) {
             return;
         }
 
@@ -300,7 +300,7 @@ public final class FeralModule {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.FERAL_LEVEL_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.FERAL_LEVEL_JIG.equals(info.jigKey())) {
             return;
         }
 
@@ -993,7 +993,7 @@ public final class FeralModule {
      * Wilds policy: Slime and MagmaCube (a {@code Slime}) are removed from the Wilds only --
      * where {@code frontierDistanceAt > 0} -- so Feral rules govern out there, and they spawn at the
      * ordinary vanilla rate inside the border. The caller denies the spawn with
-     * {@code MobSpawnFinalizeSignal#denySpawn()}, not {@code cancel()}, which only skips
+     * {@code MobSpawnFinalizing#denySpawn()}, not a cancel, which only skips
      * {@code Mob#finalizeSpawn}'s initialization and still lets the entity spawn.
      */
     public static boolean shouldDenySpawn(Mob mob, ServerLevel level) {

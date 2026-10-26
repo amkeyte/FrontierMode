@@ -278,10 +278,10 @@ public final class ScopeEngine_Server implements ScopeEngine {
         // at server stop is unloaded after vanilla's own save pass has already run, so without an
         // explicit write here a change made at teardown (a Trinket's onDetach, say) would never
         // reach disk. Same level-wide write forceWriteToDisk() uses, done only when this pass
-        // actually flushed something and the server is stopping -- while it runs, vanilla's
-        // autosave covers an ordinary mob or player scope unloading, and a write per teardown
-        // would be needless disk traffic.
-        if (onExecutionPulse(info, true)) {
+        // actually flushed something in a level scope and the server is stopping. While it runs,
+        // vanilla's autosave covers an ordinary mob or player scope unloading; one unloading during a
+        // stop comes before vanilla's save pass; and a write per teardown would be needless disk traffic.
+        if (onExecutionPulse(info, true) && info.scope() instanceof LevelScope) {
             ServerLevel level = resolveServerLevel(info, CapableOf.PERSISTENCE);
             if (!level.getServer().isRunning()) {
                 level.getDataStorage().save();

@@ -21,6 +21,14 @@ public final class ParcelInbox {
 
         OUT.TRACE().log("[ParcelInbox] enqueued Parcel for bundle: " + parcel.bundleId());
     }
+
+    /**
+     * Drops every queued parcel. The client's logout calls it, so a parcel never drained cannot hydrate a later
+     * world's bundle, whose scope and bundle ids can match (a rejoined save, a player scope).
+     */
+    public static synchronized void clear() {
+        INBOX.clear();
+    }
 //
 //    public static synchronized S2cBundleParcel poll(
 //            UUID scopeId,

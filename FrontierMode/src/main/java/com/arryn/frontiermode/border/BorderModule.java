@@ -26,7 +26,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
@@ -287,15 +286,14 @@ public final class BorderModule {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.BORDER_PLAYER_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.BORDER_PLAYER_JIG.equals(info.jigKey())) {
             return;
         }
 
-        var jig = (PlayerJig) info.jigInfo().jig;
         PlayerScope scope = (PlayerScope) info.scope();
         ServerPlayer player = (ServerPlayer) scope.player();
 
-        BorderPlayerBundle bundle = jig.getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE);
+        BorderPlayerBundle bundle = info.getOrCreate(FrontierKeys.BORDER_PLAYER_BUNDLE);
         BorderPlayerStatusFixture fixture =
                 bundle.getOrCreateFixture(FrontierKeys.BORDER_PLAYER_STATUS, BorderPlayerStatusFixture::new);
 

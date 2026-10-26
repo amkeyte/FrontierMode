@@ -27,6 +27,7 @@ import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.player.PlayerJig;
@@ -326,14 +327,20 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    // FRO_166: SpawnCoordinator's own tick-free signal subscription point -- no bundle/fixture,
-    // same shape as FERAL_LEVEL_JIG/ADMIN_TOOLS_JIG. See SpawnCoordinator.init() for the wiring.
+    // FRO_253 TEMP: SpawnCoordinator's old signal subscription point, kept only as a log-only
+    // subscriber for the same-run comparison. Remove with SpawnCoordinator.registerOldPathLog().
 
     public static final JigKey<LevelJig> SPAWN_COORDINATOR_JIG =
             new JigKey<>(
                     "frontiermode:spawn_coordinator_jig",
                     LevelJig.class
             );
+
+    // FRO_253: names the spawn coordination ingress, which carries MobSpawnFinalizing and its one
+    // consumer. Wired in SpawnIngress.build(), registered from SpawnCoordinator.init().
+
+    public static final IngressKey SPAWN_COORDINATION =
+            new IngressKey("frontiermode:spawn_coordination");
 
     // FRO_149: AdminToolsModule's own tick-free signal subscription point -- no bundle/fixture,
     // same "exists purely to get a signal subscription point" shape as FERAL_PLAYER_JIG/

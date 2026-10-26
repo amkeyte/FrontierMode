@@ -172,13 +172,11 @@ public final class JigPolicies {
     }
 
     /**
-     * Declares whether a bundle persists and how. Partially wired: {@link #persistent()}
-     * is the one field actually read ({@code JigConfigValidator}'s cross-check against a
-     * bundle's {@code Capability.PERSISTENCE}, SAT_053). {@link #flushOn()} and
-     * {@link #missingPolicy()} are declared by real consumers -- BorderModule sets both,
-     * by its own comment, "so the policy reads as intentional" -- but read by nothing;
-     * flush timing and missing-data handling are both currently hardcoded in
-     * {@code ScopeEngine_Server} rather than driven by this record. See SAT_054.
+     * Declares whether a bundle persists and how. All three fields are read: {@link #persistent()}
+     * by {@code JigConfigValidator}'s cross-check against a bundle's {@code Capability.PERSISTENCE}
+     * (SAT_053), {@link #flushOn()} by {@code ScopeEngine_Server#flushIfDirty} (when a dirty bundle is
+     * written), and {@link #missingPolicy()} by {@code ScopeEngine_Server#hydrateBundle} (what to do when
+     * there is no saved data yet).
      */
     public record Persistence(
             boolean persistent,

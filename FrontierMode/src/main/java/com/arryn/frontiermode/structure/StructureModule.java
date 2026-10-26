@@ -19,7 +19,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.BlockBreakSignal;
@@ -189,8 +188,7 @@ public final class StructureModule {
         if (infoOpt.isEmpty()) {
             return Optional.empty();
         }
-        var jig = (LevelJig) infoOpt.get().jigInfo().jig;
-        StructureBundle bundle = jig.getOrCreate(scope, FrontierKeys.STRUCTURE_BUNDLE);
+        StructureBundle bundle = infoOpt.get().getOrCreate(FrontierKeys.STRUCTURE_BUNDLE);
         return Optional.of(bundle.getOrCreateFixture(FrontierKeys.CAIRN, CairnFixture::new));
     }
 
@@ -202,7 +200,7 @@ public final class StructureModule {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.STRUCTURE_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.STRUCTURE_JIG.equals(info.jigKey())) {
             return;
         }
         if (!Satchel.isServer()) {
@@ -212,8 +210,7 @@ public final class StructureModule {
         LevelScope scope = (LevelScope) info.scope();
         Level level = scope.level();
 
-        var jig = (LevelJig) info.jigInfo().jig;
-        StructureBundle bundle = jig.getOrCreate(scope, FrontierKeys.STRUCTURE_BUNDLE);
+        StructureBundle bundle = info.getOrCreate(FrontierKeys.STRUCTURE_BUNDLE);
         CairnFixture fixture = bundle.getOrCreateFixture(FrontierKeys.CAIRN, CairnFixture::new);
 
         for (CairnRecord record : fixture.all()) {

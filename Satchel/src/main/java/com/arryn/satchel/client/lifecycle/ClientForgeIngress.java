@@ -6,6 +6,7 @@ import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.client.jig.guts.ClientFoundationBooter;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
+import com.arryn.satchel.common.net.ParcelInbox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -118,6 +119,10 @@ public final class ClientForgeIngress {
             ClientLevel level = Minecraft.getInstance().level;
             if (level != null) foundation.tryRemoveSource(level);
         });
+
+        // A parcel the client never drained must not reach a later world: a rejoined save has the same scope
+        // ids, and a player scope's id is the same in every world.
+        ParcelInbox.clear();
 
         // Session-scoped by design (see WorldIdentityContext's class docs) -- clear so a later
         // connection, to this server or a different one, never starts with a stale token left

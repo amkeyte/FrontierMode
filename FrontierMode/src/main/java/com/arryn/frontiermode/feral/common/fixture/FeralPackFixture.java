@@ -4,7 +4,6 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.feral.common.bundle.FeralPackBundle;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
-import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -88,8 +87,7 @@ public final class FeralPackFixture extends SatchelFixture {
         }
         LevelScope scope = new LevelScope(level);
         return Satchel.tryReadyScopeInfo(FrontierKeys.FERAL_LEVEL_JIG, scope).flatMap(info -> {
-            LevelJig jig = (LevelJig) info.jigInfo().jig;
-            FeralPackBundle bundle = jig.getOrCreate(scope, FrontierKeys.FERAL_PACK_BUNDLE);
+            FeralPackBundle bundle = info.getOrCreate(FrontierKeys.FERAL_PACK_BUNDLE);
             return bundle.pack();
         });
     }

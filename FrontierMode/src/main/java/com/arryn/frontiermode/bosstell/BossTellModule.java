@@ -13,7 +13,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
@@ -145,15 +144,14 @@ public final class BossTellModule {
         ScopeInfo info = event.info();
         Objects.requireNonNull(info, "info");
 
-        if (!FrontierKeys.COMPASS_PLAYER_JIG.equals(info.jigInfo().key)) {
+        if (!FrontierKeys.COMPASS_PLAYER_JIG.equals(info.jigKey())) {
             return;
         }
 
-        var jig = (PlayerJig) info.jigInfo().jig;
         PlayerScope scope = (PlayerScope) info.scope();
         ServerPlayer player = (ServerPlayer) scope.player();
 
-        CompassPlayerBundle bundle = jig.getOrCreate(scope, FrontierKeys.COMPASS_PLAYER_BUNDLE);
+        CompassPlayerBundle bundle = info.getOrCreate(FrontierKeys.COMPASS_PLAYER_BUNDLE);
         CompassPlayerFixture fixture =
                 bundle.getOrCreateFixture(FrontierKeys.COMPASS_PLAYER, CompassPlayerFixture::new);
 

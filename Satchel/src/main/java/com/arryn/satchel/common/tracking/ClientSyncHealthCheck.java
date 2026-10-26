@@ -1,11 +1,17 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.net.ParcelInbox;
+import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraftforge.fml.LogicalSide;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Whether the data a client is owed has arrived and been applied (SAT_126) -- see {@link SatchelHealth}.
@@ -21,6 +27,12 @@ import java.util.Optional;
  * <p>
  * It assumes SatchelHealth runs on both sides of the connection. A dropped world-identity token cannot
  * be seen here: without the token the client has no level scope, so no Trinket to tick.
+ *
+ * <p>
+ * The same probe confirms the client's parcel inbox does not outlive its world (SAT_146). At a world's first
+ * client level tick it finds nothing under a fixed stray id and plants one parcel there that no engine owns, so
+ * the logout that ends the world has to empty the inbox for the next world's check to pass. A violation therefore
+ * needs two worlds in one session.
  */
 final class ClientSyncHealthCheck {
 
@@ -36,6 +48,26 @@ final class ClientSyncHealthCheck {
      */
     static final int PARCEL_WITHIN_TICKS = 60;
 
+    /** The parcel the inbox check plants: ids fixed, so the next world finds it with no memory of this one. */
+    private static final UUID STRAY_SCOPE = UUID.nameUUIDFromBytes(
+            "satchelhealth:stray-parcel-scope".getBytes(StandardCharsets.UTF_8));
+    private static final UUID STRAY_BUNDLE = UUID.nameUUIDFromBytes(
+            "satchelhealth:stray-parcel-bundle".getBytes(StandardCharsets.UTF_8));
+
+    /**
+     * The inbox check, on the client at a world's first level tick: a parcel under the stray ids is the last
+     * world's, since the logout has to have removed the one planted then. Then it plants the next one.
+     */
+    private static void checkInbox() {
+        if (!ParcelInbox.drainForScope(STRAY_SCOPE, Set.of(STRAY_BUNDLE)).isEmpty()) {
+            SatchelHealth.violation("[SatchelHealth] VIOLATION: Parcel inbox a parcel planted in the last world was "
+                    + "still in the client's inbox at this world's start, so the logout did not empty it");
+        }
+        ParcelInbox.enqueue(new S2cBundleParcel(STRAY_SCOPE, STRAY_BUNDLE, "satchelhealth_stray", new CompoundTag()));
+        OUT.info("[SatchelHealth] Parcel inbox probe: no parcel from an earlier world was in the client's inbox at "
+                + "this world's start; one is planted for the next world to find gone");
+    }
+
     /**
      * On the health level jig, which has a scope on both sides; acts on the client only. Declared on the
      * jig that holds the canary bundle, since a host Trinket has no bundles to ask.
@@ -48,6 +80,9 @@ final class ClientSyncHealthCheck {
         @Override
         public void onTickAfter(ScopeInfo info) {
             if (done || info.jigInfo().side() != LogicalSide.CLIENT) return;
+
+            // Once per world, at its first client level tick.
+            if (SatchelHealth.firstTime("parcel-inbox")) checkInbox();
 
             Optional<CanaryHealthCheck.CanaryFixture> fixture = info.ask(CanaryHealthCheck.CANARY_BUNDLE)
                     .flatMap(b -> b.get(CanaryHealthCheck.CANARY_FIXTURE));

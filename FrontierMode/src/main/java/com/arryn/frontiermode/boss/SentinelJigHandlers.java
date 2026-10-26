@@ -74,7 +74,7 @@ final class SentinelJigHandlers {
      */
     static void onSentinelPublicTick(ScopeEvent.Tick event) {
         ScopeInfo info = event.info();
-        if (!FrontierKeys.SENTINEL_PUBLIC_JIG.equals(info.jigInfo().key)) return;
+        if (!FrontierKeys.SENTINEL_PUBLIC_JIG.equals(info.jigKey())) return;
         Level level = ((LevelScope) info.scope()).level();
         if (!level.isClientSide) return;
         SentinelMarkers.clientFixture(level).ifPresent(fixture -> SentinelTrailClient.tick(level, fixture));

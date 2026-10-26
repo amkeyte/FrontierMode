@@ -400,8 +400,8 @@ public final class BorderCommandHandler {
     // ------------------------------------------------------------------
     // RM_FRO_037 ("Brenda") test aid: unlike /summon (which loads a raw entity from NBT and never
     // touches Mob#finalizeSpawn at all), this spawns each rabbit with DISPATCHED setup -- the real
-    // Forge finalize-spawn event, which Satchel's ServerSpawnIngress wraps into
-    // MobSpawnFinalizeSignal, which BossJigHandlers.onMobSpawnFinalize fans out to BorderModule
+    // Forge finalize-spawn event, which SpawnIngress translates into
+    // MobSpawnFinalizing, which SpawnCoordinator fans out to BorderModule
     // (Sick Wildlife's density hook) and BossModule. A deterministic way to exercise that hook on
     // demand instead of waiting on natural spawn RNG.
     // ------------------------------------------------------------------

@@ -208,7 +208,7 @@ public final class FrontierMode {
         // own doc.
         FeralModule.init();
 
-        // The one subscriber to the mob-spawn-finalize signal: fans out to Boss, Border and Feral in a
+        // The one consumer of the mob-spawn-finalizing event: fans out to Boss, Border and Feral in a
         // fixed order. Depends on all three modules and none depends on it, so it inits last.
         SpawnCoordinator.init();
     }

@@ -5,7 +5,6 @@ import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.Ids;
@@ -51,8 +50,7 @@ final class BossMobJigHandlers {
             return;
         }
 
-        var jig = (MobJig) info.jigInfo().jig;
-        BossMobBundle bundle = jig.getOrCreate(scope, FrontierKeys.BOSS_MOB_BUNDLE);
+        BossMobBundle bundle = info.getOrCreate(FrontierKeys.BOSS_MOB_BUNDLE);
         BossMobFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS_MOB, BossMobFixture::new);
         fixture.attachTo(recordOpt.get().bossId(), mob);
 

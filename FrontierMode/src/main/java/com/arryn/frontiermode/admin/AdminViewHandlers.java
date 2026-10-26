@@ -20,7 +20,7 @@ final class AdminViewHandlers {
 
     static void onTick(ScopeEvent.Tick event) {
         ScopeInfo info = event.info();
-        if (!FrontierKeys.SENTINEL_PUBLIC_JIG.equals(info.jigInfo().key)) return;
+        if (!FrontierKeys.SENTINEL_PUBLIC_JIG.equals(info.jigKey())) return;
         Level level = ((LevelScope) info.scope()).level();
         if (!level.isClientSide) return;
         AdminViewClient.tick(level);
