@@ -16,7 +16,7 @@ import java.util.UUID;
  * to give away. Same shape as {@link BossPublicFixture}; see sentinels.md's
  * "SentinelPublicFixture".
  *
- * <p>Written server-side at {@code SENTINEL_MOB_JIG}'s interest hooks; the client's copy hydrates
+ * <p>Written server-side as presence adopts and drops a Sentinel; the client's copy hydrates
  * from Satchel's parcel. Networked, not persisted (see {@code SentinelPublicBundle}).
  *
  * <p>A change forces a network push, coalesced to at most one per tick: writers set a pending flag

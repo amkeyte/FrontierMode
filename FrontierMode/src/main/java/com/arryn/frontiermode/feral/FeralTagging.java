@@ -1,17 +1,15 @@
 package com.arryn.frontiermode.feral;
 
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
 
 /**
- * What makes a hostile that joined the Wilds Feral: its name and scoreboard team, and its place on
- * the {@code feral} rung of the stat ladder. The decision to tag stays in {@link FeralModule}.
+ * What makes a hostile that joined the Wilds Feral: the Feral record on the mob ({@link FeralData}) and
+ * its place on the {@code feral} rung of the stat ladder. The decision to tag is {@link FeralModule}'s
+ * join handler. There is no name, no scoreboard team and no marker: a Feral mob's only in-world sign is
+ * the cosmetic tell.
  */
 final class FeralTagging {
 
@@ -19,24 +17,26 @@ final class FeralTagging {
     }
 
     /**
-     * Name tag + a shared {@code feral} scoreboard team, then the {@code feral} rung. The tag shows
-     * the raw frontier-distance {@code mob} spawned at, not a bucketed tier -- per the design page's
-     * explicit "no bucketed tiers picked from a table, just steadily more twisted." Team color is
-     * {@code DARK_GREEN} for the design page's "sickly green," distinct from Sentinel's
-     * {@code DARK_PURPLE} and Boss's unteamed white glow.
+     * Tags a mob that has just joined {@code level}. A mob with no record gets one if it stands past the
+     * Frontier ({@code distance} is that frontier distance, always positive). A mob that already carries
+     * the record -- a pack member, whose record is written before it joins -- keeps it. Either way the
+     * {@code feral} rung is applied: the first rung to reach a mob wins, so the call is idempotent, and a
+     * pack member would otherwise never get one.
      *
-     * <p>The rung's health and damage come from the path tip's position, not from the distance
+     * <p>The rung's health and damage come from the path tip's position, not the distance
      * ({@link DifficultyAPI#applyFeralRung}).
+     *
+     * @return whether the mob is Feral, and so belongs in presence
      */
-    static void tag(Mob mob, int frontierDistance, ServerLevel level) {
-        mob.setCustomName(Component.literal("Feral [" + frontierDistance + "]"));
-        // Visible only in the client-side debug view (AdminViewClient); the name itself stays set.
-        mob.setCustomNameVisible(false);
-
-        Scoreboard scoreboard = level.getScoreboard();
-        PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, "feral", ChatFormatting.DARK_GREEN);
-        EffectsAPI.assignToTeam(mob, scoreboard, team);
-
+    static boolean tagFreshJoin(Mob mob, ServerLevel level) {
+        if (!FeralData.has(mob)) {
+            int frontierDistance = BorderAPI.frontierDistanceAt(level, mob.blockPosition());
+            if (frontierDistance <= 0) {
+                return false;
+            }
+            FeralData.writeIfAbsent(mob, frontierDistance, false);
+        }
         DifficultyAPI.applyFeralRung(mob);
+        return true;
     }
 }

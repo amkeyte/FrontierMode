@@ -230,7 +230,7 @@ public interface BossRules {
 
     /**
      * Removes {@code mob} with vanilla's death puff and nothing else: no drops, no XP, no death event.
-     * For a doomed sentinel that loaded after its boss was defeated, and for a boss whose defeat was
+     * For a sentinel that joined after its boss was defeated, and for a boss whose defeat was
      * forced ({@code /boss defeat}) or that is found alive after its record was defeated.
      */
     void dismiss(Mob mob);

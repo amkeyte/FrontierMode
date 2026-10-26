@@ -32,7 +32,6 @@ import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
-import com.arryn.satchel.common.lifecycle.MobRemoved;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
@@ -78,7 +77,6 @@ public final class BossModule {
         registerBossJig();
         registerBossMobJig();
         registerBossPublicJig();
-        registerSentinelMobJig();
         registerSentinelPublicJig();
         registerNavigatorResolver();
     }
@@ -127,8 +125,9 @@ public final class BossModule {
                         BossTellFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
-        // RM_FRO_029 (Gloria): third BossBundle sibling. Persisted records; conversion is
-        // event-driven off onMobSpawnFinalize, and the fixture rides BOSS_JIG's tick for its staging.
+        // RM_FRO_029 (Gloria): third BossBundle sibling. Runtime state only (a Sentinel is a record on
+        // the mob); conversion is event-driven off onMobSpawnFinalize, and the fixture rides BOSS_JIG's
+        // tick for presence, adds and the defeat kills.
         var bossSentinelsFixture =
                 new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS_SENTINELS,
@@ -147,6 +146,12 @@ public final class BossModule {
                         .on(ScopeEvent.Tick.class, BossJigHandlers::onTick)
                         .on(ScopeEvent.Loaded.class, BossJigHandlers::onBordersScopeLoaded)
                         .on(MobDied.class, BossJigHandlers::onMobDied)
+                        // Bare, unscoped signals -- declared here only because this is the topically
+                        // closest config, not a claim they are BOSS_JIG-scoped.
+                        .on(EntityJoinLevelSignal.class, SentinelJigHandlers::onEntityJoinLevel)
+                        .on(SpawnPlacementCheckSignal.class, SentinelJigHandlers::onSpawnPlacementCheck)
+                        .on(SpawnPositionCheckSignal.class, SentinelJigHandlers::onSpawnPositionCheck)
+                        .on(LivingConversionSignal.class, SentinelJigHandlers::onConversion)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);
@@ -255,38 +260,6 @@ public final class BossModule {
                 .eventHandlers(eventHandlers);
 
         MobInterestRegistry.register(FrontierKeys.BOSS_MOB_JIG, () -> BossInterests.MAP);
-        Satchel.registerJigConfig(config);
-    }
-
-    // ── SENTINEL_MOB_JIG ─────────────────────────────────────────────────────
-
-    /**
-     * Tracks the sentinel entities {@code BossSentinelsFixture}'s records name. Server-only, and an
-     * empty bundle schema: there is no per-mob state to hold. The interest set is the fixture's live
-     * record-key view, registered per level from {@code BOSS_JIG}'s tick.
-     */
-    private static void registerSentinelMobJig() {
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        .on(ScopeEvent.MobGainedInterest.class, SentinelJigHandlers::onMobGainedInterest)
-                        .on(ScopeEvent.MobLostInterest.class, SentinelJigHandlers::onMobLostInterest)
-                        // Bare, unscoped signals -- declared here only because this is the topically
-                        // closest config, not a claim they are SENTINEL_MOB_JIG-scoped.
-                        .on(EntityJoinLevelSignal.class, SentinelJigHandlers::onEntityJoinLevel)
-                        .on(SpawnPlacementCheckSignal.class, SentinelJigHandlers::onSpawnPlacementCheck)
-                        .on(SpawnPositionCheckSignal.class, SentinelJigHandlers::onSpawnPositionCheck)
-                        .on(MobDied.class, SentinelJigHandlers::onMobDied)
-                        .on(MobRemoved.class, SentinelJigHandlers::onMobRemoved)
-                        .build();
-
-        MobJigConfig config = new MobJigConfig(FrontierKeys.SENTINEL_MOB_JIG);
-        config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
-        config.bundles().schema(new JigBundles.Schema<>(List.of()));
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
-                .eventHandlers(eventHandlers);
-
-        MobInterestRegistry.register(FrontierKeys.SENTINEL_MOB_JIG, () -> SentinelInterests.MAP);
         Satchel.registerJigConfig(config);
     }
 

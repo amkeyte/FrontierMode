@@ -10,15 +10,14 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.filter.AbstractFilter;
 
 /**
- * FRO_155: drops vanilla's per-death INFO line for FrontierMode's own named mobs.
+ * FRO_155: drops vanilla's per-death INFO line for a boss.
  *
  * <p>{@code LivingEntity.die()} logs {@code "Named entity {} died: {}"} for every entity with a
- * custom name. Feral mobs and bosses always carry one (shown only in the debug view; a boss's also
- * reaches death messages), and Feral pack density turns that into a flood. The line comes from vanilla's own logger, so mod
- * logging code can't reach it; this installs a log4j filter on that one logger instead. Done from
+ * custom name. A boss always carries one (shown only in the debug view; it also reaches death
+ * messages). The line comes from vanilla's own logger, so mod logging code can't reach it; this installs a log4j filter on that one logger instead. Done from
  * mod code, not a config file, so it applies on any server and any dev run.
  *
- * <p>Deliberately narrow: only lines naming a Feral or boss-named entity are denied. A tamed
+ * <p>Deliberately narrow: only lines naming a boss-named entity are denied. A tamed
  * pet or a player-renamed mob dying still logs, since that line is useful and isn't ours -- unless
  * the player named it exactly like a boss.
  */
@@ -50,8 +49,7 @@ final class LogFilters {
         @Override
         public Result filter(LogEvent event) {
             String message = event.getMessage().getFormattedMessage();
-            if (message.startsWith("Named entity ")
-                    && (message.contains("'Feral [") || message.contains("'" + DefaultBossRules.BOSS_NAME + "'"))) {
+            if (message.startsWith("Named entity ") && message.contains("'" + DefaultBossRules.BOSS_NAME + "'")) {
                 return onMatch;
             }
             return onMismatch;

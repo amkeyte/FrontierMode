@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.effects.common;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
@@ -12,10 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.BossEvent;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
 import org.joml.Vector3f;
 
 /**
@@ -137,35 +133,5 @@ public final class EffectsAPI {
     public static BossBarHandle createBossBar(
             Component title, BossEvent.BossBarColor color, BossEvent.BossBarOverlay overlay) {
         return new BossBarHandle(new ServerBossEvent(title, color, overlay));
-    }
-
-    /**
-     * Idempotent create-if-absent for a named {@link PlayerTeam} -- proposed shape from
-     * wiki/frontiermode/architecture/effects.md#team-assignment-persistent-visual-state, mirroring
-     * this codebase's own {@code createTellCurveIfAbsent}/{@code ensureSentinelCurves}
-     * convention. Team membership is persistent, server-authoritative entity state (unlike a
-     * particle burst or a sound), so it has no client-derived/parity counterpart -- every real
-     * caller is this server-broadcast path.
-
-     */
-    public static PlayerTeam ensureTeam(Scoreboard scoreboard, String name, ChatFormatting color) {
-        PlayerTeam team = scoreboard.getPlayerTeam(name);
-        if (team == null) {
-            team = scoreboard.addPlayerTeam(name);
-            team.setColor(color);
-        }
-        return team;
-    }
-
-    /**
-     * Adds {@code entity} to {@code team} via {@code scoreboard}. Takes the {@link Scoreboard}
-     * explicitly rather than reading it off {@code entity} -- {@code Entity} has no
-     * {@code getScoreboard()} accessor in the real API (the wiki page's own sketch assumed one;
-     * checked against real Forge/Mojang-mapped 1.20.1 sources, it doesn't exist -- callers already
-     * have a {@code ServerLevel}/{@code Scoreboard} in hand at every real call site, e.g. via
-     * {@code level.getScoreboard()}, same as {@link #ensureTeam} above).
-     */
-    public static void assignToTeam(Entity entity, Scoreboard scoreboard, PlayerTeam team) {
-        scoreboard.addPlayerToTeam(entity.getScoreboardName(), team);
     }
 }

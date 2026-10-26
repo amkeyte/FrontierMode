@@ -7,15 +7,14 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurve;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.Shape;
 import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.boss.SentinelData;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
+import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -28,7 +27,6 @@ import net.minecraft.world.phys.AABB;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,47 +36,48 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Third sibling fixture to {@link BossFixture}/{@link BossTellFixture} inside {@link BossBundle},
  * per RM_FRO_029 ("Gloria") / wiki/frontiermode/architecture/sentinels.md.
  *
- * <p>A real, persisted {@code SatchelFixture}: it owns the sentinel records, one per sentinel mob
- * keyed by its UUID -- see {@link SentinelRecord}. Conversion runs at spawn finalization, before
- * the mob is in the world and before a finalized spawn is known to succeed, so it <em>stages</em> a
- * record in memory; the mob's fresh join promotes the staged entry to a record
- * ({@link #promote}). This fixture's tick clears whatever is still staged, and the lifted spawn
- * positions, so a record exists only for a sentinel that entered the world.
+ * <p>It persists nothing. A Sentinel is a record on the mob itself ({@link SentinelData}), so no record
+ * outside the mob can go stale. What this fixture holds is runtime state: the Sentinels present in the
+ * level ({@link Presence}), the extra Sentinels queued at conversion, the spawn positions where the
+ * darkness gate was lifted, the alert windows and the defeat kill queue. It rides {@code BOSS_JIG}'s
+ * tick, and moves into a Trinket with the sentinel module.
+ *
+ * <p>Conversion runs at spawn finalization, before the mob is in the world: it writes the record onto
+ * the mob. The mob's join queues it in presence, and this fixture's tick adopts it.
  *
  * <p>Reaches {@link BossFixture} through {@code getBundle().boss()}, the same one path
  * {@link BossTellFixture#onJigTick()} uses, rather than a second, parallel static lookup.
  *
- * <p>Conversion is event-driven ({@code BossModule.onMobSpawnFinalize}); the fixture rides
- * {@code BOSS_JIG}'s tick and execution pulse for the rest.
+ * <p>Conversion is event-driven ({@code BossModule.onMobSpawnFinalize}).
  */
 public final class BossSentinelsFixture extends SatchelFixture {
 
-    /**
-     * One sentinel. {@code bossId} never leaves the server; {@code scale} is fixed at conversion.
-     * {@code doomed} is set when its boss is defeated: the sentinel dies with it, and one that wasn't
-     * present at that moment is removed the moment it next loads. New per-sentinel facts are added
-     * here as fields.
-     */
-    public record SentinelRecord(UUID mobUuid, UUID bossId, float scale, boolean doomed) {
-    }
-
-    private static final String KEY_SENTINELS = "sentinels";
-
-    // Concurrent so the MobJig interest walk can iterate the live key view while a handler it
-    // triggers deletes a record.
-    private final Map<UUID, SentinelRecord> records = new ConcurrentHashMap<>();
-    private final Set<UUID> recordIds = Collections.unmodifiableSet(records.keySet());
-
-    // Transient, never persisted: conversion's staged entries and the spawn positions where the
-    // darkness gate was lifted (see the daylight rule). Both are cleared on the tick.
-    private final Map<UUID, SentinelRecord> staged = new HashMap<>();
+    // Transient: the spawn positions where the darkness gate was lifted (see the daylight rule),
+    // cleared on the tick.
     private final Set<Long> liftedPositions = new HashSet<>();
+
+    /** The Sentinels in the level now, and the joins waiting to be adopted. */
+    private final Presence present = new Presence();
+
+    // Whether the one-time sweep for Sentinels that joined before this fixture existed has run.
+    private boolean swept;
+
+    private final Presence.Hooks presenceHooks = new Presence.Hooks() {
+        @Override
+        public boolean adopt(Mob mob, boolean fresh) {
+            return adoptSentinel(mob, fresh);
+        }
+
+        @Override
+        public void onDrop(Mob mob) {
+            BossAPI.sentinelMarkers(mob.level()).ifPresent(pub -> pub.remove(mob.getUUID()));
+        }
+    };
 
     /** An extra sentinel queued at conversion, spawned on this fixture's next tick. */
     private record PendingAdd(EntityType<?> type, UUID parentUuid, UUID bossId, float scale,
@@ -88,11 +87,10 @@ public final class BossSentinelsFixture extends SatchelFixture {
     // Transient. Spawned on the tick, never inside the finalize-spawn dispatch that queued them.
     private final List<PendingAdd> pendingAdds = new ArrayList<>();
 
-    /** A doomed sentinel queued for its staggered kill, and the player credited with it (null: uncredited). */
+    /** A sentinel of a defeated boss queued for its staggered kill, and the player credited with it (null: uncredited). */
     private record PendingKill(UUID mobUuid, UUID creditedPlayer) {
     }
 
-    // Transient: doomed on the record is what survives a restart or an unload before a sentinel's turn.
     private final Deque<PendingKill> pendingKills = new ArrayDeque<>();
 
     /** A sentinel turned on {@code playerUuid} by a hit on its boss, held until game time {@code alertedUntil}. */
@@ -108,120 +106,80 @@ public final class BossSentinelsFixture extends SatchelFixture {
     // Candidate spots MobSpawns.scatter tries for one extra sentinel.
     private static final int ADD_SCATTER_TRIES = 4;
 
-    public BossSentinelsFixture() {
-        registerCustom(KEY_SENTINELS, this::saveRecords, this::loadRecords);
-    }
-
-    private void saveRecords(CompoundTag root) {
-        ListTag list = new ListTag();
-        for (SentinelRecord r : records.values()) {
-            CompoundTag tag = new CompoundTag();
-            tag.putUUID("mobUuid", r.mobUuid);
-            tag.putUUID("bossId", r.bossId);
-            tag.putFloat("scale", r.scale);
-            tag.putBoolean("doomed", r.doomed);
-            list.add(tag);
-        }
-        root.put(KEY_SENTINELS, list);
-    }
-
-    private void loadRecords(CompoundTag root) {
-        records.clear();
-        if (!root.contains(KEY_SENTINELS, Tag.TAG_LIST)) {
-            return;
-        }
-        for (Tag t : root.getList(KEY_SENTINELS, Tag.TAG_COMPOUND)) {
-            CompoundTag tag = (CompoundTag) t;
-            if (!tag.hasUUID("mobUuid") || !tag.hasUUID("bossId")) {
-                continue;
-            }
-            UUID mobUuid = tag.getUUID("mobUuid");
-            records.put(mobUuid, new SentinelRecord(
-                    mobUuid, tag.getUUID("bossId"), tag.getFloat("scale"), tag.getBoolean("doomed")));
-        }
-    }
-
-    // ── records ──────────────────────────────────────────────────────────────
+    // ── presence ─────────────────────────────────────────────────────────────
 
     /**
-     * A live, read-only view of every record's mob UUID -- the {@code SENTINEL_MOB_JIG} interest
-     * set. A view, not a copy: deleting a record stops tracking it, and the interest gate that runs
-     * on every mob death never rebuilds anything.
+     * A mob that carries the Sentinel record has joined the level, fresh or loaded from disk. It is
+     * queued, and this fixture's tick adopts it.
      */
-    public Set<UUID> recordIds() {
-        return recordIds;
+    public void join(Mob mob, boolean fresh) {
+        present.join(mob, fresh);
     }
 
-    public Collection<SentinelRecord> all() {
-        return records.values();
-    }
-
-    public Optional<SentinelRecord> record(UUID mobUuid) {
-        return Optional.ofNullable(records.get(mobUuid));
-    }
-
-    /** True if {@code mobUuid} has a record or a staged entry. */
-    public boolean isSentinel(UUID mobUuid) {
-        return records.containsKey(mobUuid) || staged.containsKey(mobUuid);
+    /** The Sentinels in the level now. A live view; do not change presence while iterating. */
+    public Collection<Mob> presentSentinels() {
+        return present.mobs();
     }
 
     /**
-     * The sentinel's size multiplier from its record or staged entry, or {@code 1.0} for a mob that
-     * is neither. Staged entries count so a sentinel enters the world already at its sentinel size.
+     * Adoption, for a queued Sentinel that passed the same-object check. If its boss is defeated or has
+     * no record in this level, the Sentinel is dismissed (no drops, no XP) and left out: that covers one
+     * that joined after its boss fell, and one that arrived through a portal. Otherwise it is published
+     * to clients, its dimensions are refreshed (a reload never recomputes a hitbox), and a fresh one is
+     * healed to full, because vanilla's setup can raise max health without healing. A reloaded Sentinel
+     * keeps the health it saved with.
      */
-    public float scaleOf(UUID mobUuid) {
-        SentinelRecord r = records.get(mobUuid);
-        if (r == null) {
-            r = staged.get(mobUuid);
+    private boolean adoptSentinel(Mob mob, boolean fresh) {
+        Optional<SentinelData.Facts> facts = SentinelData.read(mob);
+        BossBundle bundle = getBundle();
+        Optional<BossFixture> bossOpt = bundle.boss();
+        if (facts.isEmpty() || bossOpt.isEmpty()) {
+            return false;
         }
-        return r == null ? 1.0F : r.scale;
+        BossFixture boss = bossOpt.get();
+        boolean bossStands = boss.CRUD.get(facts.get().bossId()).map(BossRecord::alive).orElse(false);
+        if (!bossStands) {
+            boss.RULES.dismiss(mob);
+            return false;
+        }
+        BossAPI.sentinelMarkers(mob.level()).ifPresent(pub -> pub.add(mob.getUUID(), facts.get().scale()));
+        mob.refreshDimensions();
+        if (fresh) {
+            boss.RULES.healSentinel(mob);
+        }
+        return true;
     }
 
-    /** Promotes the staged entry for {@code mobUuid} to a record; empty if nothing was staged. */
-    public Optional<SentinelRecord> promote(UUID mobUuid) {
-        SentinelRecord r = staged.remove(mobUuid);
-        if (r == null) {
-            return Optional.empty();
-        }
-        records.put(mobUuid, r);
-        markDirty();
-        return Optional.of(r);
-    }
-
-    /** Deletes the record for {@code mobUuid}; empty if it had none. */
-    public Optional<SentinelRecord> delete(UUID mobUuid) {
-        SentinelRecord r = records.remove(mobUuid);
-        if (r != null) {
-            markDirty();
-        }
-        return Optional.ofNullable(r);
-    }
+    // ── defeat ───────────────────────────────────────────────────────────────
 
     /**
-     * The boss {@code bossId} was defeated: marks every one of its sentinel records doomed and queues
-     * them for a staggered kill on this fixture's tick. {@code creditedPlayer} is the player who
-     * defeated it, so experience and player-only drops follow; {@code null} (a forced defeat) kills
-     * uncredited. Only this boss's own sentinels, whether or not its siblings still stand.
+     * The boss {@code bossId} was defeated: queues every present sentinel that names it for a staggered
+     * kill on this fixture's tick. {@code creditedPlayer} is the player who defeated it, so experience
+     * and player-only drops follow; {@code null} (a forced defeat) kills uncredited. Only this boss's
+     * own sentinels, whether or not its siblings still stand. One that joins later is dismissed at
+     * adoption.
      */
     public void doomSentinelsOf(UUID bossId, UUID creditedPlayer) {
-        boolean changed = false;
-        for (SentinelRecord r : records.values()) {
-            if (r.bossId.equals(bossId) && !r.doomed) {
-                records.put(r.mobUuid, new SentinelRecord(r.mobUuid, r.bossId, r.scale, true));
-                pendingKills.add(new PendingKill(r.mobUuid, creditedPlayer));
-                changed = true;
+        for (Mob mob : present.mobs()) {
+            if (isSentinelOf(mob, bossId) && !queuedForKill(mob.getUUID())) {
+                pendingKills.add(new PendingKill(mob.getUUID(), creditedPlayer));
             }
         }
-        if (changed) {
-            markDirty();
-        }
+    }
+
+    private boolean queuedForKill(UUID mobUuid) {
+        return pendingKills.stream().anyMatch(kill -> kill.mobUuid.equals(mobUuid));
+    }
+
+    private static boolean isSentinelOf(Mob mob, UUID bossId) {
+        return SentinelData.read(mob).filter(facts -> facts.bossId().equals(bossId)).isPresent();
     }
 
     // ── defending the boss ───────────────────────────────────────────────────
 
     /**
-     * {@code player} just hit the boss {@code bossId} (entity {@code boss}): its non-doomed sentinels
-     * in a box around it turn on the player, and each one's alert window opens or is pushed out to
+     * {@code player} just hit the boss {@code bossId} (entity {@code boss}): its sentinels in a box
+     * around it turn on the player, and each one's alert window opens or is pushed out to
      * {@code sentinelAlertMemoryTicks} from now. Sentinels of any other boss don't join in. See
      * sentinels.md § Defending the boss.
      */
@@ -238,8 +196,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
         AABB box = AABB.unitCubeFromLowerCorner(boss.position()).inflate(radius, ALERT_HEIGHT, radius);
 
         for (Mob mob : level.getEntitiesOfClass(Mob.class, box)) {
-            SentinelRecord r = records.get(mob.getUUID());
-            if (r == null || r.doomed || !r.bossId.equals(bossId)) {
+            if (!present.contains(mob.getUUID()) || !isSentinelOf(mob, bossId)) {
                 continue;
             }
             if (bossFixture.RULES.alertSentinel(mob, player)) {
@@ -251,8 +208,8 @@ public final class BossSentinelsFixture extends SatchelFixture {
     /**
      * Retires lapsed alerts. A sentinel whose window has run out is let go through
      * {@code BossRules#releaseSentinel}, which keeps it on the player only if it can see them. An
-     * entry whose sentinel is gone, unloaded, doomed, or no longer a sentinel, or whose player has
-     * logged out, is simply dropped.
+     * entry whose sentinel is gone, unloaded or dead, or whose player has logged out, is simply
+     * dropped.
      */
     public void releaseLapsedAlerts(ServerLevel level) {
         if (alerts.isEmpty()) {
@@ -269,13 +226,12 @@ public final class BossSentinelsFixture extends SatchelFixture {
         Iterator<Map.Entry<UUID, Alert>> it = alerts.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Alert> entry = it.next();
-            SentinelRecord r = records.get(entry.getKey());
-            Optional<Entity> entity = Satchel.require().egress().getEntity(level, entry.getKey());
-            if (r == null || r.doomed || entity.isEmpty() || !(entity.get() instanceof Mob sentinel)
-                    || !sentinel.isAlive()) {
+            Optional<Mob> entity = present.get(entry.getKey());
+            if (entity.isEmpty() || !entity.get().isAlive()) {
                 it.remove();
                 continue;
             }
+            Mob sentinel = entity.get();
             Alert alert = entry.getValue();
             if (now < alert.alertedUntil) {
                 continue;
@@ -289,10 +245,6 @@ public final class BossSentinelsFixture extends SatchelFixture {
                 boss.RULES.releaseSentinel(sentinel, player);
             }
         }
-    }
-
-    private void stage(UUID mobUuid, UUID bossId, float scale) {
-        staged.put(mobUuid, new SentinelRecord(mobUuid, bossId, scale, false));
     }
 
     // ── lifted spawn positions ───────────────────────────────────────────────
@@ -312,22 +264,41 @@ public final class BossSentinelsFixture extends SatchelFixture {
     }
 
     /**
-     * Spawns the queued extra sentinels, then clears whatever is still staged and the lifted spawn
-     * positions. Finalization and the join happen in one tick, so a record exists only for a
-     * sentinel that actually entered the world.
+     * Adopts the Sentinels that joined, spawns the queued extra sentinels, runs the defeat kills, then
+     * clears the lifted spawn positions. Presence goes first so a parent that joined this tick is
+     * present when its adds spawn.
      */
     @Override
     public void onJigTick() {
+        BossBundle bundle = getBundle();
+        ServerLevel level = (ServerLevel) bundle.level();
+        if (!swept) {
+            swept = true;
+            joinSentinelsAlreadyInLevel(level);
+        }
+        present.tick(level, presenceHooks);
         spawnPendingAdds();
         killDoomed();
-        staged.clear();
         liftedPositions.clear();
     }
 
     /**
-     * Kills up to {@code sentinelDefeatKillsPerTick} of the queued doomed sentinels that are present.
-     * One that isn't present (unloaded) is skipped and costs nothing: its record stays doomed, and it
-     * is removed when it next loads.
+     * Once, on this fixture's first tick: queues the Sentinels already in the level. A Sentinel in a
+     * chunk loaded before this level's scope was ready joined while there was no fixture to take it, so
+     * its join never reached {@link #join}.
+     */
+    private void joinSentinelsAlreadyInLevel(ServerLevel level) {
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof Mob mob && SentinelData.has(mob)) {
+                present.join(mob, false);
+            }
+        }
+    }
+
+    /**
+     * Kills up to {@code sentinelDefeatKillsPerTick} of the queued sentinels that are present. One that
+     * is no longer present (unloaded) is skipped and costs nothing: it is dismissed when it next loads,
+     * because its boss is defeated.
      */
     private void killDoomed() {
         if (pendingKills.isEmpty()) {
@@ -371,16 +342,12 @@ public final class BossSentinelsFixture extends SatchelFixture {
         BossFixture boss = bossOpt.get();
         for (PendingAdd add : adds) {
             // Only if the parent actually joined the level: a parent that never made it in brings
-            // no adds. Resolved through Satchel's egress, the lookup MobJig's poll uses.
-            SentinelRecord parentRecord = records.get(add.parentUuid);
-            if (parentRecord == null || parentRecord.doomed) {
+            // no adds. Presence has checked that the parent is the same object the level holds.
+            Optional<Mob> parent = present.get(add.parentUuid);
+            if (parent.isEmpty()) {
                 continue;
             }
-            Optional<Entity> parent = Satchel.require().egress().getEntity(level, add.parentUuid);
-            if (parent.isEmpty() || !(parent.get() instanceof Mob parentMob)) {
-                continue;
-            }
-            spawnAdd(level, boss, parentMob, add);
+            spawnAdd(level, boss, parent.get(), add);
         }
     }
 
@@ -388,13 +355,13 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * One extra sentinel: the parent's own type and size, scattered near the parent, with
      * {@code VANILLA} setup so it never re-enters the spawn fan-out (never rolled for conversion,
      * never spawns adds of its own). Conversion's treatment is applied in {@code preSetup}; its
-     * join promotes it to a record like any sentinel's.
+     * join queues it in presence like any sentinel's.
      */
     private void spawnAdd(ServerLevel level, BossFixture boss, Mob parent, PendingAdd add) {
         BlockPos spot = MobSpawns.scatter(level, parent, parent.blockPosition(),
                 boss.RULES.sentinelAddScatterRadius(), add.scale, ADD_SCATTER_TRIES);
         MobSpawns.spawn(level, add.type, spot, MobSpawns.Setup.VANILLA, mob -> {
-            stage(mob.getUUID(), add.bossId, add.scale);
+            SentinelData.writeIfAbsent(mob, add.bossId, add.scale);
             applyConversion(mob, boss, add.keeperPathPosition, add.difficultyIntensity);
             mob.refreshDimensions();
         });
@@ -491,7 +458,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
         Nearby nearby = nearbyOpt.get();
 
         // The two gates before the roll. A lifted spawn skips the roll, not the gates.
-        int room = conversionRoom(level, bossFixture, nearby.boss());
+        int room = conversionRoom(bossFixture, nearby.boss());
         if (room < 1) {
             return;
         }
@@ -508,10 +475,10 @@ public final class BossSentinelsFixture extends SatchelFixture {
         float size = fitScale(level, mob, target, bossFixture);
 
         applyConversion(mob, bossFixture, keeperPathPosition, difficultyIntensity);
-        stage(mob.getUUID(), nearby.boss().bossId(), size);
+        SentinelData.writeIfAbsent(mob, nearby.boss().bossId(), size);
         if (size != 1.0F) {
-            // The mob was built at full size before it was known to be a sentinel; the staged
-            // entry is what the Size handler reads, so refresh now and it enters the world scaled.
+            // The mob was built at full size before it was known to be a sentinel; the record is what
+            // the Size handler reads, so refresh now and it enters the world scaled.
             mob.refreshDimensions();
         }
 
@@ -524,30 +491,20 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * path position is below {@code sentinelFirstPathPosition} or the level is at
      * {@code sentinelMaxPerLevel}, so a result of 1 or more passes both gates.
      */
-    private int conversionRoom(ServerLevel level, BossFixture bossFixture, BossRecord keeper) {
+    private int conversionRoom(BossFixture bossFixture, BossRecord keeper) {
         if (BossAPI.pathPositionOf(keeper) < bossFixture.RULES.sentinelFirstPathPosition()) {
             return 0;
         }
-        return Math.max(0, bossFixture.RULES.sentinelMaxPerLevel() - sentinelCount(level));
+        return Math.max(0, bossFixture.RULES.sentinelMaxPerLevel() - sentinelCount());
     }
 
     /**
-     * The Sentinels this level holds now, every Keeper's: those present in the level and not doomed,
-     * the ones staged this tick, and the extra sentinels queued but not yet spawned. A Sentinel in an
-     * unloaded chunk takes no room in the hostile spawn pool and is not counted.
+     * The Sentinels this level holds now, every Keeper's: those in presence, the ones that joined and
+     * wait to be adopted, and the extra sentinels queued but not yet spawned. A Sentinel in an unloaded
+     * chunk is not in presence, takes no room in the hostile spawn pool, and is not counted.
      */
-    private int sentinelCount(ServerLevel level) {
-        int count = staged.size() + pendingAdds.size();
-        for (SentinelRecord r : records.values()) {
-            if (r.doomed) {
-                continue;
-            }
-            Optional<Entity> entity = Satchel.require().egress().getEntity(level, r.mobUuid);
-            if (entity.isPresent() && entity.get().isAlive()) {
-                count++;
-            }
-        }
-        return count;
+    private int sentinelCount() {
+        return present.count() + present.queued() + pendingAdds.size();
     }
 
     /**
@@ -591,8 +548,8 @@ public final class BossSentinelsFixture extends SatchelFixture {
 
     /**
      * The placement roll for a spawn that hasn't happened yet: true if {@code pos} is inside the
-     * nearest boss's placement radius and the roll hits. Standby, don't crash: nothing resolvable
-     * means no.
+     * nearest boss's placement radius, the two conversion gates pass, and the roll hits. Standby, don't
+     * crash: nothing resolvable means no.
      */
     public boolean rollPlacementAt(ServerLevel level, BlockPos pos) {
         BossBundle bundle = getBundle();
@@ -603,7 +560,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
         }
         BossFixture bossFixture = bossOpt.get();
         return resolveNearby(level, bossFixture, curvesOpt.get(), pos)
-                .filter(nearby -> conversionRoom(level, bossFixture, nearby.boss()) >= 1)
+                .filter(nearby -> conversionRoom(bossFixture, nearby.boss()) >= 1)
                 .map(nearby -> rollPlacement(bossFixture, nearby))
                 .orElse(false);
     }

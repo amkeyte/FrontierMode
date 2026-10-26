@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.admin.client;
 
 import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 import com.arryn.frontiermode.boss.BossMarkers;
 import com.arryn.frontiermode.boss.SentinelMarkers;
@@ -10,8 +11,9 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.scores.Team;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -24,15 +26,15 @@ import java.util.WeakHashMap;
 
 /**
  * The debug view: one toggle, like F3, that shows everything a playtester wants to see -- a coloured
- * marker above bosses, sentinels and Ferals ({@link AdminViewMarkers}), the name tag on bosses and
- * Ferals, and the border rings.
+ * marker above bosses, sentinels and Ferals ({@link AdminViewMarkers}), the name tag on bosses, and
+ * the border rings.
  * Entirely client-side and per player: nothing is sent, the server never sets the flags, and normal
  * play always shows none of it. {@code /admin debug view <true|false>}, default off, not persisted.
  *
  * <p>The client already knows which mobs to mark: bosses and sentinels through the synced
- * {@link BossMarkers}/{@link SentinelMarkers}, Ferals through their synced {@code feral} team. While
+ * {@link BossMarkers}/{@link SentinelMarkers}, Ferals by position ({@link #isFeral}). While
  * on, each tick this rebuilds the set of marked mobs and their roles (which {@link AdminViewMarkers}
- * draws) and sets name-tag visibility on each boss's and Feral's local copy -- re-applied each tick in
+ * draws) and sets name-tag visibility on each boss's local copy -- re-applied each tick in
  * case the server resends it. Turning it off puts back what it touched.
  *
  * <p>No glow: vanilla's outline draws only from a server-synced entity flag that client code can't
@@ -52,7 +54,7 @@ public final class AdminViewClient {
     public enum Role {
         BOSS(0xFFFFAA00, true),
         SENTINEL(0xFFFF55FF, false),
-        FERAL(0xFF55FF55, true);
+        FERAL(0xFF55FF55, false);
 
         private final int color;
         private final boolean tagged;
@@ -153,8 +155,15 @@ public final class AdminViewClient {
         return isFeral(mob) ? Role.FERAL : null;
     }
 
+    /**
+     * Feral by position: the client holds no Feral record (MobData is server-only). Every real hostile past the
+     * Frontier is Feral, so a {@code MONSTER}-category mob other than a Slime, standing where
+     * {@code BorderAPI.frontierDistanceAt} is positive (the client computes it from the Borders fixture it
+     * already holds for the rings), is marked. Exact except at the edges; the Inspect Stick shows the record.
+     */
     private static boolean isFeral(Mob mob) {
-        Team team = mob.getTeam();
-        return team != null && "feral".equals(team.getName());
+        return mob.getType().getCategory() == MobCategory.MONSTER
+                && !(mob instanceof Slime)
+                && BorderAPI.frontierDistanceAt(mob.level(), mob.blockPosition()) > 0;
     }
 }

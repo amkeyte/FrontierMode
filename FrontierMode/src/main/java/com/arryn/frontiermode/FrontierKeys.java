@@ -20,8 +20,6 @@ import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
 import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
-import com.arryn.frontiermode.feral.common.bundle.FeralPackBundle;
-import com.arryn.frontiermode.feral.common.fixture.FeralPackFixture;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.satchel.common.identity.BundleKey;
@@ -222,15 +220,6 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    // FRO_167: MobJig tracking the sentinel entities named by BossSentinelsFixture's records. No
-    // bundle -- there is no per-mob state. See BossModule.registerSentinelMobJig().
-
-    public static final JigKey<MobJig> SENTINEL_MOB_JIG =
-            new JigKey<>(
-                    "frontiermode:sentinel_mob_jig",
-                    MobJig.class
-            );
-
 
     // FRO_118: BossTellModule's own PlayerJig-scoped bundle -- not BorderPlayerBundle (a
     // different concern), per
@@ -277,45 +266,14 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    // FRO_146: Feral's own tick source, riding ScopeEvent.Tick instead of raw
-    // TickEvent.PlayerTickEvent/LevelTickEvent. FERAL_LEVEL_JIG also carries the pack-member
-    // records (FRO_201, below); FERAL_PLAYER_JIG has no bundle. See FeralModule.init() for the
-    // schema/config wiring.
+    // FRO_146: Feral's own player tick source, riding ScopeEvent.Tick instead of raw
+    // TickEvent.PlayerTickEvent. The level-side work is FeralPresence, a Trinket on the level host.
+    // See FeralModule.init() for the config wiring.
 
     public static final JigKey<PlayerJig> FERAL_PLAYER_JIG =
             new JigKey<>(
                     "frontiermode:feral_player_jig",
                     PlayerJig.class
-            );
-
-    public static final JigKey<LevelJig> FERAL_LEVEL_JIG =
-            new JigKey<>(
-                    "frontiermode:feral_level_jig",
-                    LevelJig.class
-            );
-
-    // FRO_201: the pack-member records -- FERAL_LEVEL_JIG's one bundle, persisted. See
-    // FeralModule.registerLevelJig() for the schema wiring.
-
-    public static final BundleKey<FeralPackBundle> FERAL_PACK_BUNDLE =
-            new BundleKey<>(
-                    "frontiermode:feral_pack_bundle",
-                    FeralPackBundle.class
-            );
-
-    public static final FixtureKey<FeralPackFixture> FERAL_PACK =
-            new FixtureKey<>(
-                    "frontiermode:feral_pack_fixture",
-                    FeralPackFixture.class
-            );
-
-    // FRO_201: MobJig tracking the pack members FeralPackFixture names, for their removal signals.
-    // No bundle -- there is no per-mob state. See FeralModule.registerPackMobJig().
-
-    public static final JigKey<MobJig> FERAL_PACK_MOB_JIG =
-            new JigKey<>(
-                    "frontiermode:feral_pack_mob_jig",
-                    MobJig.class
             );
 
     // The client-side debug view's handler home: a BOTH-applicability jig with no bundle, only so its
@@ -343,8 +301,8 @@ public final class FrontierKeys {
             new IngressKey("frontiermode:spawn_coordination");
 
     // FRO_149: AdminToolsModule's own tick-free signal subscription point -- no bundle/fixture,
-    // same "exists purely to get a signal subscription point" shape as FERAL_PLAYER_JIG/
-    // FERAL_LEVEL_JIG (FRO_146). See AdminToolsModule.init() for the schema/config wiring.
+    // same "exists purely to get a signal subscription point" shape as FERAL_PLAYER_JIG (FRO_146).
+    // See AdminToolsModule.init() for the schema/config wiring.
 
     public static final JigKey<LevelJig> ADMIN_TOOLS_JIG =
             new JigKey<>(

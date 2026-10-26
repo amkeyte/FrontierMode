@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.boss;
 
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -11,9 +10,9 @@ import java.util.Optional;
 
 /**
  * Side-agnostic "is this entity a sentinel, and how big" lookup -- the one place the scale handlers
- * ask. On the server it reads {@link BossSentinelsFixture} (records and staged entries, so a
- * sentinel enters the world already at its sentinel size); on the client it reads the synced
- * {@link SentinelPublicFixture}. Nothing else reads either fixture directly. Same shape as
+ * ask. On the server it reads the record on the mob ({@link SentinelData}), so a sentinel enters the
+ * world at its sentinel size once its writer has refreshed its dimensions; on the client it reads the
+ * synced {@link SentinelPublicFixture}. Nothing else reads either directly. Same shape as
  * {@link BossMarkers}; no client classes here, so it loads on a dedicated server.
  *
  * <p>Reached from the {@code Entity} constructor (the {@code Size} event), so it tolerates a null
@@ -46,7 +45,7 @@ public final class SentinelMarkers {
         Level level = entity.level();
         return level.isClientSide
                 ? CLIENT_FIXTURE.get(level).map(f -> f.isSentinel(entity.getUUID())).orElse(false)
-                : BossAPI.sentinelsQuiet(level).map(f -> f.isSentinel(entity.getUUID())).orElse(false);
+                : SentinelData.has(entity);
     }
 
     /** The sentinel's size multiplier, or {@code 1.0} for anything that isn't a known sentinel. */
@@ -57,7 +56,7 @@ public final class SentinelMarkers {
         Level level = entity.level();
         return level.isClientSide
                 ? CLIENT_FIXTURE.get(level).map(f -> f.scaleOf(entity.getUUID())).orElse(1.0F)
-                : BossAPI.sentinelsQuiet(level).map(f -> f.scaleOf(entity.getUUID())).orElse(1.0F);
+                : SentinelData.scaleOf(entity);
     }
 
     /** The client's synced sentinel fixture, cached; for the trail's tick. Empty until it arrives. */
