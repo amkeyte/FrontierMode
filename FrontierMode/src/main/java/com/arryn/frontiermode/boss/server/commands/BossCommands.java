@@ -58,15 +58,7 @@ public final class BossCommands {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
-        List<BossRecord> bosses;
-        try {
-            bosses = BossSelector.resolve(selector, sp);
-        } catch (CommandSyntaxException e) {
-            throw e;
-        } catch (Exception e) {
-            ctx.getSource().sendFailure(Component.literal("[Boss] Selector resolution failed."));
-            return 0;
-        }
+        List<BossRecord> bosses = BossSelector.resolve(selector, sp);
 
         if (bosses.isEmpty()) {
             ctx.getSource().sendFailure(Component.literal("[Boss] No bosses matched selector."));
@@ -75,13 +67,7 @@ public final class BossCommands {
 
         int count = 0;
         for (BossRecord b : bosses) {
-            try {
-                count += op.run(ctx, b.bossId());
-            } catch (Exception e) {
-                ctx.getSource().sendFailure(
-                        Component.literal("[Boss] Operation failed for boss " + b.bossId())
-                );
-            }
+            count += op.run(ctx, b.bossId());
         }
 
         return count;

@@ -490,12 +490,10 @@ public final class DefaultBossRules implements BossRules {
 
     @Override
     public double sentinelPlacementCoefficient() {
-        // 2026-09-07 playtest, fourth and (per Arryn) final bump for this round: 0.15 -> 0.4 -> 0.6.
-        // Max 60% chance per spawn attempt at intensity 1.0 (right on top of the boss), decaying with
-        // placementIntensity same as always. Still a roll, not a guarantee, so ordinary vanilla spawns
-        // still happen near the boss too. Called "good for now" after this value -- further tuning is
-        // a fresh playtest decision, not an assumed follow-up. [0,1] bound -- a probability roll.
-        return new Tunable("sentinelPlacementCoefficient", 0f, 1f, 0.6f).floatValue();
+        // Max chance per spawn attempt at intensity 1.0 (right on top of the boss), decaying with
+        // placementIntensity. Low, so Sentinels disperse across the ring instead of clumping and do not
+        // fill the level's hostile spawn pool. A starting value, tuned in play. [0,1] bound -- a probability.
+        return new Tunable("sentinelPlacementCoefficient", 0f, 1f, 0.25f).floatValue();
     }
 
     @Override
@@ -509,6 +507,16 @@ public final class DefaultBossRules implements BossRules {
         // noticeable ramp concentrated in a smaller ring around the boss. Safe baseline; playtest
         // territory, same as sentinelPlacementCoefficient above. [0,1] bound -- a fraction of radius.
         return new Tunable("sentinelPlacementRadiusFraction", 0f, 1f, 0.5f).floatValue();
+    }
+
+    @Override
+    public int sentinelFirstPathPosition() {
+        return new Tunable("sentinelFirstPathPosition", 1, 1000, 6).intValue();
+    }
+
+    @Override
+    public int sentinelMaxPerLevel() {
+        return new Tunable("sentinelMaxPerLevel", 1, 1000, 10).intValue();
     }
 
     @Override

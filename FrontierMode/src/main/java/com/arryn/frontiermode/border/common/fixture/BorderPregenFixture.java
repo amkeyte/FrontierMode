@@ -117,13 +117,7 @@ public final class BorderPregenFixture extends SatchelFixture {
 
         ListTag list = root.getList(KEY_JOBS, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            // Same discipline BossFixture.loadBosses/BordersFixture.loadBorders follow: one
-            // malformed record shouldn't abort hydration of every other job on this level.
-            try {
-                jobs.add(BorderPregenRecord.load((CompoundTag) t));
-            } catch (RuntimeException e) {
-                OUT.warn("[BorderPregen] Skipping malformed pregen record during load: " + e);
-            }
+            jobs.add(BorderPregenRecord.load((CompoundTag) t));
         }
     }
 

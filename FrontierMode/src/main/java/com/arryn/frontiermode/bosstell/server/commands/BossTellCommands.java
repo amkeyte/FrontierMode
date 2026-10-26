@@ -73,15 +73,7 @@ public final class BossTellCommands {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
-        List<BossRecord> matches;
-        try {
-            matches = BossSelector.resolve(selector, sp);
-        } catch (CommandSyntaxException e) {
-            throw e;
-        } catch (Exception e) {
-            ctx.getSource().sendFailure(msg("Selector resolution failed."));
-            return 0;
-        }
+        List<BossRecord> matches = BossSelector.resolve(selector, sp);
 
         if (matches.isEmpty()) {
             ctx.getSource().sendFailure(msg("No bosses matched selector."));

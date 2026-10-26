@@ -126,13 +126,7 @@ public final class BossFixture extends SatchelFixture {
 
         ListTag list = root.getList(KEY_BOSSES, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            // Same discipline BordersFixture.loadBorders follows (RM_FRO_013): a single malformed
-            // record shouldn't abort hydration of every other boss on this level.
-            try {
-                bosses.add(BossRecord.load((CompoundTag) t));
-            } catch (RuntimeException e) {
-                OUT.warn("[Boss] Skipping malformed boss record during load: " + e);
-            }
+            bosses.add(BossRecord.load((CompoundTag) t));
         }
     }
 
@@ -157,11 +151,7 @@ public final class BossFixture extends SatchelFixture {
 
         ListTag list = root.getList(KEY_PENDING_ATTACH, Tag.TAG_INT_ARRAY);
         for (Tag t : list) {
-            try {
-                pendingAttach.add(NbtUtils.loadUUID(t));
-            } catch (RuntimeException e) {
-                OUT.warn("[Boss] Skipping malformed pendingAttach entry during load: " + e);
-            }
+            pendingAttach.add(NbtUtils.loadUUID(t));
         }
     }
 

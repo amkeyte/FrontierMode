@@ -118,6 +118,16 @@ public final class BossRulesFacet {
         return RULES.sentinelPlacementRadiusFraction();
     }
 
+    /** See {@link BossRules#sentinelFirstPathPosition()}. */
+    public int sentinelFirstPathPosition() {
+        return RULES.sentinelFirstPathPosition();
+    }
+
+    /** See {@link BossRules#sentinelMaxPerLevel()}. */
+    public int sentinelMaxPerLevel() {
+        return RULES.sentinelMaxPerLevel();
+    }
+
     /** See {@link BossRules#healSentinel(Mob)}. */
     public void healSentinel(Mob mob) {
         RULES.healSentinel(mob);

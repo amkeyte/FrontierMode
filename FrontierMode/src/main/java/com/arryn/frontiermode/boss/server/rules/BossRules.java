@@ -119,7 +119,7 @@ public interface BossRules {
      * RM_FRO_029 (Gloria): probability coefficient for the Sentinels placement roll, mirroring
      * {@link #tellParticleCoefficient()}'s exact shape -- applied as
      * {@code placementIntensity x sentinelPlacementCoefficient()} against a [0,1) uniform draw.
-     * Safe baseline: 0.15 (sentinels are meant to be a rarer, more meaningful discovery-gradient
+     * Starting value 0.25 (sentinels are meant to be a rarer, more meaningful discovery-gradient
      * signal than an environmental tell, not a constant background occurrence). Tuning is Game
      * Designer/playtest territory, same as every other coefficient in this cluster -- see
      * RM_FRO_029's own "which Borders actually turn Sentinels on" open item for the config
@@ -142,6 +142,20 @@ public interface BossRules {
      * every other value in this cluster -- this one moved twice in one playtest session already.
      */
     double sentinelPlacementRadiusFraction();
+
+    /**
+     * The lowest path position of the nearest Keeper at which a spawn near it may become a Sentinel
+     * (sentinels.md § The two curves and the conversion decision). Starting value 6, the first Border
+     * with room for a real gradient; set it to 1 to test on an early Keeper.
+     */
+    int sentinelFirstPathPosition();
+
+    /**
+     * The most Sentinels one level holds at once, counted over every Keeper's, with queued extra
+     * sentinels included. Conversion and the daylight lift stop at it, so a Sentinel zone does not fill
+     * the level's hostile spawn pool. Starting value 10.
+     */
+    int sentinelMaxPerLevel();
 
     /**
      * Heals {@code mob}, a sentinel that just joined the level, to its full maximum health. Stat

@@ -77,17 +77,7 @@ public final class BorderCommands {
 
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
-        List<Border> borders;
-        try {
-            borders = BorderSelector.resolve(selector, sp);
-        } catch (CommandSyntaxException e) {
-            throw e;
-        } catch (Exception e) {
-            ctx.getSource().sendFailure(
-                    Component.literal("[Border] Selector resolution failed.")
-            );
-            return 0;
-        }
+        List<Border> borders = BorderSelector.resolve(selector, sp);
 
         if (borders.isEmpty()) {
             // RM_FRO_006 landed: @relevant now resolves against a real per-player
@@ -103,13 +93,7 @@ public final class BorderCommands {
 
         int count = 0;
         for (Border b : borders) {
-            try {
-                count += op.run(ctx, b.id());
-            } catch (Exception e) {
-                ctx.getSource().sendFailure(
-                        Component.literal("[Border] Operation failed for border " + b.id())
-                );
-            }
+            count += op.run(ctx, b.id());
         }
 
         return count;

@@ -490,6 +490,11 @@ public final class BossSentinelsFixture extends SatchelFixture {
         }
         Nearby nearby = nearbyOpt.get();
 
+        // The two gates before the roll. A lifted spawn skips the roll, not the gates.
+        int room = conversionRoom(level, bossFixture, nearby.boss());
+        if (room < 1) {
+            return;
+        }
         if (!lifted && !rollPlacement(bossFixture, nearby)) {
             return;
         }
@@ -510,7 +515,39 @@ public final class BossSentinelsFixture extends SatchelFixture {
             mob.refreshDimensions();
         }
 
-        queueAdds(mob, nearby.boss().bossId(), size, target, keeperPathPosition, difficultyIntensity, bossFixture);
+        queueAdds(mob, nearby.boss().bossId(), size, target, keeperPathPosition, difficultyIntensity, bossFixture,
+                room - 1);
+    }
+
+    /**
+     * How many more Sentinels the level may take for a spawn near {@code keeper}: 0 when the Keeper's
+     * path position is below {@code sentinelFirstPathPosition} or the level is at
+     * {@code sentinelMaxPerLevel}, so a result of 1 or more passes both gates.
+     */
+    private int conversionRoom(ServerLevel level, BossFixture bossFixture, BossRecord keeper) {
+        if (BossAPI.pathPositionOf(keeper) < bossFixture.RULES.sentinelFirstPathPosition()) {
+            return 0;
+        }
+        return Math.max(0, bossFixture.RULES.sentinelMaxPerLevel() - sentinelCount(level));
+    }
+
+    /**
+     * The Sentinels this level holds now, every Keeper's: those present in the level and not doomed,
+     * the ones staged this tick, and the extra sentinels queued but not yet spawned. A Sentinel in an
+     * unloaded chunk takes no room in the hostile spawn pool and is not counted.
+     */
+    private int sentinelCount(ServerLevel level) {
+        int count = staged.size() + pendingAdds.size();
+        for (SentinelRecord r : records.values()) {
+            if (r.doomed) {
+                continue;
+            }
+            Optional<Entity> entity = Satchel.require().egress().getEntity(level, r.mobUuid);
+            if (entity.isPresent() && entity.get().isAlive()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
@@ -533,17 +570,19 @@ public final class BossSentinelsFixture extends SatchelFixture {
     /**
      * The leftover budget {@code L = (target - 1) - (size - 1)} buys extra sentinels at
      * {@code sentinelAddCost} each: an expected count of {@code L / cost}, rolled whole-plus-
-     * fractional and clamped to {@code sentinelMaxAddsPerSpawn}. Queued, not spawned: never inside
+     * fractional and clamped to {@code sentinelMaxAddsPerSpawn} and to {@code roomForAdds}, the room
+     * left under {@code sentinelMaxPerLevel} after this conversion. Queued, not spawned: never inside
      * the finalize-spawn dispatch that produced them.
      */
     private void queueAdds(Mob parent, UUID bossId, float size, double target, int keeperPathPosition,
-                           double difficultyIntensity, BossFixture boss) {
+                           double difficultyIntensity, BossFixture boss, int roomForAdds) {
         double leftover = (target - 1.0) - (size - 1.0);
         double cost = boss.RULES.sentinelAddCost();
-        if (leftover <= 0.0 || cost <= 0.0) {
+        if (leftover <= 0.0 || cost <= 0.0 || roomForAdds <= 0) {
             return;
         }
-        int count = MobSpawns.rollCount(leftover / cost, boss.RULES.sentinelMaxAddsPerSpawn(), RNG);
+        int cap = Math.min(boss.RULES.sentinelMaxAddsPerSpawn(), roomForAdds);
+        int count = MobSpawns.rollCount(leftover / cost, cap, RNG);
         for (int i = 0; i < count; i++) {
             pendingAdds.add(new PendingAdd(parent.getType(), parent.getUUID(), bossId, size,
                     keeperPathPosition, difficultyIntensity));
@@ -562,8 +601,10 @@ public final class BossSentinelsFixture extends SatchelFixture {
         if (bossOpt.isEmpty() || curvesOpt.isEmpty()) {
             return false;
         }
-        return resolveNearby(level, bossOpt.get(), curvesOpt.get(), pos)
-                .map(nearby -> rollPlacement(bossOpt.get(), nearby))
+        BossFixture bossFixture = bossOpt.get();
+        return resolveNearby(level, bossFixture, curvesOpt.get(), pos)
+                .filter(nearby -> conversionRoom(level, bossFixture, nearby.boss()) >= 1)
+                .map(nearby -> rollPlacement(bossFixture, nearby))
                 .orElse(false);
     }
 

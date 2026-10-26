@@ -237,19 +237,13 @@ public final class BorderCommandHandler {
         Border border = BorderSelector.resolveSingle(selector, player);
         var path = BorderAPI.PATH(level).orElseThrow();
 
-        // FRO_103 item 3: BordersPathFacet.insert() throws IllegalArgumentException/
-        // IllegalStateException for real, sensible validation failures (border not owned by this
-        // level, border already on the path) -- previously uncaught here, so either failure
-        // surfaced as a raw, unfriendly command error instead of a clear rejection message.
-        // index=path.size() itself was never actually the risk this call site's own old comment
-        // worried about -- List#add(index, element) is well-defined for index == size() (the
-        // append case), not an out-of-bounds crash.
-        try {
-            path.insert(path.size(), border);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            source.sendFailure(msg("Cannot insert border into path: " + e.getMessage()));
+        // A border already on the path is the admin's mistake, so it is checked and refused here;
+        // insert() throws for it.
+        if (path.contains(border)) {
+            source.sendFailure(msg("Cannot insert border into path: it is already on the path."));
             return 0;
         }
+        path.insert(path.size(), border);
 
         source.sendSuccess(
                 () -> msg("Inserted border into path."),

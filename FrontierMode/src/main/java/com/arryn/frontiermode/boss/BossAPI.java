@@ -240,7 +240,7 @@ public final class BossAPI {
 
     /**
      * FRO_145: the client-syncable boss marker fixture, on either side. Unlike the resolvers above
-     * this never logs and never throws -- the client eye layer calls it from the render path, where
+     * this never logs -- the client eye layer calls it from the render path, where
      * "not ready yet" is the normal state for the first moments after joining a world and a
      * per-frame debug line or exception would be noise. See boss.md's "Client-side visual marker".
      */
@@ -252,12 +252,8 @@ public final class BossAPI {
         if (Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_PUBLIC_JIG, scope).isEmpty()) {
             return Optional.empty();
         }
-        try {
-            var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.BOSS_PUBLIC_JIG).jig;
-            return jig.getOrCreate(scope, FrontierKeys.BOSS_PUBLIC_BUNDLE).get(FrontierKeys.BOSS_PUBLIC);
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+        var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.BOSS_PUBLIC_JIG).jig;
+        return jig.getOrCreate(scope, FrontierKeys.BOSS_PUBLIC_BUNDLE).get(FrontierKeys.BOSS_PUBLIC);
     }
 
     /**
@@ -295,8 +291,8 @@ public final class BossAPI {
 
     /**
      * {@link #sentinels(Level)} for hot paths -- the hitbox {@code Size} handler runs for every
-     * entity's dimension refresh, including from the {@code Entity} constructor. Never logs, never
-     * throws; empty for anything not resolvable yet.
+     * entity's dimension refresh, including from the {@code Entity} constructor. Never logs; empty
+     * for anything not resolvable yet.
      */
     public static Optional<BossSentinelsFixture> sentinelsQuiet(Level level) {
         if (!Satchel.isReady()) {
@@ -306,16 +302,12 @@ public final class BossAPI {
         if (Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope).isEmpty()) {
             return Optional.empty();
         }
-        try {
-            return levelJig().getOrCreate(scope, FrontierKeys.BOSS_BUNDLE).get(FrontierKeys.BOSS_SENTINELS);
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+        return levelJig().getOrCreate(scope, FrontierKeys.BOSS_BUNDLE).get(FrontierKeys.BOSS_SENTINELS);
     }
 
     /**
      * The client-visible sentinel record on either side. Like {@link #publicMarkers(Level)}: never
-     * logs, never throws -- "not ready yet" is the normal state for the first moments after joining
+     * logs -- "not ready yet" is the normal state for the first moments after joining
      * a world, and this is called from render and tick paths.
      */
     public static Optional<SentinelPublicFixture> sentinelMarkers(Level level) {
@@ -326,12 +318,8 @@ public final class BossAPI {
         if (Satchel.tryReadyScopeInfo(FrontierKeys.SENTINEL_PUBLIC_JIG, scope).isEmpty()) {
             return Optional.empty();
         }
-        try {
-            var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.SENTINEL_PUBLIC_JIG).jig;
-            return jig.getOrCreate(scope, FrontierKeys.SENTINEL_PUBLIC_BUNDLE).get(FrontierKeys.SENTINEL_PUBLIC);
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
+        var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.SENTINEL_PUBLIC_JIG).jig;
+        return jig.getOrCreate(scope, FrontierKeys.SENTINEL_PUBLIC_BUNDLE).get(FrontierKeys.SENTINEL_PUBLIC);
     }
 
     /**

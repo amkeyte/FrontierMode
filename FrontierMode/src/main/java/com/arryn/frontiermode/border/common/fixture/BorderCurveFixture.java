@@ -2,7 +2,6 @@ package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -57,13 +56,7 @@ public final class BorderCurveFixture extends SatchelFixture {
 
         ListTag list = root.getList(KEY_CURVES, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            // Same discipline BossFixture.loadBosses/BordersFixture.loadBorders follow: one
-            // malformed record shouldn't abort hydration of every other curve on this level.
-            try {
-                curves.add(BorderCurve.load((CompoundTag) t));
-            } catch (RuntimeException e) {
-                OUT.warn("[BorderCurve] Skipping malformed curve record during load: " + e);
-            }
+            curves.add(BorderCurve.load((CompoundTag) t));
         }
     }
 

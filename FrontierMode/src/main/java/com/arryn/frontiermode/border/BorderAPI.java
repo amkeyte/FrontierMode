@@ -365,10 +365,7 @@ public final class BorderAPI {
      * {@link #playerStatus(ServerPlayer)}, just reaching the mutable fixture instead of its
      * read-only snapshot.
      *
-     * <p>Best-effort, not exception-propagating like {@code playerStatus} above -- this runs from
-     * a respawn event handler, which must not fail the player's actual respawn over a transient
-     * Satchel resolution hiccup; a skipped reset here just means severity decays on its own
-     * slightly slower than a fully-clean reset would, not a broken respawn.
+     * <p>Does nothing while Satchel or the player's scope is not ready.
      */
     public static void resetSicknessSeverity(ServerPlayer player) {
         if (!Satchel.isReady()) {
@@ -385,14 +382,9 @@ public final class BorderAPI {
             return;
         }
 
-        try {
-            playerJig().getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE)
-                    .status()
-                    .ifPresent(BorderPlayerStatusFixture::resetSicknessSeverity);
-        } catch (RuntimeException e) {
-            OUT.warn("[Border] resetSicknessSeverity(): failed for player "
-                    + player.getGameProfile().getName() + ": " + e);
-        }
+        playerJig().getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE)
+                .status()
+                .ifPresent(BorderPlayerStatusFixture::resetSicknessSeverity);
     }
 
     /**

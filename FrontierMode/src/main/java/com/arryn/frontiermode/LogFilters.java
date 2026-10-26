@@ -1,7 +1,6 @@
 package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
-import com.arryn.satchel.common.util.out.OUT;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
@@ -31,21 +30,15 @@ final class LogFilters {
     }
 
     static void install() {
-        try {
-            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-            Configuration config = ctx.getConfiguration();
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+        Configuration config = ctx.getConfiguration();
 
-            // A dedicated LoggerConfig for just this logger name (additive, so it still writes to
-            // the parents' appenders); the filter is scoped to it and touches nothing else.
-            LoggerConfig loggerConfig = new LoggerConfig(LIVING_ENTITY_LOGGER, Level.INFO, true);
-            loggerConfig.addFilter(new OwnNamedMobDeathFilter());
-            config.addLogger(LIVING_ENTITY_LOGGER, loggerConfig);
-            ctx.updateLoggers();
-        } catch (RuntimeException | LinkageError e) {
-            // Log noise is not worth failing mod load over -- the log4j-core backend isn't a
-            // guarantee in every environment.
-            OUT.warn("[FrontierMode] Could not install the named-mob death log filter: " + e);
-        }
+        // A dedicated LoggerConfig for just this logger name (additive, so it still writes to
+        // the parents' appenders); the filter is scoped to it and touches nothing else.
+        LoggerConfig loggerConfig = new LoggerConfig(LIVING_ENTITY_LOGGER, Level.INFO, true);
+        loggerConfig.addFilter(new OwnNamedMobDeathFilter());
+        config.addLogger(LIVING_ENTITY_LOGGER, loggerConfig);
+        ctx.updateLoggers();
     }
 
     private static final class OwnNamedMobDeathFilter extends AbstractFilter {

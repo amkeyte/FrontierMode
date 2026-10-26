@@ -2,7 +2,6 @@ package com.arryn.frontiermode.structure.common;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -127,11 +126,7 @@ public final class CairnFixture extends SatchelFixture {
 
         ListTag list = root.getList(KEY_CAIRNS, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            try {
-                cairns.add(CairnRecord.load((CompoundTag) t));
-            } catch (RuntimeException e) {
-                OUT.warn("[Structure] Skipping malformed Cairn record during load: " + e);
-            }
+            cairns.add(CairnRecord.load((CompoundTag) t));
         }
     }
 }
