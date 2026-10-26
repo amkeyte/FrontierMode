@@ -4,7 +4,8 @@ import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.out.OUT;
 
 /**
- * Tunables for Feral (RM_FRO_038 "Martha") -- see {@code FeralLogic.intensity}. Placeholder
+ * Tunables for Feral (RM_FRO_038 "Martha"). Feral's stat growth is not here: the {@code feral} rung's
+ * growth factors are {@code DifficultyRules} Tunables. Placeholder
  * baselines, not playtest-tuned, same "safe baseline, replace later" convention every other
  * rules/constants class in this codebase follows (e.g. {@code PlayerRules},
  * {@code DefaultBossRules}).
@@ -18,21 +19,6 @@ import com.arryn.satchel.common.util.out.OUT;
 public final class FeralRules {
 
     private FeralRules() {}
-
-    /**
-     * Ferality intensity = frontierDistance * this -- uncapped. (Every hostile outside the
-     * Frontier is Feral unconditionally, per the 2026-09-18 design ruling -- there is no longer a
-     * conversion-chance constant here to bound; this only scales how twisted/dangerous a Feral
-     * mob is once it exists.)
-     */
-    public static float intensityScale() {
-        return new Tunable("intensityScale", 0f, 1f, 0.05f).floatValue();
-    }
-
-    /** Stat-scaling factor per unit of intensity -- same shape as Sentinel's own health-scale constant. */
-    public static float healthScale() {
-        return new Tunable("healthScale", 0f, 10f, 1.0f).floatValue();
-    }
 
     // ------------------------------------------------------------------
     // Density -- extra hostile companions near a hostile that already spawned in the Wilds,

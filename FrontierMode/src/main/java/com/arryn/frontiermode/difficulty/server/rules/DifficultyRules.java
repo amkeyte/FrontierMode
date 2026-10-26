@@ -23,6 +23,11 @@ public interface DifficultyRules {
 
     double sentinelDamageGrowthNear();
 
+    /** A Feral mob's growth per path position (the feral rung; difficulty.md § The stat ladder). */
+    double feralHealthGrowth();
+
+    double feralDamageGrowth();
+
     /** A Keeper's extra growth per path position, on top of the ordinary growth. */
     double keeperHealthGrowth();
 

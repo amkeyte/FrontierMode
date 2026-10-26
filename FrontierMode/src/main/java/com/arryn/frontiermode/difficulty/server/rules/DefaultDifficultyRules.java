@@ -39,6 +39,16 @@ public final class DefaultDifficultyRules implements DifficultyRules {
     }
 
     @Override
+    public double feralHealthGrowth() {
+        return new Tunable("feralHealthGrowth", 0f, 1f, 0.075f).floatValue();
+    }
+
+    @Override
+    public double feralDamageGrowth() {
+        return new Tunable("feralDamageGrowth", 0f, 1f, 0.075f).floatValue();
+    }
+
+    @Override
     public double keeperHealthGrowth() {
         return new Tunable("keeperHealthGrowth", 0f, 2f, 0.31f).floatValue();
     }

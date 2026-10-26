@@ -144,9 +144,7 @@ final class DifficultyHandlers {
      * Overworld's Border facet is ready, so the mob stays vanilla.
      */
     private static OptionalInt netherDifficulty(ServerLevel nether) {
-        return BorderAPI.PATH(nether.getServer().overworld())
-                .map(path -> OptionalInt.of(path.size()))
-                .orElseGet(OptionalInt::empty);
+        return DifficultyAPI.pathTipPosition(nether.getServer());
     }
 
     /** The ambient Difficulty at {@code pos}; empty with no Relevant Border or before Border is ready. */

@@ -2,7 +2,6 @@ package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.common.bundle.FeralPackBundle;
@@ -33,10 +32,8 @@ import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -56,8 +53,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team;
 import net.minecraftforge.event.RegisterCommandsEvent;
 
@@ -319,7 +314,7 @@ public final class FeralModule {
      * rolls dispatch, same particle/sound placeholders), just searching for {@code feral}-teamed
      * hostiles instead of {@link net.minecraft.world.entity.animal.Animal}s and gating per mob's
      * actual team membership rather than recomputing frontier-distance (a Feral mob is already,
-     * permanently, tagged the moment it spawns -- see {@link #tagFeral} -- so there's nothing to
+     * permanently, tagged the moment it spawns -- see {@link FeralTagging#tag} -- so there's nothing to
      * recompute here). Never touches health/combat, same "harmless, no real stakes" precedent Sick
      * Wildlife established -- this only marks a Feral mob as visibly afflicted, the same way sick
      * wildlife already is.
@@ -1090,9 +1085,7 @@ public final class FeralModule {
             return;
         }
 
-        double intensity = FeralLogic.intensity(frontierDistance, FeralRules.intensityScale());
-        tagFeral(mob, frontierDistance, level);
-        applyStatScaling(mob, intensity);
+        FeralTagging.tag(mob, frontierDistance, level);
     }
 
     /**
@@ -1202,33 +1195,5 @@ public final class FeralModule {
         }
 
         MobSpawns.spawn(level, mob.getType(), spot, MobSpawns.Setup.VANILLA);
-    }
-
-    /**
-     * Name tag + a shared {@code feral} scoreboard team. The tag shows the raw frontier-distance
-     * {@code mob} spawned at, not a bucketed tier -- per the design page's explicit "no bucketed
-     * tiers picked from a table, just steadily more twisted." Team color is {@code DARK_GREEN} for
-     * the design page's "sickly green," distinct from Sentinel's {@code DARK_PURPLE} and Boss's
-     * unteamed white glow.
-     */
-    private static void tagFeral(Mob mob, int frontierDistance, ServerLevel level) {
-        mob.setCustomName(Component.literal("Feral [" + frontierDistance + "]"));
-        // Visible only in the client-side debug view (AdminViewClient); the name itself stays set.
-        mob.setCustomNameVisible(false);
-
-        Scoreboard scoreboard = level.getScoreboard();
-        PlayerTeam team = EffectsAPI.ensureTeam(scoreboard, "feral", ChatFormatting.DARK_GREEN);
-        EffectsAPI.assignToTeam(mob, scoreboard, team);
-    }
-
-    /**
-     * Continuous, uncapped stat scaling by {@code intensity}: {@code 1 + healthScale x intensity} on
-     * max health and on the damage of every hit, keyed off {@link FeralLogic#intensity}. Feral sits off
-     * the stat ladder's formula (difficulty.md), but its multipliers are kept on the mob through
-     * {@code DifficultyAPI} like every other rung, so no mob's attributes are written here (FRO_219).
-     */
-    private static void applyStatScaling(Mob mob, double intensity) {
-        double factor = 1.0 + (FeralRules.healthScale() * intensity);
-        DifficultyAPI.applyFeralRung(mob, factor, factor);
     }
 }
