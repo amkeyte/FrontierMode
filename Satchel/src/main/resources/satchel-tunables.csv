@@ -62,7 +62,7 @@ DefaultBossRules:sentinelFitStep,FLOAT,0.01,1.0,0.1,0.1,0.1
 DefaultBossRules:sentinelHealthScale,FLOAT,0.0,10.0,1.0,1.0,1.0
 DefaultBossRules:sentinelMaxAddsPerSpawn,INT,0,20,3,3,3
 DefaultBossRules:sentinelMaxScale,FLOAT,1.0,5.0,1.5,1.5,1.5
-DefaultBossRules:sentinelPlacementCoefficient,FLOAT,0.0,1.0,0.6,0.61,0.61
+DefaultBossRules:sentinelPlacementCoefficient,FLOAT,0.0,1.0,0.25,0.61,0.61
 DefaultBossRules:sentinelPlacementRadiusFraction,FLOAT,0.0,1.0,0.5,0.5,0.5
 DefaultBossRules:sentinelScaleRatio,FLOAT,0.0,1.0,0.5,0.5,0.5
 DefaultBossRules:sentinelScaleStep,FLOAT,0.0,1.0,0.1,0.1,0.1
@@ -94,7 +94,8 @@ DefaultSitingRules:startingSiteSearchLimit,INT,100,10000,1500,1500,1500
 DefaultSitingRules:startingSiteStoneDepth,INT,0,16,4,4,4
 DefaultDioriteRules:strikerCircleRadius,FLOAT,0.05,2.0,0.35,0.35,0.35
 DefaultBossRules:keeperLootStep,FLOAT,0.0,2.0,0.3,0.3,0.3
-DefaultBossRules:sentinelFirstPathPosition,INT,1,1000,6,6,
-DefaultBossRules:sentinelMaxPerLevel,INT,1,1000,10,10,
-DefaultDifficultyRules:feralDamageGrowth,FLOAT,0.0,1.0,0.075,0.075,
-DefaultDifficultyRules:feralHealthGrowth,FLOAT,0.0,1.0,0.075,0.075,
+DefaultBossRules:sentinelFirstPathPosition,INT,1,1000,6,6,6
+DefaultBossRules:sentinelMaxPerLevel,INT,1,1000,10,10,10
+DefaultDifficultyRules:feralDamageGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
+DefaultDifficultyRules:feralHealthGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
+CairnRules:cairnMaxAttempts,INT,10,2000,200,200,
