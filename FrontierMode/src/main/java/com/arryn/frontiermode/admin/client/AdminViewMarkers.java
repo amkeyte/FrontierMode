@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.admin.client;
 
+import com.arryn.frontiermode.admin.common.Role;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -37,7 +38,7 @@ public final class AdminViewMarkers {
     }
 
     public static void render(PoseStack pose, Camera camera, float partialTick) {
-        Map<Mob, AdminViewClient.Role> marked = AdminViewClient.marked();
+        Map<Mob, Role> marked = AdminViewClient.marked();
         if (marked.isEmpty()) {
             return;
         }

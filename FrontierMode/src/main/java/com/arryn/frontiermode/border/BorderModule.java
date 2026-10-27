@@ -76,6 +76,7 @@ public final class BorderModule {
 
     public static void init() {
         OUT.info("FrontierMode - Border Module Initiating.");
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BorderIngress.build());
 
         // ─────────────────────────────────────────────
         // Bundle schema -- FRO_021: RM_SAT_012 consolidated ScopeEngine.create()/.get() onto

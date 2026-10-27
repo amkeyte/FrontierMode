@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.bosstell.common.items;
 
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
-import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.BossPlatform;
@@ -14,8 +13,6 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -50,7 +47,7 @@ import java.util.UUID;
  * {@code LodestoneTracked = false} for exactly this reason.
  *
  * <p><b>Refresh model, per special-compass.md's "Intuition and Resonance" section:</b> one
- * throttled tick ({@link #refreshOrRelock}, called from {@code CompassPlayerFixture}) does two
+ * throttled tick ({@link #refreshOrRelock}, called from {@code CompassRefresh}) does two
  * jobs at once -- ordinary live-position refresh for whichever case is currently live (the
  * admin path and Resonance), and re-lock detection for Intuition/Resonance (comparing the
  * stack's actual current enchant level against {@link CompassAttunement#lockedEnchantLevel} --
@@ -147,9 +144,9 @@ public class AmethystCompassItem extends CompassItem {
 
     /**
      * FRO_121: the real per-tick entry point for a non-admin stack -- called from
-     * {@code CompassPlayerFixture}. See class doc for the two-job shape.
+     * {@code CompassRefresh}. See class doc for the two-job shape.
      */
-    public static void refreshOrRelock(ItemStack stack, ServerLevel level, ServerPlayer holder) {
+    public static void refreshOrRelock(ItemStack stack, Level level, Player holder) {
         if (CompassAttunement.isAdmin(stack)) {
             refreshTarget(stack, level);
             return;
@@ -232,7 +229,7 @@ public class AmethystCompassItem extends CompassItem {
      * special-compass.md's own wording -- from there, Intuition freezes a ring-jitter point and
      * Resonance stays live on that boss UUID.
      */
-    private static void relock(ItemStack stack, ServerLevel level, ServerPlayer holder, int newCode) {
+    private static void relock(ItemStack stack, Level level, Player holder, int newCode) {
         if (newCode == 0) {
             // Enchant removed (or never applied, and this isn't a bedrock-pad lock either) --
             // nothing to lock onto. Leave whatever the stack already carries untouched; only

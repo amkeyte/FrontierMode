@@ -74,6 +74,7 @@ public final class BossModule {
 
     public static void init() {
         OUT.info("FrontierMode - Boss Module Initiating.");
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossIngress.build());
         registerBossJig();
         registerBossMobJig();
         registerBossPublicJig();

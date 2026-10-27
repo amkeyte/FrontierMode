@@ -1,23 +1,16 @@
 package com.arryn.frontiermode.coordination;
 
-import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.feral.FeralModule;
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
-import com.arryn.satchel.common.jig.level.LevelJigConfig;
-import com.arryn.satchel.common.lifecycle.EventHandlers;
-import com.arryn.satchel.common.lifecycle.MobSpawnFinalizeSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
-
-import java.util.List;
 
 /**
  * The one consumer of {@link MobSpawnFinalizing}, fanning out to the modules that each need a turn on
@@ -37,7 +30,6 @@ public final class SpawnCoordinator {
 
     public static void init() {
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SpawnIngress.build());
-        registerOldPathLog();
     }
 
     /**
@@ -69,33 +61,5 @@ public final class SpawnCoordinator {
                 + " spawnType=" + spawnType
                 + " level=" + level.dimension().location()
                 + " thread=" + Thread.currentThread().getName();
-    }
-
-    // FRO_253 TEMP: the old path, kept as a log-only subscriber so one run shows every spawn on both
-    // paths side by side. Remove registerOldPathLog, logOldPath, SPAWN_COORDINATOR_JIG and the
-    // imports above that only they use, once the comparison is read.
-
-    private static void registerOldPathLog() {
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        .on(MobSpawnFinalizeSignal.class, SpawnCoordinator::logOldPath)
-                        .build();
-
-        LevelJigConfig config = new LevelJigConfig(FrontierKeys.SPAWN_COORDINATOR_JIG);
-        config.bundles().schema(new JigBundles.Schema<>(List.of()));
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults())
-                .eventHandlers(eventHandlers);
-
-        Satchel.registerJigConfig(config);
-    }
-
-    private static void logOldPath(MobSpawnFinalizeSignal signal) {
-        //noinspection resource
-        if (!(signal.level() instanceof ServerLevel level)) {
-            return;
-        }
-        OUT.debug("[SpawnCoordinator] old path finalizing "
-                + describe(signal.mob(), signal.spawnType(), level));
     }
 }

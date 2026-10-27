@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.bosstell.common.enchantments;
 
-import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -12,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
  * Thin by design -- Forge gives enchantments no generic "do something" hook, and Intuition isn't
  * a combat enchantment, so there's no vanilla override point to plug real logic into anyway. All
  * of its actual behavior (the ring-jitter point, re-roll detection) lives in
- * {@code AmethystCompassItem}/{@code CompassPlayerFixture}'s own throttled refresh, keyed off
+ * {@code AmethystCompassItem}/{@code CompassRefresh}'s own throttled refresh, keyed off
  * {@code EnchantmentHelper.getItemEnchantmentLevel} -- this class is configuration only.
  *
  * <p>Cost curve originally copied from vanilla's {@code FishingSpeedEnchantment} ("Lure") --

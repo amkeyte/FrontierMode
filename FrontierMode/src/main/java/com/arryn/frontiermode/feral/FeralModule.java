@@ -102,6 +102,7 @@ public final class FeralModule {
 
     public static void init() {
         OUT.info("FrontierMode - Feral Module Initiating.");
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> FeralIngress.build());
         registerPlayerJig();
         Satchel.contributeLevelTrinket("frontiermode:feral", JigPolicies.SideApplicability.SERVER, Order.EARLY,
                 FeralPresence.class, () -> new FeralPresence());

@@ -26,6 +26,7 @@ public final class DifficultyModule {
 
     public static void init() {
         OUT.info("FrontierMode - Difficulty Module Initiating.");
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> DifficultyIngress.build());
 
         // Bare, unscoped signals -- installed on this config only because it is where installation
         // happens to occur, not a claim they are scoped to it.

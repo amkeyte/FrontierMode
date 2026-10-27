@@ -4,7 +4,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.server.commands.BossSelector;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorResult;
-import com.arryn.frontiermode.structure.StructureModule;
+import com.arryn.frontiermode.structure.StructureAPI;
 import com.arryn.frontiermode.structure.common.CairnRecord;
 
 import com.mojang.brigadier.CommandDispatcher;
@@ -83,7 +83,7 @@ public final class StructureCommands {
 
         UUID bossId = matches.get(0).bossId();
 
-        var fixtureOpt = StructureModule.cairnFixture(sp.serverLevel());
+        var fixtureOpt = StructureAPI.cairnFixture(sp.serverLevel());
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Structure data not available for this level yet."));
             return 0;

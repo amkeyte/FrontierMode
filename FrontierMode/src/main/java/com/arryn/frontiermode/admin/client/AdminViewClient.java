@@ -1,11 +1,14 @@
 package com.arryn.frontiermode.admin.client;
 
 import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.admin.common.DebugViewTick;
+import com.arryn.frontiermode.admin.common.Role;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 import com.arryn.frontiermode.boss.BossMarkers;
 import com.arryn.frontiermode.boss.SentinelMarkers;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -19,10 +22,8 @@ import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * The debug view: one toggle, like F3, that shows everything a playtester wants to see -- a coloured
@@ -33,9 +34,11 @@ import java.util.WeakHashMap;
  *
  * <p>The client already knows which mobs to mark: bosses and sentinels through the synced
  * {@link BossMarkers}/{@link SentinelMarkers}, Ferals by position ({@link #isFeral}). While
- * on, each tick this rebuilds the set of marked mobs and their roles (which {@link AdminViewMarkers}
- * draws) and sets name-tag visibility on each boss's local copy -- re-applied each tick in
- * case the server resends it. Turning it off puts back what it touched.
+ * on, each tick {@link #mark} rebuilds the set of marked mobs and their roles (which
+ * {@link AdminViewMarkers} draws) and sets name-tag visibility on each boss's local copy -- re-applied
+ * each tick in case the server resends it. The tick and that state belong to {@code DebugViewTick}, a
+ * Trinket on the client level host, which puts back what it touched when the view goes off. What stays
+ * here is the on/off flag: a client preference, not world state, and the module's one static.
  *
  * <p>No glow: vanilla's outline draws only from a server-synced entity flag that client code can't
  * set ({@code Entity#setGlowingTag} on the client writes the flag's own current value back), so the
@@ -49,36 +52,6 @@ import java.util.WeakHashMap;
 public final class AdminViewClient {
 
     private static boolean enabled;
-
-    /** What a marked mob is there for, and its marker colour (ARGB, fully opaque). */
-    public enum Role {
-        BOSS(0xFFFFAA00, true),
-        SENTINEL(0xFFFF55FF, false),
-        FERAL(0xFF55FF55, false);
-
-        private final int color;
-        private final boolean tagged;
-
-        Role(int color, boolean tagged) {
-            this.color = color;
-            this.tagged = tagged;
-        }
-
-        public int color() {
-            return color;
-        }
-
-        /** Whether this role also shows its name tag in the view (a sentinel carries none). */
-        public boolean tagged() {
-            return tagged;
-        }
-    }
-
-    // Entities this view has shown a name tag on, weakly held, so turning it off can put them back.
-    private static final Set<Entity> TOUCHED = Collections.newSetFromMap(new WeakHashMap<>());
-
-    // This tick's marked mobs and their roles, weakly held; rebuilt every tick while on.
-    private static final Map<Mob, Role> MARKED = new WeakHashMap<>();
 
     private AdminViewClient() {
     }
@@ -108,26 +81,31 @@ public final class AdminViewClient {
     private static void setEnabled(boolean value) {
         enabled = value;
         WorldBordersRenderer.setVisible(value);
-        if (!value) {
-            for (Entity entity : TOUCHED) {
-                entity.setCustomNameVisible(false);
-            }
-            TOUCHED.clear();
-            MARKED.clear();
-        }
     }
 
-    /** The mobs to mark this frame and their roles; empty while the view is off. */
+    /** Whether the view is on. Read by {@code DebugViewTick} each client tick. */
+    public static boolean enabled() {
+        return enabled;
+    }
+
+    /** The mobs to mark this frame and their roles; empty while the view is off or its level isn't ready. */
     static Map<Mob, Role> marked() {
-        return Collections.unmodifiableMap(MARKED);
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return Map.of();
+        }
+        return DebugViewTick.of(level).map(DebugViewTick::marked).orElse(Map.of());
     }
 
-    /** Called every client tick from {@code AdminViewHandlers}; a no-op while the view is off. */
-    public static void tick(Level level) {
-        if (!enabled || !(level instanceof ClientLevel clientLevel)) {
+    /**
+     * Rebuilds {@code marked} for this tick and records in {@code touched} each entity it set a name tag
+     * visible on. Called every client tick by {@code DebugViewTick} while the view is on.
+     */
+    public static void mark(Level level, Map<Mob, Role> marked, Set<Entity> touched) {
+        if (!(level instanceof ClientLevel clientLevel)) {
             return;
         }
-        MARKED.clear();
+        marked.clear();
         for (Entity entity : clientLevel.entitiesForRendering()) {
             if (!(entity instanceof Mob mob)) {
                 continue;
@@ -136,10 +114,10 @@ public final class AdminViewClient {
             if (role == null) {
                 continue;
             }
-            MARKED.put(mob, role);
+            marked.put(mob, role);
             if (role.tagged()) {
                 mob.setCustomNameVisible(true);
-                TOUCHED.add(mob);
+                touched.add(mob);
             }
         }
     }

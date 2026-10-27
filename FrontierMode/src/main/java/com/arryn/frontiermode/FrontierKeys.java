@@ -18,8 +18,6 @@ import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
-import com.arryn.frontiermode.bosstell.common.CompassPlayerBundle;
-import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.satchel.common.identity.BundleKey;
@@ -221,28 +219,17 @@ public final class FrontierKeys {
             );
 
 
-    // FRO_118: BossTellModule's own PlayerJig-scoped bundle -- not BorderPlayerBundle (a
-    // different concern), per
-    // wiki/frontiermode/architecture/special-compass.md#playerscope-fixture-live-refresh-not-the-pickup-block.
-    // See BossTellModule.init() for the schema/config wiring.
+    // FRO_254: names the bosstell ingress, which carries CompassPickup and its one consumer. Wired in
+    // BossTellIngress.build(), registered from BossTellModule.init().
 
-    public static final BundleKey<CompassPlayerBundle> COMPASS_PLAYER_BUNDLE =
-            new BundleKey<>(
-                    "frontiermode:compass_player_bundle",
-                    CompassPlayerBundle.class
-            );
+    public static final IngressKey BOSSTELL_INGRESS =
+            new IngressKey("frontiermode:bosstell");
 
-    public static final FixtureKey<CompassPlayerFixture> COMPASS_PLAYER =
-            new FixtureKey<>(
-                    "frontiermode:compass_player_fixture",
-                    CompassPlayerFixture.class
-            );
+    // FRO_255: names the structure ingress, which carries CairnCapBroken and its one consumer. Wired in
+    // StructureIngress.build(), registered from StructureModule.init().
 
-    public static final JigKey<PlayerJig> COMPASS_PLAYER_JIG =
-            new JigKey<>(
-                    "frontiermode:compass_player_jig",
-                    PlayerJig.class
-            );
+    public static final IngressKey STRUCTURE_INGRESS =
+            new IngressKey("frontiermode:structure");
 
     // FRO_120 (Cairn, RM_FRO_039 "Helen"): StructureModule's own third home -- not BossBundle,
     // not BossTellModule's bundle. See BossTellModule.init()-equivalent (StructureModule.init())
@@ -276,42 +263,35 @@ public final class FrontierKeys {
                     PlayerJig.class
             );
 
-    // The client-side debug view's handler home: a BOTH-applicability jig with no bundle, only so its
-    // ScopeEvent.Tick handler is installed on the client. See AdminToolsModule.init().
-
-    public static final JigKey<LevelJig> ADMIN_VIEW_JIG =
-            new JigKey<>(
-                    "frontiermode:admin_view_jig",
-                    LevelJig.class
-            );
-
-    // FRO_253 TEMP: SpawnCoordinator's old signal subscription point, kept only as a log-only
-    // subscriber for the same-run comparison. Remove with SpawnCoordinator.registerOldPathLog().
-
-    public static final JigKey<LevelJig> SPAWN_COORDINATOR_JIG =
-            new JigKey<>(
-                    "frontiermode:spawn_coordinator_jig",
-                    LevelJig.class
-            );
-
     // FRO_253: names the spawn coordination ingress, which carries MobSpawnFinalizing and its one
     // consumer. Wired in SpawnIngress.build(), registered from SpawnCoordinator.init().
 
     public static final IngressKey SPAWN_COORDINATION =
             new IngressKey("frontiermode:spawn_coordination");
 
-    // FRO_149: AdminToolsModule's own tick-free signal subscription point -- no bundle/fixture,
-    // same "exists purely to get a signal subscription point" shape as FERAL_PLAYER_JIG (FRO_146).
-    // See AdminToolsModule.init() for the schema/config wiring.
+    // FRO_256: names the admin ingress, which carries the five admin module events. Wired in
+    // AdminIngress.build(), registered from AdminToolsModule.init().
 
-    public static final JigKey<LevelJig> ADMIN_TOOLS_JIG =
-            new JigKey<>(
-                    "frontiermode:admin_tools_jig",
-                    LevelJig.class
-            );
+    public static final IngressKey ADMIN_INGRESS =
+            new IngressKey("frontiermode:admin");
+
+    // FRO_256: the Info report's one-consumer ingresses, one per module that adds a line to it. Each is
+    // wired in the module's own <Module>Ingress.build(), registered from the module's init().
+
+    public static final IngressKey BOSS_INGRESS =
+            new IngressKey("frontiermode:boss");
+
+    public static final IngressKey BORDER_INGRESS =
+            new IngressKey("frontiermode:border");
+
+    public static final IngressKey FERAL_INGRESS =
+            new IngressKey("frontiermode:feral");
+
+    public static final IngressKey DIFFICULTY_INGRESS =
+            new IngressKey("frontiermode:difficulty");
 
     // FRO_068: the difficulty module's tick-free signal subscription point -- no bundle/fixture,
-    // same shape as ADMIN_TOOLS_JIG. See DifficultyModule.init().
+    // the "exists purely to get a signal subscription point" shape. See DifficultyModule.init().
 
     public static final JigKey<LevelJig> DIFFICULTY_JIG =
             new JigKey<>(
@@ -320,7 +300,7 @@ public final class FrontierKeys {
             );
 
     // FRO_212: the siting module's tick-free signal subscription point (the starting-site search) --
-    // no bundle/fixture, same shape as ADMIN_TOOLS_JIG. See SitingModule.init().
+    // no bundle/fixture, same shape as DIFFICULTY_JIG. See SitingModule.init().
 
     public static final JigKey<LevelJig> SITING_JIG =
             new JigKey<>(
