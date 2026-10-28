@@ -91,7 +91,7 @@ final class MobJoinHealthCheck {
         ingress.priority(EventPriority.HIGHEST).translate(EntityJoinLevelEvent.class,
                 e -> e.getEntity() instanceof Mob mob && mob.getTags().contains(TAG)
                         ? Scopes.of(MobHealthCheck.MOB_JIG, mob)
-                        : Optional.<ScopeInfoImpl>empty(),
+                        : Optional.<ScopeInfo>empty(),
                 JoinedProbeMob::new);
         ingress.listenForAll(JoinedProbeMob.class, e -> SatchelHealth.state().joinDelivered.incrementAndGet())
                 .receiveCancelled();
@@ -111,7 +111,7 @@ final class MobJoinHealthCheck {
         private int ticks;
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
             if (!(info.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;
             if (++ticks < RUN_AFTER_TICKS) return;
@@ -120,9 +120,9 @@ final class MobJoinHealthCheck {
             run(info, level);
         }
 
-        private static void run(ScopeInfoImpl info, ServerLevel level) {
+        private static void run(ScopeInfo info, ServerLevel level) {
             MobJig jig = Satchel.mobJig(MobHealthCheck.MOB_JIG);
-            JigInfo jigInfo = info.jigInfo().foundation().requireJigInfo(MobHealthCheck.MOB_JIG);
+            JigInfo jigInfo = ScopeInfoImpl.of(info).jigInfo().foundation().requireJigInfo(MobHealthCheck.MOB_JIG);
             HealthState state = SatchelHealth.state();
             long deliveredBefore = state.joinDelivered.get();
 

@@ -9,18 +9,35 @@ import net.minecraft.world.level.Level;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+/**
+ * What module code sees of one scope: who it is, whether it is ready, its bundles and the module events
+ * for it. Satchel hands one to every Trinket callback, every {@code ScopeEvent} and the scope lookups
+ * ({@code Satchel.tryReadyScopeInfo}, {@code Scopes.of}, {@code MobJig.infoFor}); module code never
+ * creates one and cannot change it. The lifecycle phase, the jig's configuration and the owning jig are
+ * Satchel's own, on {@link ScopeInfoImpl}.
+ */
 public interface ScopeInfo {
+
+    /**
+     * The scope this describes: a level, a player or a mob.
+     */
     SatchelScope scope();
 
+    /**
+     * A short label for logs and messages.
+     */
     String debugName();
 
     /**
-     * The key of the jig this scope belongs to: {@code jigInfo().key}, without reaching through the
-     * {@link JigInfo}. What a handler on the shared event bus compares first, since every jig's scopes
-     * reach every handler.
+     * The key of the jig this scope belongs to. What a handler on the shared event bus compares first,
+     * since every jig's scopes reach every handler.
      */
     JigKey<?> jigKey();
 
+    /**
+     * {@link #scope()} as the scope type the caller expects. Unchecked: a scope of another kind fails
+     * with a {@code ClassCastException} at the call site.
+     */
     @SuppressWarnings("unchecked")
     <S extends SatchelScope> S scopeAs();
 
@@ -31,12 +48,15 @@ public interface ScopeInfo {
      */
     LeaveReason leaveReason();
 
+    /**
+     * Whether the scope is ready under its jig's readiness policy. Every jig kind's default is
+     * immediate, so a scope is ready from the moment it exists.
+     */
     boolean isReady();
 
     /**
      * The scope's {@link Level}, for every scope kind and on both sides: a level scope is its level;
-     * a player or mob scope is that entity's current level. Unlike {@link #referenceLevel()}, never
-     * null for want of a configured resolver.
+     * a player or mob scope is that entity's current level. Does not check readiness.
      *
      * @throws IllegalStateException for a scope kind this method doesn't know
      */
@@ -60,8 +80,8 @@ public interface ScopeInfo {
      * the client it is created and waits for its parcel as it always does.
      *
      * @throws SatchelException.AccessFailed if the scope is not ready under its coupler. A jig with
-     *                                       {@code IMMEDIATE} readiness (every jig kind's default) is ready at attach; one with
-     *                                       {@code DEFERRED} readiness is not until its scope has loaded.
+     *         {@code IMMEDIATE} readiness (every jig kind's default) is ready at attach; one with
+     *         {@code DEFERRED} readiness is not until its scope has loaded.
      */
     <B extends SatchelBundle> B getOrCreate(BundleKey<B> key);
 

@@ -389,7 +389,7 @@ public final class LogicalFoundation {
 
         JigKey.validateTypes(jigKey, ji.jig);
 
-        return ji.scopeInfo(scope);
+        return ji.scopeInfo(scope).map(info -> info);
     }
 
     /* =============================================================

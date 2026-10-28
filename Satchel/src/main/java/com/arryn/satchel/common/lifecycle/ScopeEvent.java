@@ -16,7 +16,7 @@ import java.util.Objects;
  * <p>
  * If a ScopeEvent is delivered:
  * <ul>
- *   <li>The {@link ScopeInfoImpl} instance is authoritative and stable</li>
+ *   <li>The {@link ScopeInfo} instance is authoritative and stable</li>
  *   <li>The underlying scopeInfo is valid for the duration of the handler</li>
  *   <li>No additional guards or availability checks are required</li>
  * </ul>
@@ -28,7 +28,7 @@ public abstract sealed class ScopeEvent
         ScopeEvent.MobGainedInterest,
         ScopeEvent.MobLostInterest {
 
-    private final ScopeInfoImpl info;
+    private final ScopeInfo info;
 
     protected ScopeEvent(ScopeInfo info) {
         this.info = Objects.requireNonNull(info, "info");
@@ -37,7 +37,7 @@ public abstract sealed class ScopeEvent
     /**
      * Authoritative lifecycle record for the scopeInfo.
      */
-    public final ScopeInfoImpl info() {
+    public final ScopeInfo info() {
         return info;
     }
 
@@ -54,7 +54,7 @@ public abstract sealed class ScopeEvent
      * Identity comparison -- {@link JigKey} instances are registered singletons.
      */
     public final boolean isJig(JigKey<?> key) {
-        return key == info().jigInfo().key;
+        return key == info().jigKey();
     }
 
     /* =============================================================
@@ -112,7 +112,7 @@ public abstract sealed class ScopeEvent
      * is what the interest-registry poll actually detected.
      *
      * <p>
-     * {@link ScopeInfoImpl} guarantees are identical to those of {@link Loaded}: the scope
+     * {@link ScopeInfo} guarantees are identical to those of {@link Loaded}: the scope
      * is stable and authoritative for the duration of the handler.
      */
     public static final class MobGainedInterest extends ScopeEvent {
@@ -125,7 +125,7 @@ public abstract sealed class ScopeEvent
      * Emitted by {@link com.arryn.satchel.common.jig.mob.MobJig} immediately after
      * {@link Unloaded} fires for a mob scope — additively, never instead of the generic
      * event. The scope has already been evicted from {@code JigInfo} by the time this
-     * fires; the {@link ScopeInfoImpl} object is still valid for reading but is no longer
+     * fires; the {@link ScopeInfo} object is still valid for reading but is no longer
      * resident in the jig.
      */
     public static final class MobLostInterest extends ScopeEvent {

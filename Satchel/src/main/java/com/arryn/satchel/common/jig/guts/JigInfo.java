@@ -37,7 +37,7 @@ public final class JigInfo implements IJigConfigurable {
     private final int registrationIndex;
     private final LogicalFoundation foundation;
 
-    private final Map<SatchelScope, ScopeInfo> scopeInfos =
+    private final Map<SatchelScope, ScopeInfoImpl> scopeInfos =
             new ConcurrentHashMap<>();
 
     /**
@@ -45,7 +45,7 @@ public final class JigInfo implements IJigConfigurable {
      * #removeScope}. A lookup by id needs no scope instance, so a resolver on a hot event does not
      * allocate one per firing.
      */
-    private final Map<UUID, ScopeInfo> scopeInfosById =
+    private final Map<UUID, ScopeInfoImpl> scopeInfosById =
             new ConcurrentHashMap<>();
     private CompiledJigConfig compiled;
 
@@ -127,11 +127,11 @@ public final class JigInfo implements IJigConfigurable {
     // Type metadata
     // =============================================================
 
-    public Optional<ScopeInfo> scopeInfo(SatchelScope scope) {
+    public Optional<ScopeInfoImpl> scopeInfo(SatchelScope scope) {
         return Optional.ofNullable(scopeInfos.get(scope));
     }
 
-    public Collection<ScopeInfo> scopeInfos() {
+    public Collection<ScopeInfoImpl> scopeInfos() {
         return scopeInfos.values();
     }
 
@@ -144,7 +144,7 @@ public final class JigInfo implements IJigConfigurable {
      * with. Scope equality is id-based, so this is the same answer as {@link #scopeInfo(SatchelScope)}
      * for a scope with that id.
      */
-    public Optional<ScopeInfo> scopeInfo(UUID scopeId) {
+    public Optional<ScopeInfoImpl> scopeInfo(UUID scopeId) {
         return Optional.ofNullable(scopeInfosById.get(scopeId));
     }
 
@@ -160,7 +160,7 @@ public final class JigInfo implements IJigConfigurable {
      * token) and a source with no scope.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Optional<ScopeInfo> scopeInfoFor(Object source) {
+    public Optional<ScopeInfoImpl> scopeInfoFor(Object source) {
         requireConfig();
 
         if (source == null || !binding().sourceType().isInstance(source) || !foundation.isReady()) {
@@ -192,7 +192,7 @@ public final class JigInfo implements IJigConfigurable {
         info.installJigConfig(compiledConfig());
         info.installJigInfo(this);
 
-        ScopeInfo existing = scopeInfos.putIfAbsent(scope, info);
+        ScopeInfoImpl existing = scopeInfos.putIfAbsent(scope, info);
         if (existing != null) {
             throw new SatchelException.Generic(
                     "Scope already exists for jig " + key + ": " +
@@ -214,7 +214,7 @@ public final class JigInfo implements IJigConfigurable {
      * under this jig.
      */
     public void removeScope(SatchelScope scope) {
-        ScopeInfo removed = scopeInfos.remove(scope);
+        ScopeInfoImpl removed = scopeInfos.remove(scope);
         if (removed == null) {
             throw new SatchelException.Generic(
                     "Attempted to remove unknown scope from jig " + key +

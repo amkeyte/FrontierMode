@@ -64,8 +64,9 @@ final class HostHealthCheck {
     private static final AtomicBoolean LATE_CHECKED = new AtomicBoolean();
 
     /** Whether the scope's coupler holds a Trinket of {@code type}. */
-    private static boolean holds(ScopeInfoImpl info, Class<?> type) {
-        return info.jigInfo().coupler().trinkets(info).stream()
+    private static boolean holds(ScopeInfo info, Class<?> type) {
+        ScopeInfoImpl impl = ScopeInfoImpl.of(info);
+        return impl.jigInfo().coupler().trinkets(impl).stream()
                 .map(TrinketSet.Slot::type)
                 .anyMatch(type::equals);
     }
@@ -82,10 +83,10 @@ final class HostHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo info) {
             super.onAttach(info);
 
-            LogicalSide side = info.jigInfo().side();
+            LogicalSide side = ScopeInfoImpl.of(info).jigInfo().side();
             boolean serverOnlyHeld = holds(info, ServerOnlyLevelProbe.class);
             if (serverOnlyHeld != (side == LogicalSide.SERVER)) {
                 violation("server-only level probe is " + (serverOnlyHeld ? "held" : "missing") + " on the "
@@ -190,10 +191,10 @@ final class HostHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo info) {
             super.onAttach(info);
 
-            LogicalSide side = info.jigInfo().side();
+            LogicalSide side = ScopeInfoImpl.of(info).jigInfo().side();
             boolean serverOnlyHeld = holds(info, ServerOnlyPlayerProbe.class);
             if (serverOnlyHeld != (side == LogicalSide.SERVER)) {
                 violation("server-only player probe is " + (serverOnlyHeld ? "held" : "missing") + " on the "

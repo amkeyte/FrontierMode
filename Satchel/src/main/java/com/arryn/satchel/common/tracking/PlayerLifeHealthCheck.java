@@ -102,7 +102,7 @@ final class PlayerLifeHealthCheck {
         ingress.translate(LivingDropsEvent.class,
                 e -> e.getEntity() instanceof ServerPlayer player
                         ? Scopes.of(HostJigs.PLAYER_HOST, player)
-                        : Optional.<ScopeInfoImpl>empty(),
+                        : Optional.<ScopeInfo>empty(),
                 DyingDrops::new);
 
         return ingress;
@@ -135,7 +135,7 @@ final class PlayerLifeHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo info) {
             super.onAttach(info);
 
             info.listenFor(Respawned.class, e -> onRespawn(info, e));
@@ -144,7 +144,7 @@ final class PlayerLifeHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
             super.onTickAfter(info);
 
             Player now = ((PlayerScope) info.scope()).player();
@@ -167,8 +167,8 @@ final class PlayerLifeHealthCheck {
             }
         }
 
-        private static long tick(ScopeInfoImpl info) {
-            return info.jigInfo().trinketTick().tickNumber();
+        private static long tick(ScopeInfo info) {
+            return ScopeInfoImpl.of(info).jigInfo().trinketTick().tickNumber();
         }
 
         private void onDrops(ScopeInfo info, DyingDrops e) {
@@ -188,7 +188,7 @@ final class PlayerLifeHealthCheck {
                     + "and not yet respawned (" + info.debugName() + ")");
         }
 
-        private void onRespawn(ScopeInfoImpl info, Respawned e) {
+        private void onRespawn(ScopeInfo info, Respawned e) {
             Player scoped = ((PlayerScope) info.scope()).player();
 
             if (scoped != e.player) violation("PlayerScope.player() did not return the respawned instance: "
@@ -215,7 +215,7 @@ final class PlayerLifeHealthCheck {
                     + "event resolved for the new player reached its consumer (" + info.debugName() + ")");
         }
 
-        private void onDimension(ScopeInfoImpl info, ChangedDimension e) {
+        private void onDimension(ScopeInfo info, ChangedDimension e) {
             if (attaches() != 1 || detaches() != 0) violation("the Trinket attached " + attaches() + " and detached "
                     + detaches() + " time(s) across a dimension change, expected 1 and 0: " + info.debugName());
 

@@ -7,6 +7,7 @@ import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.trinket.Order;
@@ -151,7 +152,8 @@ final class RealEventHealthCheck {
         private long ticks;
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
+            LogicalSide side = ScopeInfoImpl.of(info).jigInfo().side();
             long expected = RealEventTally.spawnExpectedCount();
             long delivered = RealEventTally.spawnDeliveredCount();
             if (expected != delivered) {
@@ -162,8 +164,8 @@ final class RealEventHealthCheck {
             // One line per world: at the first delivery, or after two minutes if none has come, since a
             // quiet world may spawn nothing on a bound thread for a while.
             if (delivered > 0 || ++ticks >= REPORT_AFTER_TICKS) {
-                SatchelHealth.logOnce("spawn:" + info.jigInfo().side(), "[SatchelHealth] Real-event probe: "
-                        + "FinalizeSpawn reached an unscoped global consumer on the " + info.jigInfo().side()
+                SatchelHealth.logOnce("spawn:" + side, "[SatchelHealth] Real-event probe: "
+                        + "FinalizeSpawn reached an unscoped global consumer on the " + side
                         + " side " + delivered + " time(s), equal to the raw firings on bound threads ("
                         + expected + "); " + RealEventTally.spawnUnboundCount() + " on unbound threads and "
                         + RealEventTally.spawnNotReadyCount() + " on bound threads not ready were dropped");

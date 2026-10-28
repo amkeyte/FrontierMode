@@ -118,7 +118,7 @@ final class TrinketHealthCheck {
     }
 
     private static void onLoaded(ScopeEvent.Loaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         if (!TRINKET_JIG.equals(info.jigInfo().key)) return;
 
         var bundle = info.jigInfo().jig.getOrCreate(info.scope(), PROBE_BUNDLE);
@@ -227,7 +227,8 @@ final class TrinketHealthCheck {
         private long fixtureTicksAtBefore = -1;
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             attaches++;
             if (attaches > 1) violation("probe attached " + attaches + " times to " + info.debugName());
             attachedInTick = info.jigInfo().trinketTick().tickNumber();
@@ -242,7 +243,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (attaches != 1) violation("probe ticked before attach on " + info.debugName());
             long tick = info.jigInfo().trinketTick().tickNumber();
             if (tick <= attachedInTick) {
@@ -259,7 +261,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (after + 1 != before) violation("probe onTickAfter ran without a matching onTickBefore on "
                     + info.debugName());
             after++;
@@ -357,7 +360,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfoImpl info) {
+        public void onDetach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (attaches != 1) violation("probe detached without a prior attach on " + info.debugName());
             ORDER_LOGS.remove(info.scopeId());
             // The write under test: made before the engine unloads the bundle, saved by its
@@ -389,13 +393,15 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (!open) violation("gated probe ticked (before) while not ready on " + info.debugName());
             befores++;
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (!open) violation("gated probe ticked (after) while not ready on " + info.debugName());
             afters++;
         }
@@ -425,7 +431,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             attaches++;
             if (attaches > 1) violation("subscriber " + name + " attached " + attaches + " times to "
                     + info.debugName());
@@ -444,7 +451,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             checkLive(info, "onTickBefore");
             if (befores != afters) violation("subscriber " + name + " got onTickBefore twice without an "
                     + "onTickAfter on " + info.debugName());
@@ -452,7 +460,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             checkLive(info, "onTickAfter");
             if (afters + 1 != befores) violation("subscriber " + name + " got onTickAfter without a "
                     + "matching onTickBefore on " + info.debugName());
@@ -460,7 +469,8 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfoImpl info) {
+        public void onDetach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (attaches != 1 || detaches != 0) {
                 violation("subscriber " + name + " detached " + (detaches == 0 ? "without an attach" : "twice")
                         + " on " + info.debugName());
@@ -485,13 +495,15 @@ final class TrinketHealthCheck {
         private long ticks;
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             reportOrder(info, RANK_EARLY_BEFORE, "EarlyProbe.onTickBefore");
             ticks++;
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             reportOrder(info, RANK_EARLY_AFTER, "EarlyProbe.onTickAfter");
         }
 
@@ -510,13 +522,15 @@ final class TrinketHealthCheck {
         private long ticks;
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             reportOrder(info, RANK_LATE_BEFORE, "LateProbe.onTickBefore");
             ticks++;
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             reportOrder(info, RANK_LATE_AFTER, "LateProbe.onTickAfter");
         }
 

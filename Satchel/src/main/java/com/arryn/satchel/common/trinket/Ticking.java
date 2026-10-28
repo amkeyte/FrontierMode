@@ -1,6 +1,6 @@
 package com.arryn.satchel.common.trinket;
 
-import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 
 /**
  * Ability: the Trinket runs each tick, in the foundation's one global, sorted Trinket list. A Trinket
@@ -26,13 +26,13 @@ public interface Ticking extends Trinket {
     /**
      * Before any scope's bundles and fixtures tick -- the phase for writing into fixtures.
      */
-    default void onTickBefore(ScopeInfoImpl info) {
+    default void onTickBefore(ScopeInfo info) {
     }
 
     /**
      * After the internal jig walk has finished -- the phase for reading this tick's fixture state,
      * and where module logic runs.
      */
-    default void onTickAfter(ScopeInfoImpl info) {
+    default void onTickAfter(ScopeInfo info) {
     }
 }

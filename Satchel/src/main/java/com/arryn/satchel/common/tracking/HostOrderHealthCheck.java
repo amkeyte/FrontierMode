@@ -46,8 +46,8 @@ final class HostOrderHealthCheck {
                 LevelReader.class, LevelReader::new);
     }
 
-    private static long tick(ScopeInfoImpl info) {
-        return info.jigInfo().trinketTick().tickNumber();
+    private static long tick(ScopeInfo info) {
+        return ScopeInfoImpl.of(info).jigInfo().trinketTick().tickNumber();
     }
 
     /** A probe that records the tick it last ran in, in each phase. */
@@ -61,13 +61,13 @@ final class HostOrderHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo info) {
             super.onTickBefore(info);
             stampedBefore = tick(info);
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
             super.onTickAfter(info);
             stampedAfter = tick(info);
         }
@@ -92,13 +92,13 @@ final class HostOrderHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfoImpl info) {
+        public void onTickBefore(ScopeInfo info) {
             super.onTickBefore(info);
             forEachWriter(info, writer -> expect(info, "before", writer, writer.stampedBefore()));
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
             super.onTickAfter(info);
             forEachWriter(info, writer -> expect(info, "after", writer, writer.stampedAfter()));
         }
@@ -106,7 +106,7 @@ final class HostOrderHealthCheck {
         /** Hands {@code check} every writer this probe is meant to see from {@code info}'s scope. */
         abstract void forEachWriter(ScopeInfo info, Consumer<Writer> check);
 
-        private void expect(ScopeInfoImpl info, String phase, Writer writer, long stamped) {
+        private void expect(ScopeInfo info, String phase, Writer writer, long stamped) {
             long now = tick(info);
 
             // A writer attached in this very tick first runs in the next one, so it has no stamp yet.

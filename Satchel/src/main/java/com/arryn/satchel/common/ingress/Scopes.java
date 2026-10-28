@@ -50,6 +50,6 @@ public final class Scopes {
             return mobJig.infoFor(mob).filter(ScopeInfo::isReady);
         }
 
-        return ji.scopeInfoFor(source).filter(ScopeInfo::isReady);
+        return ji.scopeInfoFor(source).filter(ScopeInfo::isReady).map(info -> info);
     }
 }

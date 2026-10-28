@@ -299,12 +299,13 @@ final class ModuleEventHealthCheck {
         private long joinsSeen;
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo info) {
             joins = info.listenFor(JoinInLevel.class, e -> onJoin(info, e));
             probes = info.listenFor(ProbeSignal.class, e -> onProbe(info, e));
         }
 
-        private void onJoin(ScopeInfoImpl info, JoinInLevel e) {
+        private void onJoin(ScopeInfo scopeInfo, JoinInLevel e) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (e.context() != info) {
                 violation("scoped delivery reached " + info.debugName() + " for an event resolved to "
                         + e.context().debugName());
@@ -327,7 +328,8 @@ final class ModuleEventHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (posted) return;
             posted = true;
 
@@ -352,7 +354,8 @@ final class ModuleEventHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfoImpl info) {
+        public void onDetach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             // Satchel dropped the scope's consumers before this, though this class never unsubscribed.
             if (joins.isActive() || probes.isActive()) {
                 violation("a scope-bound consumer survived the unload of " + info.debugName());

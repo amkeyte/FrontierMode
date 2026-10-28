@@ -114,7 +114,7 @@ final class PlayerHealthCheck {
     }
 
     private static void onPlayerScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         Objects.requireNonNull(info, "info");
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
@@ -176,7 +176,7 @@ final class PlayerHealthCheck {
      * reason as the level check.
      */
     private static void onPlayerScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
             return;
@@ -236,7 +236,7 @@ final class PlayerHealthCheck {
     }
 
     private static void onPlayerScopeTick(ScopeEvent.Tick event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
             return;

@@ -6,6 +6,7 @@ import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Leaving;
 import com.arryn.satchel.common.jig.mob.MobJig;
@@ -118,7 +119,7 @@ final class MobHealthCheck {
     }
 
     private static void onMobScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         Objects.requireNonNull(info, "info");
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
@@ -148,7 +149,7 @@ final class MobHealthCheck {
      * UNKNOWN) is found.
      */
     private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
             return;
@@ -196,7 +197,7 @@ final class MobHealthCheck {
      * is removed, so one still alive while the lookup can no longer find its mob has missed both.
      */
     private static void onMobScopeTick(ScopeEvent.Tick event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
             return;
@@ -331,7 +332,8 @@ final class MobHealthCheck {
     public static final class CanaryMobTrinket implements Leaving {
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             MobScope scope = (MobScope) info.scope();
             if (!isCanary(scope)) return;
             OUT.info("[SatchelHealth] Canary scoped on the " + info.jigInfo().side() + " side: uuid="
@@ -350,7 +352,8 @@ final class MobHealthCheck {
         }
 
         @Override
-        public void onLeave(ScopeInfoImpl info, LeaveReason reason) {
+        public void onLeave(ScopeInfo scopeInfo, LeaveReason reason) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             if (reason != info.leaveReason()) {
                 SatchelHealth.violation("[SatchelHealth] VIOLATION: a Leaving Trinket was told " + reason
                         + " but the scope's ScopeInfo carries " + info.leaveReason());
@@ -363,7 +366,8 @@ final class MobHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfoImpl info) {
+        public void onDetach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
             MobScope scope = (MobScope) info.scope();
             if (isCanary(scope)) checkNoSecondScope(info, "onDetach");
 

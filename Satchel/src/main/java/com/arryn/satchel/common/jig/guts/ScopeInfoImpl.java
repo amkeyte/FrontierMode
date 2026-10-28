@@ -61,6 +61,20 @@ public final class ScopeInfoImpl implements IJigConfigurable, ContextKeyed, Scop
         // behavior, remove rather than downgrade" call as AScopeCoupler's BundleNotFound line.
     }
 
+    /**
+     * The implementation behind a {@link ScopeInfo}, for Satchel's own code. A Trinket callback, a
+     * {@code ScopeEvent} and the module-facing lookups hand out the interface; SatchelHealth reaches
+     * the owning jig, the phase and the config through this. Every {@code ScopeInfo} Satchel creates
+     * is a {@code ScopeInfoImpl}.
+     *
+     * @throws IllegalArgumentException for a {@code ScopeInfo} Satchel did not create
+     */
+    public static ScopeInfoImpl of(ScopeInfo info) {
+        Objects.requireNonNull(info, "info");
+        if (info instanceof ScopeInfoImpl impl) return impl;
+        throw new IllegalArgumentException("Not a Satchel ScopeInfo: " + info.getClass().getName());
+    }
+
     // ---------------------------------------------------------------------
     // Identity
     // ---------------------------------------------------------------------

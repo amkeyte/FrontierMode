@@ -110,7 +110,7 @@ final class LevelHealthCheck {
     }
 
     private static void onLevelScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         Objects.requireNonNull(info, "info");
 
         // Shared-bus caveat, same reasoning every tracking module's handlers already carry.
@@ -150,7 +150,7 @@ final class LevelHealthCheck {
      * firing wrongly -- correct behavior, not a gap.
      */
     private static void onLevelScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!LEVEL_JIG.equals(info.jigInfo().key)) {
             return;
@@ -197,7 +197,7 @@ final class LevelHealthCheck {
     }
 
     private static void onLevelScopeTick(ScopeEvent.Tick event) {
-        ScopeInfoImpl info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!LEVEL_JIG.equals(info.jigInfo().key)) {
             return;

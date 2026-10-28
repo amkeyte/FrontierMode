@@ -111,8 +111,8 @@ final class CanaryHealthCheck {
     }
 
     /** This side's mob jig for the health checks, without needing a bound thread. */
-    static Optional<MobJig> mobJig(ScopeInfoImpl info) {
-        return info.jigInfo().foundation().askJigInfo(MobHealthCheck.MOB_JIG)
+    static Optional<MobJig> mobJig(ScopeInfo info) {
+        return ScopeInfoImpl.of(info).jigInfo().foundation().askJigInfo(MobHealthCheck.MOB_JIG)
                 .map(ji -> (MobJig) ji.jig);
     }
 
@@ -126,7 +126,7 @@ final class CanaryHealthCheck {
         private UUID mirrored;
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo info) {
             // Trinkets attach before the module's Loaded handler creates bundles, so ask() would be
             // empty here; getOrCreate makes the bundle now. On a client it then waits for its parcel.
             info.getOrCreate(CANARY_BUNDLE);
@@ -139,13 +139,14 @@ final class CanaryHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
-            if (info.jigInfo().side() == LogicalSide.SERVER) {
-                maintainCanary(info);
-                InterestHealthCheck.drive(info);
+        public void onTickAfter(ScopeInfo info) {
+            ScopeInfoImpl impl = ScopeInfoImpl.of(info);
+            if (impl.jigInfo().side() == LogicalSide.SERVER) {
+                maintainCanary(impl);
+                InterestHealthCheck.drive(impl);
             }
-            mirror(info);
-            driveUnload(info);
+            mirror(impl);
+            driveUnload(impl);
         }
 
         /** Ticks this Trinket has seen the canary scoped, before the unload probe runs. */
@@ -197,7 +198,7 @@ final class CanaryHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfoImpl info) {
+        public void onDetach(ScopeInfo info) {
             // This level scope is going: the interest it registered goes with it.
             if (mirrored != null) {
                 UUID gone = mirrored;

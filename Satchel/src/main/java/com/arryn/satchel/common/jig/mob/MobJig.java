@@ -166,10 +166,10 @@ public final class MobJig extends ASatchelJig<MobScope> {
         // is rebuilt for its mob until the unload has finished.
         if (blocked(uuid)) return Optional.empty();
 
-        Optional<ScopeInfo> existing = info.scopeInfo(uuid);
-        if (existing.isPresent()) return existing;
+        Optional<ScopeInfoImpl> existing = info.scopeInfo(uuid);
+        if (existing.isPresent()) return existing.map(scopeInfo -> scopeInfo);
 
-        return resolve(foundation, uuid).flatMap(mob -> introduce(info, mob));
+        return resolve(foundation, uuid).flatMap(mob -> introduce(info, mob)).map(scopeInfo -> scopeInfo);
     }
 
     /**
@@ -196,7 +196,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
 
         if (!admits(mob)) return Optional.empty();
         if (blocked(mob.getUUID())) return Optional.empty();
-        return introduce(found.get(), mob);
+        return introduce(found.get(), mob).map(scopeInfo -> scopeInfo);
     }
 
     /**
@@ -321,8 +321,8 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * could exist for a mob that never joined. Nor does it build while the UUID's scope is unloading
      * or the jig is resetting.
      */
-    private Optional<ScopeInfo> introduce(JigInfo info, Mob mob) {
-        Optional<ScopeInfo> existing = info.scopeInfo(mob.getUUID());
+    private Optional<ScopeInfoImpl> introduce(JigInfo info, Mob mob) {
+        Optional<ScopeInfoImpl> existing = info.scopeInfo(mob.getUUID());
         if (existing.isPresent()) return existing;
         if (blocked(mob.getUUID())) return Optional.empty();
         if (!mob.isAddedToWorld() || mob.isRemoved()) return Optional.empty();
@@ -397,7 +397,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * destination of a level change, not this leave.
      */
     public void onMobLeft(JigInfo info, Mob mob) {
-        Optional<ScopeInfo> existing = info.scopeInfo(mob.getUUID());
+        Optional<ScopeInfoImpl> existing = info.scopeInfo(mob.getUUID());
 
         if (existing.isPresent()) {
             ScopeInfoImpl scopeInfo = existing.get();

@@ -65,12 +65,12 @@ final class CanaryEventHealthCheck {
 
     /** Scoped: resolved to the canary's mob scope, so only the canary ever reaches it. */
     static final class CanaryHurt extends ModuleSignal<LivingHurtEvent, ScopeInfo> {
-        CanaryHurt(LivingHurtEvent e, ScopeInfoImpl canary) {
+        CanaryHurt(LivingHurtEvent e, ScopeInfo canary) {
             super(e, canary);
             SatchelHealth.state().canaryHurtBuilt.incrementAndGet();
 
             UUID known = SatchelHealth.canaryUuid().orElse(null);
-            if (!canary.scopeId().equals(known)) {
+            if (!ScopeInfoImpl.of(canary).scopeId().equals(known)) {
                 violation("a CanaryHurt was built for " + canary.debugName() + ", which is not the canary");
             }
         }
@@ -152,7 +152,8 @@ final class CanaryEventHealthCheck {
         private long nextAttempt;
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
+            ScopeInfoImpl impl = ScopeInfoImpl.of(info);
             if (!(info.scope() instanceof LevelScope levelScope)) return;
             if (!(levelScope.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;
@@ -161,12 +162,12 @@ final class CanaryEventHealthCheck {
             if (!state.logged.contains("hurt:done") || !state.logged.contains("mobunload:released:SERVER")) return;
             if (state.logged.contains("canaryevents:done") || attempts >= MAX_ATTEMPTS) return;
 
-            long now = info.jigInfo().trinketTick().tickNumber();
+            long now = impl.jigInfo().trinketTick().tickNumber();
             if (now < nextAttempt) return;
 
             Optional<UUID> canary = SatchelHealth.canaryUuid();
             if (canary.isEmpty()) return;
-            Optional<Entity> found = info.jigInfo().foundation().egress().getEntity(level, canary.get());
+            Optional<Entity> found = impl.jigInfo().foundation().egress().getEntity(level, canary.get());
             if (found.isEmpty() || !(found.get() instanceof LivingEntity living)) return;
 
             // A second hurt inside the invulnerability window is dropped before any event.

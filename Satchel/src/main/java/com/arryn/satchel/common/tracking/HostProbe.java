@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
@@ -81,11 +82,12 @@ public abstract class HostProbe implements Ticking {
     }
 
     @Override
-    public void onAttach(ScopeInfoImpl info) {
+    public void onAttach(ScopeInfo info) {
+        ScopeInfoImpl impl = ScopeInfoImpl.of(info);
         attaches++;
         if (attaches > 1) violation(name + " attached " + attaches + " times to " + info.debugName());
 
-        side = info.jigInfo().side();
+        side = impl.jigInfo().side();
         if ((declared == JigPolicies.SideApplicability.SERVER && side != LogicalSide.SERVER)
                 || (declared == JigPolicies.SideApplicability.CLIENT && side != LogicalSide.CLIENT)) {
             violation(name + " was contributed for " + declared + " but attached on the " + side + " side: "
@@ -97,11 +99,11 @@ public abstract class HostProbe implements Ticking {
             violation(name + " was created for side " + side + " but its scope's level is "
                     + (clientLevel ? "a client" : "a server") + " level: " + info.debugName());
         }
-        attachedInTick = info.jigInfo().trinketTick().tickNumber();
+        attachedInTick = impl.jigInfo().trinketTick().tickNumber();
     }
 
     @Override
-    public void onTickBefore(ScopeInfoImpl info) {
+    public void onTickBefore(ScopeInfo info) {
         checkLive(info, "onTickBefore");
         if (before != after) violation(name + " got onTickBefore twice without an onTickAfter on "
                 + info.debugName());
@@ -109,21 +111,22 @@ public abstract class HostProbe implements Ticking {
     }
 
     @Override
-    public void onTickAfter(ScopeInfoImpl info) {
+    public void onTickAfter(ScopeInfo info) {
+        ScopeInfoImpl impl = ScopeInfoImpl.of(info);
         checkLive(info, "onTickAfter");
         if (after + 1 != before) violation(name + " got onTickAfter without a matching onTickBefore on "
                 + info.debugName());
         after++;
 
         // A lookup through the coupler finds this very instance once the scope is ready.
-        if (info.jigInfo().coupler().trinket(info, getClass()).orElse(null) != this) {
+        if (impl.jigInfo().coupler().trinket(impl, getClass()).orElse(null) != this) {
             violation(name + " lookup did not return the attached probe on " + info.debugName());
         }
 
         // The key a module reads off its scope is the key the jig is installed under (SAT_132).
-        if (!info.jigKey().equals(info.jigInfo().key)) {
+        if (!info.jigKey().equals(impl.jigInfo().key)) {
             violation(name + " scope's jigKey() is " + info.jigKey() + " but its jig is installed as "
-                    + info.jigInfo().key + " on " + info.debugName());
+                    + impl.jigInfo().key + " on " + info.debugName());
         }
 
         if (after == 1) {
@@ -133,17 +136,17 @@ public abstract class HostProbe implements Ticking {
         }
     }
 
-    private void checkLive(ScopeInfoImpl info, String call) {
+    private void checkLive(ScopeInfo info, String call) {
         if (attaches != 1 || detaches != 0) {
             violation(name + " got " + call + " while not attached on " + info.debugName());
         }
-        if (info.jigInfo().trinketTick().tickNumber() <= attachedInTick) {
+        if (ScopeInfoImpl.of(info).jigInfo().trinketTick().tickNumber() <= attachedInTick) {
             violation(name + " got " + call + " in the tick it was attached in on " + info.debugName());
         }
     }
 
     @Override
-    public void onDetach(ScopeInfoImpl info) {
+    public void onDetach(ScopeInfo info) {
         if (attaches != 1 || detaches != 0) {
             violation(name + " detached " + (attaches == 0 ? "without an attach" : "twice")
                     + " on " + info.debugName());

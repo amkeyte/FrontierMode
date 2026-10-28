@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.bundle;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.persistence.FixtureHydrationSource;
 import com.arryn.satchel.common.persistence.FixtureHydrator;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -345,7 +345,7 @@ public class SatchelBundle {
         this.syncDelegate = delegate;
     }
 
-    public final void pulseSync(ScopeInfo info) {
+    public final void pulseSync(ScopeInfoImpl info) {
         if (syncDelegate == null) return;
 
         syncCounter++;

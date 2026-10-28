@@ -5,6 +5,7 @@ import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 import com.arryn.satchel.common.trinket.Order;
@@ -129,8 +130,8 @@ final class ResultHealthCheck {
     public static final class ResultPoster implements Ticking {
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
-            LogicalSide side = info.jigInfo().side();
+        public void onTickAfter(ScopeInfo info) {
+            LogicalSide side = ScopeInfoImpl.of(info).jigInfo().side();
             if (!SatchelHealth.firstTime("result:" + side)) return;
 
             expect(DENY_THEN_ALLOW, Event.Result.DENY, "a deny followed by an allow", side);

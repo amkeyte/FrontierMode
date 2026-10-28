@@ -1,7 +1,6 @@
 package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 /**
  * A declared, scope-bound runtime component: runtime state and behavior for one scope, held by the
@@ -28,14 +27,14 @@ public interface Trinket {
      * calls this on each in declaration order, so a sibling always exists here, though it may not have
      * been attached yet.
      */
-    default void onAttach(ScopeInfoImpl info) {
+    default void onAttach(ScopeInfo info) {
     }
 
     /**
      * The scope is unloading. Runs before the scope's bundles unload; a fixture write made here marks
      * its bundle dirty and is saved by the engine's terminal flush. No teardown reason is given.
      */
-    default void onDetach(ScopeInfoImpl info) {
+    default void onDetach(ScopeInfo info) {
     }
 
     /**

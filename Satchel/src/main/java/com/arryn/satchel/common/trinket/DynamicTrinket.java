@@ -2,6 +2,7 @@ package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.SatchelException;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.ArrayDeque;
@@ -171,8 +172,8 @@ public final class DynamicTrinket implements Trinket, Leaving {
     // =================================================================
 
     @Override
-    public void onAttach(ScopeInfoImpl info) {
-        this.info = info;
+    public void onAttach(ScopeInfo scopeInfo) {
+        this.info = ScopeInfoImpl.of(scopeInfo);
         this.phase = Phase.ATTACHED;
         this.declIndex = declarationIndex(info);
 
@@ -189,7 +190,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
      * Leaving}, in subscription order, before this host's own {@link #onDetach}.
      */
     @Override
-    public void onLeave(ScopeInfoImpl info, LeaveReason reason) {
+    public void onLeave(ScopeInfo info, LeaveReason reason) {
         fanOut(() -> {
             for (Subscriber s : new ArrayList<>(subscribers)) {
                 if (s.state == State.ATTACHED && s.trinket instanceof Leaving leaving) {
@@ -200,7 +201,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
     }
 
     @Override
-    public void onDetach(ScopeInfoImpl info) {
+    public void onDetach(ScopeInfo info) {
         phase = Phase.DETACHING;
         queued.clear();
 

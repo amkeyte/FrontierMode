@@ -119,9 +119,9 @@ final class InterestHealthCheck {
     public static final class ProbeTrinket implements Leaving {
 
         @Override
-        public void onAttach(ScopeInfoImpl info) {
+        public void onAttach(ScopeInfo info) {
             Run run = SatchelHealth.state().interestProbe;
-            if (run == null || !info.scopeId().equals(run.mob)) return;
+            if (run == null || !ScopeInfoImpl.of(info).scopeId().equals(run.mob)) return;
 
             run.attaches++;
             run.events.add("attach");
@@ -138,17 +138,17 @@ final class InterestHealthCheck {
         }
 
         @Override
-        public void onLeave(ScopeInfoImpl info, LeaveReason reason) {
+        public void onLeave(ScopeInfo info, LeaveReason reason) {
             Run run = SatchelHealth.state().interestProbe;
-            if (run == null || !info.scopeId().equals(run.mob)) return;
+            if (run == null || !ScopeInfoImpl.of(info).scopeId().equals(run.mob)) return;
             run.events.add("leave");
             run.reasons.add(reason);
         }
 
         @Override
-        public void onDetach(ScopeInfoImpl info) {
+        public void onDetach(ScopeInfo info) {
             Run run = SatchelHealth.state().interestProbe;
-            if (run == null || !info.scopeId().equals(run.mob)) return;
+            if (run == null || !ScopeInfoImpl.of(info).scopeId().equals(run.mob)) return;
             run.events.add("detach");
         }
     }

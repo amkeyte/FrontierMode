@@ -5,6 +5,7 @@ import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Order;
@@ -115,7 +116,8 @@ final class HotEventHealthCheck {
         private long nextAttempt;
 
         @Override
-        public void onTickAfter(ScopeInfoImpl info) {
+        public void onTickAfter(ScopeInfo info) {
+            ScopeInfoImpl impl = ScopeInfoImpl.of(info);
             if (!(info.scope() instanceof LevelScope levelScope)) return;
             if (!(levelScope.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;
@@ -126,12 +128,12 @@ final class HotEventHealthCheck {
             }
             if (state.logged.contains("hurt:done") || attempts >= MAX_ATTEMPTS) return;
 
-            long now = info.jigInfo().trinketTick().tickNumber();
+            long now = impl.jigInfo().trinketTick().tickNumber();
             if (now < nextAttempt) return;
 
             Optional<UUID> canary = SatchelHealth.canaryUuid();
             if (canary.isEmpty()) return;
-            Optional<Entity> found = info.jigInfo().foundation().egress().getEntity(level, canary.get());
+            Optional<Entity> found = impl.jigInfo().foundation().egress().getEntity(level, canary.get());
             if (found.isEmpty() || !(found.get() instanceof LivingEntity living)) return;
 
             // Hurt twice inside the invulnerability window and Minecraft drops the second before any
