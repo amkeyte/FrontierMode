@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.client.tracking.ClientLevelHostProbe;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
@@ -63,7 +64,7 @@ final class HostHealthCheck {
     private static final AtomicBoolean LATE_CHECKED = new AtomicBoolean();
 
     /** Whether the scope's coupler holds a Trinket of {@code type}. */
-    private static boolean holds(ScopeInfo info, Class<?> type) {
+    private static boolean holds(ScopeInfoImpl info, Class<?> type) {
         return info.jigInfo().coupler().trinkets(info).stream()
                 .map(TrinketSet.Slot::type)
                 .anyMatch(type::equals);
@@ -81,7 +82,7 @@ final class HostHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             super.onAttach(info);
 
             LogicalSide side = info.jigInfo().side();
@@ -189,7 +190,7 @@ final class HostHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             super.onAttach(info);
 
             LogicalSide side = info.jigInfo().side();

@@ -99,3 +99,8 @@ DefaultBossRules:sentinelMaxPerLevel,INT,1,1000,10,10,10
 DefaultDifficultyRules:feralDamageGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
 DefaultDifficultyRules:feralHealthGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
 CairnRules:cairnMaxAttempts,INT,10,2000,200,200,
+DefaultBossRules:sentinelFirstPathPosition,INT,1,1000,6,6,6
+DefaultBossRules:sentinelMaxPerLevel,INT,1,1000,10,10,10
+DefaultDifficultyRules:feralDamageGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
+DefaultDifficultyRules:feralHealthGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
+CairnRules:cairnMaxAttempts,INT,10,2000,200,200,

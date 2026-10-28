@@ -8,7 +8,7 @@ package com.arryn.satchel.common.jig.guts;
  * a module decides what it means for its mob.
  *
  * <p>
- * The reason is set on the scope's {@link ScopeInfo#leaveReason()} by the mob jig, from the mob's
+ * The reason is set on the scope's {@link ScopeInfoImpl#leaveReason()} by the mob jig, from the mob's
  * removal reason, before {@code ScopeEvent.Unloaded} fires, and a Trinket that implements {@code
  * Leaving} is handed it before its {@code onDetach}. The vanilla removal-reason type stays inside
  * Satchel's platform layer.

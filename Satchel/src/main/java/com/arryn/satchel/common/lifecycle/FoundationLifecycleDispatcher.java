@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.lifecycle;
 
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.TrinketTick;
 
 import java.util.Objects;
@@ -74,7 +74,7 @@ public final class FoundationLifecycleDispatcher {
                 // docs.
                 jInfo.jig.reconcile(jInfo);
 
-                for (ScopeInfo sInfo : jInfo.scopeInfos()) {
+                for (ScopeInfoImpl sInfo : jInfo.scopeInfos()) {
                     jInfo.jig.handleExecutionPulse(sInfo);
                     jInfo.jig.onTick(sInfo);
                 }
@@ -86,7 +86,7 @@ public final class FoundationLifecycleDispatcher {
 
             if (shouldStop()) {
                 for (var jInfo:foundation.jigInfos()){
-                    for (ScopeInfo sInfo : jInfo.scopeInfos()) {
+                    for (ScopeInfoImpl sInfo : jInfo.scopeInfos()) {
                         jInfo.jig.onUnload(sInfo);
                     }
                 }

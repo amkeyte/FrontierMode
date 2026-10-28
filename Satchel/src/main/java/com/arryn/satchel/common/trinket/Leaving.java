@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.guts.LeaveReason;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 /**
  * Ability: the Trinket hears why a mob scope is unloading.
@@ -28,5 +28,5 @@ public interface Leaving extends Trinket {
     /**
      * The scope is unloading for {@code reason}.
      */
-    void onLeave(ScopeInfo info, LeaveReason reason);
+    void onLeave(ScopeInfoImpl info, LeaveReason reason);
 }

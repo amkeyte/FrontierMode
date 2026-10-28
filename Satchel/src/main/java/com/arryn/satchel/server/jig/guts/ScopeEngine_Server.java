@@ -6,10 +6,7 @@ import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.guts.SatchelException;
-import com.arryn.satchel.common.jig.guts.SatchelScope;
-import com.arryn.satchel.common.jig.guts.ScopeEngine;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.*;
@@ -136,7 +133,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <B extends SatchelBundle> Optional<B> ask(ScopeInfo info, BundleKey<B> key) {
+    public <B extends SatchelBundle> Optional<B> ask(ScopeInfoImpl info, BundleKey<B> key) {
         if (info == null || key == null) return Optional.empty();
 
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
@@ -147,7 +144,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <B extends SatchelBundle> B get(ScopeInfo info, BundleKey<B> key) {
+    public <B extends SatchelBundle> B get(ScopeInfoImpl info, BundleKey<B> key) {
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(key, "key");
 
@@ -169,7 +166,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
     }
 
     @Override
-    public <B extends SatchelBundle> B create(ScopeInfo info, BundleKey<B> key) {
+    public <B extends SatchelBundle> B create(ScopeInfoImpl info, BundleKey<B> key) {
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(key, "key");
 
@@ -224,14 +221,14 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * ========================================================== */
 
     @Override
-    public void onExecutionPulse(ScopeInfo info) {
+    public void onExecutionPulse(ScopeInfoImpl info) {
         onExecutionPulse(info, false);
     }
 
     /**
      * @return whether any bundle was flushed into {@link BundleSavedData}'s snapshot this pass
      */
-    private boolean onExecutionPulse(ScopeInfo info, boolean terminal) {
+    private boolean onExecutionPulse(ScopeInfoImpl info, boolean terminal) {
         if (info == null) return false;
 
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
@@ -254,7 +251,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
     }
 
     @Override
-    public void onJigTick(ScopeInfo info) {
+    public void onJigTick(ScopeInfoImpl info) {
         if (info == null) return;
 
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
@@ -271,7 +268,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
     }
 
     @Override
-    public void unload(ScopeInfo info) {
+    public void unload(ScopeInfoImpl info) {
         if (info == null) return;
 
         // Terminal maintenance flush. It only refreshes the SavedData snapshot; a level unloaded
@@ -316,7 +313,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * ========================================================== */
 
     private <B extends SatchelBundle> void hydrateBundle(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key,
             B bundle
     ) {
@@ -403,7 +400,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * ========================================================== */
 
     private boolean flushIfDirty(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<?> key,
             SatchelBundle bundle,
             boolean terminal
@@ -459,7 +456,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * written to disk at all is a caller wiring mistake, the same "crash loudly, don't paper over
      * it" precedent {@link #resolveServerLevel} already sets for a jig/bundle capability mismatch.
      */
-    private void forceFlushToDisk(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle) {
+    private void forceFlushToDisk(ScopeInfoImpl info, BundleKey<?> key, SatchelBundle bundle) {
         if ((bundle.required() & Capability.PERSISTENCE.bit()) == 0) {
             throw new SatchelException.AccessFailed(
                     "forceWriteToDisk() called on bundle " + bundle.debugName()
@@ -498,7 +495,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * bundle that was never meant to be networked is a caller wiring mistake, the same "crash
      * loudly" precedent {@link #forceFlushToDisk} sets for a missing PERSISTENCE declaration.
      */
-    private void forceSyncNow(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle) {
+    private void forceSyncNow(ScopeInfoImpl info, BundleKey<?> key, SatchelBundle bundle) {
         if ((bundle.required() & Capability.NETWORKING.bit()) == 0) {
             throw new SatchelException.AccessFailed(
                     "forceSync() called on bundle " + bundle.debugName()
@@ -511,7 +508,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
     }
 
     private void scheduleSync(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<?> key,
             SatchelBundle bundle
     ) {
@@ -543,7 +540,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * networking never sends.
      */
     @Override
-    public void pushTo(ScopeInfo info, ServerPlayer player) {
+    public void pushTo(ScopeInfoImpl info, ServerPlayer player) {
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
         if (map == null || map.isEmpty()) return;
 
@@ -595,7 +592,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
 
 
     private ServerLevel resolveServerLevel(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             CapableOf requirement
     ) {
         Objects.requireNonNull(info, "info");

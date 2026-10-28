@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.guts.LeaveReason;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,11 +57,11 @@ public final class TrinketSet {
         return set;
     }
 
-    public void attachAll(ScopeInfo info) {
+    public void attachAll(ScopeInfoImpl info) {
         for (Slot s : slots.values()) s.trinket().onAttach(info);
     }
 
-    public void detachAll(ScopeInfo info) {
+    public void detachAll(ScopeInfoImpl info) {
         for (Slot s : slots.values()) s.trinket().onDetach(info);
     }
 
@@ -69,7 +69,7 @@ public final class TrinketSet {
      * Tells each {@link Leaving} Trinket why the scope is unloading, in declaration order, ahead of
      * {@link #detachAll}.
      */
-    public void leaveAll(ScopeInfo info, LeaveReason reason) {
+    public void leaveAll(ScopeInfoImpl info, LeaveReason reason) {
         for (Slot s : slots.values()) {
             if (s.trinket() instanceof Leaving leaving) leaving.onLeave(info, reason);
         }
@@ -79,7 +79,7 @@ public final class TrinketSet {
      * Puts every {@link Ticking} Trinket in the foundation's global list. They first run in the next
      * tick, since a tick walks a snapshot taken before this call.
      */
-    public void registerTicking(ScopeInfo info, TrinketTick tick) {
+    public void registerTicking(ScopeInfoImpl info, TrinketTick tick) {
         for (Slot s : slots.values()) {
             if (s.trinket() instanceof Ticking ticking) {
                 entries.add(tick.add(info, ticking, s.order(), s.declIndex(), 0L));

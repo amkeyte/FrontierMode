@@ -6,9 +6,8 @@ import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Leaving;
-import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -23,13 +22,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
-import net.minecraft.world.level.Level;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -121,7 +118,7 @@ final class MobHealthCheck {
     }
 
     private static void onMobScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
         Objects.requireNonNull(info, "info");
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
@@ -151,7 +148,7 @@ final class MobHealthCheck {
      * UNKNOWN) is found.
      */
     private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
             return;
@@ -199,7 +196,7 @@ final class MobHealthCheck {
      * is removed, so one still alive while the lookup can no longer find its mob has missed both.
      */
     private static void onMobScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
             return;
@@ -334,7 +331,7 @@ final class MobHealthCheck {
     public static final class CanaryMobTrinket implements Leaving {
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             MobScope scope = (MobScope) info.scope();
             if (!isCanary(scope)) return;
             OUT.info("[SatchelHealth] Canary scoped on the " + info.jigInfo().side() + " side: uuid="
@@ -353,7 +350,7 @@ final class MobHealthCheck {
         }
 
         @Override
-        public void onLeave(ScopeInfo info, LeaveReason reason) {
+        public void onLeave(ScopeInfoImpl info, LeaveReason reason) {
             if (reason != info.leaveReason()) {
                 SatchelHealth.violation("[SatchelHealth] VIOLATION: a Leaving Trinket was told " + reason
                         + " but the scope's ScopeInfo carries " + info.leaveReason());
@@ -366,7 +363,7 @@ final class MobHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfo info) {
+        public void onDetach(ScopeInfoImpl info) {
             MobScope scope = (MobScope) info.scope();
             if (isCanary(scope)) checkNoSecondScope(info, "onDetach");
 
@@ -381,7 +378,7 @@ final class MobHealthCheck {
          * has finished (and for the whole of a reset). A lookup by UUID, by mob and through the module
          * event resolver must all answer empty.
          */
-        private static void checkNoSecondScope(ScopeInfo info, String call) {
+        private static void checkNoSecondScope(ScopeInfoImpl info, String call) {
             MobScope scope = (MobScope) info.scope();
             Mob mob = scope.mob();
             MobJig jig = (MobJig) info.jigInfo().jig;

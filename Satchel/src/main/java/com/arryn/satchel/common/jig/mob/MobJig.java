@@ -2,13 +2,7 @@ package com.arryn.satchel.common.jig.mob;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.ASatchelJig;
-import com.arryn.satchel.common.jig.guts.ForgeEgress;
-import com.arryn.satchel.common.jig.guts.JigInfo;
-import com.arryn.satchel.common.jig.guts.LeaveReason;
-import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.jig.guts.ScopeCoupler;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -344,8 +338,8 @@ public final class MobJig extends ASatchelJig<MobScope> {
         return resetting || unloading.contains(uuid);
     }
 
-    private ScopeInfo build(JigInfo info, Mob mob) {
-        ScopeInfo scopeInfo = info.addScope(new MobScope(mob), mob);
+    private ScopeInfoImpl build(JigInfo info, Mob mob) {
+        ScopeInfoImpl scopeInfo = info.addScope(new MobScope(mob), mob);
         // Converge now: the readiness check, onScopeLoad (Trinkets attached), then Loaded. A mob jig's
         // readiness is IMMEDIATE, so nothing waits for the next pulse. A scope the pulse finds already
         // LOADED skips this branch.
@@ -406,7 +400,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
         Optional<ScopeInfo> existing = info.scopeInfo(mob.getUUID());
 
         if (existing.isPresent()) {
-            ScopeInfo scopeInfo = existing.get();
+            ScopeInfoImpl scopeInfo = existing.get();
             if (scopeInfo.scope() instanceof MobScope mobScope && mobScope.mob() != mob) return;
             unload(info, scopeInfo, LeaveReasons.of(mob));
             return;
@@ -422,14 +416,14 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * Unloads {@code scopeInfo} for {@code reason}: records the reason where {@code Unloaded}
      * handlers and {@code Leaving} Trinkets can read it, then the generic unload.
      */
-    private void unload(JigInfo info, ScopeInfo scopeInfo, LeaveReason reason) {
-        if (scopeInfo.phase() == ScopeInfo.Phase.UNLOADING || scopeInfo.phase() == ScopeInfo.Phase.UNLOADED) {
+    private void unload(JigInfo info, ScopeInfoImpl scopeInfo, LeaveReason reason) {
+        if (scopeInfo.phase() == ScopeInfoImpl.Phase.UNLOADING || scopeInfo.phase() == ScopeInfoImpl.Phase.UNLOADED) {
             return;
         }
 
         scopeInfo.setLeaveReason(reason);
 
-        if (scopeInfo.phase() == ScopeInfo.Phase.NEW) {
+        if (scopeInfo.phase() == ScopeInfoImpl.Phase.NEW) {
             // Never loaded: no Loaded was posted and no Trinket attached, so there is nothing to
             // unload, only a scope to forget.
             info.removeScope(scopeInfo.scope());
@@ -463,7 +457,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
         // is cleared with the rest.
         resetting = true;
         try {
-            for (ScopeInfo scopeInfo : new ArrayList<>(info.scopeInfos())) {
+            for (ScopeInfoImpl scopeInfo : new ArrayList<>(info.scopeInfos())) {
                 unload(info, scopeInfo, LeaveReason.UNKNOWN);
             }
             interests.clear();
@@ -482,7 +476,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * super call is unchanged; this only appends the extra signal on the same call stack.
      */
     @Override
-    public void onLoad(ScopeInfo info) {
+    public void onLoad(ScopeInfoImpl info) {
         super.onLoad(info); // → coupler.onScopeLoad → signalScopeLoaded → ScopeEvent.Loaded
         OUT.debug("[MobJig] MobGainedInterest: " + info.scope());
         Satchel.require().eventBus().post(new ScopeEvent.MobGainedInterest(info));
@@ -494,11 +488,11 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * super call is unchanged; this only appends the extra signal on the same call stack.
      *
      * <p>
-     * The {@link ScopeInfo} object is still valid for reading after {@code super.onUnload}
+     * The {@link ScopeInfoImpl} object is still valid for reading after {@code super.onUnload}
      * returns, even though the scope has been evicted from {@code JigInfo} by that point.
      */
     @Override
-    public void onUnload(ScopeInfo info) {
+    public void onUnload(ScopeInfoImpl info) {
         super.onUnload(info); // → signalScopeUnloaded → ScopeEvent.Unloaded → scope evicted
         OUT.debug("[MobJig] MobLostInterest: " + info.scope());
         Satchel.require().eventBus().post(new ScopeEvent.MobLostInterest(info));
@@ -529,7 +523,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
         Objects.requireNonNull(info, "info");
 
         // A snapshot: unloading a scope removes it from the map this walk reads.
-        for (ScopeInfo scopeInfo : new ArrayList<>(info.scopeInfos())) {
+        for (ScopeInfoImpl scopeInfo : new ArrayList<>(info.scopeInfos())) {
             if (scopeInfo.scope() instanceof MobScope mobScope && mobScope.mob().isRemoved()) {
                 unload(info, scopeInfo, LeaveReasons.of(mobScope.mob()));
             }

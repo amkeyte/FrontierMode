@@ -8,6 +8,7 @@ import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -117,7 +118,7 @@ final class TrinketHealthCheck {
     }
 
     private static void onLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
         if (!TRINKET_JIG.equals(info.jigInfo().key)) return;
 
         var bundle = info.jigInfo().jig.getOrCreate(info.scope(), PROBE_BUNDLE);
@@ -182,7 +183,7 @@ final class TrinketHealthCheck {
     /** Per level scope; dropped when {@link Probe} detaches. */
     private static final Map<UUID, OrderLog> ORDER_LOGS = new ConcurrentHashMap<>();
 
-    private static void reportOrder(ScopeInfo info, int rank, String name) {
+    private static void reportOrder(ScopeInfoImpl info, int rank, String name) {
         long tick = info.jigInfo().trinketTick().tickNumber();
         OrderLog log = ORDER_LOGS.computeIfAbsent(info.scopeId(), id -> new OrderLog());
 
@@ -226,7 +227,7 @@ final class TrinketHealthCheck {
         private long fixtureTicksAtBefore = -1;
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             attaches++;
             if (attaches > 1) violation("probe attached " + attaches + " times to " + info.debugName());
             attachedInTick = info.jigInfo().trinketTick().tickNumber();
@@ -241,7 +242,7 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             if (attaches != 1) violation("probe ticked before attach on " + info.debugName());
             long tick = info.jigInfo().trinketTick().tickNumber();
             if (tick <= attachedInTick) {
@@ -258,7 +259,7 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (after + 1 != before) violation("probe onTickAfter ran without a matching onTickBefore on "
                     + info.debugName());
             after++;
@@ -281,7 +282,7 @@ final class TrinketHealthCheck {
          * unsubscribed: it must detach at once and never run again, though tick 4's after step has
          * not reached it yet. The other stays until the scope unloads and is detached by the host.
          */
-        private void driveSubscribers(ScopeInfo info) {
+        private void driveSubscribers(ScopeInfoImpl info) {
             DynamicTrinket host = info.jigInfo().coupler().trinket(info, DynamicTrinket.class)
                     .orElseThrow(() -> new IllegalStateException(
                             "[SatchelHealth] Trinket dynamic host is missing on " + info.debugName()));
@@ -330,7 +331,7 @@ final class TrinketHealthCheck {
          * The readiness gate: {@link Gated} answers a lookup and ticks only once open. Opens it after
          * {@link #GATE_OPENS_AFTER} ticks, so the closed and the open case are both seen.
          */
-        private void checkGate(ScopeInfo info) {
+        private void checkGate(ScopeInfoImpl info) {
             Gated gated = info.jigInfo().coupler().trinkets(info).stream()
                     .map(TrinketSet.Slot::trinket)
                     .filter(Gated.class::isInstance)
@@ -356,7 +357,7 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfo info) {
+        public void onDetach(ScopeInfoImpl info) {
             if (attaches != 1) violation("probe detached without a prior attach on " + info.debugName());
             ORDER_LOGS.remove(info.scopeId());
             // The write under test: made before the engine unloads the bundle, saved by its
@@ -388,13 +389,13 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             if (!open) violation("gated probe ticked (before) while not ready on " + info.debugName());
             befores++;
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (!open) violation("gated probe ticked (after) while not ready on " + info.debugName());
             afters++;
         }
@@ -424,14 +425,14 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             attaches++;
             if (attaches > 1) violation("subscriber " + name + " attached " + attaches + " times to "
                     + info.debugName());
             attachedInTick = info.jigInfo().trinketTick().tickNumber();
         }
 
-        private void checkLive(ScopeInfo info, String call) {
+        private void checkLive(ScopeInfoImpl info, String call) {
             if (attaches != 1 || detaches != 0) {
                 violation("subscriber " + name + " got " + call + " while not attached on "
                         + info.debugName());
@@ -443,7 +444,7 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             checkLive(info, "onTickBefore");
             if (befores != afters) violation("subscriber " + name + " got onTickBefore twice without an "
                     + "onTickAfter on " + info.debugName());
@@ -451,7 +452,7 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             checkLive(info, "onTickAfter");
             if (afters + 1 != befores) violation("subscriber " + name + " got onTickAfter without a "
                     + "matching onTickBefore on " + info.debugName());
@@ -459,7 +460,7 @@ final class TrinketHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfo info) {
+        public void onDetach(ScopeInfoImpl info) {
             if (attaches != 1 || detaches != 0) {
                 violation("subscriber " + name + " detached " + (detaches == 0 ? "without an attach" : "twice")
                         + " on " + info.debugName());
@@ -484,13 +485,13 @@ final class TrinketHealthCheck {
         private long ticks;
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             reportOrder(info, RANK_EARLY_BEFORE, "EarlyProbe.onTickBefore");
             ticks++;
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             reportOrder(info, RANK_EARLY_AFTER, "EarlyProbe.onTickAfter");
         }
 
@@ -509,13 +510,13 @@ final class TrinketHealthCheck {
         private long ticks;
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             reportOrder(info, RANK_LATE_BEFORE, "LateProbe.onTickBefore");
             ticks++;
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             reportOrder(info, RANK_LATE_AFTER, "LateProbe.onTickAfter");
         }
 

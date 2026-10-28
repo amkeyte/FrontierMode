@@ -2,8 +2,6 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.config.JigBundles;
-import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 
 import com.arryn.satchel.common.trinket.Ticking;
@@ -41,7 +39,7 @@ public interface ScopeCoupler extends IJigConfigurable {
      * {@link #getOrCreate} for the create-on-demand variant.
      */
     <B extends SatchelBundle> B get(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     );
 
@@ -52,7 +50,7 @@ public interface ScopeCoupler extends IJigConfigurable {
      * access.
      */
     <B extends SatchelBundle> Optional<B> ask(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     );
 
@@ -62,7 +60,7 @@ public interface ScopeCoupler extends IJigConfigurable {
      * scope's bundle, whichever comes first."
      */
     <B extends SatchelBundle> B getOrCreate(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     );
 
@@ -88,7 +86,7 @@ public interface ScopeCoupler extends IJigConfigurable {
 
     /**
      * Whether this scope is currently ready, per {@link JigPolicies.Readiness#mode()}:
-     * IMMEDIATE always returns true, DEFERRED delegates to {@link ScopeInfo#isReady()}.
+     * IMMEDIATE always returns true, DEFERRED delegates to {@link ScopeInfoImpl#isReady()}.
      */
     boolean isReady(ScopeInfo info);
 
@@ -105,19 +103,19 @@ public interface ScopeCoupler extends IJigConfigurable {
         ALLOW,
         DENY
     }
-    void onScopeLoad(ScopeInfo info);
+    void onScopeLoad(ScopeInfoImpl info);
 
-    void onExecutionPulse(ScopeInfo info);
+    void onExecutionPulse(ScopeInfoImpl info);
 
-    void onJigTick(ScopeInfo info);
+    void onJigTick(ScopeInfoImpl info);
 
-    void onScopeUnload(ScopeInfo info);
+    void onScopeUnload(ScopeInfoImpl info);
 
     /**
      * Sends this scope's networked bundles to one player, who has just joined its audience (SAT_144).
      * Forwarded to the engine; a client's does nothing.
      */
-    default void pushTo(ScopeInfo info, ServerPlayer player) {
+    default void pushTo(ScopeInfoImpl info, ServerPlayer player) {
     }
 
     /**
@@ -189,7 +187,7 @@ public interface ScopeCoupler extends IJigConfigurable {
      *
      * @throws SatchelException.Generic if this jig doesn't declare {@code type} -- a programming error
      */
-    <T extends Trinket> Optional<T> trinket(ScopeInfo info, Class<T> type);
+    <T extends Trinket> Optional<T> trinket(ScopeInfoImpl info, Class<T> type);
 
     /**
      * Every Trinket this scope currently holds, with its {@code order}, in declaration order; empty
@@ -203,10 +201,10 @@ public interface ScopeCoupler extends IJigConfigurable {
      * is true. Otherwise a no-op. Called from the foundation's global Trinket list, not from the
      * coupler's own tick.
      */
-    void tickTrinketBefore(ScopeInfo info, Ticking trinket);
+    void tickTrinketBefore(ScopeInfoImpl info, Ticking trinket);
 
     /**
      * The after-step counterpart of {@link #tickTrinketBefore}.
      */
-    void tickTrinketAfter(ScopeInfo info, Ticking trinket);
+    void tickTrinketAfter(ScopeInfoImpl info, Ticking trinket);
 }

@@ -1,8 +1,8 @@
 package com.arryn.satchel.common.net;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import net.minecraft.resources.ResourceLocation;
@@ -71,7 +71,7 @@ public final class SatchelNetwork {
 // Future scope types may require different PacketDistributors.
 
     public static void send(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             Object packet
     ) {
         Satchel.requireServer();
@@ -112,7 +112,7 @@ public final class SatchelNetwork {
      * exactly one connection, not everyone in some dimension.
      */
     public static void sendToPlayer(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             Object packet
     ) {
         Satchel.requireServer();
@@ -163,7 +163,7 @@ public final class SatchelNetwork {
      */
     public static void sendToPlayer(
             ServerPlayer player,
-            ScopeInfo info,
+            ScopeInfoImpl info,
             Object packet
     ) {
         Satchel.requireServer();

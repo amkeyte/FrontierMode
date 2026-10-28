@@ -2,7 +2,7 @@ package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.SatchelException;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -66,7 +66,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
     private final ArrayDeque<Runnable> queued = new ArrayDeque<>();
 
     private Phase phase = Phase.NEW;
-    private ScopeInfo info;
+    private ScopeInfoImpl info;
     private int declIndex = -1;
 
     /** How many callbacks into subscribers are in progress; changes made while above zero queue. */
@@ -171,7 +171,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
     // =================================================================
 
     @Override
-    public void onAttach(ScopeInfo info) {
+    public void onAttach(ScopeInfoImpl info) {
         this.info = info;
         this.phase = Phase.ATTACHED;
         this.declIndex = declarationIndex(info);
@@ -189,7 +189,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
      * Leaving}, in subscription order, before this host's own {@link #onDetach}.
      */
     @Override
-    public void onLeave(ScopeInfo info, LeaveReason reason) {
+    public void onLeave(ScopeInfoImpl info, LeaveReason reason) {
         fanOut(() -> {
             for (Subscriber s : new ArrayList<>(subscribers)) {
                 if (s.state == State.ATTACHED && s.trinket instanceof Leaving leaving) {
@@ -200,7 +200,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
     }
 
     @Override
-    public void onDetach(ScopeInfo info) {
+    public void onDetach(ScopeInfoImpl info) {
         phase = Phase.DETACHING;
         queued.clear();
 
@@ -258,7 +258,7 @@ public final class DynamicTrinket implements Trinket, Leaving {
      * Where this host sits in its jig's declarations: the third key of a subscriber's place in the
      * global list, after its order and its scope.
      */
-    private int declarationIndex(ScopeInfo info) {
+    private int declarationIndex(ScopeInfoImpl info) {
         for (TrinketSet.Slot slot : info.jigInfo().coupler().trinkets(info)) {
             if (slot.trinket() == this) return slot.declIndex();
         }

@@ -3,7 +3,6 @@ package com.arryn.satchel.common.jig.guts;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
-import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Optional;
@@ -23,12 +22,12 @@ public interface ScopeEngine extends IJigConfigurable {
     void freezeBundleSchema();
 
     <B extends SatchelBundle> Optional<B> ask(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     );
 
     <T extends SatchelBundle> T get(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<T> key
     );
 
@@ -44,7 +43,7 @@ public interface ScopeEngine extends IJigConfigurable {
      */
 
     <B extends SatchelBundle> B create(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     );
     /**
@@ -53,9 +52,9 @@ public interface ScopeEngine extends IJigConfigurable {
      * Server implementations flush dirty state.
      * Client implementations are expected to no-op.
      */
-    void onExecutionPulse(ScopeInfo info);
+    void onExecutionPulse(ScopeInfoImpl info);
 
-    void onJigTick(ScopeInfo info);
+    void onJigTick(ScopeInfoImpl info);
 
     /**
      * Scope is being unloaded.
@@ -63,13 +62,13 @@ public interface ScopeEngine extends IJigConfigurable {
      * Server implementations flush + destroy bundles.
      * Client implementations clear storage.
      */
-    void unload(ScopeInfo info);
+    void unload(ScopeInfoImpl info);
 
     /**
      * Sends this scope's networked bundles to one player, who has just joined its audience (SAT_144).
      *
      * Server implementations send. Client implementations do nothing.
      */
-    default void pushTo(ScopeInfo info, ServerPlayer player) {
+    default void pushTo(ScopeInfoImpl info, ServerPlayer player) {
     }
 }

@@ -8,6 +8,7 @@ import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.JigInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.platform.PlatformBound;
@@ -90,7 +91,7 @@ final class MobJoinHealthCheck {
         ingress.priority(EventPriority.HIGHEST).translate(EntityJoinLevelEvent.class,
                 e -> e.getEntity() instanceof Mob mob && mob.getTags().contains(TAG)
                         ? Scopes.of(MobHealthCheck.MOB_JIG, mob)
-                        : Optional.<ScopeInfo>empty(),
+                        : Optional.<ScopeInfoImpl>empty(),
                 JoinedProbeMob::new);
         ingress.listenForAll(JoinedProbeMob.class, e -> SatchelHealth.state().joinDelivered.incrementAndGet())
                 .receiveCancelled();
@@ -110,7 +111,7 @@ final class MobJoinHealthCheck {
         private int ticks;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (!(info.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;
             if (++ticks < RUN_AFTER_TICKS) return;
@@ -119,7 +120,7 @@ final class MobJoinHealthCheck {
             run(info, level);
         }
 
-        private static void run(ScopeInfo info, ServerLevel level) {
+        private static void run(ScopeInfoImpl info, ServerLevel level) {
             MobJig jig = Satchel.mobJig(MobHealthCheck.MOB_JIG);
             JigInfo jigInfo = info.jigInfo().foundation().requireJigInfo(MobHealthCheck.MOB_JIG);
             HealthState state = SatchelHealth.state();

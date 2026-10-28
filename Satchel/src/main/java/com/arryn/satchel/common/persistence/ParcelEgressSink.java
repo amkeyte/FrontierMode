@@ -2,7 +2,7 @@ package com.arryn.satchel.common.persistence;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.net.SatchelNetwork;
@@ -18,11 +18,11 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class ParcelEgressSink {
 
-    private final ScopeInfo scopeInfo;
+    private final ScopeInfoImpl scopeInfo;
     private final BundleKey<?> key;
 
     private ParcelEgressSink(
-            ScopeInfo scopeInfo,
+            ScopeInfoImpl scopeInfo,
             BundleKey<?> key
     ) {
         this.scopeInfo = scopeInfo;
@@ -33,7 +33,7 @@ public final class ParcelEgressSink {
      * Create an emitter for a specific bundle within a scope.
      */
     public static ParcelEgressSink forBundle(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<?> key
     ) {
         Satchel.requireServer();

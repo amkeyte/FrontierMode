@@ -1,10 +1,8 @@
 package com.arryn.satchel.common.jig.guts;
 
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 
 import java.util.Optional;
@@ -28,7 +26,7 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
      * ScopeCoupler#onScopeLoad} then posts {@link ScopeEvent}{@code .Loaded} onto {@code
      * SatchelEventBus}.
      */
-    void onLoad(ScopeInfo info);
+    void onLoad(ScopeInfoImpl info);
 
     /**
      * Called once per foundation pulse for a scope in the {@code NEW} phase (readiness not
@@ -39,7 +37,7 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
      *
      * @param info the scope this pulse is for.
      */
-    void handleExecutionPulse(ScopeInfo info);
+    void handleExecutionPulse(ScopeInfoImpl info);
 
     /**
      * Called once per jig tick for a {@code LOADED} scope, gated on {@code
@@ -47,7 +45,7 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
      * -- a jig kind's own tick-driven domain logic (Border's growth, a coupler's {@code
      * onJigTick}) runs from here, not from {@link #handleExecutionPulse}.
      */
-    void onTick(ScopeInfo info);
+    void onTick(ScopeInfoImpl info);
 
     /**
      * Called once this scope is torn down (real teardown, driven by {@code
@@ -56,11 +54,11 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
      * {@code SatchelEventBus} before forwarding to this jig's {@link
      * ScopeCoupler#onScopeUnload}.
      */
-    void onUnload(ScopeInfo info);
+    void onUnload(ScopeInfoImpl info);
 
     /**
      * Poll-driven scope reconciliation, called once per {@link JigInfo} every foundation pulse,
-     * before the per-{@link ScopeInfo} handleExecutionPulse/onTick walk (see
+     * before the per-{@link ScopeInfoImpl} handleExecutionPulse/onTick walk (see
      * FoundationLifecycleDispatcher.pulse()). Default no-op -- only a jig kind whose sources
      * aren't discovered via a Forge join/load event (i.e. MobJig, RM_SAT_021) overrides this;
      * LevelJig and PlayerJig inherit the no-op unchanged.

@@ -112,7 +112,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
      * ------------------------------------------------------------------ */
 
     @Override
-    public void onLoad(ScopeInfo info) {
+    public void onLoad(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
         requireConfig();
 
@@ -121,7 +121,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
     }
 
     @Override
-    public void handleExecutionPulse(ScopeInfo info) {
+    public void handleExecutionPulse(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
         requireConfig();
 
@@ -141,7 +141,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
         // Phase 1: readiness convergence
         // ---------------------------------------------------------
 
-        if (info.phase() == ScopeInfo.Phase.NEW) {
+        if (info.phase() == ScopeInfoImpl.Phase.NEW) {
 
             if (!tryMarkScopeReady(info)) {
                 return;
@@ -155,7 +155,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
         // Phase 2: steady-state execution
         // ---------------------------------------------------------
 
-        if (info.phase() != ScopeInfo.Phase.LOADED) {
+        if (info.phase() != ScopeInfoImpl.Phase.LOADED) {
             return;
         }
 
@@ -167,7 +167,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
     }
 
     @Override
-    public void onTick(ScopeInfo info) {
+    public void onTick(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
         requireConfig();
 
@@ -188,7 +188,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
     }
 
     @Override
-    public void onUnload(ScopeInfo info) {
+    public void onUnload(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
         requireConfig();
 
@@ -200,7 +200,7 @@ public abstract class ASatchelJig<S extends SatchelScope>
      * Bundle access
      * ------------------------------------------------------------------ */
 
-    private ScopeInfo requireInfo(SatchelScope scope) {
+    private ScopeInfoImpl requireInfo(SatchelScope scope) {
         return foundation().requireScopeInfo(jigKey(), scope);
     }
 

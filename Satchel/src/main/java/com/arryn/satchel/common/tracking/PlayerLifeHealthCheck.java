@@ -7,6 +7,7 @@ import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.trinket.Order;
@@ -101,7 +102,7 @@ final class PlayerLifeHealthCheck {
         ingress.translate(LivingDropsEvent.class,
                 e -> e.getEntity() instanceof ServerPlayer player
                         ? Scopes.of(HostJigs.PLAYER_HOST, player)
-                        : Optional.<ScopeInfo>empty(),
+                        : Optional.<ScopeInfoImpl>empty(),
                 DyingDrops::new);
 
         return ingress;
@@ -134,7 +135,7 @@ final class PlayerLifeHealthCheck {
         }
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             super.onAttach(info);
 
             info.listenFor(Respawned.class, e -> onRespawn(info, e));
@@ -143,7 +144,7 @@ final class PlayerLifeHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             super.onTickAfter(info);
 
             Player now = ((PlayerScope) info.scope()).player();
@@ -166,7 +167,7 @@ final class PlayerLifeHealthCheck {
             }
         }
 
-        private static long tick(ScopeInfo info) {
+        private static long tick(ScopeInfoImpl info) {
             return info.jigInfo().trinketTick().tickNumber();
         }
 
@@ -187,7 +188,7 @@ final class PlayerLifeHealthCheck {
                     + "and not yet respawned (" + info.debugName() + ")");
         }
 
-        private void onRespawn(ScopeInfo info, Respawned e) {
+        private void onRespawn(ScopeInfoImpl info, Respawned e) {
             Player scoped = ((PlayerScope) info.scope()).player();
 
             if (scoped != e.player) violation("PlayerScope.player() did not return the respawned instance: "
@@ -214,7 +215,7 @@ final class PlayerLifeHealthCheck {
                     + "event resolved for the new player reached its consumer (" + info.debugName() + ")");
         }
 
-        private void onDimension(ScopeInfo info, ChangedDimension e) {
+        private void onDimension(ScopeInfoImpl info, ChangedDimension e) {
             if (attaches() != 1 || detaches() != 0) violation("the Trinket attached " + attaches() + " and detached "
                     + detaches() + " time(s) across a dimension change, expected 1 and 0: " + info.debugName());
 

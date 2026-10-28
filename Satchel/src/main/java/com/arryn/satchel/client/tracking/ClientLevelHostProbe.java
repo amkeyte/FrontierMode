@@ -1,7 +1,7 @@
 package com.arryn.satchel.client.tracking;
 
 import com.arryn.satchel.common.jig.config.JigPolicies;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.tracking.HostProbe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.thread.BlockableEventLoop;
@@ -28,7 +28,7 @@ public final class ClientLevelHostProbe extends HostProbe {
     }
 
     @Override
-    public void onTickAfter(ScopeInfo info) {
+    public void onTickAfter(ScopeInfoImpl info) {
         super.onTickAfter(info);
 
         if (!isOnItsOwnThread(Minecraft.getInstance())) {

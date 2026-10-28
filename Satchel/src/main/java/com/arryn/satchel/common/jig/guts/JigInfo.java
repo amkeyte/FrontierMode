@@ -23,10 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * JigInfo}s, one per side's own foundation boot, not one shared instance.
  *
  * <p>
- * A {@code JigInfo} can own many {@link ScopeInfo}s (one {@code LevelJig} tracks one per
- * loaded dimension); a {@link ScopeInfo} belongs to exactly one {@code JigInfo}, installed
+ * A {@code JigInfo} can own many {@link ScopeInfoImpl}s (one {@code LevelJig} tracks one per
+ * loaded dimension); a {@link ScopeInfoImpl} belongs to exactly one {@code JigInfo}, installed
  * as its back-reference by {@link #addScope} right after construction -- the only place a
- * {@link ScopeInfo} is ever created.
+ * {@link ScopeInfoImpl} is ever created.
  */
 public final class JigInfo implements IJigConfigurable {
 
@@ -175,20 +175,20 @@ public final class JigInfo implements IJigConfigurable {
     }
 
     /**
-     * Constructs and registers a new {@link ScopeInfo} for {@code scope} under this jig,
-     * installing both this jig's compiled config and the {@link ScopeInfo}'s back-reference
-     * to this {@code JigInfo}. Throws {@code SatchelException.Generic} if a {@link ScopeInfo}
+     * Constructs and registers a new {@link ScopeInfoImpl} for {@code scope} under this jig,
+     * installing both this jig's compiled config and the {@link ScopeInfoImpl}'s back-reference
+     * to this {@code JigInfo}. Throws {@code SatchelException.Generic} if a {@link ScopeInfoImpl}
      * already exists for this scope under this jig -- callers that only want to introduce a
      * scope once should check {@link #hasScope} first, since this method itself is not
      * idempotent.
      */
-    public ScopeInfo addScope(SatchelScope scope, Object source) {
+    public ScopeInfoImpl addScope(SatchelScope scope, Object source) {
         Objects.requireNonNull(scope, "scope");
         requireConfig();
 
         validateScopeType(scope);
 
-        ScopeInfo info = new ScopeInfo(scope, source, foundation.nextScopeSequence());
+        ScopeInfoImpl info = new ScopeInfoImpl(scope, source, foundation.nextScopeSequence());
         info.installJigConfig(compiledConfig());
         info.installJigInfo(this);
 
@@ -209,8 +209,8 @@ public final class JigInfo implements IJigConfigurable {
     // =============================================================
 
     /**
-     * Evicts the {@link ScopeInfo} for {@code scope} from this jig's tracking map. Throws
-     * {@code SatchelException.Generic} if no {@link ScopeInfo} was registered for this scope
+     * Evicts the {@link ScopeInfoImpl} for {@code scope} from this jig's tracking map. Throws
+     * {@code SatchelException.Generic} if no {@link ScopeInfoImpl} was registered for this scope
      * under this jig.
      */
     public void removeScope(SatchelScope scope) {

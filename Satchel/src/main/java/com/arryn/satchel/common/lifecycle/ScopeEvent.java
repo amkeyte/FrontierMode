@@ -2,6 +2,7 @@ package com.arryn.satchel.common.lifecycle;
 
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.Objects;
 
@@ -10,12 +11,12 @@ import java.util.Objects;
  *
  * <p>
  * All {@link ScopeEvent}s are emitted by the {@link ScopeLifecycleDispatcher}
- * after authoritative lifecycle state has been updated in {@link ScopeInfo}.
+ * after authoritative lifecycle state has been updated in {@link ScopeInfoImpl}.
  *
  * <p>
  * If a ScopeEvent is delivered:
  * <ul>
- *   <li>The {@link ScopeInfo} instance is authoritative and stable</li>
+ *   <li>The {@link ScopeInfoImpl} instance is authoritative and stable</li>
  *   <li>The underlying scopeInfo is valid for the duration of the handler</li>
  *   <li>No additional guards or availability checks are required</li>
  * </ul>
@@ -27,7 +28,7 @@ public abstract sealed class ScopeEvent
         ScopeEvent.MobGainedInterest,
         ScopeEvent.MobLostInterest {
 
-    private final ScopeInfo info;
+    private final ScopeInfoImpl info;
 
     protected ScopeEvent(ScopeInfo info) {
         this.info = Objects.requireNonNull(info, "info");
@@ -36,7 +37,7 @@ public abstract sealed class ScopeEvent
     /**
      * Authoritative lifecycle record for the scopeInfo.
      */
-    public final ScopeInfo info() {
+    public final ScopeInfoImpl info() {
         return info;
     }
 
@@ -62,7 +63,7 @@ public abstract sealed class ScopeEvent
 
     /**
      * Emitted exactly once when a scopeInfo is recognized by Satchel
-     * and enters the {@link ScopeInfo.Phase#LOADED} phase.
+     * and enters the {@link ScopeInfoImpl.Phase#LOADED} phase.
      *
      * <p>
      * This event does NOT imply persistence, readiness, or execution
@@ -111,7 +112,7 @@ public abstract sealed class ScopeEvent
      * is what the interest-registry poll actually detected.
      *
      * <p>
-     * {@link ScopeInfo} guarantees are identical to those of {@link Loaded}: the scope
+     * {@link ScopeInfoImpl} guarantees are identical to those of {@link Loaded}: the scope
      * is stable and authoritative for the duration of the handler.
      */
     public static final class MobGainedInterest extends ScopeEvent {
@@ -124,7 +125,7 @@ public abstract sealed class ScopeEvent
      * Emitted by {@link com.arryn.satchel.common.jig.mob.MobJig} immediately after
      * {@link Unloaded} fires for a mob scope — additively, never instead of the generic
      * event. The scope has already been evicted from {@code JigInfo} by the time this
-     * fires; the {@link ScopeInfo} object is still valid for reading but is no longer
+     * fires; the {@link ScopeInfoImpl} object is still valid for reading but is no longer
      * resident in the jig.
      */
     public static final class MobLostInterest extends ScopeEvent {

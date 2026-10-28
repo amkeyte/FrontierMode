@@ -7,7 +7,7 @@ import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -151,7 +151,7 @@ final class RealEventHealthCheck {
         private long ticks;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             long expected = RealEventTally.spawnExpectedCount();
             long delivered = RealEventTally.spawnDeliveredCount();
             if (expected != delivered) {

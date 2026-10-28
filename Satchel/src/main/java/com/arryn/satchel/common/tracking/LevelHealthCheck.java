@@ -4,7 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -110,7 +110,7 @@ final class LevelHealthCheck {
     }
 
     private static void onLevelScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
         Objects.requireNonNull(info, "info");
 
         // Shared-bus caveat, same reasoning every tracking module's handlers already carry.
@@ -150,7 +150,7 @@ final class LevelHealthCheck {
      * firing wrongly -- correct behavior, not a gap.
      */
     private static void onLevelScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
 
         if (!LEVEL_JIG.equals(info.jigInfo().key)) {
             return;
@@ -197,7 +197,7 @@ final class LevelHealthCheck {
     }
 
     private static void onLevelScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
 
         if (!LEVEL_JIG.equals(info.jigInfo().key)) {
             return;

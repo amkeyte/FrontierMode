@@ -3,7 +3,7 @@ package com.arryn.satchel.common.tracking;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.jig.config.JigPolicies;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Order;
@@ -89,7 +89,7 @@ final class MobDataHealthCheck {
         private int ticks;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (!(info.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;
             if (++ticks < RUN_AFTER_TICKS) return;
@@ -166,7 +166,7 @@ final class MobDataHealthCheck {
         private boolean done;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (done) return;
 
             Optional<UUID> canary = SatchelHealth.canaryUuid();

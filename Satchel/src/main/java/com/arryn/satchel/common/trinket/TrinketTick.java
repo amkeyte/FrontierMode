@@ -2,6 +2,7 @@ package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.Comparator;
 import java.util.Objects;
@@ -60,12 +61,12 @@ public final class TrinketTick {
     public static final class Entry {
 
         private final TrinketTick owner;
-        private final ScopeInfo info;
+        private final ScopeInfoImpl info;
         private final Ticking trinket;
         private final Key key;
         private volatile boolean live = true;
 
-        private Entry(TrinketTick owner, ScopeInfo info, Ticking trinket, Key key) {
+        private Entry(TrinketTick owner, ScopeInfoImpl info, Ticking trinket, Key key) {
             this.owner = owner;
             this.info = info;
             this.trinket = trinket;
@@ -165,7 +166,7 @@ public final class TrinketTick {
      *                             #nextSubscriptionSequence()}; 0 for a declared Trinket
      */
     public synchronized Entry add(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             Ticking trinket,
             int order,
             int declIndex,

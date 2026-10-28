@@ -7,6 +7,7 @@ import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -64,7 +65,7 @@ final class CanaryEventHealthCheck {
 
     /** Scoped: resolved to the canary's mob scope, so only the canary ever reaches it. */
     static final class CanaryHurt extends ModuleSignal<LivingHurtEvent, ScopeInfo> {
-        CanaryHurt(LivingHurtEvent e, ScopeInfo canary) {
+        CanaryHurt(LivingHurtEvent e, ScopeInfoImpl canary) {
             super(e, canary);
             SatchelHealth.state().canaryHurtBuilt.incrementAndGet();
 
@@ -120,7 +121,7 @@ final class CanaryEventHealthCheck {
      * Called by the canary's mob-scope Trinket as it attaches: the scope-bound consumer of {@code
      * CanaryHurt}, removed when the scope unloads. The event is server only, so a client has none.
      */
-    static void listen(ScopeInfo info) {
+    static void listen(ScopeInfoImpl info) {
         if (info.jigInfo().side() != LogicalSide.SERVER) return;
 
         info.listenFor(CanaryHurt.class, e -> {
@@ -151,7 +152,7 @@ final class CanaryEventHealthCheck {
         private long nextAttempt;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (!(info.scope() instanceof LevelScope levelScope)) return;
             if (!(levelScope.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;

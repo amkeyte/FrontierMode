@@ -6,10 +6,7 @@ import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.guts.ScopeEngine;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.guts.SatchelException;
-import com.arryn.satchel.common.jig.guts.SatchelScope;
+import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.net.ParcelInbox;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
@@ -32,7 +29,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     private boolean schemaFrozen = false;
 
-    private Map<BundleKey<?>, SatchelBundle> bundlesFor(ScopeInfo info) {
+    private Map<BundleKey<?>, SatchelBundle> bundlesFor(ScopeInfoImpl info) {
         return active.computeIfAbsent(info.scopeId(), id -> new HashMap<>());
     }
 
@@ -103,7 +100,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <B extends SatchelBundle> Optional<B> ask(ScopeInfo info, BundleKey<B> key) {
+    public <B extends SatchelBundle> Optional<B> ask(ScopeInfoImpl info, BundleKey<B> key) {
         if (info == null || key == null) return Optional.empty();
 
         Map<BundleKey<?>, SatchelBundle> map = active.get(info.scopeId());
@@ -114,7 +111,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends SatchelBundle> T get(ScopeInfo info, BundleKey<T> key) {
+    public <T extends SatchelBundle> T get(ScopeInfoImpl info, BundleKey<T> key) {
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(key, "key");
 
@@ -142,7 +139,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public <T extends SatchelBundle> T create(ScopeInfo info, BundleKey<T> key) {
+    public <T extends SatchelBundle> T create(ScopeInfoImpl info, BundleKey<T> key) {
         Satchel.requireClient();
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(key, "key");
@@ -203,7 +200,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public void onExecutionPulse(ScopeInfo info) {
+    public void onExecutionPulse(ScopeInfoImpl info) {
         Satchel.requireClient();
         if (info == null) return;
 
@@ -226,7 +223,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
         }
     }
 
-    private void applyIncomingParcels(ScopeInfo info) {
+    private void applyIncomingParcels(ScopeInfoImpl info) {
         Map<BundleKey<?>, SatchelBundle> map = active.get(info.scopeId());
         if (map == null || map.isEmpty()) {
             return; // IMPORTANT: don't drain yet
@@ -288,7 +285,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public void onJigTick(ScopeInfo info) {
+    public void onJigTick(ScopeInfoImpl info) {
         Satchel.requireClient();
         if (info == null) return;
 
@@ -316,7 +313,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public void unload(ScopeInfo info) {
+    public void unload(ScopeInfoImpl info) {
         Satchel.requireClient();
         if (info == null) return;
 

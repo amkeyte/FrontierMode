@@ -1,6 +1,6 @@
 package com.arryn.satchel.common.tracking;
 
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.net.ParcelInbox;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -78,7 +78,7 @@ final class ClientSyncHealthCheck {
         private boolean done;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (done || info.jigInfo().side() != LogicalSide.CLIENT) return;
 
             // Once per world, at its first client level tick.

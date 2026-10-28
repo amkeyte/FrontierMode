@@ -2,7 +2,6 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.Trinket;
@@ -65,7 +64,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
 
     @Override
     public final <B extends SatchelBundle> Optional<B> ask(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     ) {
         Objects.requireNonNull(info, "info");
@@ -90,7 +89,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
 
     @Override
     public final <B extends SatchelBundle> B get(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     ) {
         Objects.requireNonNull(info, "info");
@@ -114,7 +113,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
 
     @Override
     public final <B extends SatchelBundle> B getOrCreate(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<B> key
     ) {
         Objects.requireNonNull(info, "info");
@@ -157,7 +156,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     // ---------------------------------------------------------------------
 
     @Override
-    public void onScopeLoad(ScopeInfo info) {
+    public void onScopeLoad(ScopeInfoImpl info) {
         requireConfig();
 
         // Every declared Trinket is constructed first, then attached in declaration order, so a
@@ -177,7 +176,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     @Override
-    public void onExecutionPulse(ScopeInfo info) {
+    public void onExecutionPulse(ScopeInfoImpl info) {
         requireConfig();
         requireReady(info);
 
@@ -187,14 +186,14 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     @Override
-    public void pushTo(ScopeInfo info, ServerPlayer player) {
+    public void pushTo(ScopeInfoImpl info, ServerPlayer player) {
         requireConfig();
 
         engine().pushTo(info, player);
     }
 
     @Override
-    public final void onJigTick(ScopeInfo info) {
+    public final void onJigTick(ScopeInfoImpl info) {
         requireConfig();
         requireReady(info);
 
@@ -208,12 +207,12 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     @Override
-    public final void tickTrinketBefore(ScopeInfo info, Ticking trinket) {
+    public final void tickTrinketBefore(ScopeInfoImpl info, Ticking trinket) {
         if (mayTick(info, trinket)) trinket.onTickBefore(info);
     }
 
     @Override
-    public final void tickTrinketAfter(ScopeInfo info, Ticking trinket) {
+    public final void tickTrinketAfter(ScopeInfoImpl info, Ticking trinket) {
         if (mayTick(info, trinket)) trinket.onTickAfter(info);
     }
 
@@ -232,7 +231,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     @Override
-    public void onScopeUnload(ScopeInfo info) {
+    public void onScopeUnload(ScopeInfoImpl info) {
         requireConfig();
 
         // First, before anything can throw: a tick under way must never run a Trinket whose scope
@@ -272,7 +271,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     // ---------------------------------------------------------------------
 
     /**
-     * One set per loaded scope, keyed by identity ({@link ScopeInfo} has no equals). A jig that
+     * One set per loaded scope, keyed by identity ({@link ScopeInfoImpl} has no equals). A jig that
      * declares no Trinkets never adds an entry.
      */
     private final Map<ScopeInfo, TrinketSet> trinkets = new ConcurrentHashMap<>();
@@ -286,7 +285,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     /**
      * The declarations this scope gets: the jig's, minus any contributed for the other side.
      */
-    private List<TrinketDecl<?>> declaredFor(ScopeInfo info) {
+    private List<TrinketDecl<?>> declaredFor(ScopeInfoImpl info) {
         LogicalSide side = info.jigInfo().side();
         return trinketsConfig.declarations().stream()
                 .filter(d -> d.appliesTo(side))
@@ -294,7 +293,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     @Override
-    public final <T extends Trinket> Optional<T> trinket(ScopeInfo info, Class<T> type) {
+    public final <T extends Trinket> Optional<T> trinket(ScopeInfoImpl info, Class<T> type) {
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(type, "type");
         requireConfig();

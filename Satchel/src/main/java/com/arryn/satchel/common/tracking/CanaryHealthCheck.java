@@ -1,6 +1,5 @@
 package com.arryn.satchel.common.tracking;
 
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -11,6 +10,7 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ForgeEgress;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -111,7 +111,7 @@ final class CanaryHealthCheck {
     }
 
     /** This side's mob jig for the health checks, without needing a bound thread. */
-    static Optional<MobJig> mobJig(ScopeInfo info) {
+    static Optional<MobJig> mobJig(ScopeInfoImpl info) {
         return info.jigInfo().foundation().askJigInfo(MobHealthCheck.MOB_JIG)
                 .map(ji -> (MobJig) ji.jig);
     }
@@ -126,7 +126,7 @@ final class CanaryHealthCheck {
         private UUID mirrored;
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             // Trinkets attach before the module's Loaded handler creates bundles, so ask() would be
             // empty here; getOrCreate makes the bundle now. On a client it then waits for its parcel.
             info.getOrCreate(CANARY_BUNDLE);
@@ -139,7 +139,7 @@ final class CanaryHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (info.jigInfo().side() == LogicalSide.SERVER) {
                 maintainCanary(info);
                 InterestHealthCheck.drive(info);
@@ -159,7 +159,7 @@ final class CanaryHealthCheck {
          * interest. A client whose canary has left tracking range has no scope to release and is left
          * alone.
          */
-        private void driveUnload(ScopeInfo info) {
+        private void driveUnload(ScopeInfoImpl info) {
             UUID canary = mirrored;
             if (canary == null) {
                 canary = SatchelHealth.canaryUuid().orElse(null);
@@ -197,7 +197,7 @@ final class CanaryHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfo info) {
+        public void onDetach(ScopeInfoImpl info) {
             // This level scope is going: the interest it registered goes with it.
             if (mirrored != null) {
                 UUID gone = mirrored;
@@ -219,7 +219,7 @@ final class CanaryHealthCheck {
          * dimension guaranteed a keep-loaded spawn region with nobody in it; checked before the
          * throttle so another dimension's tick does not consume the window.
          */
-        private void maintainCanary(ScopeInfo info) {
+        private void maintainCanary(ScopeInfoImpl info) {
             if (!(info.scope() instanceof LevelScope levelScope)) return;
             if (!(levelScope.level() instanceof ServerLevel serverLevel)) return;
             if (!serverLevel.dimension().equals(Level.OVERWORLD)) return;
@@ -285,7 +285,7 @@ final class CanaryHealthCheck {
         /**
          * Both sides: makes this side's mob-jig interest match the fixture.
          */
-        private void mirror(ScopeInfo info) {
+        private void mirror(ScopeInfoImpl info) {
             Optional<CanaryFixture> fixture = fixtureOf(info);
             if (fixture.isEmpty() || !fixture.get().isReady()) return;
 

@@ -4,7 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -16,10 +16,8 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * PlayerJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
@@ -116,7 +114,7 @@ final class PlayerHealthCheck {
     }
 
     private static void onPlayerScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
         Objects.requireNonNull(info, "info");
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
@@ -178,7 +176,7 @@ final class PlayerHealthCheck {
      * reason as the level check.
      */
     private static void onPlayerScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
             return;
@@ -238,7 +236,7 @@ final class PlayerHealthCheck {
     }
 
     private static void onPlayerScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = event.info();
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
             return;

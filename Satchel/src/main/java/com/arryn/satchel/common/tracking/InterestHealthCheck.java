@@ -7,6 +7,7 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.JigInfo;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
@@ -118,7 +119,7 @@ final class InterestHealthCheck {
     public static final class ProbeTrinket implements Leaving {
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             Run run = SatchelHealth.state().interestProbe;
             if (run == null || !info.scopeId().equals(run.mob)) return;
 
@@ -137,7 +138,7 @@ final class InterestHealthCheck {
         }
 
         @Override
-        public void onLeave(ScopeInfo info, LeaveReason reason) {
+        public void onLeave(ScopeInfoImpl info, LeaveReason reason) {
             Run run = SatchelHealth.state().interestProbe;
             if (run == null || !info.scopeId().equals(run.mob)) return;
             run.events.add("leave");
@@ -145,7 +146,7 @@ final class InterestHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfo info) {
+        public void onDetach(ScopeInfoImpl info) {
             Run run = SatchelHealth.state().interestProbe;
             if (run == null || !info.scopeId().equals(run.mob)) return;
             run.events.add("detach");
@@ -159,7 +160,7 @@ final class InterestHealthCheck {
     /**
      * Called every tick by the canary Trinket on a server level scope; acts only for the Overworld's.
      */
-    static void drive(ScopeInfo level) {
+    static void drive(ScopeInfoImpl level) {
         if (!(level.scope() instanceof LevelScope levelScope)) return;
         if (!(levelScope.level() instanceof ServerLevel server)) return;
         if (!server.dimension().equals(Level.OVERWORLD)) return;
@@ -177,7 +178,7 @@ final class InterestHealthCheck {
         step(level, server, run, tick);
     }
 
-    private static void step(ScopeInfo level, ServerLevel server, Run run, long tick) {
+    private static void step(ScopeInfoImpl level, ServerLevel server, Run run, long tick) {
         MobJig jig = Satchel.mobJig(PROBE_JIG);
         JigInfo ji = level.jigInfo().foundation().requireJigInfo(PROBE_JIG);
 
@@ -205,9 +206,9 @@ final class InterestHealthCheck {
                     abandon(run, jig);
                     return;
                 }
-                ScopeInfo info = ji.scopeInfo(run.mob).orElseThrow();
+                ScopeInfoImpl info = ji.scopeInfo(run.mob).orElseThrow();
                 run.firstScope = info;
-                check(info.phase() == ScopeInfo.Phase.LOADED,
+                check(info.phase() == ScopeInfoImpl.Phase.LOADED,
                         "the scope interest() built was " + info.phase() + ", not LOADED, when the call returned");
                 check(Satchel.trinket(PROBE_JIG, scope.get(), ProbeTrinket.class).isPresent(),
                         "a Trinket lookup was empty in the same call that built the scope");

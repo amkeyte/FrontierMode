@@ -5,7 +5,7 @@ import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -115,7 +115,7 @@ final class HotEventHealthCheck {
         private long nextAttempt;
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (!(info.scope() instanceof LevelScope levelScope)) return;
             if (!(levelScope.level() instanceof ServerLevel level)) return;
             if (!level.dimension().equals(Level.OVERWORLD)) return;

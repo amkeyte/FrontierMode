@@ -8,6 +8,7 @@ import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 import com.arryn.satchel.common.trinket.Order;
@@ -298,12 +299,12 @@ final class ModuleEventHealthCheck {
         private long joinsSeen;
 
         @Override
-        public void onAttach(ScopeInfo info) {
+        public void onAttach(ScopeInfoImpl info) {
             joins = info.listenFor(JoinInLevel.class, e -> onJoin(info, e));
             probes = info.listenFor(ProbeSignal.class, e -> onProbe(info, e));
         }
 
-        private void onJoin(ScopeInfo info, JoinInLevel e) {
+        private void onJoin(ScopeInfoImpl info, JoinInLevel e) {
             if (e.context() != info) {
                 violation("scoped delivery reached " + info.debugName() + " for an event resolved to "
                         + e.context().debugName());
@@ -326,7 +327,7 @@ final class ModuleEventHealthCheck {
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             if (posted) return;
             posted = true;
 
@@ -351,7 +352,7 @@ final class ModuleEventHealthCheck {
         }
 
         @Override
-        public void onDetach(ScopeInfo info) {
+        public void onDetach(ScopeInfoImpl info) {
             // Satchel dropped the scope's consumers before this, though this class never unsubscribed.
             if (joins.isActive() || probes.isActive()) {
                 violation("a scope-bound consumer survived the unload of " + info.debugName());

@@ -236,7 +236,7 @@ public final class LogicalFoundation {
      */
     private final List<JigInfo> orderedJigInfos = new CopyOnWriteArrayList<>();
 
-    /** Per-foundation counter behind {@link ScopeInfo#creationSequence()}. */
+    /** Per-foundation counter behind {@link ScopeInfoImpl#creationSequence()}. */
     private final AtomicLong scopeSequence = new AtomicLong();
 
     long nextScopeSequence() {
@@ -276,7 +276,7 @@ public final class LogicalFoundation {
         Level level = player.level();
 
         for (JigInfo ji : orderedJigInfos) {
-            for (ScopeInfo info : ji.scopeInfos()) {
+            for (ScopeInfoImpl info : ji.scopeInfos()) {
                 if (!(info.scope() instanceof LevelScope levelScope) || levelScope.level() != level) continue;
                 if (!info.isReady()) continue;
 
@@ -339,7 +339,7 @@ public final class LogicalFoundation {
             Optional<SatchelScope> opt = ji.resolveScope(source);
             if (opt.isEmpty()) continue;
 
-            ScopeInfo info = ji.scopeInfo(opt.get()).orElse(null);
+            ScopeInfoImpl info = ji.scopeInfo(opt.get()).orElse(null);
             if (info == null) continue;
 
             ji.jig.onUnload(info);
@@ -349,7 +349,7 @@ public final class LogicalFoundation {
      * Scope access helpers
      * ========================================================== */
 
-    public ScopeInfo requireScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
+    public ScopeInfoImpl requireScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
         JigInfo ji = requireJigInfo(jigKey);
 
         JigKey.validateTypes(jigKey, ji.jig);

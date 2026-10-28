@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.trinket.Order;
 import net.minecraft.server.level.ServerLevel;
@@ -45,7 +46,7 @@ final class HostOrderHealthCheck {
                 LevelReader.class, LevelReader::new);
     }
 
-    private static long tick(ScopeInfo info) {
+    private static long tick(ScopeInfoImpl info) {
         return info.jigInfo().trinketTick().tickNumber();
     }
 
@@ -60,13 +61,13 @@ final class HostOrderHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             super.onTickBefore(info);
             stampedBefore = tick(info);
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             super.onTickAfter(info);
             stampedAfter = tick(info);
         }
@@ -91,13 +92,13 @@ final class HostOrderHealthCheck {
         }
 
         @Override
-        public void onTickBefore(ScopeInfo info) {
+        public void onTickBefore(ScopeInfoImpl info) {
             super.onTickBefore(info);
             forEachWriter(info, writer -> expect(info, "before", writer, writer.stampedBefore()));
         }
 
         @Override
-        public void onTickAfter(ScopeInfo info) {
+        public void onTickAfter(ScopeInfoImpl info) {
             super.onTickAfter(info);
             forEachWriter(info, writer -> expect(info, "after", writer, writer.stampedAfter()));
         }
@@ -105,7 +106,7 @@ final class HostOrderHealthCheck {
         /** Hands {@code check} every writer this probe is meant to see from {@code info}'s scope. */
         abstract void forEachWriter(ScopeInfo info, Consumer<Writer> check);
 
-        private void expect(ScopeInfo info, String phase, Writer writer, long stamped) {
+        private void expect(ScopeInfoImpl info, String phase, Writer writer, long stamped) {
             long now = tick(info);
 
             // A writer attached in this very tick first runs in the next one, so it has no stamp yet.

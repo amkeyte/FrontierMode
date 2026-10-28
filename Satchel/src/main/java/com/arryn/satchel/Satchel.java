@@ -136,7 +136,7 @@ public final class Satchel {
     /**
      * Collapses the three-step "safe to touch yet" check a caller otherwise hand-writes before
      * every scope-info read -- {@link #isReady()}, then {@link LogicalFoundation#tryScopeInfo},
-     * then {@link ScopeInfo#isReady()} -- into one call, one empty-vs-present result (SAT_077).
+     * then {@link ScopeInfoImpl#isReady()} -- into one call, one empty-vs-present result (SAT_077).
      * Every check here degrades to an empty {@code Optional}, never a throw -- the same "standby,
      * don't crash" contract each of the three steps already carries on its own.
      *
@@ -151,7 +151,7 @@ public final class Satchel {
      *
      * <p>
      * Doesn't replace {@link AScopeCoupler}'s own {@code isReady(ScopeInfo)}/{@code
-     * requireReady} -- those gate operations on a {@link ScopeInfo} the caller already has in
+     * requireReady} -- those gate operations on a {@link ScopeInfoImpl} the caller already has in
      * hand; this is the layer underneath that, for a caller that doesn't have one yet and needs to
      * find out whether it safely can.
      */

@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.jig.config.JigPolicies;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.api.distmarker.Dist;
@@ -81,7 +81,7 @@ public abstract class HostProbe implements Ticking {
     }
 
     @Override
-    public void onAttach(ScopeInfo info) {
+    public void onAttach(ScopeInfoImpl info) {
         attaches++;
         if (attaches > 1) violation(name + " attached " + attaches + " times to " + info.debugName());
 
@@ -101,7 +101,7 @@ public abstract class HostProbe implements Ticking {
     }
 
     @Override
-    public void onTickBefore(ScopeInfo info) {
+    public void onTickBefore(ScopeInfoImpl info) {
         checkLive(info, "onTickBefore");
         if (before != after) violation(name + " got onTickBefore twice without an onTickAfter on "
                 + info.debugName());
@@ -109,7 +109,7 @@ public abstract class HostProbe implements Ticking {
     }
 
     @Override
-    public void onTickAfter(ScopeInfo info) {
+    public void onTickAfter(ScopeInfoImpl info) {
         checkLive(info, "onTickAfter");
         if (after + 1 != before) violation(name + " got onTickAfter without a matching onTickBefore on "
                 + info.debugName());
@@ -133,7 +133,7 @@ public abstract class HostProbe implements Ticking {
         }
     }
 
-    private void checkLive(ScopeInfo info, String call) {
+    private void checkLive(ScopeInfoImpl info, String call) {
         if (attaches != 1 || detaches != 0) {
             violation(name + " got " + call + " while not attached on " + info.debugName());
         }
@@ -143,7 +143,7 @@ public abstract class HostProbe implements Ticking {
     }
 
     @Override
-    public void onDetach(ScopeInfo info) {
+    public void onDetach(ScopeInfoImpl info) {
         if (attaches != 1 || detaches != 0) {
             violation(name + " detached " + (attaches == 0 ? "without an attach" : "twice")
                     + " on " + info.debugName());
