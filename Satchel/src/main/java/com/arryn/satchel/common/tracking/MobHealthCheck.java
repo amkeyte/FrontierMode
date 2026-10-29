@@ -59,6 +59,11 @@ final class MobHealthCheck {
             );
 
     static void register() {
+        // BOTH is what makes MobJig's CLIENT/BOTH gap provable rather than just declared.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> build());
+    }
+
+    private static MobJigConfig build() {
         var trackerFixture =
                 new JigBundles.FixtureDecl<TrackerFixture>(
                         MOB_TRACKER,
@@ -84,10 +89,6 @@ final class MobHealthCheck {
                         .build();
 
         MobJigConfig config = new MobJigConfig(MOB_JIG);
-
-        // Was SERVER (MobTrackingModule's original call). BOTH is what makes MobJig's CLIENT/BOTH
-        // gap provable rather than just declared.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
 
         // Required for PERSISTENCE below to actually work, not optional -- same gap and same
         // fix as PlayerHealthCheck's own (SAT_063's log has the full story): confirmed live,
@@ -115,7 +116,7 @@ final class MobHealthCheck {
         // Reacts when each side builds the canary's scope, and checks the reason it leaves with.
         config.trinkets().declare(CanaryMobTrinket.class, CanaryMobTrinket::new);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     private static void onMobScopeLoaded(ScopeEvent.Loaded event) {

@@ -69,7 +69,7 @@ public final class DifficultyAPI {
      * {@code n} the path tip's position, the same lookup the Nether uses ({@link #pathTipPosition}). Where
      * the mob stands does not matter. The numbers live in the {@code frontiermode:ladder} MobData
      * namespace, so the one damage handler scales its hits and the first rung to reach a mob still wins.
-     * {@code n} is recorded as the rung's step, so the Inspect Stick shows the level. {@code false} if a
+     * {@code n} is recorded as the rung's step, so the Info report shows the level. {@code false} if a
      * rung already had it, or if there is no path tip yet, in which case the mob stays vanilla.
      */
     public static boolean applyFeralRung(Mob mob) {
@@ -96,7 +96,7 @@ public final class DifficultyAPI {
                 .orElseGet(OptionalInt::empty);
     }
 
-    /** The mob's place on the stat ladder as one Inspect Stick line (level, rung, multipliers), if it has one. */
+    /** The mob's place on the stat ladder as one Info report line (level, rung, multipliers), if it has one. */
     public static java.util.Optional<String> describe(Mob mob) {
         return Ladder.describe(mob);
     }
@@ -124,7 +124,7 @@ public final class DifficultyAPI {
     }
 
     /**
-     * Puts {@code mob} on the Sentinel rung (difficulty.md § One formula, three rungs):
+     * Puts {@code mob} on the Sentinel rung (difficulty.md § One formula, a rung for each kind of mob):
      * {@code n} is its Keeper's path position, and the growth is the ordinary growth plus a Sentinel
      * share rising with {@code difficultyIntensity}, 1 beside the boss. Called before the mob joins
      * the level, so the ordinary rung never touches it. {@code false} if a rung already had it.

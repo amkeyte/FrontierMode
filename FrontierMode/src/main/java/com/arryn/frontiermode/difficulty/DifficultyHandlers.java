@@ -5,13 +5,8 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.difficulty.server.rules.DifficultyRules;
-import com.arryn.satchel.common.lifecycle.AnimalTameSignal;
-import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
-import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
-import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
@@ -27,9 +22,10 @@ import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
- * The ladder's two signal handlers (difficulty.md): the ordinary rung as a hostile joins the level,
- * and damage scaling as a hit lands. Both signals are server-only and unscoped, so each handler
- * checks its own relevance.
+ * The ladder's three consumers (difficulty.md § Module shape): the rung as a mob joins the level, damage
+ * scaling as a hit lands, and the heal and rung fallback as a wolf is tamed. {@link DifficultyIngress}'s
+ * resolvers have already bounced everything the module has no business with, so each consumer does the
+ * rest of the rules.
  */
 final class DifficultyHandlers {
 
@@ -37,17 +33,15 @@ final class DifficultyHandlers {
     }
 
     /**
-     * A fresh join (not {@code loadedFromDisk}: a reloaded mob already has its values) of a ladder
+     * A fresh join (the resolver passes only those: a reloaded mob already has its values) of a ladder
      * hostile that no rung has reached takes the ordinary rung, if the ambient Difficulty at its own
      * position is 2 or more; an iron golem or any wolf, wild or tame ({@link DifficultyAPI#isLadderAlly}),
      * takes the ally rung on the same condition. Joining the level, not spawn-finalize, catches spawners,
      * reinforcements, raids and slime splits as well as natural spawns.
      */
-    static void onEntityJoinLevel(EntityJoinLevelSignal signal) {
-        if (signal.loadedFromDisk()
-                || !(signal.entity() instanceof Mob mob)
-                || !(signal.level() instanceof ServerLevel level)
-                || Ladder.claimed(mob)) {
+    static void onMobJoining(MobJoining joining) {
+        Mob mob = joining.mob();
+        if (!(joining.level() instanceof ServerLevel level) || Ladder.claimed(mob)) {
             return;
         }
 
@@ -56,7 +50,9 @@ final class DifficultyHandlers {
         if (mob instanceof Vex vex && vex.getOwner() != null
                 && Ladder.RUNG_KEEPER.equals(Ladder.rungOf(vex.getOwner()))) {
             DifficultyRules rules = DifficultyRules.ACTIVE;
-            Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 0, 1.0, rules.keeperVexDamage() / rules.vexReferenceHit());
+            if (Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 0, 1.0, rules.keeperVexDamage() / rules.vexReferenceHit())) {
+                OUT.debug("[Difficulty] " + Ladder.RUNG_KEEPER_SUMMON + " rung on " + vex.getType() + " at " + vex.blockPosition());
+            }
             return;
         }
 
@@ -68,14 +64,15 @@ final class DifficultyHandlers {
     }
 
     /**
-     * Taming a wolf (the signal fires just before it applies), difficulty.md § Allies. A wolf is on the
+     * Taming a wolf (the event fires just before it applies), difficulty.md § Allies. A wolf is on the
      * ally rung from the moment it joins the level, so this does two things and neither is the rung
      * change: it falls back to the rung for a wolf that has none (it spawned where there is no Relevant
      * Border and is tamed on claimed ground), and it heals every wolf to its real maximum health. Other
-     * animals are not allies.
+     * animals never reach it.
      */
-    static void onAnimalTame(AnimalTameSignal signal) {
-        if (!(signal.animal() instanceof Wolf wolf) || !(wolf.level() instanceof ServerLevel level)) {
+    static void onWolfTaming(WolfTaming taming) {
+        Wolf wolf = taming.wolf();
+        if (!(wolf.level() instanceof ServerLevel level)) {
             return;
         }
         if (!Ladder.claimed(wolf)) {
@@ -89,6 +86,7 @@ final class DifficultyHandlers {
         server.tell(new TickTask(server.getTickCount() + 1, () -> {
             if (wolf.isAlive() && wolf.isTame()) {
                 wolf.setHealth(wolf.getMaxHealth());
+                OUT.debug("[Difficulty] tamed wolf healed to " + wolf.getMaxHealth() + " at " + wolf.blockPosition());
             }
         }));
     }
@@ -118,15 +116,14 @@ final class DifficultyHandlers {
 
     /**
      * Damage isn't a stat: it is scaled here, as it lands, by the multiplier on whatever dealt it --
-     * melee, arrow, blast or fangs alike (difficulty.md § Damage scales when it lands). The signal
-     * fires before armor, so armor still reduces a scaled hit.
+     * melee, arrow, blast or fangs alike (difficulty.md § Damage scales when it lands). The event
+     * fires before armor, so armor still reduces a scaled hit. The resolver passes only a hit whose
+     * attacker's record holds the multiplier.
      */
-    static void onLivingHurt(LivingHurtSignal signal) {
-        CompoundTag data = MobData.readAttacker(signal.source(), Ladder.NAMESPACE);
-        if (!Ladder.hasDamageMultiplier(data)) {
-            return;
-        }
-        signal.setAmount((float) (signal.amount() * Ladder.damageMultiplier(data)));
+    static void onLadderHit(LadderHit hit) {
+        double multiplier = Ladder.damageMultiplier(hit.ladder());
+        hit.setAmount((float) (hit.amount() * multiplier));
+        OUT.debug("[Difficulty] hit scaled x" + multiplier);
     }
 
     /**

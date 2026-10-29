@@ -48,6 +48,12 @@ final class PlayerHealthCheck {
             );
 
     static void register() {
+        // BOTH is what makes the client-side PlayerJig path provable rather than just declared, the same
+        // reasoning MobHealthCheck and LevelHealthCheck give for their own BOTH.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> build());
+    }
+
+    private static PlayerJigConfig build() {
         var trackerFixture =
                 new JigBundles.FixtureDecl<TrackerFixture>(
                         PLAYER_TRACKER,
@@ -73,12 +79,6 @@ final class PlayerHealthCheck {
                         .build();
 
         PlayerJigConfig config = new PlayerJigConfig(PLAYER_JIG);
-
-        // Was SERVER (PlayerJigConfig's own default, left untouched until SAT_063 built real
-        // client-side PlayerJig existence). BOTH is what makes that path provable rather than
-        // just declared -- same reasoning MobHealthCheck/LevelHealthCheck already give for their
-        // own BOTH widening.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
 
         // Required for PERSISTENCE below to actually work, not optional -- ScopeEngine_Server
         // .resolveServerLevel() throws AccessFailed if info.referenceLevel() is null, and
@@ -110,7 +110,7 @@ final class PlayerHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     private static void onPlayerScopeLoaded(ScopeEvent.Loaded event) {

@@ -40,7 +40,7 @@ final class Ladder {
      * Writes {@code rung} and its multipliers if no rung has reached {@code mob}, then scales its
      * maximum health and heals it to the new maximum. {@code false} if the mob was already claimed
      * and is left alone. {@code step} is what the mob's level was read as (0 if the rung has none, like
-     * Feral): kept so the Inspect Stick can show it.
+     * Feral): kept so the Info report can show it.
      */
     static boolean apply(Mob mob, String rung, int step, double healthMultiplier, double damageMultiplier) {
         CompoundTag tag = new CompoundTag();
@@ -59,7 +59,7 @@ final class Ladder {
     }
 
     /**
-     * One line for the Inspect Stick: the mob's level, its rung and its two multipliers; empty if no rung
+     * One line for the Info report: the mob's level, its rung and its two multipliers; empty if no rung
      * has reached it.
      */
     static java.util.Optional<String> describe(Mob mob) {

@@ -77,14 +77,11 @@ public class SatchelMod {
             // first so they come first in the jig walk.
             HostJigs.register();
 
-            // SAT_039/SAT_040/SAT_060 -- SatchelHealth is the single registration point for
-            // every jig kind's health check: MobJig, LevelJig (both sideApplicability BOTH), and
-            // PlayerJig (stays SERVER -- PlayerScope has no client-side existence to widen
-            // into). Calling this (when SatchelConfig.HEALTH_ENABLED allows it) is what makes
-            // all three exist as installed jigs at all -- without it the classes compile but
-            // nothing ever reaches Satchel.registerJigConfig(...). See SatchelHealth's own class
-            // doc for the full mechanism, and for why the MobJig half is expected to crash
-            // loudly on a real connected client until RM_SAT_022 ("Roger") lands.
+            // SatchelHealth is the single registration point for every jig kind's health check
+            // (MobJig, LevelJig and PlayerJig, each registered BOTH) and for its probes. Calling
+            // this (when SatchelConfig.HEALTH_ENABLED allows it) is what makes them exist as
+            // installed jigs at all -- without it the classes compile but nothing ever reaches
+            // Satchel.registerJig(...). See SatchelHealth's own class doc for the full mechanism.
             SatchelHealth.init();
 
             // SAT_093: Tunables load once per game, here -- before any world exists, so a Tunable

@@ -287,26 +287,17 @@ public final class FrontierKeys {
     public static final IngressKey FERAL_INGRESS =
             new IngressKey("frontiermode:feral");
 
+    // FRO_258: the difficulty ingress also carries MobJoining, LadderHit and WolfTaming with their
+    // consumers. Wired in DifficultyIngress.build(), registered from DifficultyModule.init().
+
     public static final IngressKey DIFFICULTY_INGRESS =
             new IngressKey("frontiermode:difficulty");
 
-    // FRO_068: the difficulty module's tick-free signal subscription point -- no bundle/fixture,
-    // the "exists purely to get a signal subscription point" shape. See DifficultyModule.init().
+    // FRO_257: names the siting ingress, which carries WorldSpawnChoosing and its one consumer, the
+    // starting-site search. Wired in SitingIngress.build(), registered from SitingModule.init().
 
-    public static final JigKey<LevelJig> DIFFICULTY_JIG =
-            new JigKey<>(
-                    "frontiermode:difficulty_jig",
-                    LevelJig.class
-            );
-
-    // FRO_212: the siting module's tick-free signal subscription point (the starting-site search) --
-    // no bundle/fixture, same shape as DIFFICULTY_JIG. See SitingModule.init().
-
-    public static final JigKey<LevelJig> SITING_JIG =
-            new JigKey<>(
-                    "frontiermode:siting_jig",
-                    LevelJig.class
-            );
+    public static final IngressKey SITING_INGRESS =
+            new IngressKey("frontiermode:siting");
 
     private FrontierKeys() {}
 }

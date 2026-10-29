@@ -76,6 +76,11 @@ final class TrinketHealthCheck {
     private static final long GATE_OPENS_AFTER = 3;
 
     static void register() {
+        Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> buildProbeJig());
+        Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> buildOrderJig());
+    }
+
+    private static LevelJigConfig buildProbeJig() {
         var fixture = new JigBundles.FixtureDecl<TrinketProbeFixture>(
                 PROBE_FIXTURE, TrinketProbeFixture::new, JigPolicies.CreatePolicy.ALWAYS);
 
@@ -106,15 +111,17 @@ final class TrinketHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        Satchel.registerJigConfig(config);
+        return config;
+    }
 
+    private static LevelJigConfig buildOrderJig() {
         // The second jig holds Trinkets and nothing else: no bundle at all.
         LevelJigConfig orderConfig = new LevelJigConfig(TRINKET_ORDER_JIG);
         orderConfig.bundles().schema(new JigBundles.Schema<>(List.of()));
         orderConfig.trinkets().declare(EarlyProbe.class, EarlyProbe::new).order(Order.EARLY);
         orderConfig.trinkets().declare(LateProbe.class, LateProbe::new).order(Order.LATE);
 
-        Satchel.registerJigConfig(orderConfig);
+        return orderConfig;
     }
 
     private static void onLoaded(ScopeEvent.Loaded event) {

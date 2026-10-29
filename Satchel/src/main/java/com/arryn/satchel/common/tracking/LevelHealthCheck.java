@@ -48,6 +48,13 @@ final class LevelHealthCheck {
             );
 
     static void register() {
+        // BOTH lets a server/client pair running only Satchel (no FrontierMode, no Border) still prove
+        // LevelJig's client-side lifecycle path works, rather than depending on Border to be the
+        // only thing that has ever exercised it.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> build());
+    }
+
+    private static LevelJigConfig build() {
         var trackerFixture =
                 new JigBundles.FixtureDecl<TrackerFixture>(
                         LEVEL_TRACKER,
@@ -84,12 +91,6 @@ final class LevelHealthCheck {
         // Notices a client whose synced canary data never arrives or is dropped on apply (SAT_126).
         config.trinkets().declare(ClientSyncHealthCheck.SyncProbe.class, ClientSyncHealthCheck.SyncProbe::new);
 
-        // Was SERVER (TrackingModule's original call, LevelJigConfig's own default). BOTH lets a
-        // server/client pair running only Satchel (no FrontierMode, no Border) still prove
-        // LevelJig's client-side lifecycle path works, rather than depending on Border to be the
-        // only thing that's ever exercised it.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-
         config.bundles().schema(bundles);
 
         // NETWORKING: LevelScope-scoped send already works (SatchelNetwork.send(), see SAT_062's
@@ -106,7 +107,7 @@ final class LevelHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     private static void onLevelScopeLoaded(ScopeEvent.Loaded event) {
