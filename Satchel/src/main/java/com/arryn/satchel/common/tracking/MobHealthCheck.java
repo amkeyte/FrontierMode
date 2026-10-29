@@ -127,9 +127,15 @@ final class MobHealthCheck {
         }
 
         var jig = info.jigInfo().jig;
-        var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
-        var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
-        tracker.countLoaded();
+
+        // Persistence is a server job, so the tracker has no client form: a client bundle gets its data from a
+        // parcel, and a mob scope is never sent one. The client keeps the Trinket and event checks, which do not
+        // use the bundle. The Unloaded and Tick handlers find no bundle there and skip.
+        if (info.jigInfo().side() == LogicalSide.SERVER) {
+            var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
+            var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
+            tracker.countLoaded();
+        }
 
         MobScope scope = (MobScope) info.scope();
         OUT.debug(

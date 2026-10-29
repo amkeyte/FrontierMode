@@ -46,5 +46,5 @@ net.minecraft.world.entity.player.Player  # common to both sides; logic is typed
 
 # ---- Plain base classes (Code Conventions: the Free tier) ----
 
-net.minecraft.world.item.Item  # plain subclasses with no per-stack data only; stack data goes through StackData
-net.minecraft.world.level.block.Block  # plain subclasses with no block entity only
+net.minecraft.world.item.Item  # judgment call: plain subclasses with no per-stack data only; stack data goes through StackData
+net.minecraft.world.level.block.Block  # judgment call: plain subclasses with no block entity only

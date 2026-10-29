@@ -425,6 +425,9 @@ public class SatchelBundle {
             OUT.warn(
                     "[health-check] Bundle " + debugName() + " has not reached ACTIVE after "
                             + ticksNotActive + " execution pulses (still " + lifeCycleState()
+                            + "; requires " + Arrays.stream(Capability.values())
+                                    .filter(c -> (required() & c.bit()) != 0).toList()
+                            + ", hydrated=" + hydrated
                             + "). Possible silent inertness -- see RM_SAT_013."
             );
         }

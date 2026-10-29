@@ -420,7 +420,8 @@ public final class ServerForgeIngress {
 
         Entity.RemovalReason reason = entity.getRemovalReason();
         if (reason == null) {
-            OUT.warn("[MobRemoved] interested mob " + Ids.shortId(uuid)
+            // Expected: a chunk unload, and the chunks demoted while a server stops, leave with no reason.
+            OUT.debug("[MobRemoved] interested mob " + Ids.shortId(uuid)
                     + " left its level with no removal reason -- not posting.");
             return;
         }
