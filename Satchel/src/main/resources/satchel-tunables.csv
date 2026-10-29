@@ -82,8 +82,8 @@ DefaultDifficultyRules:sentinelHealthGrowthNear,FLOAT,0.0,1.0,0.1,0.1,0.1
 DefaultDioriteRules:edgeStonePoofParticles,INT,1,64,12,12,12
 DefaultDioriteRules:strikerBlastDurability,INT,1,64,16,16,16
 DefaultDioriteRules:strikerBlastPower,FLOAT,0.1,4.0,1.0,1.0,1.0
-DefaultDioriteRules:strikerSparkDelayTicks,INT,0,20,4,4,4
-DefaultDioriteRules:strikerSparkSize,FLOAT,0.25,4.0,1.0,1.0,1.0
+DefaultDioriteRules:strikerSparkDelayTicks,INT,0,20,1,4,4
+DefaultDioriteRules:strikerSparkSize,FLOAT,0.25,4.0,2.0,1.0,1.0
 DefaultSitingRules:startingSiteLogDepth,INT,1,32,12,12,12
 DefaultSitingRules:startingSiteMaxFullChecks,INT,1,200,24,24,24
 DefaultSitingRules:startingSiteMaxWater,FLOAT,0.0,1.0,0.3,0.3,0.3
@@ -94,3 +94,8 @@ DefaultSitingRules:startingSiteSearchLimit,INT,100,10000,1500,1500,1500
 DefaultSitingRules:startingSiteStoneDepth,INT,0,16,4,4,4
 DefaultDioriteRules:strikerCircleRadius,FLOAT,0.05,2.0,0.35,0.35,0.35
 DefaultBossRules:keeperLootStep,FLOAT,0.0,2.0,0.3,0.3,0.3
+DefaultBossRules:sentinelFirstPathPosition,INT,1,1000,6,6,6
+DefaultBossRules:sentinelMaxPerLevel,INT,1,1000,10,10,10
+DefaultDifficultyRules:feralDamageGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
+DefaultDifficultyRules:feralHealthGrowth,FLOAT,0.0,1.0,0.075,0.075,0.075
+CairnRules:cairnMaxAttempts,INT,10,2000,200,200,200
