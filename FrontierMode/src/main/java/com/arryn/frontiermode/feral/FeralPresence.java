@@ -7,6 +7,7 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Ticking;
+import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
 import net.minecraft.server.level.ServerLevel;
@@ -29,7 +30,8 @@ import java.util.UUID;
  * {@link FeralCleanup}'s. Feral keeps no jig, so nothing here is declared on one and nothing is saved.
  *
  * <ul>
- *   <li>A join queues ({@link #join}); the tick adopts it, or drops a cancelled or rejected join.</li>
+ *   <li>A join queues ({@link #join}, from {@link FeralTagging#onHostileJoining}); the tick adopts it, or
+ *   drops a cancelled or rejected join.</li>
  *   <li>An adopted mob goes into the pack set (its record says {@code pack}) or the ambient set.</li>
  *   <li>The tick drops a mob when it reports {@code isRemoved()}.</li>
  *   <li>Everything that needs "the Feral mobs here" reads presence and scans nothing.</li>
@@ -113,6 +115,11 @@ public final class FeralPresence implements Ticking {
     }
 
     @Override
+    public void onAttach(ScopeInfo info) {
+        OUT.debug("[Feral] FeralPresence attached to " + info.debugName());
+    }
+
+    @Override
     public void onTickAfter(ScopeInfo info) {
         if (!(info.level() instanceof ServerLevel level)) {
             return;
@@ -133,6 +140,12 @@ public final class FeralPresence implements Ticking {
         }
     }
 
+    /**
+     * The one catch-up scan, run on the first tick and never repeated (feral.md § Presence): a Feral mob in
+     * a chunk that loaded before this level's scope was ready joined with no presence to take it, so this
+     * finds the ones that carry the record and queues them as loaded from disk. Every later join reaches
+     * presence through {@link HostileJoining}.
+     */
     private void joinFeralAlreadyInLevel(ServerLevel level) {
         for (Entity entity : level.getAllEntities()) {
             if (entity instanceof Mob mob && FeralData.has(mob)) {

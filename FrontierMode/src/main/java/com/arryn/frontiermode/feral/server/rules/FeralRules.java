@@ -96,11 +96,11 @@ public final class FeralRules {
 
     /**
      * How often (ticks) each level is swept for feral-team mobs that re-entered the Frontier, and
-     * (since {@code FeralModule.despawnIfBeyondAmbientRadius}) for ambient/pack cleanup too.
+     * (since {@code FeralCleanup.despawnIfBeyondAmbientRadius}) for ambient/pack cleanup too.
      * Halved 40 -> 20 (2026-09-22, playtest diagnostics): a sprinting player loading fresh chunks
      * continuously generates ambient Feral spawns fast enough that a 2s sweep interval let the
      * ambient count balloon well past {@code MAX_ALIVE_FERAL} between prunes -- see FRO_144's log
-     * for the full trace. Not the sole fix (see {@code FeralModule.maintainPackNearPlayer}'s own
+     * for the full trace. Not the sole fix (see {@code FeralPlayerTick.maintainPack}'s own
      * doc for the actual budget bug), but a tighter interval keeps that overshoot smaller.
      */
     public static int reentrySweepIntervalTicks() {
@@ -130,7 +130,7 @@ public final class FeralRules {
     // instant-at-10 would make mobs flicker out from under a player standing right at the border;
     // a short linger tolerates that without letting mobs pile up far away for long. Replaces the
     // 50-block instant-discard approach entirely, not a second check alongside it -- see
-    // FeralModule.sweepFeralCleanup.
+    // FeralCleanup.sweep.
     // ------------------------------------------------------------------
 
     /**
@@ -173,9 +173,9 @@ public final class FeralRules {
      * may be alive across a level at once -- a combined-population safety valve, not a per-
      * mechanic budget (see {@link #maxAlivePackMembers()} for that). Originally enforced only
      * against {@code rollDensityCompanion}'s own extra-companion spawns (that mechanic is
-     * disabled as of 2026-09-21, see {@code FeralModule.densityCompanionEnabled}) --
-     * {@code FeralModule.maintainPackNearPlayer} respects it too now, for the same reason:
-     * deliberately not the tagging decision itself ({@code onEntityJoinLevel}), which stays
+     * disabled as of 2026-09-21, see {@code FeralDensity}) --
+     * {@code FeralPlayerTick.maintainPack} respects it too now, for the same reason:
+     * deliberately not the tagging decision itself ({@code FeralTagging.onHostileJoining}), which stays
      * unconditional per the 2026-09-18 design ruling ("every hostile outside the Frontier is
      * Feral"); only whichever mechanic is actively growing the population gets throttled once the
      * cap is reached. Well under vanilla's 70-mob hostile cap so real spawn room always remains --
@@ -187,11 +187,10 @@ public final class FeralRules {
 
     /**
      * Dedicated ceiling on pack members specifically (the Feral record's {@code pack} flag),
-     * counted independently of ambient natural spawns via {@code FeralModule
-     * .countAlivePackMembers}. Playtest feedback (2026-09-21, fifth pass): "we are getting a lot
+     * counted independently of ambient natural spawns via {@code FeralPresence.packCount}. Playtest feedback (2026-09-21, fifth pass): "we are getting a lot
      * of mobs from regular spawn algo as well, that's most of the cap" -- ambient Wilds
      * spawning was never itself capped, so it could (and did) consume the entire shared
-     * {@link #maxAliveFeral()} budget and starve {@code maintainPackNearPlayer} of any room to
+     * {@link #maxAliveFeral()} budget and starve {@code FeralPlayerTick.maintainPack} of any room to
      * spawn at all. This reserves headroom ambient spawns can never crowd out. Twice
      * {@link #packTargetCount()} -- enough for one full pack near the player plus a trailing
      * previous batch still clearing out, not unbounded. Widened 24 -> 40 alongside
@@ -209,11 +208,11 @@ public final class FeralRules {
     // through for a couple hundred blocks before Frontier Sickness did the real work. Replaces
     // relying on vanilla's own sparse natural spawn attempts with a direct guarantee: while a
     // player is in the Wilds, keep a real pack of Feral mobs near *them* specifically. See
-    // FeralModule.maintainPackNearPlayer/spawnPackMember.
+    // FeralPlayerTick.maintainPack/FeralPackSpawner.spawnMember.
     // ------------------------------------------------------------------
 
     /**
-     * How many Feral mobs {@code FeralModule.maintainPackNearPlayer} tries to keep within
+     * How many Feral mobs {@code FeralPlayerTick.maintainPack} tries to keep within
      * {@link #packMaintainRadius()} of a player who's in the Wilds. "Safe baseline, replace
      * later" -- picked to be a real, weave-through-it pack, not a token few; not playtest-tuned
      * against feel yet. Widened 12 -> 20 (2026-09-22, "can we increase the pack number?") --
@@ -224,7 +223,7 @@ public final class FeralRules {
     }
 
     /**
-     * Radius (blocks) {@code FeralModule.maintainPackNearPlayer} counts existing Feral mobs
+     * Radius (blocks) {@code FeralPlayerTick.maintainPack} counts existing Feral mobs
      * within -- must stay comfortably larger than {@link #packSpawnMaxDistance()}, otherwise a
      * mob can spawn already outside this radius and never count toward its own quota.
      */
@@ -235,7 +234,7 @@ public final class FeralRules {
     /**
      * Distance (blocks) beyond which an ordinary natural Wilds spawn (not a
      * pack member) is discarded outright -- see
-     * {@code FeralModule.despawnIfBeyondAmbientRadius}. Playtest feedback (2026-09-21, sixth
+     * {@code FeralCleanup.despawnIfBeyondAmbientRadius}. Playtest feedback (2026-09-21, sixth
      * pass): "still hitting cap... remove all feral mobs spawned outside a radius, they are
      * inconsequential." Flat and direction-agnostic, unlike {@link #packDespawnRadius()}/
      * {@link #packBehindDespawnRadius()} -- an ambient spawn was never part of a deliberate
@@ -251,7 +250,7 @@ public final class FeralRules {
 
     /**
      * Distance (blocks) beyond which a Feral mob still *ahead* of the player is discarded
-     * outright, no linger -- see {@code FeralModule.despawnIfBeyondPackRadius}. Deliberately well
+     * outright, no linger -- see {@code FeralCleanup.despawnIfBeyondPackRadius}. Deliberately well
      * past {@link #packMaintainRadius()}, not equal to it: the gap between the two is what keeps
      * a player's distance oscillating near either threshold from constantly spawning and
      * despawning the same mobs, without needing a per-mob timer to smooth it out. Only applies to
@@ -266,7 +265,7 @@ public final class FeralRules {
      * Distance (blocks) beyond which a Feral mob *behind* the player is discarded, regardless of
      * how far {@link #packDespawnRadius()} allows an ahead mob to stay. Playtest feedback
      * (2026-09-21, fifth pass): "hitting mob caps again" -- {@code
-     * FeralModule.applyPackSpeedBoost}'s speed boost lets a passed mob keep pace well enough from
+     * FeralPackSpawner.applyPackSpeedBoost}'s speed boost lets a passed mob keep pace well enough from
      * behind that it can trail the player indefinitely without ever covering
      * {@code packDespawnRadius()} worth of raw distance, quietly eating
      * {@link #maxAliveFeral()}'s budget forever. Small on purpose -- a short trailing beat after
@@ -277,9 +276,9 @@ public final class FeralRules {
         return new Tunable("packBehindDespawnRadius", 0f, 256f, 20f).floatValue();
     }
 
-    /** How often (ticks) {@code FeralModule.maintainPackNearPlayer} checks/tops up each player's pack. */
+    /** How often (ticks) {@code FeralPlayerTick.maintainPack} checks/tops up each player's pack. */
     // Halved 20 -> 10 (2026-09-21, eighth pass) per "maybe cadence needs to bump" -- the actual
-    // stall-out bug was the hemisphere-vs-cone "ahead" test (see FeralModule.isAheadOfPlayer's
+    // stall-out bug was the hemisphere-vs-cone "ahead" test (see FeralPackSpawner.isAheadOfPlayer's
     // own doc), but a tighter check interval is a cheap, low-risk complement regardless.
     public static int packMaintainIntervalTicks() {
         return new Tunable("packMaintainIntervalTicks", 1, 200, 10).intValue();
@@ -291,16 +290,16 @@ public final class FeralRules {
     // left behind, since a sprinting player outpaces both the 1s maintenance cadence and a
     // zombie's own walk speed -- "I'm just moving faster than the spawning can keep up." Fourth
     // pass ("got one pack... but I still passed them," "put them ahead more and spread them way
-    // out"): widened both further, and paired with FeralModule.isAheadOfPlayer so a pack the
+    // out"): widened both further, and paired with FeralPackSpawner.isAheadOfPlayer so a pack the
     // player has already run past stops blocking a fresh one from spawning ahead of them. See
-    // FeralModule.spawnPackMember/maintainPackNearPlayer's own docs for the full reasoning.
+    // FeralPackSpawner.spawnMember/FeralPlayerTick.maintainPack's own docs for the full reasoning.
     // ------------------------------------------------------------------
 
     /**
      * Half-angle (degrees) of the cone pack members spawn within, either side of the player's own
      * yaw -- replaces the original single-point-plus-square-scatter placement (2026-09-21, eighth
      * pass: "are we doing a wedge or more like a cone to the front?"). Also the same cone
-     * {@code FeralModule.isAheadOfPlayer} tests membership against, not a plain dot product --
+     * {@code FeralPackSpawner.isAheadOfPlayer} tests membership against, not a plain dot product --
      * see that method's own doc for why a full 180-degree hemisphere test was letting stale,
      * off-angle mobs keep blocking fresh spawns. Force-spawned via a real {@code
      * ForgeEventFactory.onFinalizeSpawn} dispatch, so unlike a natural spawn this isn't bound by
@@ -312,12 +311,12 @@ public final class FeralRules {
 
     /** Nearest distance (blocks) a pack member can spawn from the player, within the cone above. */
     public static float packSpawnMinDistance() {
-        return new Tunable("packSpawnMinDistance", 0f, 128f, 12f).floatValue();
+        return new Tunable("packSpawnMinDistance", 0f, 128f, 10f).floatValue();
     }
 
     /** Farthest distance (blocks) a pack member can spawn from the player, within the cone above. */
     public static float packSpawnMaxDistance() {
-        return new Tunable("packSpawnMaxDistance", 1f, 256f, 32f).floatValue();
+        return new Tunable("packSpawnMaxDistance", 1f, 256f, 45f).floatValue();
     }
 
     /**

@@ -2,7 +2,7 @@ package com.arryn.frontiermode.coordination;
 
 import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.boss.BossModule;
-import com.arryn.frontiermode.feral.FeralModule;
+import com.arryn.frontiermode.feral.FeralAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.util.out.OUT;
@@ -46,14 +46,14 @@ public final class SpawnCoordinator {
 
         OUT.debug("[SpawnCoordinator] finalizing " + describe(mob, spawn.spawnType(), level));
 
-        if (FeralModule.shouldDenySpawn(mob, level)) {
+        if (FeralAPI.shouldDenySpawn(mob, level)) {
             spawn.denySpawn();
             return;
         }
 
         BossModule.onMobSpawnFinalize(mob, level);
         BorderModule.onMobSpawnFinalize(mob, level);
-        FeralModule.onMobSpawnFinalize(mob, level);
+        FeralAPI.onMobSpawnFinalize(mob, level);
     }
 
     private static String describe(Mob mob, MobSpawnType spawnType, Level level) {

@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.feral.server.commands;
 
-import com.arryn.frontiermode.feral.FeralModule;
 import com.arryn.frontiermode.spawn.MobSpawns;
 
 import com.mojang.brigadier.context.CommandContext;
@@ -21,12 +20,12 @@ import net.minecraft.world.scores.Team;
 /**
  * Backs {@code /feral debug spawn} -- same real-{@code FinalizeSpawn} shape as
  * {@code BorderCommandHandler.spawnTestAnimals}, a hostile instead of a passive so
- * {@code FeralModule.onMobSpawnFinalize}'s branch can be exercised on demand instead of waiting
+ * {@code FeralTagging.onHostileJoining}'s tagging can be exercised on demand instead of waiting
  * on natural spawn RNG. Unlike {@code /summon} (which loads a raw entity from NBT and never
  * touches {@code Mob#finalizeSpawn} at all), this routes each spawned zombie through the real
  * Forge dispatch -- {@code ForgeEventFactory.onFinalizeSpawn} constructs and posts the actual
  * {@code MobSpawnEvent.FinalizeSpawn}, then calls {@code finalizeSpawn} itself if nothing cancels
- * it -- the same event {@code FeralModule.onMobSpawnFinalize} is subscribed to.
+ * it -- the same event {@code SpawnCoordinator} fans out to {@code FeralAPI.onMobSpawnFinalize}.
  */
 @SuppressWarnings("SameReturnValue")
 public final class FeralCommandHandler {

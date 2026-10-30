@@ -253,16 +253,6 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    // FRO_146: Feral's own player tick source, riding ScopeEvent.Tick instead of raw
-    // TickEvent.PlayerTickEvent. The level-side work is FeralPresence, a Trinket on the level host.
-    // See FeralModule.init() for the config wiring.
-
-    public static final JigKey<PlayerJig> FERAL_PLAYER_JIG =
-            new JigKey<>(
-                    "frontiermode:feral_player_jig",
-                    PlayerJig.class
-            );
-
     // FRO_253: names the spawn coordination ingress, which carries MobSpawnFinalizing and its one
     // consumer. Wired in SpawnIngress.build(), registered from SpawnCoordinator.init().
 
@@ -283,6 +273,10 @@ public final class FrontierKeys {
 
     public static final IngressKey BORDER_INGRESS =
             new IngressKey("frontiermode:border");
+
+    // FRO_259: the feral ingress also carries HostileJoining, WildsPlacementCheck, WildsPositionCheck,
+    // FeralDrops and FeralExperience with their consumers. Wired in FeralIngress.build(), registered from
+    // FeralModule.init(); the player tick is FeralPlayerTick, a Trinket on the player host, so no jig.
 
     public static final IngressKey FERAL_INGRESS =
             new IngressKey("frontiermode:feral");

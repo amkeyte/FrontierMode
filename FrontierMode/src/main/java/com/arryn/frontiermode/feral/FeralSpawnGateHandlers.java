@@ -2,13 +2,11 @@ package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.spawn.MobSpawns;
-import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
-import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
+import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.player.Player;
 
 /**
@@ -18,7 +16,9 @@ import net.minecraft.world.entity.player.Player;
  * {@code Monster}, so both are lifted. See feral.md § How Feral hooks the game; the same two-gate
  * shape as sentinels in daylight ({@code SentinelJigHandlers}).
  *
- * <p>Bare, unscoped signals, installed from {@link FeralModule}'s level jig; no jig-key guard.
+ * <p>The consumers of {@link WildsPlacementCheck} and {@link WildsPositionCheck}. The ingress's
+ * resolvers have already bounced every firing outside the Wilds and every non-hostile type, so a consumer
+ * only decides.
  */
 final class FeralSpawnGateHandlers {
 
@@ -26,8 +26,8 @@ final class FeralSpawnGateHandlers {
     }
 
     /**
-     * Gate 1, placement. Acts only for {@link MobCategory#MONSTER} types at a position in the Wilds;
-     * everywhere else the result is left unset and vanilla's own checks are unchanged.
+     * Gate 1, placement. The event is only built for a {@code MobCategory.MONSTER} type at a position in
+     * the Wilds.
      *
      * <ul>
      *   <li><b>The nearest player is in the Wilds too:</b> {@code deny()} -- around a player out
@@ -38,57 +38,44 @@ final class FeralSpawnGateHandlers {
      *       surface is re-checked first; if it fails, the result stays unset and vanilla refuses
      *       (FRO_170).
      * </ul>
-     *
-     * <p>Not a real {@link ServerLevel} (e.g. a {@code WorldGenRegion} during chunk generation):
-     * left unset.
      */
-    static void onSpawnPlacementCheck(SpawnPlacementCheckSignal signal) {
-        if (signal.entityType().getCategory() != MobCategory.MONSTER) {
-            return;
-        }
-        //noinspection resource
-        if (!(signal.level() instanceof ServerLevel level)) {
-            return;
-        }
-        BlockPos pos = signal.pos();
-        if (BorderAPI.frontierDistanceAt(level, pos) <= 0) {
-            return;
-        }
+    static void onPlacementCheck(WildsPlacementCheck event) {
+        ServerLevel level = event.level();
+        BlockPos pos = event.pos();
 
         Player nearest = level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), -1.0, false);
         if (nearest != null && BorderAPI.frontierDistanceAt(level, nearest.blockPosition()) > 0) {
-            signal.deny();
+            event.deny();
+            OUT.debug("[Feral] placement gate denied " + EntityType.getKey(event.entityType()) + " at "
+                    + pos.toShortString() + ": a player is out in the Wilds");
             return;
         }
 
         @SuppressWarnings("unchecked")
-        EntityType<? extends Mob> mobType = (EntityType<? extends Mob>) signal.entityType();
-        if (MobSpawns.surfaceAllows(level, mobType, signal.spawnType(), pos)) {
-            signal.allow();
+        EntityType<? extends Mob> mobType = (EntityType<? extends Mob>) event.entityType();
+        if (MobSpawns.surfaceAllows(level, mobType, event.spawnType(), pos)) {
+            event.allow();
+            OUT.debug("[Feral] placement gate allowed " + EntityType.getKey(mobType) + " at " + pos.toShortString());
         }
     }
 
     /**
      * Gate 2, position. After the mob is created and placed, vanilla checks
      * {@code checkSpawnRules} (a light test for every {@code Monster}) and
-     * {@code checkSpawnObstruction}. A {@link MobCategory#MONSTER} standing in the Wilds -- for a natural
-     * spawn, one gate 1 allowed -- is allowed if nothing is in its way; {@code allow()}
-     * bypasses the obstruction test too, so it's re-checked here (FRO_170).
+     * {@code checkSpawnObstruction}. The event is only built for a {@code MobCategory.MONSTER} standing in
+     * the Wilds -- for a natural spawn, one gate 1 allowed -- and it is allowed if nothing is in its way;
+     * {@code allow()} bypasses the obstruction test too, so it's re-checked here (FRO_170).
      */
-    static void onSpawnPositionCheck(SpawnPositionCheckSignal signal) {
-        Mob mob = signal.mob();
-        if (mob.getType().getCategory() != MobCategory.MONSTER) {
-            return;
-        }
+    static void onPositionCheck(WildsPositionCheck event) {
+        Mob mob = event.mob();
         //noinspection resource
-        if (!(signal.level() instanceof ServerLevel level)) {
-            return;
-        }
-        if (BorderAPI.frontierDistanceAt(level, mob.blockPosition()) <= 0) {
+        if (!(event.level() instanceof ServerLevel level)) {
             return;
         }
         if (MobSpawns.obstructionClear(level, mob)) {
-            signal.allow();
+            event.allow();
+            OUT.debug("[Feral] position gate allowed " + EntityType.getKey(mob.getType()) + " at "
+                    + mob.blockPosition().toShortString());
         }
     }
 }
