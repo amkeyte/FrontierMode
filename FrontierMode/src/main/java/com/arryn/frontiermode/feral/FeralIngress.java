@@ -47,13 +47,13 @@ final class FeralIngress {
     }
 
     /**
-     * The cheap filter for a join, which fires for every entity: only a {@code MobCategory.MONSTER} mob on
-     * the server gets an event built. {@code MobCategory.MONSTER}, not {@code instanceof Monster}: a Slime
-     * and a Magma Cube are real hostiles that do not extend {@code Monster}.
+     * The cheap filter for a join, which fires for every entity: only a {@code MobCategory.MONSTER} mob gets
+     * an event built. {@code MobCategory.MONSTER}, not {@code instanceof Monster}: a Slime and a Magma Cube
+     * are real hostiles that do not extend {@code Monster}. The ingress is {@code SERVER}, so a join on the
+     * client's thread never reaches here.
      */
     private static Optional<Mob> hostile(EntityJoinLevelEvent event) {
-        if (event.getLevel().isClientSide() || !(event.getEntity() instanceof Mob mob)
-                || mob.getType().getCategory() != MobCategory.MONSTER) {
+        if (!(event.getEntity() instanceof Mob mob) || mob.getType().getCategory() != MobCategory.MONSTER) {
             return Optional.empty();
         }
         return Optional.of(mob);

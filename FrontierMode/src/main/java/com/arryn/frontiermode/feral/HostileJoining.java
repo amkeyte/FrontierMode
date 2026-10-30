@@ -10,8 +10,9 @@ import java.util.Objects;
 /**
  * A hostile mob is joining a level, fresh or loaded from disk: the module's event for Forge's
  * {@link EntityJoinLevelEvent} (feral.md § How Feral hooks the game). Its context is the mob. The
- * ingress's resolver passes only a {@code MobCategory.MONSTER} mob on the server, so a client join, a
- * non-mob entity and a passive mob are dropped before an event is built.
+ * ingress's resolver passes only a {@code MobCategory.MONSTER} mob, so a non-mob entity and a passive mob
+ * are dropped before an event is built, and the ingress is {@code SERVER}, so a join on the client's
+ * thread never reaches it.
  * {@link FeralTagging#onHostileJoining} is its one consumer.
  *
  * <p>It offers no veto. Valid only during dispatch: after the consumer returns, a read of the native

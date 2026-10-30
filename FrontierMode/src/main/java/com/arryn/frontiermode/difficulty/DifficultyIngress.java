@@ -39,11 +39,12 @@ final class DifficultyIngress {
     }
 
     /**
-     * The cheap filter for a join, which fires for every entity: only a fresh join of a mob on the server
-     * gets an event built. A mob reloaded with its chunk already has its values.
+     * The cheap filter for a join, which fires for every entity: only a fresh join of a mob gets an event
+     * built. A mob reloaded with its chunk already has its values. The ingress is {@code SERVER}, so a
+     * join on the client's thread never reaches here.
      */
     private static Optional<Mob> freshMob(EntityJoinLevelEvent event) {
-        if (event.loadedFromDisk() || event.getLevel().isClientSide() || !(event.getEntity() instanceof Mob mob)) {
+        if (event.loadedFromDisk() || !(event.getEntity() instanceof Mob mob)) {
             return Optional.empty();
         }
         return Optional.of(mob);
@@ -59,9 +60,9 @@ final class DifficultyIngress {
         return Ladder.hasDamageMultiplier(ladder) ? Optional.of(ladder) : Optional.empty();
     }
 
-    /** Only a wolf on the server is tamed into an ally; every other animal is dropped. */
+    /** Only a wolf is tamed into an ally; every other animal is dropped. */
     private static Optional<Wolf> wolf(AnimalTameEvent event) {
-        if (event.getAnimal() instanceof Wolf wolf && !wolf.level().isClientSide()) {
+        if (event.getAnimal() instanceof Wolf wolf) {
             return Optional.of(wolf);
         }
         return Optional.empty();

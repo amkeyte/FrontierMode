@@ -8,10 +8,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 
@@ -51,7 +51,7 @@ final class AdminToolHandlers {
 
     private static String baseLines(LivingEntity target) {
         BlockPos pos = target.blockPosition();
-        ResourceLocation typeId = ForgeRegistries.ENTITY_TYPES.getKey(target.getType());
+        ResourceLocation typeId = EntityType.getKey(target.getType());
         return String.format("[Inspect] %s #%s  HP %.1f/%.1f  (%d, %d, %d)\n  category %s",
                 typeId, Ids.shortId(target.getUUID()), target.getHealth(), target.getMaxHealth(),
                 pos.getX(), pos.getY(), pos.getZ(), target.getType().getCategory());

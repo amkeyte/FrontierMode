@@ -26,7 +26,6 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
@@ -150,9 +149,6 @@ public final class FrontierMode {
 
         // Admin tools: same reasoning as BossTellModule.ENCHANTMENTS above.
         AdminToolsModule.ENCHANTMENTS.register(modBus);
-
-        // Register configuration
-        context.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
         // Hook lifecycle events
         modBus.addListener(this::commonSetup);
