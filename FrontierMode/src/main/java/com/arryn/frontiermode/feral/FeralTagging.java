@@ -80,9 +80,13 @@ final class FeralTagging {
             }
             wrote = FeralData.writeIfAbsent(mob, frontierDistance, false);
         }
-        boolean rung = DifficultyAPI.applyFeralRung(mob);
+        String rung = switch (DifficultyAPI.applyFeralRung(mob)) {
+            case APPLIED -> "applied";
+            case ALREADY_RUNG -> "not applied, another rung holds the mob";
+            case NO_PATH_TIP -> "not applied, no path tip";
+        };
         OUT.debug("[Feral] tagged " + EntityType.getKey(mob.getType()) + " at " + mob.blockPosition().toShortString()
-                + (wrote ? ", record written" : ", record kept") + ", feral rung " + (rung ? "applied" : "not applied"));
+                + (wrote ? ", record written" : ", record kept") + ", feral rung " + rung);
         return true;
     }
 }

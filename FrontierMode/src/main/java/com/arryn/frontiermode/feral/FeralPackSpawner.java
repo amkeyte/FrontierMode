@@ -177,12 +177,11 @@ final class FeralPackSpawner {
     }
 
     /**
-     * Playtest ask (2026-09-22): wider aggro range. Vanilla's own {@code Attributes.FOLLOW_RANGE}
-     * default is meaningfully shorter than {@link FeralRules#packSpawnMaxDistance()} -- a pack
-     * member spawned at the far edge of the cone could land already outside its own vanilla
-     * target-acquisition range, sitting there doing nothing until the player closed most of that
-     * gap on their own. Raised to {@link FeralRules#packFollowRange()} so a pack member reliably
-     * notices and starts pursuing the moment it spawns, anywhere in the cone.
+     * Widens a pack member's aggro range. Vanilla's {@code Attributes.FOLLOW_RANGE} default is
+     * shorter than {@link FeralRules#packSpawnMaxDistance()}, so a member spawned at the far edge of
+     * the cone could land outside its own target-acquisition range and sit there until the player
+     * closed most of the gap. Raised to {@link FeralRules#packFollowRange()} so a member notices and
+     * pursues the player the moment it spawns, anywhere in the cone.
      */
     private static void applyPackFollowRange(Mob mob) {
         // A modifier owned by this key, set to a target reach: MobData keeps it across a conversion and

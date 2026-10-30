@@ -69,19 +69,21 @@ public final class DifficultyAPI {
      * {@code n} the path tip's position, the same lookup the Nether uses ({@link #pathTipPosition}). Where
      * the mob stands does not matter. The numbers live in the {@code frontiermode:ladder} MobData
      * namespace, so the one damage handler scales its hits and the first rung to reach a mob still wins.
-     * {@code n} is recorded as the rung's step, so the Info report shows the level. {@code false} if a
-     * rung already had it, or if there is no path tip yet, in which case the mob stays vanilla.
+     * {@code n} is recorded as the rung's step, so the Info report shows the level. The outcome says why
+     * nothing was written: {@link RungOutcome#ALREADY_RUNG} when a rung already had the mob, or
+     * {@link RungOutcome#NO_PATH_TIP} when there is no path tip yet, in which case the mob stays vanilla.
      */
-    public static boolean applyFeralRung(Mob mob) {
+    public static RungOutcome applyFeralRung(Mob mob) {
         OptionalInt tip = pathTipPosition(mob.getServer());
         if (tip.isEmpty() || tip.getAsInt() < 1) {
-            return false;
+            return RungOutcome.NO_PATH_TIP;
         }
         int n = tip.getAsInt();
         DifficultyRules rules = DifficultyRules.ACTIVE;
-        return Ladder.apply(mob, Ladder.RUNG_FERAL, n,
+        boolean applied = Ladder.apply(mob, Ladder.RUNG_FERAL, n,
                 LadderMath.multiplier(rules.feralHealthGrowth(), n),
                 LadderMath.multiplier(rules.feralDamageGrowth(), n));
+        return applied ? RungOutcome.APPLIED : RungOutcome.ALREADY_RUNG;
     }
 
     /**

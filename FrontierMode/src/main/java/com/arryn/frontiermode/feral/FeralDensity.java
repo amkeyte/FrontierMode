@@ -16,12 +16,9 @@ import net.minecraft.world.entity.MobCategory;
  */
 final class FeralDensity {
 
-    // Playtest feedback (2026-09-21): both the piggyback density mechanic (rollDensityCompanion,
-    // riding vanilla's own sparse natural spawn attempts) and the radius+linger despawn timer
-    // left the Wilds feeling thin and easy to just weave through -- "I need more mobs near me
-    // when I run the gauntlet." Turned off in favor of the pack's direct force-spawn-near-the-player
-    // approach, a plain static flag, not a code deletion -- easy to flip back and compare if the new
-    // approach doesn't land either.
+    // Switched off in favor of the pack's direct force-spawn near the player (FeralPackSpawner): the
+    // density companion can only ride a spawn attempt vanilla chooses to make, which is too sparse to
+    // guarantee an encounter. A plain flag and not a deletion, so it can be flipped back to compare.
     private static final boolean ENABLED = false;
 
     // Candidate spots MobSpawns.scatter tries for one density companion.
@@ -54,12 +51,10 @@ final class FeralDensity {
     }
 
     /**
-     * Design ruling (project owner, 2026-09-18): density scales with raw distance, uncapped --
-     * "steadily more," not a flat multiplier that flattens out. {@code MobSpawnEvent.FinalizeSpawn}
-     * fires per already-decided spawn attempt rather than controlling how many attempts vanilla
-     * makes, so this is still an approximation of a true spawn-rate multiplier -- same acknowledged
-     * limitation as Sick Wildlife's own density boost -- just no longer bounded to "at most one
-     * extra."
+     * Density scales with raw distance and is uncapped: steadily more, not a flat multiplier that
+     * flattens out. {@code MobSpawnEvent.FinalizeSpawn} fires per already-decided spawn attempt rather
+     * than controlling how many attempts vanilla makes, so this is an approximation of a true
+     * spawn-rate multiplier, the same limitation as Sick Wildlife's own density boost.
      *
      * <p>{@link FeralLogic#expectedDensityCount} returns a real-valued expectation, not a count --
      * turned into an actual integer the standard unbiased way: the whole part spawns
@@ -77,10 +72,9 @@ final class FeralDensity {
 
         int count = MobSpawns.rollCount(expected, FeralRules.densityMaxPerEvent(), level.getRandom());
 
-        // FRO_128 follow-up (project owner, 2026-09-21): clamp to remaining room under
-        // FeralRules.maxAliveFeral() -- the density mechanic, not natural spawns/tagging, is what
-        // actually drives the "border wall eats the whole mob cap" problem, so this is the one
-        // place the cap needs enforcing. countAliveFeral() reads presence.
+        // Clamp to the room left under FeralRules.maxAliveFeral(): the density mechanic, not natural
+        // spawns or tagging, is what can build a wall of mobs that eats the mob cap, so this is the one
+        // place the cap is enforced. countAliveFeral() reads presence.
         int room = FeralRules.maxAliveFeral() - countAliveFeral(level);
         if (room <= 0) {
             return;

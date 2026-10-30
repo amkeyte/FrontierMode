@@ -82,23 +82,21 @@ final class FeralCleanup {
      * ({@link #LEGACY_DISTANCE_DESPAWN_ENABLED}); kept so it is a one-flag flip to compare against
      * {@link #despawnIfBeyondPackRadius}.
      */
-    @SuppressWarnings("UnusedReturnValue")
-    private static boolean despawnWithLegacyLinger(ServerLevel level, Mob monster, Map<UUID, TickDelay> timers) {
+    private static void despawnWithLegacyLinger(ServerLevel level, Mob monster, Map<UUID, TickDelay> timers) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.despawnRadius();
         if (!farFromEveryPlayer) {
             timers.remove(monster.getUUID());
-            return false;
+            return;
         }
 
         TickDelay timer = timers.computeIfAbsent(monster.getUUID(),
                 id -> new TickDelay(FeralRules.despawnLingerTicks(), level::getGameTime));
         if (!timer.allow()) {
-            return false;
+            return;
         }
         monster.discard();
         timers.remove(monster.getUUID());
-        return true;
     }
 
     /**
@@ -109,21 +107,19 @@ final class FeralCleanup {
      * passed a mob: with the speed boost it can trail a sprinter indefinitely without ever covering a
      * large radius, quietly eating the cap.
      */
-    @SuppressWarnings("UnusedReturnValue")
-    private static boolean despawnIfBeyondPackRadius(ServerLevel level, Mob monster) {
+    private static void despawnIfBeyondPackRadius(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         if (nearest == null) {
             monster.discard();
-            return true;
+            return;
         }
 
         boolean ahead = FeralPackSpawner.isAheadOfPlayer(monster, nearest.position(), nearest.getYRot());
         double radius = ahead ? FeralRules.packDespawnRadius() : FeralRules.packBehindDespawnRadius();
         if (monster.distanceTo(nearest) <= radius) {
-            return false;
+            return;
         }
         monster.discard();
-        return true;
     }
 
     /**
@@ -131,15 +127,13 @@ final class FeralCleanup {
      * {@link FeralRules#ambientDespawnRadius()} from every player it was never going to be encountered
      * and only sits on the cap. A flat distance check, no direction, no linger.
      */
-    @SuppressWarnings("UnusedReturnValue")
-    private static boolean despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
+    private static void despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.ambientDespawnRadius();
         if (!farFromEveryPlayer) {
-            return false;
+            return;
         }
         monster.discard();
-        return true;
     }
 
     /**

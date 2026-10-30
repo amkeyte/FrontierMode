@@ -95,12 +95,12 @@ final class DifficultyHandlers {
      * The ordinary growth at the mob's own position: the ambient Difficulty there, if it is 2 or more.
      * Ordinary hostiles and allies share the numbers and differ only in the rung they record.
      */
-    private static boolean applyAmbientRung(ServerLevel level, Mob mob, String rung) {
+    private static void applyAmbientRung(ServerLevel level, Mob mob, String rung) {
         OptionalInt difficulty = Ladder.RUNG_ORDINARY.equals(rung) && level.dimension() == Level.NETHER
                 ? netherDifficulty(level)
                 : ambientDifficulty(level, mob.blockPosition());
         if (difficulty.isEmpty() || difficulty.getAsInt() < 2) {
-            return false;
+            return;
         }
 
         DifficultyRules rules = DifficultyRules.ACTIVE;
@@ -111,7 +111,6 @@ final class DifficultyHandlers {
         if (applied) {
             OUT.debug("[Difficulty] " + rung + " rung n=" + n + " on " + mob.getType() + " at " + mob.blockPosition());
         }
-        return applied;
     }
 
     /**
@@ -127,9 +126,9 @@ final class DifficultyHandlers {
     }
 
     /**
-     * Owner's ruling (FRO_230): "all Nether mobs" scale, so in the Nether the Piglin and the Hoglin
-     * join the ladder hostiles. {@link DifficultyAPI#isLadderHostile} leaves both out (the Piglin is a
-     * barterer, the Hoglin an {@code Animal}), and everywhere else they stay vanilla.
+     * All Nether mobs scale (FRO_230), so in the Nether the Piglin and the Hoglin join the ladder
+     * hostiles. {@link DifficultyAPI#isLadderHostile} leaves both out (the Piglin is a barterer, the
+     * Hoglin an {@code Animal}), and everywhere else they stay vanilla.
      */
     private static boolean isNetherPiglinKin(ServerLevel level, Mob mob) {
         return level.dimension() == Level.NETHER && (mob instanceof Piglin || mob instanceof Hoglin);
