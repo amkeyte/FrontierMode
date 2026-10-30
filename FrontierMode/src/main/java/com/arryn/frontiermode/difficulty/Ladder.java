@@ -23,7 +23,8 @@ final class Ladder {
     static final String RUNG_KEEPER_SUMMON = "keeper_summon";
 
     private static final String KEY_RUNG = "rung";
-    // Which step of the ladder the mob was put on (the Difficulty, or a Keeper's path position); 0 = none.
+    // Which step of the ladder the mob was put on (the Difficulty, a Keeper's path position, or the path
+    // tip for Feral); 0 = none, as for a Keeper's summoned vex.
     private static final String KEY_STEP = "n";
     private static final String KEY_HEALTH = "health";
     private static final String KEY_DAMAGE = "damage";
@@ -40,7 +41,7 @@ final class Ladder {
      * Writes {@code rung} and its multipliers if no rung has reached {@code mob}, then scales its
      * maximum health and heals it to the new maximum. {@code false} if the mob was already claimed
      * and is left alone. {@code step} is what the mob's level was read as (0 if the rung has none, like
-     * Feral): kept so the Info report can show it.
+     * a Keeper's summoned vex): kept so the Info report can show it.
      */
     static boolean apply(Mob mob, String rung, int step, double healthMultiplier, double damageMultiplier) {
         CompoundTag tag = new CompoundTag();

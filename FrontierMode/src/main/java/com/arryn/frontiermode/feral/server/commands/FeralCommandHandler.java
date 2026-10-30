@@ -12,10 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.scores.Team;
 
 /**
  * Backs {@code /feral debug spawn} -- same real-{@code FinalizeSpawn} shape as

@@ -9,8 +9,9 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.event.RegisterCommandsEvent;
 
 /**
- * Entry point for Feral (RM_FRO_038 "Martha") -- corrupted, distance-scaling hostile mobs native to the
- * Wilds. See wiki/frontiermode/architecture/feral.md for the technical shape.
+ * Entry point for Feral (RM_FRO_038 "Martha") -- corrupted hostile mobs native to the Wilds, as tough
+ * as the path tip's position (the highest level the player has attained) and, while that mechanic is
+ * on, denser the farther out. See wiki/frontiermode/architecture/feral.md for the technical shape.
  *
  * <p><b>Its own module, deliberately, not folded into {@code BorderModule}.</b> Feral reads
  * {@link BorderAPI#frontierDistanceAt(net.minecraft.world.level.Level, net.minecraft.core.BlockPos)}

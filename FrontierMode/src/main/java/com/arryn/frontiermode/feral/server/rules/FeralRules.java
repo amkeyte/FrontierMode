@@ -10,11 +10,9 @@ import com.arryn.satchel.common.util.out.OUT;
  * rules/constants class in this codebase follows (e.g. {@code PlayerRules},
  * {@code DefaultBossRules}).
  *
- * <p>FRO_141: twelve of these are now {@link Tunable}-backed (SAT_074) instead of plain constants
- * -- accessor <b>methods</b>, not fields, since a {@code Tunable} is constructed fresh at point of
- * use rather than cached (see that class's own doc). Every other constant in this file is still a
- * plain field, untouched -- FRO_141's own scope named exactly these twelve as the first real
- * consumer.
+ * <p>Every number here but one is {@link Tunable}-backed (SAT_074, begun in FRO_141): an accessor
+ * <b>method</b>, not a field, since a {@code Tunable} is constructed fresh at point of use rather than
+ * cached (see that class's own doc). The one plain field is {@link FeralRules#DENSITY_COMPANION_SPREAD_RADIUS}.
  */
 public final class FeralRules {
 
@@ -95,11 +93,11 @@ public final class FeralRules {
     // ------------------------------------------------------------------
 
     /**
-     * How often (ticks) each level is swept for feral-team mobs that re-entered the Frontier, and
+     * How often (ticks) each level is swept for Feral mobs that re-entered the Frontier, and
      * (since {@code FeralCleanup.despawnIfBeyondAmbientRadius}) for ambient/pack cleanup too.
      * Halved 40 -> 20 (2026-09-22, playtest diagnostics): a sprinting player loading fresh chunks
      * continuously generates ambient Feral spawns fast enough that a 2s sweep interval let the
-     * ambient count balloon well past {@code MAX_ALIVE_FERAL} between prunes -- see FRO_144's log
+     * ambient count balloon well past {@code maxAliveFeral} between prunes -- see FRO_144's log
      * for the full trace. Not the sole fix (see {@code FeralPlayerTick.maintainPack}'s own
      * doc for the actual budget bug), but a tighter interval keeps that overshoot smaller.
      */
@@ -171,14 +169,15 @@ public final class FeralRules {
     /**
      * Ceiling on how many Feral-tagged mobs (ambient natural spawns and pack members combined)
      * may be alive across a level at once -- a combined-population safety valve, not a per-
-     * mechanic budget (see {@link #maxAlivePackMembers()} for that). Originally enforced only
-     * against {@code rollDensityCompanion}'s own extra-companion spawns (that mechanic is
-     * disabled as of 2026-09-21, see {@code FeralDensity}) --
-     * {@code FeralPlayerTick.maintainPack} respects it too now, for the same reason:
-     * deliberately not the tagging decision itself ({@code FeralTagging.onHostileJoining}), which stays
-     * unconditional per the 2026-09-18 design ruling ("every hostile outside the Frontier is
-     * Feral"); only whichever mechanic is actively growing the population gets throttled once the
-     * cap is reached. Well under vanilla's 70-mob hostile cap so real spawn room always remains --
+     * mechanic budget (see {@link #maxAlivePackMembers()} for that). Read only by
+     * {@code FeralDensity.rollDensityCompanion}, which clamps a density roll to the room left under it;
+     * that mechanic is disabled as of 2026-09-21 ({@code FeralDensity}), so it has no effect today. The
+     * pack top-up does not read it: {@code FeralPlayerTick.maintainPack} is budgeted by
+     * {@link FeralRules#maxAlivePackMembers()}. Deliberately not the tagging decision itself
+     * ({@code FeralTagging.onHostileJoining}), which stays unconditional per the 2026-09-18 design
+     * ruling ("every hostile outside the Frontier is Feral"); only whichever mechanic is actively
+     * growing the population gets throttled once the cap is reached. Well under vanilla's 70-mob
+     * hostile cap so real spawn room always remains --
      * project owner's own suggested number, not derived from anything besides "well under 70."
      */
     public static int maxAliveFeral() {
@@ -268,7 +267,7 @@ public final class FeralRules {
      * FeralPackSpawner.applyPackSpeedBoost}'s speed boost lets a passed mob keep pace well enough from
      * behind that it can trail the player indefinitely without ever covering
      * {@code packDespawnRadius()} worth of raw distance, quietly eating
-     * {@link #maxAliveFeral()}'s budget forever. Small on purpose -- a short trailing beat after
+     * {@link FeralRules#maxAlivePackMembers()}'s budget forever. Small on purpose -- a short trailing beat after
      * being passed, not an instant vanish, but nowhere near the 100-block leash an ahead mob gets.
      * Widened 12 -> 20 per playtest feedback (2026-09-21, seventh pass).
      */
