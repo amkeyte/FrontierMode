@@ -13,7 +13,7 @@ import java.util.UUID;
  * The client-visible sentinel record: {@code {mobUuid, scale}} for every sentinel currently
  * present in the level. Carries no position and no {@code bossId} -- sentinels cluster around
  * their boss, so a client able to pair one with the other would learn more than the trail is meant
- * to give away. Same shape as {@link BossPublicFixture}; see sentinels.md's
+ * to give away. see sentinels.md's
  * "SentinelPublicFixture".
  *
  * <p>Written server-side as presence adopts and drops a Sentinel; the client's copy hydrates

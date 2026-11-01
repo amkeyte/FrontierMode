@@ -7,6 +7,7 @@ import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -21,6 +22,7 @@ import net.minecraftforge.fml.common.Mod;
  * <p>
  * No authority, no level mutation.
  */
+@PlatformBound(reason = "render")
 @Mod.EventBusSubscriber(
         modid = FrontierMode.MODID,
         value = Dist.CLIENT

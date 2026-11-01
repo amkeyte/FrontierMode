@@ -11,7 +11,7 @@ import java.util.Optional;
 
 /**
  * Level-scoped bundle hosting {@link SentinelPublicFixture} -- its own bundle, not folded into
- * {@link BossPublicBundle}, so sentinel churn never resends the boss records. See
+ * {@link BossBundle}, so sentinel churn never resends the boss records. See
  * sentinels.md's "SentinelPublicFixture".
  *
  * <p>Declares NETWORKING only: the fixture holds sentinels currently present, which rebuild from

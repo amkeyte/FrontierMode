@@ -7,7 +7,6 @@ import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
-import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
@@ -179,24 +178,6 @@ public final class BossAPI {
     }
 
     /**
-     * FRO_145: the client-syncable boss marker fixture, on either side. Unlike the resolvers above
-     * this never logs -- the client eye layer calls it from the render path, where
-     * "not ready yet" is the normal state for the first moments after joining a world and a
-     * per-frame debug line or exception would be noise. See boss.md's "Client-side visual marker".
-     */
-    public static Optional<BossPublicFixture> publicMarkers(Level level) {
-        if (!Satchel.isReady()) {
-            return Optional.empty();
-        }
-        LevelScope scope = new LevelScope(level);
-        if (Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_PUBLIC_JIG, scope).isEmpty()) {
-            return Optional.empty();
-        }
-        var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.BOSS_PUBLIC_JIG).jig;
-        return jig.getOrCreate(scope, FrontierKeys.BOSS_PUBLIC_BUNDLE).get(FrontierKeys.BOSS_PUBLIC);
-    }
-
-    /**
      * Resolves {@link BossSentinelsFixture} for {@code level} -- same "standby, don't crash"
      * discipline as {@link #bosses(Level)}, mirroring {@link #bossTells} exactly. Used by
      * {@code BossModule.onMobSpawnFinalize}.
@@ -246,7 +227,7 @@ public final class BossAPI {
     }
 
     /**
-     * The client-visible sentinel record on either side. Like {@link #publicMarkers(Level)}: never
+     * The client-visible sentinel record on either side. Like {@link #roster(Level)} is for the boss markers: never
      * logs -- "not ready yet" is the normal state for the first moments after joining
      * a world, and this is called from render and tick paths.
      */
@@ -452,7 +433,7 @@ public final class BossAPI {
 
         // A forced defeat has no kill, so the boss's body would otherwise stay: it leaves in a puff.
         // discard(), not kill(), so the real-death cascade doesn't re-enter (see removeBoss). One that
-        // is unloaded now is removed when it next attaches (BossMobJigHandlers.onScopeLoaded).
+        // is unloaded now is dismissed by its Boss when it next attaches.
         if (record.materialized()) {
             Satchel.require().egress().getEntity(level, record.bossEntityId())
                     .ifPresent(entity -> {

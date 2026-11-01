@@ -7,12 +7,8 @@ import com.arryn.frontiermode.boss.common.SiteOutcome;
 import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
-import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -23,7 +19,6 @@ import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -37,7 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
 
 /**
  * The level-scope Trinket on {@code BOSS_JIG} that holds a level's {@link Boss}es, on each side (wiki/
@@ -68,10 +62,6 @@ public final class BossRoster implements Ticking {
 
     private static final long FLUSH_DELAY_TICKS = 20;
 
-    /** One present boss: its base record, Keeper record, live mob, and live-view fixture. */
-    record Present(BossRecord record, KeeperRecord keeper, Mob boss, BossMobFixture mobFixture) {
-    }
-
     // By bossId, in the order the roster built them.
     private final Map<UUID, Boss> bosses = new LinkedHashMap<>();
 
@@ -91,6 +81,9 @@ public final class BossRoster implements Ticking {
     // The server's delayed durability flush; null means nothing pending.
     private TickDelay pendingFlush;
 
+    // The level's base fixture, as of the last tick; what the record lookups read.
+    private BossFixture fixture;
+
     /** Ready once the base fixture is: on a client, once the first parcel has arrived. */
     @Override
     public boolean isReady(ScopeInfo info) {
@@ -106,7 +99,7 @@ public final class BossRoster implements Ticking {
         Level level = scope.level();
 
         BossBundle bundle = info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
-        BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
+        fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
         reconcile(level, fixture);
 
@@ -126,6 +119,7 @@ public final class BossRoster implements Ticking {
                 Satchel.mobJig(FrontierKeys.BOSS_MOB_JIG).lostInterest(entityId);
             }
         }
+        fixture = null;
         held.clear();
         ended.clear();
         byEntity.clear();
@@ -164,29 +158,24 @@ public final class BossRoster implements Ticking {
     }
 
     /**
-     * Each {@code Boss} whose body is present in {@code level}, with its records and live-view fixture:
-     * the loop every {@code BOSS_JIG} tick handler repeats. A boss with no mob, no attached fixture, or no
-     * record is skipped.
+     * Whether the entity with this id is a live boss: one this roster holds whose record is alive. The lookup
+     * {@code BossMarkers} answers from, on the server and, through its cache, on the client.
      */
-    void forEachPresent(ServerLevel level, Consumer<Present> action) {
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
-        if (fixtureOpt.isEmpty() || keepersOpt.isEmpty()) {
-            return;
+    public boolean isLive(UUID entityId) {
+        return recordOf(entityId).map(BossRecord::alive).orElse(false);
+    }
+
+    /** The size multiplier of the boss with this entity id, from its record, or {@code 1.0F} for anything else. */
+    public float scaleOf(UUID entityId) {
+        return recordOf(entityId).map(BossRecord::scale).orElse(1.0F);
+    }
+
+    private Optional<BossRecord> recordOf(UUID entityId) {
+        Boss boss = byEntity.get(entityId);
+        if (boss == null || fixture == null) {
+            return Optional.empty();
         }
-        for (Boss boss : List.copyOf(bosses.values())) {
-            Optional<Mob> mobOpt = boss.mob();
-            if (mobOpt.isEmpty()) {
-                continue;
-            }
-            Optional<BossRecord> recordOpt = fixtureOpt.get().get(boss.bossId());
-            Optional<KeeperRecord> keeperOpt = keepersOpt.get().get(boss.bossId());
-            if (recordOpt.isEmpty() || keeperOpt.isEmpty()) {
-                continue;
-            }
-            BossMobFixture.of(mobOpt.get()).ifPresent(mobFixture ->
-                    action.accept(new Present(recordOpt.get(), keeperOpt.get(), mobOpt.get(), mobFixture)));
-        }
+        return fixture.get(boss.bossId());
     }
 
     // ------------------------------------------------------------------

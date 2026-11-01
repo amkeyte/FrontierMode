@@ -10,6 +10,7 @@ import com.arryn.frontiermode.diorite.DioriteEntities;
 import com.arryn.frontiermode.diorite.DioriteItems;
 import com.arryn.frontiermode.siting.SitingModule;
 import com.arryn.frontiermode.coordination.SpawnCoordinator;
+import com.arryn.frontiermode.core.CoreModule;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.bosstell.BossTellModule;
@@ -17,6 +18,7 @@ import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.feral.FeralModule;
 import com.arryn.frontiermode.keeper.KeeperModule;
 import com.arryn.frontiermode.structure.StructureModule;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
@@ -37,6 +39,7 @@ import net.minecraftforge.registries.RegistryObject;
 //'ResourceLocation(java.lang.String, java.lang.String)' is deprecated since version 1.20.6 and marked for removal
 
 
+@PlatformBound(reason = "registration, commands")
 @Mod(FrontierMode.MODID)
 public final class FrontierMode {
 
@@ -161,6 +164,10 @@ public final class FrontierMode {
 
         // FRO_155: silence vanilla's per-death log line for our own named mobs (Feral, Boss).
         LogFilters.install();
+
+        // RM_FRO_062 ("Joanne"): core, where code lives that two or more modules use. Depends on no module, and
+        // the modules that register a scale source depend on it, so it inits first.
+        CoreModule.init();
 
         // Initialize the Border module (fixtures, tick handler, commands)
         BorderModule.init();

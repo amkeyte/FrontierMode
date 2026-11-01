@@ -6,7 +6,6 @@ import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
-import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.keeper.KeeperAPI;
@@ -49,16 +48,11 @@ final class BossJigHandlers {
         // BOSS_JIG is BOTH, so this handler is invoked on a client too; the server-only work below has not
         // moved off it yet (boss nodes B to G), and its fixture mutations call Satchel.requireServer().
         BossBundle bundle = info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
-        BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
         SentinelJigHandlers.onBossTick(level, bundle);
         if (level instanceof ServerLevel serverLevel) {
-            BossHealthBarHandlers.onBossTick(serverLevel, fixture);
-            BossDefenseHandlers.onBossTick(serverLevel, bundle);
-            BossLeashHandlers.onBossTick(serverLevel, fixture);
-            // FRO_224: a scaled Keeper's path advances like a Sentinel's.
-            BossAPI.roster(serverLevel).ifPresent(roster ->
-                    roster.forEachPresent(serverLevel, present -> WidePathing.advanceIfOnWaypoint(present.boss())));
+            // Alerts whose window has lapsed are let go: a per-level Sentinel call, not a per-boss one.
+            bundle.sentinels().ifPresent(sentinels -> sentinels.releaseLapsedAlerts(serverLevel));
         }
 
         reconcilePathAgainstBossRecords(level);
@@ -134,9 +128,6 @@ final class BossJigHandlers {
         if (bossOpt.isEmpty()) {
             return;
         }
-
-        // FRO_145: flag the client marker not-alive ahead of its release at MobLostInterest.
-        BossAPI.publicMarkers(level).ifPresent(m -> m.markDead(mob.getUUID()));
 
         bossOpt.get().onDeath(mob);
     }

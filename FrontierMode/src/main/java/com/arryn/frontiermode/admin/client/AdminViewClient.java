@@ -7,6 +7,7 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 import com.arryn.frontiermode.boss.BossMarkers;
 import com.arryn.frontiermode.boss.SentinelMarkers;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -48,6 +49,7 @@ import java.util.Set;
  * Forge's client and server command graphs are separate, so this runs locally regardless of the
  * server's own {@code /admin} tree. Client-only ({@code Dist.CLIENT}).
  */
+@PlatformBound(reason = "commands")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, value = Dist.CLIENT)
 public final class AdminViewClient {
 

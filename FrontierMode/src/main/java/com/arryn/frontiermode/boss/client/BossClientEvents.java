@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss.client;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.boss.common.BossMobTypes;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -24,6 +25,7 @@ import net.minecraftforge.fml.common.Mod;
  * <p>MOD-bus, {@code Dist.CLIENT}-only (same registration shape as {@code AmethystCompassClient}),
  * so none of these client classes are ever loaded on a dedicated server.
  */
+@PlatformBound(reason = "render")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class BossClientEvents {
 

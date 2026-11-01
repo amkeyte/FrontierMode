@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.boss.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.EntityModel;
@@ -19,8 +18,8 @@ import net.minecraft.world.entity.LivingEntity;
  * by day). One layer instance per boss-eligible mob type, each with that model's own eye-overlay
  * texture (UV layouts differ per species); see {@link BossClientEvents}.
  *
- * <p>The per-entity gate is "does this entity's UUID appear, alive, in the client's own copy of
- * {@link BossPublicFixture}" (via {@link BossMarkers}) -- not the vanilla {@code Glowing} tag or a
+ * <p>The per-entity gate is "does the client's own roster hold this entity's UUID with an alive record"
+ * (via {@link BossMarkers}) -- not the vanilla {@code Glowing} tag or a
  * scoreboard team (boss.md's "Client-side visual marker"). Plain vanilla mobs of the same type are
  * untouched.
  */

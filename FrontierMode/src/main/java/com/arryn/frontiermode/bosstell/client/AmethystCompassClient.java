@@ -2,6 +2,7 @@ package com.arryn.frontiermode.bosstell.client;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.StackData;
 import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -46,6 +47,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
  * {@code layer0} pointing at those files directly, and no {@code RegisterColorHandlersEvent}
  * registration is needed at all -- only the "angle" property below still applies.
  */
+@PlatformBound(reason = "registration")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class AmethystCompassClient {
 

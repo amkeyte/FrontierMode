@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.boss;
 
+import com.arryn.frontiermode.core.WidePathing;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.client.SentinelTrailClient;

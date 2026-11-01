@@ -1,5 +1,7 @@
 package com.arryn.frontiermode.boss.common;
 
+import com.arryn.frontiermode.boss.Boss;
+import com.arryn.satchel.common.trinket.DynamicTrinket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
@@ -63,4 +65,12 @@ public interface BossKind {
      * {@code credited} is empty for a defeat with no killer.
      */
     void onDefeat(Level level, UUID bossId, Mob mob, Optional<ServerPlayer> credited);
+
+    /**
+     * Subscribes the kind's mob-side abilities, with their settings, to {@code host}, the dynamic host of the boss's
+     * mob scope, on the side this runs on (boss.md § Abilities, § Sides). Called as the scope attaches, after the base
+     * has subscribed its own, for a boss whose record is alive. A subscriber lives with the scope, so nothing here
+     * is saved.
+     */
+    void subscribeAbilities(Level level, Boss boss, DynamicTrinket host);
 }

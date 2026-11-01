@@ -5,8 +5,13 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.boss.BodyScale;
+import com.arryn.frontiermode.boss.Boss;
 import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.boss.CreditTally;
+import com.arryn.frontiermode.boss.HealthBar;
 import com.arryn.frontiermode.boss.KeeperLoot;
+import com.arryn.frontiermode.boss.Leash;
 import com.arryn.frontiermode.boss.SentinelJigHandlers;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
@@ -23,6 +28,8 @@ import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
+import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.trinket.DynamicTrinket;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -260,6 +267,33 @@ public final class KeeperKind implements BossKind {
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
         BossSentinelsFixture.ensureSentinelCurves(level, result.border().id());
+    }
+
+    /**
+     * The Keeper's mob-side abilities (keeper.md § Abilities). The hitbox follows the record's scale on both sides; the
+     * rest are the server's: the damage tally, the leash (the first Keeper has its own, shorter radius), the health bar
+     * for a milestone Keeper, and the Sentinels' defense.
+     */
+    @Override
+    public void subscribeAbilities(Level level, Boss boss, DynamicTrinket host) {
+        host.subscribe(new BodyScale());
+        if (!Satchel.isServer()) {
+            return;
+        }
+        Optional<KeeperRecord> keeperOpt = keeper(level, boss.bossId());
+        if (keeperOpt.isEmpty()) {
+            return;
+        }
+        KeeperRecord keeper = keeperOpt.get();
+        BossRulesFacet rules = rules(level);
+
+        host.subscribe(new CreditTally(boss));
+        double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? rules.bossLeashRadiusFirst() : rules.bossLeashRadius();
+        host.subscribe(new Leash(boss, radius));
+        if (KeeperAPI.isMilestone(keeper)) {
+            host.subscribe(new HealthBar(boss));
+        }
+        host.subscribe(new Defense(boss));
     }
 
     /**

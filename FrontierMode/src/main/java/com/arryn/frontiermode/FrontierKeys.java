@@ -9,14 +9,10 @@ import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.WildsTellFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
-import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
-import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
-import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.keeper.common.bundle.KeeperBundle;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
@@ -114,11 +110,10 @@ public final class FrontierKeys {
                     WildsTellFixture.class
             );
 
-    // RM_FRO_018 (Shirley): Boss entity/spawn system. Two independent jig configs -- BossFixture
-    // is LevelJig-scoped (one record collection per level, persisted), BossMobFixture is
-    // MobJig-scoped (one live view per currently-materialized boss entity, not persisted). See
-    // BossModule.init() for the schema/config wiring, and wiki/frontiermode/architecture/boss.md
-    // for the design these keys back.
+    // RM_FRO_018 (Shirley): Boss entity/spawn system. Two independent jigs -- BOSS_JIG is LevelJig-scoped (one
+    // record collection per level, persisted and networked), BOSS_MOB_JIG is MobJig-scoped (the mob-side abilities
+    // of each currently-present boss entity, with no bundle). See BossModule.init() for the wiring, and
+    // wiki/frontiermode/architecture/boss.md for the design these keys back.
 
     public static final BundleKey<BossBundle> BOSS_BUNDLE =
             new BundleKey<>(
@@ -138,43 +133,10 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    public static final BundleKey<BossMobBundle> BOSS_MOB_BUNDLE =
-            new BundleKey<>(
-                    "frontiermode:boss_mob_bundle",
-                    BossMobBundle.class
-            );
-
-    public static final FixtureKey<BossMobFixture> BOSS_MOB =
-            new FixtureKey<>(
-                    "frontiermode:boss_mob_fixture",
-                    BossMobFixture.class
-            );
-
     public static final JigKey<MobJig> BOSS_MOB_JIG =
             new JigKey<>(
                     "frontiermode:boss_mob_jig",
                     MobJig.class
-            );
-
-    // FRO_145: BossPublicFixture -- the client-syncable "this entity is a boss" signal, in its own
-    // BOTH-applicability jig. See BossModule.registerBossPublicJig() and boss.md's "Client-side visual marker".
-
-    public static final BundleKey<BossPublicBundle> BOSS_PUBLIC_BUNDLE =
-            new BundleKey<>(
-                    "frontiermode:boss_public_bundle",
-                    BossPublicBundle.class
-            );
-
-    public static final FixtureKey<BossPublicFixture> BOSS_PUBLIC =
-            new FixtureKey<>(
-                    "frontiermode:boss_public_fixture",
-                    BossPublicFixture.class
-            );
-
-    public static final JigKey<LevelJig> BOSS_PUBLIC_JIG =
-            new JigKey<>(
-                    "frontiermode:boss_public_jig",
-                    LevelJig.class
             );
 
     // RM_FRO_030 (Janice): BossTellFixture -- sibling fixture in BOSS_BUNDLE alongside
@@ -293,6 +255,12 @@ public final class FrontierKeys {
 
     public static final IngressKey BOSS_INGRESS =
             new IngressKey("frontiermode:boss");
+
+    // RM_FRO_062 ("Joanne"): names core's ingress, which carries HitboxResize and its one consumer. Wired in
+    // CoreIngress.build(), registered from CoreModule.init().
+
+    public static final IngressKey CORE_INGRESS =
+            new IngressKey("frontiermode:core");
 
     public static final IngressKey BORDER_INGRESS =
             new IngressKey("frontiermode:border");

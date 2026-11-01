@@ -4,16 +4,13 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
 import com.arryn.frontiermode.border.common.navigator.TargetType;
+import com.arryn.frontiermode.core.EntityScales;
 import com.arryn.frontiermode.boss.common.items.SunWardItem;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
-import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
-import com.arryn.frontiermode.boss.common.bundle.BossPublicBundle;
 import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.server.commands.BossCommands;
@@ -23,12 +20,10 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
-import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
-import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
@@ -73,10 +68,10 @@ public final class BossModule {
         OUT.info("FrontierMode - Boss Module Initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> buildBossJig());
-        registerBossMobJig();
-        registerBossPublicJig();
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> buildBossMobJig());
         registerSentinelPublicJig();
         registerNavigatorResolver();
+        EntityScales.register(new BossScaleSource());
     }
 
     /** Registers {@code /boss} commands. */
@@ -174,91 +169,34 @@ public final class BossModule {
         return config;
     }
 
-    // ── BOSS_PUBLIC_JIG ──────────────────────────────────────────────────────
-
-    /**
-     * FRO_145: the client-syncable boss marker signal, in its own BOTH-applicability jig. Written
-     * server-side at the {@code BOSS_MOB_JIG} attach/release hooks; read client-side by the eye render
-     * layer.
-     */
-    private static void registerBossPublicJig() {
-        var bossPublicFixture =
-                new JigBundles.FixtureDecl<>(
-                        FrontierKeys.BOSS_PUBLIC,
-                        BossPublicFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
-        var bossPublicBundle =
-                new JigBundles.BundleDecl<>(
-                        FrontierKeys.BOSS_PUBLIC_BUNDLE,
-                        (LevelScope scope) -> new BossPublicBundle(scope, FrontierKeys.BOSS_PUBLIC_BUNDLE),
-                        List.of(bossPublicFixture)
-                );
-
-        LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_PUBLIC_JIG);
-        // Networking requires BOTH (JigConfigValidator).
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-        config.bundles().schema(new JigBundles.Schema<>(List.of(bossPublicBundle)));
-        // Same two-call requirement BORDERS_JIG documents: capability AND matching policy.
-        // Networking is what lets the client-side bundle receive a parcel at all (FRO_115).
-        config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
-        config.policies().persistence(
-                new JigPolicies.Persistence(
-                        true,
-                        JigPolicies.FlushPolicy.EXECUTION_PULSE,
-                        JigPolicies.MissingDataPolicy.WARN));
-        // withExecutionPulse(true): persistence flush and client sync only ever run from the
-        // execution pulse (the FRO_018 lesson). The tick is client-side only, for the boss's
-        // close-range flash.
-        config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
-                .eventHandlers(EventHandlers.builder()
-                        .on(ScopeEvent.Tick.class, BossPublicJigHandlers::onTick)
-                        .build());
-
-        Satchel.registerJigConfig(config);
-    }
-
     // ── BOSS_MOB_JIG ─────────────────────────────────────────────────────────
 
-    private static void registerBossMobJig() {
-        var bossMobFixture =
-                new JigBundles.FixtureDecl<>(
-                        FrontierKeys.BOSS_MOB,
-                        BossMobFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
-        var bossMobBundle =
-                new JigBundles.BundleDecl<>(
-                        FrontierKeys.BOSS_MOB_BUNDLE,
-                        (MobScope scope) -> new BossMobBundle(scope, FrontierKeys.BOSS_MOB_BUNDLE),
-                        List.of(bossMobFixture)
-                );
-
+    /**
+     * The mob jig that holds the mob-side abilities, {@code BOTH} like {@code BOSS_JIG} and registered after it: each
+     * side's roster pushes that side's interest, and the kind subscribes its abilities once, each on the side it
+     * applies to. The jig holds no bundle and no handler on {@code MobGainedInterest} or {@code MobLostInterest}: the
+     * mob scope's Trinket attach, {@code Leaving} and detach are the hooks.
+     */
+    private static MobJigConfig buildBossMobJig() {
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(ScopeEvent.MobGainedInterest.class, BossMobJigHandlers::onScopeLoaded)
-                        .on(ScopeEvent.MobLostInterest.class, BossMobJigHandlers::onScopeUnloaded)
                         // Bare, unscoped signals -- declared here only because this is the topically
                         // closest config, not a claim they are BOSS_MOB_JIG-scoped.
-                        .on(LivingDamageSignal.class, KeeperCombatHandlers::onLivingDamage)
                         .on(LivingChangeTargetSignal.class, KeeperCombatHandlers::onChangeTarget)
                         .on(LivingConversionSignal.class, KeeperCombatHandlers::onConversion)
                         .build();
 
         MobJigConfig config = new MobJigConfig(FrontierKeys.BOSS_MOB_JIG);
-        // Defeat detection is server-only. MobJigConfig has no default; must be stated explicitly.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
-        config.bundles().schema(new JigBundles.Schema<>(List.of(bossMobBundle)));
+        config.bundles().schema(new JigBundles.Schema<>(List.of()));
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
                 .eventHandlers(eventHandlers);
 
-        // The dynamic host holds the Boss as a subscriber and forwards Leaving to it; MobAbilities, declared
-        // after it, finds the mob's Boss through the roster and subscribes it.
+        // The dynamic host holds the Boss and the kind's abilities as subscribers and forwards Leaving to them;
+        // MobAbilities, declared after it, finds the mob's Boss through the roster and subscribes them.
         config.trinkets().declare(DynamicTrinket.class, DynamicTrinket::new);
         config.trinkets().declare(MobAbilities.class, MobAbilities::new);
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     // ── SENTINEL_PUBLIC_JIG ──────────────────────────────────────────────────

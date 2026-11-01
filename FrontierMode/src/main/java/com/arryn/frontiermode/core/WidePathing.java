@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss;
+package com.arryn.frontiermode.core;
 
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.pathfinder.Path;
@@ -16,9 +16,10 @@ import net.minecraft.world.phys.Vec3;
  *
  * <p>{@link #advanceIfOnWaypoint} advances the path by one node when the mob is on the very
  * waypoint the move controller is walking it to (the entity position {@code Path} itself computes),
- * within the same reach vanilla uses. Narrow mobs are left to vanilla.
+ * within the same reach vanilla uses. Narrow mobs are left to vanilla. Used by the Boss module's {@code Leash} and the
+ * Sentinels.
  */
-final class WidePathing {
+public final class WidePathing {
 
     // Vanilla's own threshold for the reach formula: wider than this, reach is half the width.
     private static final float WIDE = 0.75F;
@@ -26,7 +27,7 @@ final class WidePathing {
     private WidePathing() {
     }
 
-    static void advanceIfOnWaypoint(Mob mob) {
+    public static void advanceIfOnWaypoint(Mob mob) {
         if (mob.getBbWidth() <= WIDE || !mob.onGround()) {
             return;
         }

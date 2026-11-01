@@ -345,8 +345,7 @@ public final class BossFixture extends SatchelFixture {
     /**
      * Deletes a boss record outright (backing {@code /boss delete}, reached through
      * {@link com.arryn.frontiermode.boss.BossAPI#removeBoss}), then announces the removal to the record's kind
-     * ({@link BossKind#onRemoved}), which drops its own record. No paired cleanup is needed here:
-     * {@link com.arryn.frontiermode.boss.common.fixture.BossMobFixture} is never persisted and
+     * ({@link BossKind#onRemoved}), which drops its own record. No paired cleanup is needed here: the mob's scope
      * tears down on its own via {@code MobJig}'s reason-agnostic scope teardown if the removed
      * record still had a live entity (see boss.md's "Known limitation" section -- same
      * indistinguishable-from-chunk-unload shape applies here as everywhere else).
