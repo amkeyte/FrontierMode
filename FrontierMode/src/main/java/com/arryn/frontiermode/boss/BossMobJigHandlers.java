@@ -44,10 +44,9 @@ final class BossMobJigHandlers {
             return;
         }
 
-        // A boss whose record is already defeated (a forced /boss defeat while it was unloaded) leaves
-        // in a puff instead of attaching; a real defeat kills the body, so this never sees one.
+        // A boss whose record is already defeated (a forced /boss defeat while it was unloaded) is dismissed
+        // by its Boss on attach; it takes no fixture and no marker.
         if (!recordOpt.get().alive()) {
-            BossAPI.bosses(mob.level()).ifPresent(f -> f.RULES.dismiss(mob));
             return;
         }
 

@@ -1,13 +1,17 @@
 package com.arryn.frontiermode.boss.common;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * The strategy a boss's kind supplies (boss.md § BossKind): what differs between kinds, while the base
- * record supplies what does not. The hooks take the {@code Level} so a kind reaches its own fixture and the
- * other modules' APIs; a kind returns plain values.
+ * record and the {@code Boss} lifecycle supply what does not. A hook takes the {@code Level} so a kind
+ * reaches its own fixture and the other modules' APIs, and makes no platform calls itself.
  *
  * <p>A kind that keeps a record of its own writes it in {@link #onCreate} and drops it in
  * {@link #onRemoved}. Registered in {@link BossKinds} by the module that owns the kind.
@@ -32,4 +36,31 @@ public interface BossKind {
 
     /** The base record for {@code bossId} has just been removed; the kind drops its own record and does the rest of its removal. */
     void onRemoved(Level level, UUID bossId);
+
+    /**
+     * The position to commit for {@code bossId}, once the kind says it is final, or empty to wait. Called each
+     * tick while the record has no position.
+     */
+    Optional<BlockPos> positionReady(Level level, UUID bossId);
+
+    /**
+     * Prepares the site at {@code position} before the spawn. Called once the chunk is loaded, each tick the
+     * spawn is due, so it must be idempotent.
+     */
+    SiteOutcome prepareSite(Level level, UUID bossId, BlockPos position);
+
+    /**
+     * Spawns the boss's mob at {@code position} and adds it to the level, returning it with the body size the
+     * base stores. Empty if the spawn is declined; the base then materializes nothing and asks again next tick.
+     */
+    Optional<Spawned> spawn(Level level, UUID bossId, BlockPos position);
+
+    /** Whether a death on the combat path is a defeat. The base asks once, before it marks the record defeated. */
+    DeathVerdict judgeDeath(Level level, UUID bossId, BossDeath death);
+
+    /**
+     * What a defeat does. Called after the base has marked the record defeated and scheduled the flush.
+     * {@code credited} is empty for a defeat with no killer.
+     */
+    void onDefeat(Level level, UUID bossId, Mob mob, Optional<ServerPlayer> credited);
 }

@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.keeper;
 
+import com.arryn.frontiermode.boss.BossPositionListeners;
 import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
@@ -19,5 +20,6 @@ public final class KeeperModule {
         OUT.info("FrontierMode - Keeper Module Initiating.");
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> KeeperJigConfig.build());
         BossKinds.register(new KeeperKind());
+        BossPositionListeners.register(KeeperPositionListener::onBossPositioned);
     }
 }

@@ -11,6 +11,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
@@ -262,10 +263,40 @@ public final class BossAPI {
     }
 
     /**
-     * Explicit admin removal (FRO_057's {@code /boss delete}) -- deletes the record via
-     * {@link BossCrudFacet#remove(UUID)}, which announces the removal to the record's kind (the Keeper's marks
-     * the removed record's border {@code pendingAttach} if it was still on-path), then despawns the live
-     * entity. See wiki/frontiermode/architecture/boss.md#aliveness-and-removal.
+     * The level's {@link BossRoster}, or empty when Satchel is not ready or the roster has not seen its first
+     * parcel yet (the same "standby, don't crash" discipline as {@link #bosses(Level)}). {@code bosses}
+     * answers the base records; the roster answers the {@link Boss}es built from the whole entries.
+     */
+    public static Optional<BossRoster> roster(Level level) {
+        if (!Satchel.isReady()) {
+            return Optional.empty();
+        }
+        return Satchel.trinket(FrontierKeys.BOSS_JIG, new LevelScope(level), BossRoster.class);
+    }
+
+    /**
+     * Forces materialization of {@code bossId} regardless of chunk-loaded state -- used by
+     * {@code /boss mob spawn}. Goes through the same {@link Boss} path as the tick, with the differences the
+     * admin command has: it loads the chunk synchronously, works on a record that has no entity or a stale
+     * one, and clears the respawn state. An entry that is not whole answers {@code NO_RECORD}.
+     */
+    public static MaterializeOutcome forceMaterialize(Level level, UUID bossId) {
+        Optional<BossFixture> fixtureOpt = bosses(level);
+        Optional<BossRoster> rosterOpt = roster(level);
+        if (fixtureOpt.isEmpty() || rosterOpt.isEmpty()) {
+            OUT.warn("[Boss] forceMaterialize(): BossFixture or roster not available for level "
+                    + level.dimension().location() + " -- bossId=" + bossId);
+            return MaterializeOutcome.NO_RECORD;
+        }
+        return rosterOpt.get().forceMaterialize(level, fixtureOpt.get(), bossId);
+    }
+
+    /**
+     * Explicit admin removal (FRO_057's {@code /boss delete}), in the page's order: mark the {@link Boss}
+     * retiring and despawn the live entity, then delete the record via {@link BossCrudFacet#remove(UUID)},
+     * which announces the removal to the record's kind (the Keeper's marks the removed record's border
+     * {@code pendingAttach} if it was still on-path). See
+     * wiki/frontiermode/architecture/boss.md#aliveness-and-removal.
      *
      * <p><b>FRO_061 (project owner ruling):</b> if the removed record was materialized, its live
      * entity is despawned via {@code Satchel.require().egress().getEntity(...)} -- the same
@@ -290,14 +321,14 @@ public final class BossAPI {
         }
         BossFixture fixture = fixtureOpt.get();
 
-        // Captured before remove() -- the record (and its entity id) is gone from the fixture
-        // once remove() returns true.
         Optional<BossRecord> recordOpt = fixture.CRUD.get(bossId);
-
-        boolean removed = fixture.CRUD.remove(bossId);
-        if (!removed) {
+        if (recordOpt.isEmpty()) {
             return false;
         }
+
+        // The Boss is marked retiring before its body is discarded, so the generic rule never reads the
+        // discard as a loss.
+        roster(level).flatMap(roster -> roster.boss(bossId)).ifPresent(Boss::retire);
 
         // FRO_061: despawn the live entity, silently -- see this method's own doc for why
         // discard() (not kill()) is the deliberate choice.
@@ -306,7 +337,7 @@ public final class BossAPI {
                 .flatMap(record -> Satchel.require().egress().getEntity(level, record.bossEntityId()))
                 .ifPresent(Entity::discard);
 
-        return true;
+        return fixture.CRUD.remove(bossId);
     }
 
     /**
@@ -411,6 +442,14 @@ public final class BossAPI {
         // A forced defeat kills the boss's sentinels uncredited: drops, no XP.
         SentinelJigHandlers.onBossDefeated(level, bossId, null);
 
+        // A defeat clears the Boss's respawn state, and its dismissal below is the project's own removal of
+        // the body, so the Boss is marked retiring first.
+        Optional<Boss> bossOpt = roster(level).flatMap(roster -> roster.boss(bossId));
+        bossOpt.ifPresent(boss -> {
+            boss.clearRespawnState();
+            boss.retire();
+        });
+
         // A forced defeat has no kill, so the boss's body would otherwise stay: it leaves in a puff.
         // discard(), not kill(), so the real-death cascade doesn't re-enter (see removeBoss). One that
         // is unloaded now is removed when it next attaches (BossMobJigHandlers.onScopeLoaded).
@@ -425,7 +464,7 @@ public final class BossAPI {
 
         // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
         // gating below stops growth right here -- see boss.md's "Cascade durability".
-        fixture.scheduleForceFlush();
+        roster(level).ifPresent(BossRoster::scheduleFlush);
 
         // FRO_083 (boss.md "Cascade gating: on-path, and last one standing"), mirrors the
         // identical check BossModule.onLivingDeath() runs right after its own markDefeated() --

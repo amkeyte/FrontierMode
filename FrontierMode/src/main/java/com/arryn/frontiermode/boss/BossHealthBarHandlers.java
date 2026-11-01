@@ -18,8 +18,8 @@ final class BossHealthBarHandlers {
     static void onBossTick(ServerLevel level, BossFixture fixture) {
         int lingerTicks = fixture.RULES.bossBarLingerTicks();
 
-        PresentBosses.forEach(level, fixture, present ->
+        BossAPI.roster(level).ifPresent(roster -> roster.forEachPresent(level, present ->
                 present.mobFixture().tickHealthBar(level, present.boss(),
-                        KeeperAPI.isMilestone(present.keeper()), lingerTicks));
+                        KeeperAPI.isMilestone(present.keeper()), lingerTicks)));
     }
 }

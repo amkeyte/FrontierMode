@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.boss;
 
-import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
@@ -20,7 +19,7 @@ final class KeeperCombatHandlers {
     }
 
     /**
-     * Tallies the health a player actually removed from a boss, on its {@link BossMobFixture}
+     * Tallies the health a player actually removed from a boss, on its {@link Boss}
      * (boss.md § Player credit and non-player death). Counts damage whose causing entity is a player --
      * melee, arrows, tridents, TNT a player lit -- at {@code healthRemoved()}: after armor, capped at
      * the boss's remaining health. A pet's hit is not the player's own.
@@ -29,7 +28,8 @@ final class KeeperCombatHandlers {
         if (!(signal.entity() instanceof Mob boss) || !(signal.source().getEntity() instanceof ServerPlayer)) {
             return;
         }
-        BossMobFixture.of(boss).ifPresent(fixture -> fixture.addPlayerDamage(signal.healthRemoved()));
+        BossAPI.roster(boss.level()).flatMap(roster -> roster.bossFor(boss.getUUID()))
+                .ifPresent(tracked -> tracked.addPlayerDamage(signal.healthRemoved()));
     }
 
     /**

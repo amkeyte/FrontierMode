@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
-import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import net.minecraft.server.level.ServerLevel;
 
@@ -19,17 +18,16 @@ final class BossDefenseHandlers {
     }
 
     static void onBossTick(ServerLevel level, BossBundle bundle) {
-        Optional<BossFixture> bossOpt = bundle.boss();
         Optional<BossSentinelsFixture> sentinelsOpt = bundle.sentinels();
-        if (bossOpt.isEmpty() || sentinelsOpt.isEmpty()) {
+        if (sentinelsOpt.isEmpty()) {
             return;
         }
         BossSentinelsFixture sentinels = sentinelsOpt.get();
 
-        PresentBosses.forEach(level, bossOpt.get(), present ->
+        BossAPI.roster(level).ifPresent(roster -> roster.forEachPresent(level, present ->
                 present.mobFixture().takeNewPlayerHit(present.boss())
                         .ifPresent(player ->
-                                sentinels.alertSentinelsOf(present.record().bossId(), present.boss(), player)));
+                                sentinels.alertSentinelsOf(present.record().bossId(), present.boss(), player))));
 
         sentinels.releaseLapsedAlerts(level);
     }

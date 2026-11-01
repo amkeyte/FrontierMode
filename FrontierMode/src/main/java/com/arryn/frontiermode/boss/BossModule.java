@@ -16,14 +16,12 @@ import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
-import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.server.commands.BossCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
@@ -35,19 +33,18 @@ import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
+import com.arryn.satchel.common.trinket.DynamicTrinket;
+import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.Level;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Entry point for initializing and hooking the Boss subsystem. Depends on Border -- must be
@@ -171,6 +168,8 @@ public final class BossModule {
         config.execution()
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
+        // The roster ticks before the mob abilities (Module Graph § Trinket tick order).
+        config.trinkets().declare(BossRoster.class, BossRoster::new).order(Order.NORMAL - 10);
 
         return config;
     }
@@ -255,7 +254,10 @@ public final class BossModule {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
                 .eventHandlers(eventHandlers);
 
-        MobInterestRegistry.register(FrontierKeys.BOSS_MOB_JIG, () -> BossInterests.MAP);
+        // The dynamic host holds the Boss as a subscriber and forwards Leaving to it; MobAbilities, declared
+        // after it, finds the mob's Boss through the roster and subscribes it.
+        config.trinkets().declare(DynamicTrinket.class, DynamicTrinket::new);
+        config.trinkets().declare(MobAbilities.class, MobAbilities::new);
         Satchel.registerJigConfig(config);
     }
 
@@ -293,21 +295,5 @@ public final class BossModule {
                         .build());
 
         Satchel.registerJigConfig(config);
-    }
-
-    // ── command surface ───────────────────────────────────────────────────────
-
-    /**
-     * Forces materialization of {@code bossId} regardless of chunk-loaded state --
-     * used by {@code /boss mob spawn}. Delegates to {@link com.arryn.frontiermode.boss.common.fixture.BossSpawnFacet#forceMaterialize}.
-     */
-    public static MaterializeOutcome forceMaterialize(Level level, UUID bossId) {
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        if (fixtureOpt.isEmpty()) {
-            OUT.warn("[Boss] forceMaterialize(): BossFixture not available for level "
-                    + level.dimension().location() + " -- bossId=" + bossId);
-            return MaterializeOutcome.NO_RECORD;
-        }
-        return fixtureOpt.get().SPAWN.forceMaterialize(level, bossId, uuid -> BossInterests.add(level, uuid));
     }
 }

@@ -25,7 +25,7 @@ final class BossLeashHandlers {
     }
 
     static void onBossTick(ServerLevel level, BossFixture fixture) {
-        PresentBosses.forEach(level, fixture, present -> {
+        BossAPI.roster(level).ifPresent(roster -> roster.forEachPresent(level, present -> {
             Mob boss = present.boss();
             // The level 1 Keeper (the Rabbit) has its own, shorter leash.
             double radius = KeeperAPI.pathPositionOf(present.keeper()) <= 1
@@ -51,7 +51,7 @@ final class BossLeashHandlers {
             boss.setTarget(null);
             boss.getNavigation().stop();
             puff(level, x, home.getY(), z);
-        });
+        }));
     }
 
     private static void puff(ServerLevel level, double x, double y, double z) {

@@ -34,7 +34,7 @@ import java.util.UUID;
  * {@code LivingConversionSignal}) are installed on {@code BOSS_JIG}'s config only because it is the
  * topically closest config; they are not scoped to it.
  */
-final class SentinelJigHandlers {
+public final class SentinelJigHandlers {
 
     private SentinelJigHandlers() {
     }
@@ -159,7 +159,7 @@ final class SentinelJigHandlers {
      * staggered kill. {@code creditedPlayer} is null for a forced defeat. Called from both defeat paths
      * right after {@code markDefeated} returns true; a non-player boss death runs neither.
      */
-    static void onBossDefeated(Level level, UUID bossId, UUID creditedPlayer) {
+    public static void onBossDefeated(Level level, UUID bossId, UUID creditedPlayer) {
         BossAPI.sentinelsQuiet(level).ifPresent(g -> g.doomSentinelsOf(bossId, creditedPlayer));
     }
 }

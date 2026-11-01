@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 
 /**
  * FRO_120 (Cairn): where a consumer registers to hear "a boss record's position just finalized"
- * without {@code BossModule}/{@code BossSpawnFacet} importing that consumer directly -- the same
+ * without {@code Boss} importing that consumer directly -- the same
  * one-directional-dependency discipline {@code MobInterestRegistry} already establishes for a
  * different concern (mob-death interest). Cairn's own record creation is paired with exactly this
  * moment (see wiki/frontiermode/architecture/cairn.md's "Data model" section: "the moment a
@@ -36,12 +36,10 @@ public final class BossPositionListeners {
     }
 
     /**
-     * Public only because the real caller ({@code BossSpawnFacet}) lives in a different package
-     * (Java has no cross-package "friend" access) -- called from exactly one place,
-     * {@code BossSpawnFacet.finalizeUnpositioned}, right after a position commits. Not meant as
-     * a general-purpose entry point for other callers.
+     * Called from exactly one place, {@code Boss.advance}, right after a position commits. Not meant
+     * as a general-purpose entry point for other callers.
      */
-    public static void fire(Level level, BossRecord record) {
+    static void fire(Level level, BossRecord record) {
         for (BiConsumer<Level, BossRecord> listener : LISTENERS) {
             listener.accept(level, record);
         }

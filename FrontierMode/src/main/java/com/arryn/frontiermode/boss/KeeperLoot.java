@@ -33,7 +33,7 @@ import java.util.Set;
  * unstackable stack is never copied: each extra copy the multiplier would make is a roll of
  * {@code keeper/extra_piece} instead.
  */
-final class KeeperLoot {
+public final class KeeperLoot {
 
     private KeeperLoot() {
     }
@@ -43,7 +43,7 @@ final class KeeperLoot {
      * last standing on its border; never from {@code BossAPI.forceDefeat} (an admin command
      * force-defeating bosses for loot is the riskless exploit this reward shouldn't have).
      */
-    static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, ServerPlayer credited, double lootStep) {
+    public static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, ServerPlayer credited, double lootStep) {
         int waveLength = BorderRules.ACTIVE.borderWaveLength();
         LootParams params = new LootParams.Builder(level)
                 .withParameter(LootContextParams.THIS_ENTITY, boss)

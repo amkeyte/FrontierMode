@@ -8,8 +8,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import com.arryn.satchel.common.util.schedule.SchedulerClock;
-import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -17,13 +15,9 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -67,22 +61,7 @@ public final class BossFixture extends SatchelFixture {
      */
     public final BossInfoFacet INFO = new BossInfoFacet(this);
 
-    /** Spawn-lifecycle operations -- see {@link BossSpawnFacet}. */
-    public final BossSpawnFacet SPAWN = new BossSpawnFacet(this);
-
     private final List<BossRecord> bosses = new ArrayList<>();
-
-    // FRO_108: transient (not persisted) -- BossFixture already owns one instance per level, so
-    // this is automatically scoped correctly with no map/key needed. null means nothing pending.
-    // See boss.md's "Cascade durability" section for the full design this implements.
-    private static final long FORCE_FLUSH_DELAY_TICKS = 20;
-    private TickDelay pendingForceFlush;
-
-    // FRO_160: transient non-player-death respawn state, keyed by bossId. See the "respawn
-    // bookkeeping" section below.
-    private final Map<UUID, Integer> nonPlayerDeaths = new HashMap<>();
-    private final Map<UUID, TickDelay> respawnDelays = new HashMap<>();
-    private final Set<UUID> respawnSuspended = new HashSet<>();
 
     public BossFixture() {
         registerCustom(
@@ -274,7 +253,7 @@ public final class BossFixture extends SatchelFixture {
 
         BossRecord record = existing.get();
         if (record.materialized()) {
-            // FRO_058: fixture-level guard -- BossModule.forceMaterialize already checks
+            // FRO_058: fixture-level guard -- the roster's forceMaterialize already checks
             // record.materialized() before calling in, but the fixture itself had no defense of
             // its own. Without this, any other future caller could re-materialize a live record
             // with a fresh entityId, silently orphaning the old one.
@@ -359,7 +338,6 @@ public final class BossFixture extends SatchelFixture {
         BossRecord updated = record.defeated();
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
-        clearRespawnState(bossId);
         changed();
         return true;
     }
@@ -385,7 +363,6 @@ public final class BossFixture extends SatchelFixture {
         }
 
         bosses.removeIf(r -> r.bossId().equals(bossId));
-        clearRespawnState(bossId);
         changed();
 
         Optional<BossKind> kindOpt = BossKinds.get(existing.get().kind());
@@ -397,108 +374,4 @@ public final class BossFixture extends SatchelFixture {
         }
         return true;
     }
-
-    // ------------------------------------------------------------------
-    // FRO_160: non-player-death respawn bookkeeping -- transient (not persisted), per boss.md's
-    // "Player credit and non-player death". A restart loses all of it, which just means a delayed
-    // or suspended boss materializes as soon as its home chunk loads.
-    // ------------------------------------------------------------------
-
-    /**
-     * Called right after {@link #dematerialize} for a non-player death. Counts it against the
-     * record's consecutive-death cap; under the cap, arms the respawn delay, at the cap suspends
-     * auto-respawn (the record stays alive/unmaterialized until {@code /boss mob spawn} -- see
-     * {@link #clearRespawnState}).
-     *
-     * @return true if a respawn is now pending; false if the cap was reached and it's suspended
-     */
-    public boolean scheduleRespawn(UUID bossId) {
-        int count = nonPlayerDeaths.merge(bossId, 1, Integer::sum);
-        int cap = RULES.maxConsecutiveNonPlayerDeaths();
-        if (count >= cap) {
-            respawnSuspended.add(bossId);
-            respawnDelays.remove(bossId);
-            BlockPos position = get(bossId).map(BossRecord::position).orElse(null);
-            OUT.warn("[Boss] scheduleRespawn(): bossId=" + Ids.shortId(bossId) + " (position " + position
-                    + ") has died to non-player causes " + count + " times in a row -- auto-respawn"
-                    + " suspended. Use /boss mob spawn to bring it back (that resets the count).");
-            return false;
-        }
-        respawnDelays.put(bossId, new TickDelay(Math.max(1, RULES.respawnDelayTicks()),
-                new SchedulerClock.AutoClock()));
-        return true;
-    }
-
-    /**
-     * Whether an unmaterialized record may materialize this tick: false while suspended by the
-     * repeat-death cap or while its respawn delay is still running. Polled once per tick per
-     * unmaterialized record from {@link BossSpawnFacet#materializeUnresolved}, so the delay counts
-     * real ticks even while the home chunk is unloaded. A record with no pending state is always
-     * ready.
-     */
-    public boolean respawnReady(UUID bossId) {
-        if (respawnSuspended.contains(bossId)) {
-            return false;
-        }
-        TickDelay delay = respawnDelays.get(bossId);
-        if (delay == null) {
-            return true;
-        }
-        if (delay.allow()) {
-            respawnDelays.remove(bossId);
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Forgets a record's consecutive-death count, pending delay, and suspension -- called on a
-     * player-credited defeat, a record removal, and an admin {@code /boss mob spawn}
-     * ({@link BossSpawnFacet#forceMaterialize}).
-     */
-    public void clearRespawnState(UUID bossId) {
-        nonPlayerDeaths.remove(bossId);
-        respawnDelays.remove(bossId);
-        respawnSuspended.remove(bossId);
-    }
-
-    // ------------------------------------------------------------------
-    // FRO_108: force-flush scheduling -- see boss.md#cascade-durability-schedule-one-delayed-flush-poll-it-from-the-existing-tick-handler
-    // ------------------------------------------------------------------
-
-    /**
-     * Schedules a single delayed {@code forceWriteToDisk()} call, or coalesces into one already
-     * pending on this level. Called right after {@code CRUD.markDefeated(bossId)} returns
-     * {@code true} in both cascade sites ({@code BossJigHandlers.onMobDied},
-     * {@code BossAPI.forceDefeat}) -- unconditionally, regardless of whether cascade gating lets
-     * growth proceed afterward, since the defeat mark itself is already a real mutation worth
-     * protecting. By the time the delay elapses, every bundle this defeat mutated (this one, and
-     * {@code BordersBundle} if growth ran) will have already had its own automatic
-     * {@code EXECUTION_PULSE} refresh run -- so the single {@code forceWriteToDisk()} call
-     * {@link #pollForceFlush} eventually fires genuinely catches every sibling, via the existing
-     * level-wide {@code save()} side effect.
-     */
-    public void scheduleForceFlush() {
-        if (pendingForceFlush == null) {
-            pendingForceFlush = new TickDelay(FORCE_FLUSH_DELAY_TICKS, new SchedulerClock.AutoClock());
-        } else {
-            // A flush from an earlier, still-pending defeat on this level -- coalesce two
-            // near-simultaneous defeats into one eventual write instead of two.
-            pendingForceFlush.reset();
-        }
-    }
-
-    /**
-     * Polled from {@code BossJigHandlers.onTick}, which already runs every real tick per level --
-     * no new tick source needed. Fires the pending delayed flush once its delay elapses, then
-     * clears it back to {@code null} rather than leaving it in its fired state, so a later defeat
-     * starts a genuinely fresh delay instead of inheriting a used-up one.
-     */
-    public void pollForceFlush() {
-        if (pendingForceFlush != null && pendingForceFlush.allow()) {
-            this.getBundle().forceWriteToDisk();
-            pendingForceFlush = null;
-        }
-    }
 }
-
