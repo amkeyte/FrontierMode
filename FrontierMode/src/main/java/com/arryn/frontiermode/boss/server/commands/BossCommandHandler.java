@@ -11,6 +11,10 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.KeeperKind;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.util.Ids;
 
@@ -24,6 +28,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -64,7 +69,8 @@ public final class BossCommandHandler {
                     // order) -- otherwise there's no way to target a specific record with
                     // /boss mob spawn <n> without counting list position by hand.
                     int idx = fixture.all().indexOf(r);
-                    ctx.getSource().sendSuccess(() -> msg(BossDisplay.fullInfo(r, idx)), false);
+                    Optional<KeeperRecord> keeper = KeeperAPI.keepers(level).flatMap(k -> k.get(id));
+                    ctx.getSource().sendSuccess(() -> msg(BossDisplay.fullInfo(r, keeper, idx)), false);
                 },
                 () -> ctx.getSource().sendFailure(msg("Boss not found: " + id))
         );
@@ -97,7 +103,8 @@ public final class BossCommandHandler {
         // immediately via finalizePosition() rather than waiting on BorderAPI.isPregenReady() --
         // same "admin-forced position, unvalidated terrain is expected" precedent debugGoto's own
         // comment already uses.
-        Optional<BossRecord> recordOpt = fixture.create(layer);
+        Optional<BossRecord> recordOpt = fixture.create(KeeperKind.KEY,
+                new KeeperCreation(layer, Optional.empty(), OptionalInt.empty()));
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: negative layer " + layer + "."));
             return 0;
@@ -127,7 +134,8 @@ public final class BossCommandHandler {
         // Border Pregeneration: same immediate finalizePosition() commit addExplicit() uses --
         // see that method's own comment.
         BlockPos pos = sp.blockPosition();
-        Optional<BossRecord> recordOpt = fixture.create(layer);
+        Optional<BossRecord> recordOpt = fixture.create(KeeperKind.KEY,
+                new KeeperCreation(layer, Optional.empty(), OptionalInt.empty()));
         if (recordOpt.isEmpty()) {
             sp.sendSystemMessage(msg("Rejected: negative layer " + layer + "."));
             return 0;
@@ -147,11 +155,10 @@ public final class BossCommandHandler {
     public static int delete(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        // FRO_082: routed through BossAPI.removeBoss() rather than calling
-        // BossFixture.remove(id) directly (this method's own pre-FRO_082 shape) -- removeBoss()
-        // wraps the same removal and, on success, adds the pendingAttach step boss.md's
-        // "Despawn and record removal" section describes. BossAPI.bosses(level)'s own
-        // "not available yet" check now lives inside removeBoss() itself.
+        // Routed through BossAPI.removeBoss() rather than calling BossFixture.remove(id) directly --
+        // removeBoss() wraps the same removal, whose kind hook adds the pendingAttach step boss.md's
+        // "Aliveness and removal" section describes. BossAPI.bosses(level)'s own "not available yet"
+        // check lives inside removeBoss() itself.
         boolean removed = BossAPI.removeBoss(level, id);
         if (!removed) {
             ctx.getSource().sendFailure(msg("No boss record to remove: " + id
@@ -169,10 +176,10 @@ public final class BossCommandHandler {
 
     /**
      * Pairs a boss onto an existing boss-less path border -- FRO_082 (FRO_063's ruling).
-     * {@code add} with a border to bind to instead of a raw position: creates a boss record via
-     * {@code BossCrudFacet.create(border.layer(), border.id(), pathPosition)}, which sets the new record's
-     * {@code borderId} to the selected border, then clears that border from
-     * {@code pendingAttach}. See wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach.
+     * {@code add} with a border to bind to instead of a raw position: creates a boss via
+     * {@link KeeperAPI#createBoss}, which sets the new Keeper record's {@code borderId} to the selected
+     * border, then clears that border from {@code pendingAttach}. See
+     * wiki/frontiermode/architecture/keeper.md#boss-less-path-layers-and-attach.
      *
      * <p>Nests {@code BorderSelectorArgumentType} the same way {@code BorderCommandHandler
      * .pathInsert}/{@code .pathRemove} already do -- the argument is Border's own selector
@@ -191,15 +198,12 @@ public final class BossCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, sp);
 
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        if (fixtureOpt.isEmpty()) {
+        if (BossAPI.bosses(level).isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
-        BossFixture fixture = fixtureOpt.get();
 
-        Optional<BossRecord> recordOpt = fixture.CRUD.create(
-                border.layer(), border.id(), BossAPI.pathPositionOf(level, border));
+        Optional<BossRecord> recordOpt = KeeperAPI.createBoss(level, border);
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: could not create a boss record for border "
                     + border.id() + " (a boss needs layer 1 or more -- see server log)."));
@@ -210,7 +214,7 @@ public final class BossCommandHandler {
         // No-op, not an error, if border.id() wasn't actually pending -- attach doesn't require
         // the target to already be in pendingAttach (boss.md's own spec places no such
         // restriction on it), just clears it either way.
-        fixture.CRUD.removePendingAttach(border.id());
+        KeeperAPI.keepers(level).ifPresent(keepers -> keepers.removePendingAttach(border.id()));
 
         // FRO_087 fix: attach() pairs a fresh boss record with a real, already-existing border
         // -- the same "paired creation" shape the bootstrap/defeat-cascade call sites use -- so
@@ -274,7 +278,7 @@ public final class BossCommandHandler {
     /**
      * Force-defeats a boss without combat -- the item that actually motivated Joyce. Runs the
      * same cascade a real death does ({@code markDefeated} -> {@code BorderAPI.grow} ->
-     * {@code BossAPI.createBoss}), via {@link BossAPI#forceDefeat}, rather than a bare flag flip
+     * {@code KeeperAPI.createBoss}), via {@link BossAPI#forceDefeat}, rather than a bare flag flip
      * -- so this reproduces the full "I just killed the boss!" effect (border grows, next boss
      * queued) on demand.
      */
@@ -312,7 +316,7 @@ public final class BossCommandHandler {
         // carries the real BossRecord (or is honestly empty if createBoss itself couldn't
         // resolve a fixture for it -- see BossAPI.forceDefeat's own warn log for that case).
         String nextBossText = outcome.nextBoss()
-                .map(r -> Ids.shortId(r.bossId()) + pathTag(r))
+                .map(r -> Ids.shortId(r.bossId()) + pathTag(level, r.bossId()))
                 .orElse("(none -- see server log)");
 
         ctx.getSource().sendSuccess(
@@ -328,14 +332,14 @@ public final class BossCommandHandler {
      * is -- so a defeat message says which Keeper it is about. Empty when there is no such record.
      */
     private static String pathTag(ServerLevel level, UUID id) {
-        return BossAPI.bosses(level)
-                .flatMap(fixture -> fixture.get(id))
+        return KeeperAPI.keepers(level)
+                .flatMap(keepers -> keepers.get(id))
                 .map(BossCommandHandler::pathTag)
                 .orElse("");
     }
 
-    private static String pathTag(BossRecord record) {
-        return " (level " + BossAPI.pathPositionOf(record) + ")";
+    private static String pathTag(KeeperRecord keeper) {
+        return " (level " + KeeperAPI.pathPositionOf(keeper) + ")";
     }
 
     // ------------------------------------------------------------

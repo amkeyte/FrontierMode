@@ -4,6 +4,8 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.core.InfoRequest;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -58,13 +60,19 @@ final class BossIngress {
         BossFixture fixture = fixtureOpt.get();
         for (BossRecord record : fixture.all()) {
             if (entityId.equals(record.bossEntityId())) {
+                Optional<KeeperRecord> keeperOpt = KeeperAPI.keepers(level).flatMap(k -> k.get(record.bossId()));
+                if (keeperOpt.isEmpty()) {
+                    return String.format("#%s %s%s, no Keeper record yet", Ids.shortId(record.bossId()),
+                            record.alive() ? "alive" : "defeated", record.materialized() ? ", materialized" : "");
+                }
+                KeeperRecord keeper = keeperOpt.get();
                 return String.format("#%s layer %d path position %d body %s border %s %s%s scale %.2f",
-                        Ids.shortId(record.bossId()), record.layer(), BossAPI.pathPositionOf(record),
-                        record.body().isEmpty() ? "-" : record.body(),
-                        record.borderId().map(Ids::shortId).orElse("-"),
+                        Ids.shortId(record.bossId()), keeper.layer(), KeeperAPI.pathPositionOf(keeper),
+                        keeper.body().isEmpty() ? "-" : keeper.body(),
+                        keeper.borderId().map(Ids::shortId).orElse("-"),
                         record.alive() ? "alive" : "defeated",
                         record.materialized() ? ", materialized" : "",
-                        fixture.RULES.keeperScale(record));
+                        fixture.RULES.keeperScale(keeper));
             }
         }
         return "-";

@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss.common.fixture;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -38,10 +39,10 @@ public final class BossRulesFacet {
     }
 
     /**
-     * See {@link BossRules#materialize(Level, BlockPos, BossRecord)}.
+     * See {@link BossRules#materialize(Level, BlockPos, KeeperRecord)}.
      */
-    public Optional<Mob> materialize(Level level, BlockPos position, BossRecord record) {
-        return RULES.materialize(level, position, record);
+    public Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper) {
+        return RULES.materialize(level, position, keeper);
     }
 
     /** See {@link BossRules#chooseBody(int)}. */
@@ -50,10 +51,10 @@ public final class BossRulesFacet {
     }
 
     /**
-     * See {@link BossRules#keeperScale(BossRecord)}.
+     * See {@link BossRules#keeperScale(KeeperRecord)}.
      */
-    public float keeperScale(BossRecord record) {
-        return RULES.keeperScale(record);
+    public float keeperScale(KeeperRecord keeper) {
+        return RULES.keeperScale(keeper);
     }
 
     /**

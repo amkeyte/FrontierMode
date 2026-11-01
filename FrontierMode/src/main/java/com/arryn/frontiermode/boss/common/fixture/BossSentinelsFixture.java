@@ -11,6 +11,9 @@ import com.arryn.frontiermode.boss.SentinelData;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.spawn.MobSpawns;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -418,9 +421,9 @@ public final class BossSentinelsFixture extends SatchelFixture {
         }
     }
 
-    /** What one spawn position resolves to: its nearest boss, that boss's border, and the two curves. */
-    private record Nearby(BossRecord boss, double radius, BorderCurve placement, BorderCurve difficulty,
-                          double distanceToBoss) {
+    /** What one spawn position resolves to: its nearest boss and Keeper record, that boss's border, and the two curves. */
+    private record Nearby(BossRecord boss, KeeperRecord keeper, double radius, BorderCurve placement,
+                          BorderCurve difficulty, double distanceToBoss) {
     }
 
     /** {@code BossRules#canBeSentinel} through this level's boss rules; false if they aren't resolvable yet. */
@@ -458,7 +461,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
         Nearby nearby = nearbyOpt.get();
 
         // The two gates before the roll. A lifted spawn skips the roll, not the gates.
-        int room = conversionRoom(bossFixture, nearby.boss());
+        int room = conversionRoom(bossFixture, nearby.keeper());
         if (room < 1) {
             return;
         }
@@ -470,7 +473,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
         // across the whole border.
         double difficultyIntensity = BorderMath.intensityAt(
                 nearby.difficulty(), nearby.radius() > 0.0 ? nearby.distanceToBoss() / nearby.radius() : 1.0);
-        int keeperPathPosition = BossAPI.pathPositionOf(nearby.boss());
+        int keeperPathPosition = KeeperAPI.pathPositionOf(nearby.keeper());
         double target = bossFixture.RULES.sentinelTargetScale(keeperPathPosition);
         float size = fitScale(level, mob, target, bossFixture);
 
@@ -491,8 +494,8 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * path position is below {@code sentinelFirstPathPosition} or the level is at
      * {@code sentinelMaxPerLevel}, so a result of 1 or more passes both gates.
      */
-    private int conversionRoom(BossFixture bossFixture, BossRecord keeper) {
-        if (BossAPI.pathPositionOf(keeper) < bossFixture.RULES.sentinelFirstPathPosition()) {
+    private int conversionRoom(BossFixture bossFixture, KeeperRecord keeper) {
+        if (KeeperAPI.pathPositionOf(keeper) < bossFixture.RULES.sentinelFirstPathPosition()) {
             return 0;
         }
         return Math.max(0, bossFixture.RULES.sentinelMaxPerLevel() - sentinelCount());
@@ -560,7 +563,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
         }
         BossFixture bossFixture = bossOpt.get();
         return resolveNearby(level, bossFixture, curvesOpt.get(), pos)
-                .filter(nearby -> conversionRoom(bossFixture, nearby.boss()) >= 1)
+                .filter(nearby -> conversionRoom(bossFixture, nearby.keeper()) >= 1)
                 .map(nearby -> rollPlacement(bossFixture, nearby))
                 .orElse(false);
     }
@@ -573,23 +576,34 @@ public final class BossSentinelsFixture extends SatchelFixture {
      */
     private Optional<Nearby> resolveNearby(ServerLevel level, BossFixture bossFixture,
                                            BorderCurveFixture curves, BlockPos pos) {
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        if (keepersOpt.isEmpty()) {
+            return Optional.empty();
+        }
         BossRecord nearest = null;
+        KeeperRecord nearestKeeper = null;
         double nearestDistSq = Double.MAX_VALUE;
         for (BossRecord r : bossFixture.all()) {
-            if (!r.alive() || !r.positioned() || r.borderId().isEmpty()) {
+            if (!r.alive() || !r.positioned()) {
+                continue;
+            }
+            // An entry without its Keeper record is not whole, and a Keeper without a border has no curves.
+            Optional<KeeperRecord> keeperOpt = keepersOpt.get().get(r.bossId());
+            if (keeperOpt.isEmpty() || keeperOpt.get().borderId().isEmpty()) {
                 continue;
             }
             double distSq = r.position().distSqr(pos);
             if (distSq < nearestDistSq) {
                 nearestDistSq = distSq;
                 nearest = r;
+                nearestKeeper = keeperOpt.get();
             }
         }
         if (nearest == null) {
             return Optional.empty();
         }
 
-        UUID borderId = nearest.borderId().get(); // present by the filter above
+        UUID borderId = nearestKeeper.borderId().get(); // present by the filter above
         Optional<Border> borderOpt = BorderAPI.CRUD(level).flatMap(crud -> crud.get(borderId));
         if (borderOpt.isEmpty()) {
             return Optional.empty();
@@ -607,7 +621,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
             }
         }
 
-        return Optional.of(new Nearby(nearest, borderOpt.get().radius(), placementOpt.get(),
+        return Optional.of(new Nearby(nearest, nearestKeeper, borderOpt.get().radius(), placementOpt.get(),
                 difficultyOpt.get(), BorderMath.distanceTo(nearest.position(), pos)));
     }
 

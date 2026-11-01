@@ -18,6 +18,8 @@ import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.keeper.common.bundle.KeeperBundle;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.satchel.common.identity.BundleKey;
@@ -155,8 +157,7 @@ public final class FrontierKeys {
             );
 
     // FRO_145: BossPublicFixture -- the client-syncable "this entity is a boss" signal, in its own
-    // BOTH-applicability jig so BOSS_JIG's server-only secrecy policy (boss position) is untouched.
-    // See BossModule.registerBossPublicJig() and boss.md's "Client-side visual marker".
+    // BOTH-applicability jig. See BossModule.registerBossPublicJig() and boss.md's "Client-side visual marker".
 
     public static final BundleKey<BossPublicBundle> BOSS_PUBLIC_BUNDLE =
             new BundleKey<>(
@@ -194,6 +195,28 @@ public final class FrontierKeys {
             new FixtureKey<>(
                     "frontiermode:boss_sentinels_fixture",
                     BossSentinelsFixture.class
+            );
+
+    // RM_FRO_060 ("Carole"): the Keeper's own records -- KeeperFixture in KeeperBundle on KEEPER_JIG, a
+    // LevelJig of its own beside BOSS_JIG. See KeeperModule.init() for the registration and
+    // wiki/frontiermode/architecture/keeper.md#the-keeper-record for the design.
+
+    public static final BundleKey<KeeperBundle> KEEPER_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:keeper_bundle",
+                    KeeperBundle.class
+            );
+
+    public static final FixtureKey<KeeperFixture> KEEPER =
+            new FixtureKey<>(
+                    "frontiermode:keeper_fixture",
+                    KeeperFixture.class
+            );
+
+    public static final JigKey<LevelJig> KEEPER_JIG =
+            new JigKey<>(
+                    "frontiermode:keeper_jig",
+                    LevelJig.class
             );
 
 

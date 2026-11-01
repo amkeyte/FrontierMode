@@ -1,7 +1,8 @@
 package com.arryn.frontiermode.bosstell.server.commands;
 
-import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.boss.server.commands.BossSelector;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorResult;
@@ -19,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Registers {@code /boss debug compass <selector>} -- FRO_118's own command, merged into
@@ -87,8 +89,16 @@ public final class BossTellCommands {
 
         BossRecord record = matches.get(0);
 
+        Optional<KeeperRecord> keeperOpt = KeeperAPI.keepers(sp.serverLevel()).flatMap(k -> k.get(record.bossId()));
+        if (keeperOpt.isEmpty()) {
+            ctx.getSource().sendFailure(msg("Boss " + record.displayBossId()
+                    + " has no Keeper record yet -- try again in a moment."));
+            return 0;
+        }
+
         ItemStack stack = new ItemStack(BossTellModule.AMETHYST_COMPASS.get());
-        CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true, BossAPI.pathPositionOf(record));
+        CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true,
+                KeeperAPI.pathPositionOf(keeperOpt.get()));
 
         if (!sp.getInventory().add(stack)) {
             sp.drop(stack, false);

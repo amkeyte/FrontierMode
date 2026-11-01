@@ -9,6 +9,9 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.Shape;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.Ids;
@@ -230,8 +233,17 @@ public final class BossTellFixture extends SatchelFixture {
 
     private void runTellsForPlayers(ServerLevel level, BossFixture bossFixture, BorderCurveFixture curveFixture) {
 
-        // Alive+positioned bosses with a borderId are the only candidates.
-        List<BossRecord> candidates = bossFixture.all().stream().filter(r -> r.alive() && r.positioned() && r.borderId().isPresent()).toList();
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        if (keepersOpt.isEmpty()) {
+            return;
+        }
+        KeeperFixture keepers = keepersOpt.get();
+
+        // Alive+positioned bosses whose Keeper record names a border are the only candidates.
+        List<BossRecord> candidates = bossFixture.all().stream()
+                .filter(r -> r.alive() && r.positioned()
+                        && keepers.get(r.bossId()).flatMap(KeeperRecord::borderId).isPresent())
+                .toList();
 
         if (candidates.isEmpty()) {
             return;
@@ -264,7 +276,8 @@ public final class BossTellFixture extends SatchelFixture {
                 continue;
             }
 
-            @SuppressWarnings("OptionalGetWithoutIsPresent") UUID borderId = nearest.borderId().get(); // present by construction of `candidates`
+            UUID borderId = keepers.get(nearest.bossId()).flatMap(KeeperRecord::borderId)
+                    .orElseThrow(); // present by construction of `candidates`
 
             // Resolve border and tell curve.
             Optional<Border> borderOpt = crud.get(borderId);

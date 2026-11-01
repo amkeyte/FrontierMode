@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
+import com.arryn.frontiermode.keeper.KeeperAPI;
 import net.minecraft.server.level.ServerLevel;
 
 /**
@@ -19,6 +20,6 @@ final class BossHealthBarHandlers {
 
         PresentBosses.forEach(level, fixture, present ->
                 present.mobFixture().tickHealthBar(level, present.boss(),
-                        BossAPI.isMilestone(present.record()), lingerTicks));
+                        KeeperAPI.isMilestone(present.keeper()), lingerTicks));
     }
 }

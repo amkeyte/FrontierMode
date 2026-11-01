@@ -2,10 +2,10 @@ package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.siting.SitingAPI;
@@ -329,15 +329,15 @@ public final class DefaultBossRules implements BossRules {
      * {@code sizeGrowth} per path position past 20 (the Zombie's, uncapped).
      */
     @Override
-    public float keeperScale(BossRecord record) {
-        int p = Math.max(BossAPI.pathPositionOf(record), 1);
+    public float keeperScale(KeeperRecord keeper) {
+        int p = Math.max(KeeperAPI.pathPositionOf(keeper), 1);
         if (p <= AUTHORED_THROUGH) {
             return KEEPER_SIZE.row(p).getFloat("value");
         }
-        if (record.body().isEmpty()) {
+        if (keeper.body().isEmpty()) {
             return 1.0F;
         }
-        TuningTable.Row body = KEEPER_BODIES.row(record.body());
+        TuningTable.Row body = KEEPER_BODIES.row(keeper.body());
         float size = body.getFloat("sizePast20");
         if (body.has("sizeGrowth")) {
             size += body.getFloat("sizeGrowth") * (p - AUTHORED_THROUGH);
@@ -346,14 +346,14 @@ public final class DefaultBossRules implements BossRules {
     }
 
     @Override
-    public Optional<Mob> materialize(Level level, BlockPos position, BossRecord record) {
+    public Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper) {
         // Border Pregeneration: position was already validated (flatness/hazard-scored) against
         // real, pregenerated terrain when choosePosition() chose it -- no in-place Y-resolution
         // or liquid-column check left to do here. See border-pregeneration.md's "Worked example:
         // Boss placement, revised" and "What this changes in Boss" sections.
-        int pathPosition = Math.max(BossAPI.pathPositionOf(record), 1);
+        int pathPosition = Math.max(KeeperAPI.pathPositionOf(keeper), 1);
         // A record saved before the body field existed has none: choose it now (not saved back).
-        String bodyName = record.body().isEmpty() ? chooseBody(pathPosition) : record.body();
+        String bodyName = keeper.body().isEmpty() ? chooseBody(pathPosition) : keeper.body();
         TuningTable.Row body = KEEPER_BODIES.row(bodyName);
         EntityType<?> type = body.getEntityType("entityType");
         if (!(level instanceof ServerLevel serverLevel)) {

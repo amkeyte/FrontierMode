@@ -3,7 +3,7 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.boss.common.KeeperLootTables;
-import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -39,11 +39,11 @@ final class KeeperLoot {
     }
 
     /**
-     * Pays {@code record}'s defeat reward. Only reached for a counted, player-credited defeat that is the
+     * Pays {@code keeper}'s defeat reward. Only reached for a counted, player-credited defeat that is the
      * last standing on its border; never from {@code BossAPI.forceDefeat} (an admin command
      * force-defeating bosses for loot is the riskless exploit this reward shouldn't have).
      */
-    static void pay(ServerLevel level, Mob boss, BossRecord record, ServerPlayer credited, double lootStep) {
+    static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, ServerPlayer credited, double lootStep) {
         int waveLength = BorderRules.ACTIVE.borderWaveLength();
         LootParams params = new LootParams.Builder(level)
                 .withParameter(LootContextParams.THIS_ENTITY, boss)
@@ -53,13 +53,13 @@ final class KeeperLoot {
                 .withOptionalParameter(LootContextParams.DIRECT_KILLER_ENTITY, credited)
                 .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, credited)
                 .create(LootContextParamSets.ENTITY);
-        // The record's own path position, not BossAPI.pathPositionOf: that falls back to the layer for an
+        // The record's own path position, not KeeperAPI.pathPositionOf: that falls back to the layer for an
         // off-path Keeper, which would hand it a multiplier the table choice (wave_1) never gave it.
-        double multiplier = KeeperLootTables.multiplier(record.pathPosition(), waveLength, lootStep);
+        double multiplier = KeeperLootTables.multiplier(keeper.pathPosition(), waveLength, lootStep);
 
         List<ItemStack> payout = new ArrayList<>();
         int extraPieces = 0;
-        for (String name : KeeperLootTables.names(record.pathPosition(), record.body(), waveLength)) {
+        for (String name : KeeperLootTables.names(keeper.pathPosition(), keeper.body(), waveLength)) {
             LootTable table = tableFor(level, name);
             if (table == LootTable.EMPTY) {
                 continue;

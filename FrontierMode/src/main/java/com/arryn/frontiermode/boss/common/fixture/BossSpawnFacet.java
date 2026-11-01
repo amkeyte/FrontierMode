@@ -6,6 +6,9 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.util.Ids;
@@ -40,8 +43,18 @@ public final class BossSpawnFacet {
      * doesn't lose an extra cycle.
      */
     public void finalizeUnpositioned(Level level) {
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        if (keepersOpt.isEmpty()) {
+            return;
+        }
         for (BossRecord record : fixture.INFO.unpositioned()) {
-            Optional<Border> borderOpt = resolveHomeBorder(level, record.layer());
+            // An entry without its Keeper record is not whole: it waits.
+            Optional<KeeperRecord> keeperOpt = keepersOpt.get().get(record.bossId());
+            if (keeperOpt.isEmpty()) {
+                continue;
+            }
+            KeeperRecord keeper = keeperOpt.get();
+            Optional<Border> borderOpt = resolveHomeBorder(level, keeper.layer());
             if (borderOpt.isEmpty()) {
                 continue;
             }
@@ -54,7 +67,7 @@ public final class BossSpawnFacet {
             BlockPos chosen = fixture.RULES.choosePosition(level, border);
             fixture.CRUD.finalizePosition(record.bossId(), chosen);
             OUT.info("[Boss] finalizeUnpositioned(): boss " + Ids.shortId(record.bossId()) + " (layer "
-                    + record.layer() + ") position finalized at " + chosen.getX() + ", "
+                    + keeper.layer() + ") position finalized at " + chosen.getX() + ", "
                     + chosen.getY() + ", " + chosen.getZ() + " -- home border " + Ids.shortId(border.id())
                     + ". Will materialize once that chunk is loaded.");
 
@@ -95,6 +108,11 @@ public final class BossSpawnFacet {
      * receives the new entity's UUID so the caller can register mob interest.
      */
     public void materializeUnresolved(Level level, Consumer<UUID> onMaterialized) {
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        if (keepersOpt.isEmpty()) {
+            return;
+        }
+        KeeperFixture keepers = keepersOpt.get();
         for (BossRecord record : fixture.INFO.unmaterialized()) {
             // FRO_160: a boss returned here by a non-player death waits out its respawn delay (or
             // stays suspended at the repeat-death cap). Polled before the isLoaded check so the
@@ -102,14 +120,20 @@ public final class BossSpawnFacet {
             if (!fixture.respawnReady(record.bossId())) {
                 continue;
             }
+            // An entry without its Keeper record is not whole: it waits.
+            Optional<KeeperRecord> keeperOpt = keepers.get(record.bossId());
+            if (keeperOpt.isEmpty()) {
+                continue;
+            }
+            KeeperRecord keeper = keeperOpt.get();
             BlockPos xz = record.position();
             if (!level.isLoaded(xz)) {
                 continue;
             }
             // The entity spawns only once its platform is in place, so it never materializes over nothing.
-            ensurePlatform(level, record);
-            fixture.RULES.materialize(level, xz, record).ifPresent(mob -> {
-                fixture.CRUD.materialize(record.bossId(), mob.getUUID());
+            ensurePlatform(level, record, keepers, keeper);
+            fixture.RULES.materialize(level, xz, keeper).ifPresent(mob -> {
+                fixture.CRUD.materialize(record.bossId(), mob.getUUID(), fixture.RULES.keeperScale(keeper));
                 onMaterialized.accept(mob.getUUID());
                 if (MobScope.getFor(mob).isEmpty()) {
                     OUT.warn("[Boss] materializeUnresolved(): MobScope.getFor rejected a mob just"
@@ -134,6 +158,16 @@ public final class BossSpawnFacet {
             return MaterializeOutcome.NO_RECORD;
         }
         BossRecord record = recordOpt.get();
+
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        Optional<KeeperRecord> keeperOpt = keepersOpt.flatMap(keepers -> keepers.get(bossId));
+        if (keeperOpt.isEmpty()) {
+            OUT.warn("[Boss] forceMaterialize(): no Keeper record for bossId=" + Ids.shortId(bossId)
+                    + " -- the entry is not whole; cannot force-materialize.");
+            return MaterializeOutcome.NO_RECORD;
+        }
+        KeeperFixture keepers = keepersOpt.get();
+        KeeperRecord keeper = keeperOpt.get();
 
         if (!record.positioned()) {
             OUT.warn("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId)
@@ -170,9 +204,9 @@ public final class BossSpawnFacet {
         OUT.info("[Boss] forceMaterialize(): forcing chunk load at " + xz
                 + " for bossId=" + Ids.shortId(bossId));
         level.getChunk(xz);
-        ensurePlatform(level, record);
+        ensurePlatform(level, record, keepers, keeper);
 
-        Optional<Mob> mobOpt = fixture.RULES.materialize(level, xz, record);
+        Optional<Mob> mobOpt = fixture.RULES.materialize(level, xz, keeper);
         if (mobOpt.isEmpty()) {
             OUT.warn("[Boss] forceMaterialize(): BossRules.materialize declined for bossId="
                     + Ids.shortId(bossId) + " at " + xz + " (e.g. an all-liquid column).");
@@ -180,7 +214,7 @@ public final class BossSpawnFacet {
         }
 
         Mob mob = mobOpt.get();
-        fixture.CRUD.materialize(record.bossId(), mob.getUUID());
+        fixture.CRUD.materialize(record.bossId(), mob.getUUID(), fixture.RULES.keeperScale(keeper));
         // FRO_160: an admin spawn is the way back from a repeat-death suspension.
         fixture.clearRespawnState(record.bossId());
         onMaterialized.accept(mob.getUUID());
@@ -203,13 +237,13 @@ public final class BossSpawnFacet {
      * rather than re-carving it, which would delete anything a player built around the spot.
      * Bedrock isn't breakable in survival. The caller has confirmed the chunk is loaded.
      */
-    private void ensurePlatform(Level level, BossRecord record) {
-        if (record.platformBuilt()) {
+    private void ensurePlatform(Level level, BossRecord record, KeeperFixture keepers, KeeperRecord keeper) {
+        if (keeper.platformBuilt()) {
             return;
         }
         BlockPos bossPos = record.position();
-        BossPlatform.place(level, bossPos, fixture.RULES.keeperScale(record));
-        fixture.CRUD.setPlatform(record.bossId(), bossPos.below());
+        BossPlatform.place(level, bossPos, fixture.RULES.keeperScale(keeper));
+        keepers.setPlatform(record.bossId(), bossPos.below());
         OUT.info("[Boss] ensurePlatform(): built bedrock platform for bossId=" + Ids.shortId(record.bossId())
                 + " centered at " + bossPos.below());
     }

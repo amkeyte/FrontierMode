@@ -2,6 +2,7 @@ package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -27,7 +28,7 @@ final class BossLeashHandlers {
         PresentBosses.forEach(level, fixture, present -> {
             Mob boss = present.boss();
             // The level 1 Keeper (the Rabbit) has its own, shorter leash.
-            double radius = BossAPI.pathPositionOf(present.record()) <= 1
+            double radius = KeeperAPI.pathPositionOf(present.keeper()) <= 1
                     ? fixture.RULES.bossLeashRadiusFirst()
                     : fixture.RULES.bossLeashRadius();
             double radiusSq = radius * radius;

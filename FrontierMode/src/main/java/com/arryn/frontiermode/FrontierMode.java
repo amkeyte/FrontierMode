@@ -15,6 +15,7 @@ import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.feral.FeralModule;
+import com.arryn.frontiermode.keeper.KeeperModule;
 import com.arryn.frontiermode.structure.StructureModule;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
@@ -169,6 +170,10 @@ public final class FrontierMode {
         // Boss record) is BossModule's own ScopeEvent.Loaded handler now, registered from inside
         // this same init() call -- see BossModule.onBordersScopeLoaded's own doc.
         BossModule.init();
+
+        // RM_FRO_060 ("Carole"): the Keeper, the Boss base's first kind. Depends on Border and Boss -- must
+        // init after both, never the reverse.
+        KeeperModule.init();
 
         // FRO_068: the stat ladder. Depends on Border for the ambient Difficulty lookup; Boss calls
         // into it for Sentinels, never the reverse.

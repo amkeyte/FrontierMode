@@ -30,7 +30,7 @@ public final class CairnPlacement {
      * How many Cairns a boss at {@code pathPosition} gets: {@code floor((p - 15) / 5)}, none before
      * path position 20, one at 20, two at 25, three at 30, with no cap. A boss with no path position
      * (hand-placed, or attached to an off-path Border) gets none -- its record's own path position, not
-     * the layer fallback {@code BossAPI.pathPositionOf} offers.
+     * the layer fallback {@code KeeperAPI.pathPositionOf} offers.
      */
     public static int count(OptionalInt pathPosition) {
         if (pathPosition.isEmpty()) {

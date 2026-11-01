@@ -75,7 +75,7 @@ public final class BossModule {
     public static void init() {
         OUT.info("FrontierMode - Boss Module Initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossIngress.build());
-        registerBossJig();
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> buildBossJig());
         registerBossMobJig();
         registerBossPublicJig();
         registerSentinelPublicJig();
@@ -113,7 +113,7 @@ public final class BossModule {
 
     // ── BOSS_JIG ─────────────────────────────────────────────────────────────
 
-    private static void registerBossJig() {
+    private static LevelJigConfig buildBossJig() {
         var bossFixture =
                 new JigBundles.FixtureDecl<>(
                         FrontierKeys.BOSS,
@@ -156,15 +156,11 @@ public final class BossModule {
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);
-        // FRO_094: boss location is deliberately secret from the client -- see boss.md § Module
-        // wiring and FRO_093's Architect ruling (discovery-systems.md / border-pregeneration.md's
-        // "exploit this closes"). LevelJigConfig already defaults to SERVER, so this is a
-        // documentation fix, not a behavior change -- stated explicitly for the real reason,
-        // mirroring BOSS_MOB_JIG's own explicit call below ("Defeat detection is server-only").
-        config.binding().sideApplicability(JigPolicies.SideApplicability.SERVER);
         config.bundles().schema(new JigBundles.Schema<>(List.of(bossBundle)));
-        // BossFixture is the sole durable record of boss identity -- needs real persistence.
-        config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));
+        // BossFixture is the sole durable record of boss identity -- needs real persistence -- and it is
+        // networked: the client receives the fixture, positions included, and runs the same code over it
+        // (boss.md § Module wiring). Networking is the second capability flag.
+        config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
         config.policies().persistence(
                 new JigPolicies.Persistence(
                         true,
@@ -176,16 +172,15 @@ public final class BossModule {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     // ── BOSS_PUBLIC_JIG ──────────────────────────────────────────────────────
 
     /**
-     * FRO_145: the client-syncable boss marker signal, in its own BOTH-applicability jig -- kept
-     * separate from {@code BOSS_JIG} so that jig's server-only secrecy policy (boss position) and
-     * {@code BossFixture} stay exactly as they are. Written server-side at the
-     * {@code BOSS_MOB_JIG} attach/release hooks; read client-side by the eye render layer.
+     * FRO_145: the client-syncable boss marker signal, in its own BOTH-applicability jig. Written
+     * server-side at the {@code BOSS_MOB_JIG} attach/release hooks; read client-side by the eye render
+     * layer.
      */
     private static void registerBossPublicJig() {
         var bossPublicFixture =

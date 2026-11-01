@@ -11,6 +11,9 @@ import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -50,9 +53,8 @@ final class BossJigHandlers {
         LevelScope scope = (LevelScope) info.scope();
         Level level = scope.level();
 
-        // FRO_104: the manual Satchel.isServer() check that used to live here was redundant --
-        // BOSS_JIG is already declared SideApplicability.SERVER (BossModule.java), so this
-        // handler is never invoked client-side to begin with; the branch could never fire.
+        // BOSS_JIG is BOTH, so this handler is invoked on a client too; the server-only work below has not
+        // moved off it yet (boss nodes B to G), and its fixture mutations call Satchel.requireServer().
         BossBundle bundle = info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
         BossFixture fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
 
@@ -71,7 +73,7 @@ final class BossJigHandlers {
 
         fixture.SPAWN.finalizeUnpositioned(level);
         fixture.SPAWN.materializeUnresolved(level, uuid -> BossInterests.add(level, uuid));
-        reconcilePathAgainstBossRecords(level, fixture);
+        reconcilePathAgainstBossRecords(level);
 
     }
 
@@ -141,7 +143,7 @@ final class BossJigHandlers {
             return;
         }
 
-        BossAPI.createBoss(level, result.border());
+        KeeperAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
@@ -188,6 +190,18 @@ final class BossJigHandlers {
             return;
         }
 
+        // The Keeper facts the cascade gates on. An entry without its Keeper record is not whole: it waits,
+        // and nothing is defeated or grown from it.
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        Optional<KeeperRecord> keeperOpt = keepersOpt.flatMap(keepers -> keepers.get(bossId.get()));
+        if (keeperOpt.isEmpty()) {
+            OUT.warn("[Boss] onMobDied(): no Keeper record for bossId=" + Ids.shortId(bossId.get())
+                    + " -- the entry is not whole; not marking it defeated.");
+            return;
+        }
+        KeeperFixture keepers = keepersOpt.get();
+        KeeperRecord keeper = keeperOpt.get();
+
         if (!fixture.CRUD.markDefeated(bossId.get())) {
             return;
         }
@@ -201,16 +215,15 @@ final class BossJigHandlers {
 
         // On-path gate: a hand-placed off-path boss never triggers growth. An on-path boss only
         // triggers growth once it's the last living sibling on that border.
-        Optional<BossRecord> defeatedRecord = fixture.CRUD.get(bossId.get());
-        Optional<UUID> borderId = defeatedRecord.flatMap(BossRecord::borderId);
-        boolean lastStanding = borderId.isEmpty() || !fixture.INFO.anyAliveWithBorderId(borderId.get());
+        Optional<UUID> borderId = keeper.borderId();
+        boolean lastStanding = borderId.isEmpty() || !keepers.anyAliveWithBorderId(fixture, borderId.get());
 
         // FRO_112: placeholder defeat loot -- pays out at the same last-standing point growth
         // itself gates on (trivially true for an off-path record), independent of whether growth
         // actually fires afterward. See grantDefeatLoot's own doc.
         if (lastStanding) {
             double lootStep = fixture.RULES.keeperLootStep();
-            defeatedRecord.ifPresent(record -> grantDefeatLoot(record, credited, mob, level, lootStep));
+            grantDefeatLoot(keeper, credited, mob, level, lootStep);
         }
 
         if (borderId.isEmpty()) {
@@ -248,9 +261,9 @@ final class BossJigHandlers {
         // position; the record is there, since a borderId came from it.
         credited.server.getPlayerList().broadcastSystemMessage(
                 Component.translatable("message.frontiermode.keeper_defeated", credited.getDisplayName(),
-                        defeatedRecord.map(BossAPI::pathPositionOf).orElseThrow()), false);
+                        KeeperAPI.pathPositionOf(keeper)), false);
 
-        BossAPI.createBoss(level, result.border());
+        KeeperAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
@@ -321,16 +334,16 @@ final class BossJigHandlers {
      * per the standing rule that the two cascade sites don't share code, and because an admin command
      * force-defeating bosses for loot is exactly the kind of riskless exploit that shouldn't exist.
      */
-    private static void grantDefeatLoot(BossRecord record, ServerPlayer credited, Mob mob, Level level,
+    private static void grantDefeatLoot(KeeperRecord keeper, ServerPlayer credited, Mob mob, Level level,
                                         double lootStep) {
         OUT.debug("[Boss] grantDefeatLoot: paying " + credited.getGameProfile().getName()
-                + " for bossId=" + Ids.shortId(record.bossId()));
+                + " for bossId=" + Ids.shortId(keeper.bossId()));
         if (level instanceof ServerLevel serverLevel) {
-            KeeperLoot.pay(serverLevel, mob, record, credited, lootStep);
+            KeeperLoot.pay(serverLevel, mob, keeper, credited, lootStep);
         }
     }
 
-    private static void reconcilePathAgainstBossRecords(Level level, BossFixture fixture) {
+    private static void reconcilePathAgainstBossRecords(Level level) {
         Optional<BordersPathFacet> pathOpt = BorderAPI.PATH(level);
         Optional<BordersCrudFacet> crudOpt = BorderAPI.CRUD(level);
         if (pathOpt.isEmpty() || crudOpt.isEmpty()) {
@@ -344,6 +357,6 @@ final class BossJigHandlers {
             crud.get(id).ifPresent(b -> pathLayers.put(b.layer(), b.id()));
         }
 
-        fixture.INFO.reportMismatch(level, pathLayers);
+        KeeperAPI.keepers(level).ifPresent(keepers -> keepers.reportMismatch(level, pathLayers));
     }
 }

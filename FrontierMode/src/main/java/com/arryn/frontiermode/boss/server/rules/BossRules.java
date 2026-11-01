@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -39,7 +39,7 @@ public interface BossRules {
      * {@code Level.isLoaded(position)}. {@code position} is already validated, real terrain by
      * this point (chosen and scored by {@link #choosePosition} above) -- no in-place Y-resolution
      * or liquid-column check happens here anymore, per border-pregeneration.md's "What this
-     * changes in Boss" section. Spawns the {@code record}'s body, puts it on the Keeper rung of the
+     * changes in Boss" section. Spawns the {@code keeper}'s body, puts it on the Keeper rung of the
      * stat ladder from the Keeper stat tables (boss.md § Keeper stats), and sets it up as a Keeper
      * (fire immunity, sun ward, name). Returns empty only if the entity itself couldn't be created
      * or added (not a terrain problem anymore) -- the caller retries next tick, same fixed
@@ -48,7 +48,7 @@ public interface BossRules {
      * <p>Deliberately does not call {@code MobScope.getFor(mob)} or touch {@code BossFixture} --
      * both are Satchel-wiring concerns owned by {@code BossModule}, not a "boss design" decision.
      */
-    Optional<Mob> materialize(Level level, BlockPos position, BossRecord record);
+    Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper);
 
     /**
      * The name of the body a boss gets at path position {@code pathPosition}, from the
@@ -63,7 +63,7 @@ public interface BossRules {
      * hitbox/render scale (FRO_148) and the spawn platform's footprint and clearance. Computed from
      * the record's own path position and body, never from a live Border.
      */
-    float keeperScale(BossRecord record);
+    float keeperScale(KeeperRecord keeper);
 
     /**
      * FRO_160: ticks between a non-player death returning a boss to unmaterialized and the

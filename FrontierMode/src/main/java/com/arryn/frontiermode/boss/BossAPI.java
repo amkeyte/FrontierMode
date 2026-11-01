@@ -2,10 +2,7 @@ package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
@@ -15,6 +12,9 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -27,7 +27,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -127,66 +126,6 @@ public final class BossAPI {
             throw new SatchelException.AccessFailed(
                     "Failed to resolve BossTellFixture for level " + level.dimension().location(), e);
         }
-    }
-
-    /**
-     * A Keeper's progression number -- what players are told is its "level" -- is its home Border's
-     * path position, not its layer (boss.md § Data model). Falls back to {@code layer} for a boss
-     * with no path position (hand-placed, or attached to an off-path Border), so it still has a
-     * number to show.
-     */
-    public static int pathPositionOf(BossRecord record) {
-        return record.pathPosition().orElse(record.layer());
-    }
-
-    /**
-     * Is {@code record} a milestone Keeper -- the one on the last Border of a growth wave
-     * (boss.md § Milestone Keepers)? Reads the record's own path position, never the layer
-     * fallback: a boss with no path position closes no wave, so is never a milestone.
-     */
-    public static boolean isMilestone(BossRecord record) {
-        if (record.pathPosition().isEmpty()) {
-            return false;
-        }
-        BorderRules rules = BorderRules.ACTIVE;
-        return rules.waveStep(record.pathPosition().getAsInt()) == rules.borderWaveLength();
-    }
-
-    /**
-     * {@code border}'s 1-based position on {@code level}'s path -- the value a boss record copies
-     * once at creation. Empty if the Border is not on the path (or the path isn't resolvable yet).
-     */
-    public static OptionalInt pathPositionOf(Level level, Border border) {
-        int index = BorderAPI.PATH(level).map(path -> path.indexOf(border.id())).orElse(-1);
-        return index < 0 ? OptionalInt.empty() : OptionalInt.of(index + 1);
-    }
-
-    /**
-     * FRO_121 (Intuition/Resonance): resolves the boss identity at the level's current
-     * {@code BordersPathFacet} tip -- "Intuition/Resonance resolve 'the current Path Tip'
-     * exactly once, at lock time, to get a boss identity" per special-compass.md's "One shared
-     * core" section. A border can carry more than one boss (themed multi-mob encounters share
-     * one {@code borderId}, per boss.md's cascade-gating notes); this returns any one alive
-     * match rather than picking among several, since the design doesn't distinguish them here.
-     * {@code Optional.empty()} if the level has no path yet, no tip, or the tip border has no
-     * living boss record.
-     */
-    public static Optional<UUID> pathTipBossId(Level level) {
-        Optional<BossFixture> fixtureOpt = bosses(level);
-        if (fixtureOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        Optional<UUID> tipBorderIdOpt = BorderAPI.PATH(level).flatMap(BordersPathFacet::tip).map(Border::id);
-        if (tipBorderIdOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        UUID tipBorderId = tipBorderIdOpt.get();
-
-        return fixtureOpt.get().all().stream()
-                .filter(BossRecord::alive)
-                .filter(r -> r.borderId().equals(Optional.of(tipBorderId)))
-                .map(BossRecord::bossId)
-                .findFirst();
     }
 
     /**
@@ -323,45 +262,10 @@ public final class BossAPI {
     }
 
     /**
-     * Creates a new, unpositioned boss record for {@code border} -- the direct call paired at a
-     * real border-creation call site (see boss.md's "Defeat detection and the border-growth gap").
-     * Border Pregeneration moved position selection off this call entirely: the record starts
-     * with a null position, and {@code BossModule}'s own tick finalizes a real one only once
-     * {@code BorderAPI.isPregenReady()} passes for {@code border} -- see
-     * wiki/frontiermode/architecture/border-pregeneration.md#what-this-changes-in-boss.
-     * {@code layer} is copied once from {@code border.layer()} and never re-read from
-     * {@code border} afterward.
-     */
-    public static Optional<BossRecord> createBoss(Level level, Border border) {
-        Optional<BossFixture> fixtureOpt = bosses(level);
-        if (fixtureOpt.isEmpty()) {
-            OUT.warn("[Boss] createBoss(): BossFixture not available for level "
-                    + level.dimension().location() + " -- border " + Ids.shortId(border.id()) + " gets no boss record.");
-            return Optional.empty();
-        }
-
-        // FRO_058: BossFixture.create() now returns Optional<BossRecord> itself (empty on a
-        // rejected negative layer) -- no wrapping needed here anymore.
-        // FRO_081: routed through the new BossCrudFacet rather than calling fixture.create()
-        // directly -- a pure pass-through (BossCrudFacet.create() forwards to the exact same
-        // BossFixture.create() call this always made), done here so this call site (and every
-        // caller of createBoss(), including BossModule.onBordersScopeLoaded/onLivingDeath/this
-        // class's own forceDefeat() below) benefits from the new facet structure through
-        // BossAPI's own sanctioned facade, without every caller needing to change to reach the
-        // facet directly.
-        // FRO_082: create(layer, borderId) instead of the bare create(layer) -- every caller of
-        // createBoss() is, by construction, paired with real border-growth (that's this method's
-        // whole contract: "for border"), so the new record's borderId is always set to
-        // border.id() here, never left empty. The off-path (/boss add) entry point stays on
-        // BossFixture.create(int)/BossCrudFacet.create(int) directly, unaffected.
-        return fixtureOpt.get().CRUD.create(border.layer(), border.id(), pathPositionOf(level, border));
-    }
-
-    /**
-     * Explicit admin removal (FRO_057's {@code /boss delete}) -- despawns/deletes via
-     * {@link BossCrudFacet#remove(UUID)}, then (FRO_082, FRO_063's ruling) marks the removed
-     * record's border {@code pendingAttach} if it was still on-path. See
-     * wiki/frontiermode/architecture/boss.md#despawn-and-record-removal.
+     * Explicit admin removal (FRO_057's {@code /boss delete}) -- deletes the record via
+     * {@link BossCrudFacet#remove(UUID)}, which announces the removal to the record's kind (the Keeper's marks
+     * the removed record's border {@code pendingAttach} if it was still on-path), then despawns the live
+     * entity. See wiki/frontiermode/architecture/boss.md#aliveness-and-removal.
      *
      * <p><b>FRO_061 (project owner ruling):</b> if the removed record was materialized, its live
      * entity is despawned via {@code Satchel.require().egress().getEntity(...)} -- the same
@@ -386,7 +290,7 @@ public final class BossAPI {
         }
         BossFixture fixture = fixtureOpt.get();
 
-        // Captured before remove() -- the record (and its borderId) is gone from the fixture
+        // Captured before remove() -- the record (and its entity id) is gone from the fixture
         // once remove() returns true.
         Optional<BossRecord> recordOpt = fixture.CRUD.get(bossId);
 
@@ -402,29 +306,14 @@ public final class BossAPI {
                 .flatMap(record -> Satchel.require().egress().getEntity(level, record.bossEntityId()))
                 .ifPresent(Entity::discard);
 
-        // FRO_082: mark the removed record's border pendingAttach, same sanctioned wait-state a
-        // boss-less pathGrow() produces -- but only if it actually had a borderId (a hand-placed
-        // off-path /boss add-ed record never does) and that border is still genuinely on the
-        // level's path (a border removed from the path some other way shouldn't get queued for
-        // an attach action that no longer makes sense).
-        recordOpt.flatMap(BossRecord::borderId).ifPresent(borderId -> {
-            if (isOnPath(level, borderId)) {
-                fixture.CRUD.addPendingAttach(borderId);
-            }
-        });
-
         return true;
-    }
-
-    private static boolean isOnPath(Level level, UUID borderId) {
-        return BorderAPI.PATH(level).map(path -> path.all().contains(borderId)).orElse(false);
     }
 
     /**
      * Bundles {@link #forceDefeat}'s outcome -- {@code borderResult} is exactly what
      * {@code BorderAPI.grow} returned (its own {@code border()} is the newly grown
      * <em>border</em>, not a boss), and {@code nextBoss} is the actual {@link BossRecord}
-     * {@link #createBoss} produced for it, if any. FRO_057 playtest turned up that reporting
+     * {@link KeeperAPI#createBoss} produced for it, if any. FRO_057 playtest turned up that reporting
      * {@code borderResult.border().id()} as "the next boss" was actively wrong -- a border id
      * and a boss id are different UUIDs, and the chat feedback was showing the former labeled as
      * the latter.
@@ -446,7 +335,7 @@ public final class BossAPI {
     /**
      * Force-defeats a boss record without combat, then runs the same cascade a real death does
      * ({@code BorderAPI.grow} centered on the record's own stored position, then
-     * {@link #createBoss} for the resulting border) -- FRO_057's {@code /boss transform defeat},
+     * {@link KeeperAPI#createBoss} for the resulting border) -- FRO_057's {@code /boss transform defeat},
      * built to reproduce the full "boss defeated -> border grows -> next boss queued" effect on
      * demand, not just flip the record's {@code alive} flag. Mirrors {@code BossModule
      * .onLivingDeath}'s own cascade shape, but keyed off a selector-resolved {@code bossId}
@@ -479,6 +368,19 @@ public final class BossAPI {
                     Result.notFound("No boss record for id " + Ids.shortId(bossId)), Optional.empty(), false);
         }
         BossRecord record = recordOpt.get();
+
+        // The Keeper facts the cascade gates on. An entry without its Keeper record is not whole: it waits,
+        // and nothing is defeated or grown from it.
+        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
+        Optional<KeeperRecord> keeperOpt = keepersOpt.flatMap(keepers -> keepers.get(bossId));
+        if (keeperOpt.isEmpty()) {
+            return new DefeatOutcome(
+                    Result.notReady("Keeper record for boss " + Ids.shortId(bossId)
+                            + " not available for level " + level.dimension().location()),
+                    Optional.empty(), false);
+        }
+        KeeperFixture keepers = keepersOpt.get();
+        KeeperRecord keeper = keeperOpt.get();
 
         // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see
         // BossRecord's own doc) -- grow() needs a real center to place the next border around, so
@@ -529,15 +431,15 @@ public final class BossAPI {
         // identical check BossModule.onLivingDeath() runs right after its own markDefeated() --
         // see that method's own comment for the full reasoning. The defeat mutation above already
         // committed either way; only the grow/createBoss cascade is gated here.
-        if (record.borderId().isEmpty()) {
+        if (keeper.borderId().isEmpty()) {
             return new DefeatOutcome(
                     Result.validationRejected("Boss " + Ids.shortId(bossId) + " was never on-path (borderId"
                             + " empty, e.g. a hand-placed /boss add) -- force-defeated, but no"
                             + " border growth to trigger."),
                     Optional.empty(), true);
         }
-        UUID borderId = record.borderId().get();
-        if (fixture.INFO.anyAliveWithBorderId(borderId)) {
+        UUID borderId = keeper.borderId().get();
+        if (keepers.anyAliveWithBorderId(fixture, borderId)) {
             return new DefeatOutcome(
                     Result.validationRejected("Boss " + Ids.shortId(bossId) + " force-defeated, but another"
                             + " boss on border " + Ids.shortId(borderId) + " is still alive -- border growth"
@@ -553,7 +455,7 @@ public final class BossAPI {
             return new DefeatOutcome(result, Optional.empty(), false);
         }
 
-        Optional<BossRecord> nextBoss = createBoss(level, result.border());
+        Optional<BossRecord> nextBoss = KeeperAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
         BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
         // RM_FRO_029 (Gloria): same paired-creation discipline -- this is one of the three call

@@ -5,6 +5,8 @@ import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnPlacement;
@@ -47,11 +49,14 @@ final class CairnPlacer {
      */
     static void attemptPlacement(Level level, CairnFixture fixture, CairnRecord record) {
         Optional<BossRecord> bossOpt = BossAPI.bosses(level).flatMap(f -> f.get(record.bossId()));
-        if (bossOpt.isEmpty()) {
+        Optional<KeeperRecord> keeperOpt = KeeperAPI.keepers(level).flatMap(f -> f.get(record.bossId()));
+        // An entry without its Keeper record is not whole: it waits.
+        if (bossOpt.isEmpty() || keeperOpt.isEmpty()) {
             return;
         }
         BossRecord boss = bossOpt.get();
-        Optional<Border> homeOpt = boss.borderId()
+        KeeperRecord keeper = keeperOpt.get();
+        Optional<Border> homeOpt = keeper.borderId()
                 .flatMap(id -> BorderAPI.CRUD(level).flatMap(c -> c.get(id)));
         // bordersContaining throws while the Border facet isn't resolvable; stand by instead.
         if (homeOpt.isEmpty() || BorderAPI.RULES(level).isEmpty()) {
@@ -64,7 +69,7 @@ final class CairnPlacer {
 
         Optional<BlockPos> ground = suitableGround(level, candidate);
         if (ground.isEmpty()) {
-            rejectCandidate(fixture, record, boss);
+            rejectCandidate(fixture, record, keeper);
             return;
         }
 
@@ -101,7 +106,7 @@ final class CairnPlacer {
     }
 
     /** Counts a dropped candidate against {@code record}; at {@code cairnMaxAttempts} the Cairn gives up. */
-    private static void rejectCandidate(CairnFixture fixture, CairnRecord record, BossRecord boss) {
+    private static void rejectCandidate(CairnFixture fixture, CairnRecord record, KeeperRecord keeper) {
         int failed = fixture.recordFailedCandidate(record.cairnId());
         int max = CairnRules.cairnMaxAttempts();
         if (failed < max) {
@@ -109,10 +114,10 @@ final class CairnPlacer {
         }
 
         fixture.remove(record.cairnId());
-        long placed = fixture.forBoss(boss.bossId()).stream().filter(CairnRecord::placed).count();
-        OUT.warn("[Structure] A Cairn for boss " + Ids.shortId(boss.bossId()) + " found no ground after "
+        long placed = fixture.forBoss(keeper.bossId()).stream().filter(CairnRecord::placed).count();
+        OUT.warn("[Structure] A Cairn for boss " + Ids.shortId(keeper.bossId()) + " found no ground after "
                 + max + " candidates and was dropped; " + placed + " of "
-                + CairnPlacement.count(boss.pathPosition()) + " placed.");
+                + CairnPlacement.count(keeper.pathPosition()) + " placed.");
     }
 
     /**

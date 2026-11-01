@@ -4,6 +4,7 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.boss.common.bundle.BossMobBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossMobFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -59,8 +60,10 @@ final class BossMobJigHandlers {
         // constructed before it was known to be a boss, so its hitbox is still unscaled -- refresh
         // it now that the marker (which the Size handler reads) exists.
         BossRecord record = recordOpt.get();
-        float scale = BossAPI.bosses(mob.level())
-                .map(f -> f.RULES.keeperScale(record)).orElse(1.0F);
+        float scale = KeeperAPI.keepers(mob.level())
+                .flatMap(keepers -> keepers.get(record.bossId()))
+                .flatMap(keeper -> BossAPI.bosses(mob.level()).map(f -> f.RULES.keeperScale(keeper)))
+                .orElse(1.0F);
         BossAPI.publicMarkers(mob.level()).ifPresent(m -> m.add(record.bossId(), entityId, scale));
         mob.refreshDimensions();
     }

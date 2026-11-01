@@ -8,6 +8,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -225,7 +226,7 @@ public class AmethystCompassItem extends CompassItem {
 
     /**
      * The actual re-lock, triggered by {@link #refreshOrRelock} finding a mismatch. Resolves
-     * the current Path Tip's boss identity ({@link BossAPI#pathTipBossId}) exactly once, per
+     * the current Path Tip's boss identity ({@link KeeperAPI#pathTipBossId}) exactly once, per
      * special-compass.md's own wording -- from there, Intuition freezes a ring-jitter point and
      * Resonance stays live on that boss UUID.
      */
@@ -238,7 +239,7 @@ public class AmethystCompassItem extends CompassItem {
             return;
         }
 
-        Optional<UUID> bossIdOpt = BossAPI.pathTipBossId(level);
+        Optional<UUID> bossIdOpt = KeeperAPI.pathTipBossId(level);
         if (bossIdOpt.isEmpty()) {
             return; // Nothing to lock onto yet -- try again next throttled tick.
         }
@@ -300,30 +301,33 @@ public class AmethystCompassItem extends CompassItem {
             return InteractionResult.PASS;
         }
 
+        // A boss whose entry has no Keeper record yet is not whole, so it has no platform to match.
         Optional<BossRecord> recordOpt = BossAPI.bosses(level).flatMap(fixture ->
-                fixture.all().stream()
-                        .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked,
-                                BossPlatform.halfWidth(fixture.RULES.keeperScale(record))))
-                        .findFirst());
+                KeeperAPI.keepers(level).flatMap(keepers -> fixture.all().stream()
+                        .filter(record -> record.positioned() && keepers.get(record.bossId())
+                                .map(keeper -> matchesPlatform(record.position(), clicked,
+                                        BossPlatform.halfWidth(fixture.RULES.keeperScale(keeper))))
+                                .orElse(false))
+                        .findFirst()));
         if (recordOpt.isEmpty()) {
             return InteractionResult.PASS;
         }
 
         Optional<BlockPos> posOpt = BossAPI.resolveLivePosition(level, recordOpt.get().bossId());
-        if (posOpt.isEmpty()) {
+        Optional<Integer> bossLevelOpt = bossLevel(level, recordOpt.get().bossId());
+        if (posOpt.isEmpty() || bossLevelOpt.isEmpty()) {
             return InteractionResult.PASS;
         }
 
-        CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID(),
-                BossAPI.pathPositionOf(recordOpt.get()));
+        CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID(), bossLevelOpt.get());
         writeLodestoneFields(stack, level, posOpt.get());
         return InteractionResult.CONSUME;
     }
 
     /** The player-facing level of {@code bossId}'s record, for the tooltip; empty if it has none. */
     private static Optional<Integer> bossLevel(Level level, UUID bossId) {
-        return BossAPI.bosses(level).flatMap(fixture -> fixture.get(bossId))
-                .map(BossAPI::pathPositionOf);
+        return KeeperAPI.keepers(level).flatMap(keepers -> keepers.get(bossId))
+                .map(KeeperAPI::pathPositionOf);
     }
 
     /**
