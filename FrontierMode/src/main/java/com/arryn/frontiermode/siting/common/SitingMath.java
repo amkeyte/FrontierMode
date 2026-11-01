@@ -7,7 +7,8 @@ import java.util.List;
 
 /**
  * The siting module's arithmetic that needs no world (siting.md), so plain JUnit can test it: where to
- * look, and how a candidate that failed the starting-site check is scored.
+ * look, how a candidate that failed the starting-site check is scored, and how much a chunk's used
+ * ground costs a column's hazard score.
  */
 public final class SitingMath {
 
@@ -72,5 +73,16 @@ public final class SitingMath {
 
         boolean passes = wood >= 1.0 && land >= 1.0 && stone >= 1.0 && room >= 1.0;
         return new Verdict(passes, wood + land + stone + room);
+    }
+
+    /**
+     * The hazard penalty for ground players have spent time on (siting.md § Used ground ranks lower):
+     * {@code maxPenalty} times the share of {@code fullTicks} the chunk's {@code inhabitedTime} has
+     * reached, rising linearly from 0 and holding at {@code maxPenalty} from {@code fullTicks} on. A
+     * {@code maxPenalty} of 0 gives 0: the rule is off. The share is divided as a double, so a chunk
+     * halfway to {@code fullTicks} pays half.
+     */
+    public static double usedGroundPenalty(long inhabitedTime, int fullTicks, double maxPenalty) {
+        return maxPenalty * Math.min(1.0, (double) inhabitedTime / fullTicks);
     }
 }
