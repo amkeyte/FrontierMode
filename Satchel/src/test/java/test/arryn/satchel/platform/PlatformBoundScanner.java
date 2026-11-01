@@ -18,7 +18,8 @@ import java.util.stream.Stream;
  * The first rule of Platform-Bound Code § The check: a class with a direct Forge listener carries
  * {@code @PlatformBound} with a non-empty reason. The scanner reads a source tree as text and needs no
  * Forge classes and no parser library, so it runs under a plain {@code gradle test}. It is one file with
- * only JDK imports, so another project's test can use a copy of it and point it at its own source.
+ * only JDK imports, so another project's build can compile it from this tree (FrontierMode's
+ * {@code syncPlatformCheck} does) and point it at its own source. Keep it that way: no import outside the JDK.
  *
  * <p>
  * <b>A listener</b> is the annotation {@code @SubscribeEvent}, the annotation

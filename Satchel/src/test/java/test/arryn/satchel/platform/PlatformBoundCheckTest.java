@@ -13,7 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * Platform-Bound Code § The check, the first rule, on Satchel's own source: a class with a direct Forge
  * listener carries {@code @PlatformBound} with a reason. A module's own test is a thin class like this one,
- * pointed at its source with a copy of {@link PlatformBoundScanner}.
+ * pointed at its source. FrontierMode does not copy {@link PlatformBoundScanner}: its build pulls this file
+ * and {@code authorized-classes.txt} from here before its tests compile (FRO_267).
  */
 class PlatformBoundCheckTest {
 

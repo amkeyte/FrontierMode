@@ -199,6 +199,45 @@ test {
     useJUnitPlatform()
 }
 
+// FRO_267: the @PlatformBound check runs over FrontierMode's source with Satchel's own scanner and
+// authorized-classes list. Nothing is copied into this repo: syncPlatformCheck pulls both files from the
+// sibling Satchel project into build/generated/platformcheck on every test build, so they cannot drift.
+// The scanner is one JDK-only file, so it needs nothing from Satchel's classpath.
+def platformCheckDir = layout.buildDirectory.dir('generated/platformcheck').get().asFile
+def satchelTestDir = file("${projectDir}/../Satchel/src/test")
+
+def syncPlatformCheck = tasks.register('syncPlatformCheck', Sync) {
+    group = 'verification'
+    description = "Pulls Satchel's PlatformBoundScanner and authorized-classes.txt into build/generated for the platform check."
+
+    from("${satchelTestDir}/java/test/arryn/satchel/platform") {
+        include 'PlatformBoundScanner.java'
+        into 'java/test/arryn/satchel/platform'
+    }
+    from("${satchelTestDir}/resources/platform") {
+        include 'authorized-classes.txt'
+        into 'resources/platform'
+    }
+    into platformCheckDir
+
+    // Gradle silently skips a missing `from` source, which would leave the test without its scanner.
+    doFirst {
+        [file("${satchelTestDir}/java/test/arryn/satchel/platform/PlatformBoundScanner.java"),
+         file("${satchelTestDir}/resources/platform/authorized-classes.txt")].each {
+            if (!it.exists()) {
+                throw new GradleException("Missing ${it} -- the platform check reads it from Satchel, expected as a sibling of FrontierMode.")
+            }
+        }
+    }
+}
+
+sourceSets.test {
+    java.srcDir "${platformCheckDir}/java"
+    resources.srcDir "${platformCheckDir}/resources"
+}
+tasks.named('compileTestJava') { dependsOn syncPlatformCheck }
+tasks.named('processTestResources') { dependsOn syncPlatformCheck }
+
 // This block of code expands all declared replace properties in the specified resource targets.
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.
 // When "copyIdeResources" is enabled, this will also run before the game launches in IDE environments.

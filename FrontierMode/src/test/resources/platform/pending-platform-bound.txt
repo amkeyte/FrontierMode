@@ -1,0 +1,20 @@
+# Classes with a direct Forge listener that do not carry @PlatformBound yet (FRO_267)
+#
+# The platform check (PlatformBoundCheckTest) fails for any class with a direct listener and no
+# @PlatformBound(reason = "..."), except the files listed here. This is a baseline that may only shrink:
+# a new unmarked listener fails the test, and a file that gains its marker must be removed from this list
+# (the test fails while a listed file is clean). The marker-sweep ticket for Curtis empties it.
+#
+# One source file per line, relative to src/main/java. Blank lines and lines that start with "#" are ignored.
+# BossScaleEvents and the part of BossScaleClientEvents that moves onto the ingress need no marker once moved
+# (FRO_256 and the boss refactor); they leave this list when the listener leaves the file.
+
+com/arryn/frontiermode/FrontierMode.java
+com/arryn/frontiermode/Rendering.java
+com/arryn/frontiermode/admin/client/AdminViewClient.java
+com/arryn/frontiermode/boss/BossScaleEvents.java
+com/arryn/frontiermode/boss/client/BossClientEvents.java
+com/arryn/frontiermode/boss/client/BossScaleClientEvents.java
+com/arryn/frontiermode/bosstell/client/AmethystCompassClient.java
+com/arryn/frontiermode/diorite/DioriteCreativeTabs.java
+com/arryn/frontiermode/diorite/client/DioriteClientEvents.java
