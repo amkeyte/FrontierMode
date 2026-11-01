@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss.common;
+package com.arryn.frontiermode.keeper.common;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -6,7 +6,7 @@ import net.minecraft.world.level.block.Blocks;
 
 /**
  * A boss's spawn platform: a carved, solid footing under and around it, built once per boss record
- * when its position is final and its chunk is loaded, before its first materialization. See boss.md's
+ * when its position is final and its chunk is loaded, before its first materialization. See keeper.md's
  * "Spawn platform". A flat bedrock pad is a placeholder for a real, themed structure later.
  *
  * <p>Footprint and clearance both scale with the boss's size multiplier (the same multiplier that

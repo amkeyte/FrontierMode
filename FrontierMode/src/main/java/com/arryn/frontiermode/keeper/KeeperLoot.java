@@ -1,8 +1,8 @@
-package com.arryn.frontiermode.boss;
+package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.server.rules.BorderRules;
-import com.arryn.frontiermode.boss.common.KeeperLootTables;
+import com.arryn.frontiermode.keeper.common.KeeperLootTables;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.resources.ResourceLocation;
@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A defeated Keeper's reward (boss.md § Defeat loot): the vanilla-format tables under
+ * A defeated Keeper's reward (keeper.md § Defeat loot): the vanilla-format tables under
  * {@code frontiermode:keeper/} that {@link KeeperLootTables} names, rolled with the credited player as
  * the killer and dropped as real items at the death position, so the reward is something a player walks
  * over and picks up. The body's own vanilla drops are untouched: they come from the death itself, with

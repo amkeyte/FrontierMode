@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss.common;
+package com.arryn.frontiermode.keeper.common;
 
 import com.arryn.frontiermode.border.common.BorderMathLogic;
 
@@ -9,7 +9,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * Which loot tables a defeated Keeper rolls, and how its reward grows past path position 20 (boss.md
+ * Which loot tables a defeated Keeper rolls, and how its reward grows past path position 20 (keeper.md
  * § Defeat loot), free of Minecraft types so plain JUnit can test the choice and the arithmetic. Names
  * are relative to {@code frontiermode:keeper/}; the tables themselves are vanilla-format data the mod
  * ships.
@@ -25,7 +25,7 @@ public final class KeeperLootTables {
     /** Guards a product that is whole on paper but a hair under it in floating point (10 x 1.3). */
     private static final double COUNT_EPSILON = 1e-9;
 
-    /** The table that stands in for each extra copy of an unstackable stack (boss.md § Defeat loot). */
+    /** The table that stands in for each extra copy of an unstackable stack (keeper.md § Defeat loot). */
     public static final String EXTRA_PIECE = "extra_piece";
     /** How many times a repeated unstackable item is re-rolled before the repeat is accepted. */
     public static final int MAX_EXTRA_REROLLS = 8;

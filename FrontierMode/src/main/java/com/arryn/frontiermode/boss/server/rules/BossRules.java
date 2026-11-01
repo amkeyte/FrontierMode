@@ -175,7 +175,7 @@ public interface BossRules {
 
     /**
      * How much a Keeper's wave and milestone loot grows for each milestone its path position has passed
-     * beyond 20: the multiplier is {@code 1 + keeperLootStep x k} (boss.md § Defeat loot; FRO_242).
+     * beyond 20: the multiplier is {@code 1 + keeperLootStep x k} (keeper.md § Defeat loot; FRO_242).
      * Safe baseline 0.3.
      */
     double keeperLootStep();

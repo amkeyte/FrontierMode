@@ -1,6 +1,6 @@
-package test.arryn.frontiermode.boss.common;
+package test.arryn.frontiermode.keeper.common;
 
-import com.arryn.frontiermode.boss.common.KeeperLootTables;
+import com.arryn.frontiermode.keeper.common.KeeperLootTables;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** boss.md § Defeat loot: which tables a Keeper rolls, at the default wave length of 5. */
+/** keeper.md § Defeat loot: which tables a Keeper rolls, at the default wave length of 5. */
 class KeeperLootTablesTest {
 
     private static List<String> at(int p, String body) {

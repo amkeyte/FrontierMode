@@ -42,7 +42,7 @@ import java.util.UUID;
  * {@link com.arryn.frontiermode.boss.common.bundle.BossBundle} -- drives the per-boss
  * environmental tells (particle and sound), per
  * wiki/frontiermode/architecture/discovery-systems.md#environmental-tells. Tells only: the boss's
- * spawn platform is Boss's own ({@link com.arryn.frontiermode.boss.common.BossPlatform}).
+ * spawn platform is the Keeper's own ({@link com.arryn.frontiermode.keeper.common.BossPlatform}).
  *
  * <p><b>Tell pass (cadence-gated via {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}):</b>
  * for each server player on this level, finds the nearest alive+positioned boss with a

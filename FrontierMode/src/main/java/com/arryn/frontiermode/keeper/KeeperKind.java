@@ -10,13 +10,11 @@ import com.arryn.frontiermode.boss.Boss;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.CreditTally;
 import com.arryn.frontiermode.boss.HealthBar;
-import com.arryn.frontiermode.boss.KeeperLoot;
 import com.arryn.frontiermode.boss.Leash;
 import com.arryn.frontiermode.boss.SentinelJigHandlers;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
 import com.arryn.frontiermode.boss.common.BossKind;
-import com.arryn.frontiermode.boss.common.BossPlatform;
 import com.arryn.frontiermode.boss.common.DeathVerdict;
 import com.arryn.frontiermode.boss.common.SiteOutcome;
 import com.arryn.frontiermode.boss.common.Spawned;
@@ -25,6 +23,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
@@ -298,7 +297,7 @@ public final class KeeperKind implements BossKind {
 
     /**
      * The Keeper's defeat reward: vanilla-format loot tables rolled and dropped by {@link KeeperLoot}
-     * (boss.md § Defeat loot; FRO_213). Only reached for a player-credited defeat. FRO_134: a real item drop
+     * (keeper.md § Defeat loot; FRO_213). Only reached for a player-credited defeat. FRO_134: a real item drop
      * at the death position, never a direct inventory insert, so it reads as a reward the player walks over
      * and picks up.
      */
