@@ -70,6 +70,24 @@ public final class BossCommands {
             boolean livingOnly
     ) throws CommandSyntaxException {
 
+        int count = 0;
+        for (BossRecord b : selected(ctx, selector, livingOnly)) {
+            count += op.run(ctx, b.bossId());
+        }
+
+        return count;
+    }
+
+    /**
+     * The bosses {@code selector} matches, in order; empty after telling the sender that none matched. Shared by
+     * {@code applySelector}, which acts on each in turn, and {@code info}, which reports on all of them together.
+     */
+    private static List<BossRecord> selected(
+            CommandContext<CommandSourceStack> ctx,
+            BossSelectorResult selector,
+            boolean livingOnly
+    ) throws CommandSyntaxException {
+
         ServerPlayer sp = ctx.getSource().getPlayerOrException();
 
         List<BossRecord> bosses = BossSelector.resolve(selector, sp);
@@ -82,15 +100,8 @@ public final class BossCommands {
         if (bosses.isEmpty()) {
             ctx.getSource().sendFailure(Component.literal(
                     filterToLiving ? "[Boss] No living bosses matched selector." : "[Boss] No bosses matched selector."));
-            return 0;
         }
-
-        int count = 0;
-        for (BossRecord b : bosses) {
-            count += op.run(ctx, b.bossId());
-        }
-
-        return count;
+        return bosses;
     }
 
     @FunctionalInterface
@@ -104,16 +115,17 @@ public final class BossCommands {
 
     private static ArgumentBuilder<CommandSourceStack, ?> info() {
         return Commands.literal("info")
-                .executes(ctx ->
-                        applySelector(ctx, BossSelectorResult.all(), BossCommandHandler::info)
-                )
+                .executes(ctx -> infoSelected(ctx, BossSelectorResult.all()))
                 .then(Commands.argument("selector", BossSelectorArgumentType.selector())
-                        .executes(ctx -> applySelector(
-                                ctx,
-                                BossSelectorArgumentType.getSelector(ctx, "selector"),
-                                BossCommandHandler::info
-                        ))
+                        .executes(ctx -> infoSelected(ctx, BossSelectorArgumentType.getSelector(ctx, "selector")))
                 );
+    }
+
+    // One report for every selected boss, not one per boss: the subjects go in a single InfoRequest.
+    private static int infoSelected(CommandContext<CommandSourceStack> ctx, BossSelectorResult selector)
+            throws CommandSyntaxException {
+        List<BossRecord> bosses = selected(ctx, selector, false);
+        return bosses.isEmpty() ? 0 : BossCommandHandler.info(ctx, bosses);
     }
 
     // ------------------------------------------------------------

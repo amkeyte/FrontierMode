@@ -71,10 +71,15 @@ public interface BossKind {
     DeathVerdict judgeDeath(Level level, UUID bossId, BossDeath death);
 
     /**
-     * What a defeat does. Called after the base has marked the record defeated and scheduled the flush.
-     * {@code credited} is empty for a defeat with no killer.
+     * What a defeat does, for both defeat paths: a death in combat, and a forced one ({@code /boss defeat}). Called
+     * after the base has marked the record defeated and scheduled the flush. {@code where} is where the defeat
+     * happened: a death location for a combat defeat, the record's own position for a forced one. {@code body} is the
+     * boss's body, present for a combat defeat and empty for a forced one (the base has already dismissed it).
+     * {@code credited} is empty for a defeat with no killer. The outcome says whether the defeat went through and what
+     * to tell the command that forced it; the combat path ignores it.
      */
-    void onDefeat(Level level, UUID bossId, Mob mob, Optional<ServerPlayer> credited);
+    DefeatOutcome onDefeat(Level level, UUID bossId, BlockPos where, Optional<Mob> body,
+                           Optional<ServerPlayer> credited);
 
     /**
      * Subscribes the kind's mob-side abilities, with their settings, to {@code host}, the dynamic host of the boss's
@@ -95,20 +100,37 @@ public interface BossKind {
     void subscribeRecordAbilities(Level level, Boss boss, DynamicTrinket host);
 
     /**
+     * Whether this kind offers {@code /boss add}, hand placement. A command asks before it calls {@link #handPlace},
+     * and answers that the verb does not apply to a kind that says no. The default is a kind that does not offer it.
+     */
+    default boolean offersHandPlace() {
+        return false;
+    }
+
+    /**
+     * Whether this kind offers {@code /boss attach}, pairing onto an existing Border. A command asks before it calls
+     * {@link #attachToBorder}, and answers that the verb does not apply to a kind that says no. The default is a kind
+     * that does not offer it.
+     */
+    default boolean offersAttach() {
+        return false;
+    }
+
+    /**
      * {@code /boss add}: creates a record of this kind at a position an admin chose, with no Border, and commits the
-     * position at once. Empty means the kind does not offer the verb, or rejected the arguments (logged); the default
-     * is a kind that does not offer it.
+     * position at once. Only called for a kind that {@link #offersHandPlace() offers it}; calling it on one that does
+     * not is a programming error. Empty means the kind rejected the arguments (logged).
      */
     default Optional<BossRecord> handPlace(Level level, BlockPos position, int layer) {
-        return Optional.empty();
+        throw new UnsupportedOperationException("[Boss] handPlace(): kind \"" + key() + "\" does not offer the verb.");
     }
 
     /**
      * {@code /boss attach}: creates a record of this kind for an existing Border and clears the Border's pending
-     * attach. Empty means the kind does not offer the verb, or rejected the Border (logged); the default is a kind
-     * that does not offer it.
+     * attach. Only called for a kind that {@link #offersAttach() offers it}; calling it on one that does not is a
+     * programming error. Empty means the kind rejected the Border (logged).
      */
     default Optional<BossRecord> attachToBorder(Level level, Border border) {
-        return Optional.empty();
+        throw new UnsupportedOperationException("[Boss] attachToBorder(): kind \"" + key() + "\" does not offer the verb.");
     }
 }

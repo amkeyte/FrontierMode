@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss.common.fixture;
+package com.arryn.frontiermode.bosstell.common.fixture;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
@@ -7,30 +7,28 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderCurve;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.Shape;
-import com.arryn.frontiermode.boss.common.bundle.BossBundle;
+import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.bosstell.common.bundle.TellBundle;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
-import com.arryn.satchel.common.util.Ids;
+import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.Heightmap;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,13 +36,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Sibling fixture to {@link BossFixture} inside
- * {@link com.arryn.frontiermode.boss.common.bundle.BossBundle} -- drives the per-boss
+ * The Tell module's fixture, in {@link TellBundle} on {@code TELL_JIG} -- drives the per-boss
  * environmental tells (particle and sound), per
  * wiki/frontiermode/architecture/discovery-systems.md#environmental-tells. Tells only: the boss's
  * spawn platform is the Keeper's own ({@link com.arryn.frontiermode.keeper.common.BossPlatform}).
  *
- * <p><b>Tell pass (cadence-gated via {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}):</b>
+ * <p><b>Tell pass (cadence-gated via {@link #tellTickInterval()}):</b>
  * for each server player on this level, finds the nearest alive+positioned boss with a
  * borderId, resolves its {@code "tell"}-purpose {@link BorderCurve} (LOG shape), computes
  * intensity from distance-to-boss (normalized by that boss' border's radius) via
@@ -74,8 +71,7 @@ public final class BossTellFixture extends SatchelFixture {
     }
 
 
-    // Shared RNG -- same static-field shape BossRulesFacet.RULES already uses (one instance
-    // shared across every level's BossTellFixture). Not persisted; resets on server restart,
+    // Shared RNG -- one instance shared across every level's BossTellFixture. Not persisted; resets on server restart,
     // which is fine: we just skip one early-interval window.
     private static final RandomSource RNG = RandomSource.create();
 
@@ -114,7 +110,7 @@ public final class BossTellFixture extends SatchelFixture {
     }
 
     // Per-boss round-robin index into TELL_SOUNDS (which slot plays next) and the game-time tick
-    // each boss last actually played one (for the BossRules#tellSoundCooldownTicks() gate below).
+    // each boss last actually played one (for the tellSoundCooldownTicks() gate below).
     // Deliberately NOT persisted -- same "off/on signal" ephemeral-state discipline as this
     // fixture's own tickCounter and WildsTellFixture's: resetting to slot 0 / no-cooldown on a
     // server restart is harmless, and neither map is large enough (one entry per boss that has
@@ -200,10 +196,60 @@ public final class BossTellFixture extends SatchelFixture {
     @Override
     public void onJigTick() {
         Satchel.requireServer();
-        BossBundle bundle = getBundle();
+        TellBundle bundle = getBundle();
         @SuppressWarnings("resource") Level level = bundle.level();
-        bundle.boss().ifPresent(boss ->
+        BossAPI.bosses(level).ifPresent(boss ->
                 BorderAPI.CURVE(level).ifPresent(curves -> tick(level, boss, curves)));
+    }
+
+    // ------------------------------------------------------------------
+    // FRO_087 (Janice): the tell numbers, Tunable-backed (SAT_074) and constructed inside their own accessors
+    // ------------------------------------------------------------------
+
+    /**
+     * FRO_087 (Janice): cadence for the tell-pass -- how many server ticks between each per-player intensity
+     * evaluation and particle/sound roll. Safe baseline: 20 ticks (~1 second). Tuning is playtest territory.
+     */
+    private static int tellTickInterval() {
+        return new Tunable("tellTickInterval", 1, 200, 20).intValue();
+    }
+
+    /**
+     * FRO_087 (Janice): probability coefficient for the tell particle roll, applied as intensity x this against a
+     * [0,1) uniform random draw. Was temporarily maxed to 1.0 as a location-debug aid alongside PARTICLE_COUNT's
+     * bump (player call, 2026-09-06: "make it a ridiculous amount to see where they're actually showing up") --
+     * guaranteed a particle fire on every tick-interval where intensity > 0, so a walk toward/around a boss
+     * revealed the tell radius without waiting on RNG. Scatter shape confirmed good ("that's about where I want
+     * it"), so dialed back to the original 70% tuned baseline -- peaking at 1.0 right at the boss and fading to
+     * 0.0 at the border edge. Playtest territory, tune further if it now reads too sparse without the debug
+     * multiplier. [0,1] bound, this coefficient is a probability roll.
+     */
+    private static double tellParticleCoefficient() {
+        return new Tunable("tellParticleCoefficient", 0f, 1f, 0.7f).floatValue();
+    }
+
+    /**
+     * FRO_087 (Janice): probability coefficient for the tell sound roll. Independent of the particle roll -- same
+     * intensity value, separate draw. 5% roll at maximum intensity: sounds rarer than particles by design. Safe
+     * baseline; playtest territory.
+     */
+    private static double tellSoundCoefficient() {
+        return new Tunable("tellSoundCoefficient", 0f, 1f, 0.05f).floatValue();
+    }
+
+    /**
+     * RM_FRO_037 (Curtis, boss-audio-tell follow-up, 2026-09-08): hard per-boss cooldown (in ticks) on the tell
+     * sound roll, on top of {@link #tellSoundCoefficient()}'s own probability. Needed once the tell sound stopped
+     * being a sub-second blip: {@link #tellTickInterval()} (~1s) combined with a 5% roll meant a several-seconds-
+     * long clip could easily get re-triggered -- by the same player rolling again, or by a different player near
+     * the same boss rolling independently -- before the previous one finished, stacking overlapping playback
+     * instead of a clean one-at-a-time rotation. This cooldown is evaluated first: only once it's elapsed for a
+     * given boss does the probability roll even get a chance to fire again for that boss. Safe baseline: 600 ticks
+     * (30 seconds), sized to the project-owner-supplied clip length (round-robin, 4x ~30s clips, 2026-09-08) --
+     * revisit per clip if the supplied sounds aren't all the same length.
+     */
+    private static int tellSoundCooldownTicks() {
+        return new Tunable("tellSoundCooldownTicks", 0, 6000, 600).intValue();
     }
 
     private void tick(Level level, BossFixture bossFixture, BorderCurveFixture curveFixture) {
@@ -211,7 +257,7 @@ public final class BossTellFixture extends SatchelFixture {
 
         // Tell pass is cadence-gated.
         tickCounter++;
-        int interval = bossFixture.RULES.tellTickInterval();
+        int interval = tellTickInterval();
         if (tickCounter < interval) {
             return;
         }
@@ -255,8 +301,8 @@ public final class BossTellFixture extends SatchelFixture {
         }
         var crud = crudOpt.get();
 
-        double particleCoeff = bossFixture.RULES.tellParticleCoefficient();
-        double soundCoeff = bossFixture.RULES.tellSoundCoefficient();
+        double particleCoeff = tellParticleCoefficient();
+        double soundCoeff = tellSoundCoefficient();
 
         for (ServerPlayer player : level.players()) {
             BlockPos playerPos = player.blockPosition();
@@ -328,14 +374,14 @@ public final class BossTellFixture extends SatchelFixture {
             if (normalizedDistance <= SOUND_MAX_NORMALIZED_DISTANCE
                     && RNG.nextDouble() < intensity * soundCoeff) {
                 // RM_FRO_037 follow-up (2026-09-08): hard per-boss cooldown gates the probability
-                // roll above -- see BossRules#tellSoundCooldownTicks's own doc for why (4x ~30s
+                // roll above -- see tellSoundCooldownTicks's own doc for why (4x ~30s
                 // clips would otherwise stack/overlap at this roll's original sub-second-blip
                 // cadence). Only once the cooldown has elapsed does this boss get to actually
                 // fire (and advance) its round-robin.
                 UUID tellBossId = nearest.bossId();
                 long nowTick = level.getGameTime();
                 long readyAtTick = lastTellSoundTick.getOrDefault(tellBossId, Long.MIN_VALUE)
-                        + bossFixture.RULES.tellSoundCooldownTicks();
+                        + tellSoundCooldownTicks();
 
                 if (nowTick >= readyAtTick) {
                     List<SoundEvent> tellSounds = tellSounds();

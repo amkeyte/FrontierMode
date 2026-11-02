@@ -2,7 +2,9 @@ package com.arryn.frontiermode.bosstell;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
+import com.arryn.frontiermode.bosstell.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
+import com.arryn.frontiermode.keeper.KeeperCreated;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.player.Player;
@@ -12,8 +14,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The holder class for the bosstell ingress. {@link BossTellModule#init()} registers {@link #build()}
- * through a lambda, so this class loads when the server side boots.
+ * The holder class for the bosstell ingress: the compass pickup, and the Tell module's consumer of the Keeper's
+ * {@link KeeperCreated}. {@link BossTellModule#init()} registers {@link #build()} through a lambda, so this class
+ * loads when the server side boots.
  */
 final class BossTellIngress {
 
@@ -24,7 +27,17 @@ final class BossTellIngress {
         IngressConfig ingress = new IngressConfig(FrontierKeys.BOSSTELL_INGRESS);
         ingress.translate(EntityItemPickupEvent.class, BossTellIngress::resolvePicker, CompassPickup::new);
         ingress.listenForAll(CompassPickup.class, BossTellIngress::onPickup);
+        ingress.listenForAll(KeeperCreated.class, BossTellIngress::onKeeperCreated);
         return ingress;
+    }
+
+    /**
+     * A Keeper was created for a Border (keeper.md § Keeper events): the Border gets its {@code "tell"} curve if it has
+     * none. Idempotent, so a restart or a second creation is a no-op.
+     */
+    private static void onKeeperCreated(KeeperCreated created) {
+        OUT.debug("[BossTell] KeeperCreated reached its consumer");
+        BossTellFixture.createTellCurveIfAbsent(created.level(), created.borderId());
     }
 
     /**

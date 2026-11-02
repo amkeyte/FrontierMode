@@ -13,7 +13,8 @@ import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.bosstell.common.bundle.TellBundle;
+import com.arryn.frontiermode.bosstell.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.keeper.common.bundle.KeeperBundle;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.structure.common.CairnFixture;
@@ -139,9 +140,15 @@ public final class FrontierKeys {
                     MobJig.class
             );
 
-    // RM_FRO_030 (Janice): BossTellFixture -- sibling fixture in BOSS_BUNDLE alongside
-    // BossFixture itself. See BossModule.registerBossJig() for the schema wiring and
+    // RM_FRO_030 (Janice), moved by RM_FRO_065 ("Geraldine"): the Tell module's own jig. TELL_JIG is a SERVER-only
+    // LevelJig holding BossTellFixture in TellBundle. See TellJigConfig for the wiring and
     // wiki/frontiermode/architecture/discovery-systems.md#environmental-tells for the design.
+
+    public static final BundleKey<TellBundle> TELL_BUNDLE =
+            new BundleKey<>(
+                    "frontiermode:tell_bundle",
+                    TellBundle.class
+            );
 
     public static final FixtureKey<BossTellFixture> BOSS_TELL =
             new FixtureKey<>(
@@ -149,8 +156,14 @@ public final class FrontierKeys {
                     BossTellFixture.class
             );
 
-    // RM_FRO_029 (Gloria): BossSentinelsFixture -- third sibling fixture in BOSS_BUNDLE alongside
-    // BossFixture/BossTellFixture. See BossModule.registerBossJig() for the schema wiring and
+    public static final JigKey<LevelJig> TELL_JIG =
+            new JigKey<>(
+                    "frontiermode:tell_jig",
+                    LevelJig.class
+            );
+
+    // RM_FRO_029 (Gloria): BossSentinelsFixture -- sibling fixture in BOSS_BUNDLE alongside
+    // BossFixture. See BossJigConfig for the schema wiring and
     // wiki/frontiermode/architecture/sentinels.md for the design.
 
     public static final FixtureKey<BossSentinelsFixture> BOSS_SENTINELS =

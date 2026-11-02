@@ -7,7 +7,7 @@ import com.arryn.satchel.common.util.out.OUT;
  * Tunables for Feral (RM_FRO_038 "Martha"). Feral's stat growth is not here: the {@code feral} rung's
  * growth factors are {@code DifficultyRules} Tunables. The numbers are placeholder baselines, not
  * tuned against play, the same "safe baseline, replace later" convention every other rules class in this
- * codebase follows (e.g. {@code PlayerRules}, {@code DefaultBossRules}).
+ * codebase follows (e.g. {@code PlayerRules}, {@code SentinelRules}).
  *
  * <p>Every number here but one is {@link Tunable}-backed (SAT_074, begun in FRO_141): an accessor
  * <b>method</b>, not a field, since a {@code Tunable} is constructed fresh at point of use rather than

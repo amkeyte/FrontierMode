@@ -6,6 +6,7 @@ import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Ticking;
+import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -21,8 +22,8 @@ import net.minecraft.world.entity.Mob;
  * so a boss that can be kited far from it pulls them all out of true. Each tick, a boss farther than its radius from its
  * recorded position is teleported back to it.
  *
- * <p>The radius is a setting the kind passes at subscribe (the Keeper passes {@code bossLeashRadiusFirst} for path
- * position 1 or below, else {@code bossLeashRadius}). The tick also advances a wide boss's path (FRO_224).
+ * <p>The radius is a setting the kind passes at subscribe (the Keeper passes its own {@code bossLeashRadiusFirst} for
+ * path position 1 or below, else {@link #standardRadius()}). The tick also advances a wide boss's path (FRO_224).
  */
 public final class Leash implements Ticking {
 
@@ -32,6 +33,14 @@ public final class Leash implements Ticking {
     public Leash(Boss boss, double radius) {
         this.boss = boss;
         this.radius = radius;
+    }
+
+    /**
+     * How far, in blocks, a present boss may be from its recorded position before it is teleported back
+     * (border-pregeneration.md § Movement). Safe baseline 40.
+     */
+    public static int standardRadius() {
+        return new Tunable("bossLeashRadius", 8, 512, 40).intValue();
     }
 
     @Override

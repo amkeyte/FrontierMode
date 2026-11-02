@@ -67,6 +67,7 @@ public final class BossTellModule {
     public static void init() {
         OUT.info("FrontierMode - BossTellModule Initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossTellIngress.build());
+        Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> TellJigConfig.build());
         Satchel.contributePlayerTrinket("frontiermode:bosstell", JigPolicies.SideApplicability.SERVER, Order.NORMAL,
                 CompassRefresh.class, () -> new CompassRefresh());
     }

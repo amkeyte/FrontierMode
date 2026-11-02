@@ -1,20 +1,17 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
-import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.boss.common.BossKind;
+import com.arryn.frontiermode.boss.common.BossKinds;
+import com.arryn.frontiermode.boss.common.DefeatOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
-import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
-import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
+import com.arryn.frontiermode.core.Dismissal;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -76,7 +73,7 @@ public final class BossAPI {
     }
 
     // ---------------------------------------------------------------------
-    // FRO_081: facet resolvers, mirroring BorderAPI.PATH/CRUD/RULES/INFO's own shape -- Boss's
+    // FRO_081: facet resolvers, mirroring BorderAPI.PATH/CRUD/INFO's own shape -- Boss's
     // fixture stays reachable directly via bosses(Level) above (see BossFixture's own doc for
     // why, unlike Border's now-private resolveFixture()), but these give callers that only need
     // one specific facet the same resolve-and-map convenience BorderAPI's own callers get.
@@ -86,46 +83,8 @@ public final class BossAPI {
         return bosses(level).map(f -> f.CRUD);
     }
 
-    public static Optional<BossRulesFacet> RULES(Level level) {
-        return bosses(level).map(f -> f.RULES);
-    }
-
     public static Optional<BossInfoFacet> INFO(Level level) {
         return bosses(level).map(f -> f.INFO);
-    }
-
-    /**
-     * FRO_087 (Janice): resolves {@link BossTellFixture} for {@code level} -- same
-     * "standby, don't crash" discipline as {@link #bosses(Level)}. Used at boss-creation call
-     * sites (via {@code BossModule}) and by any future caller that needs to read or mutate tell
-     * records directly.
-     */
-    public static Optional<BossTellFixture> bossTells(Level level) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[BossAPI] bossTells(): Satchel not ready yet -> Optional.empty level="
-                    + level.dimension().location());
-            return Optional.empty();
-        }
-
-        LevelScope scope = new LevelScope(level);
-
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
-        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
-        if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] bossTells(): scope not ready -> Optional.empty level="
-                    + level.dimension().location());
-            return Optional.empty();
-        }
-
-        try {
-            return levelJig()
-                    .getOrCreate(scope, FrontierKeys.BOSS_BUNDLE)
-                    .get(FrontierKeys.BOSS_TELL);
-        } catch (RuntimeException e) {
-            throw new SatchelException.AccessFailed(
-                    "Failed to resolve BossTellFixture for level " + level.dimension().location(), e);
-        }
     }
 
     /**
@@ -179,7 +138,7 @@ public final class BossAPI {
 
     /**
      * Resolves {@link BossSentinelsFixture} for {@code level} -- same "standby, don't crash"
-     * discipline as {@link #bosses(Level)}, mirroring {@link #bossTells} exactly. Used by
+     * discipline as {@link #bosses(Level)}, mirroring it exactly. Used by
      * {@code BossModule.onMobSpawnFinalize}.
      */
     public static Optional<BossSentinelsFixture> sentinels(Level level) {
@@ -322,166 +281,79 @@ public final class BossAPI {
     }
 
     /**
-     * Bundles {@link #forceDefeat}'s outcome -- {@code borderResult} is exactly what
-     * {@code BorderAPI.grow} returned (its own {@code border()} is the newly grown
-     * <em>border</em>, not a boss), and {@code nextBoss} is the actual {@link BossRecord}
-     * {@link KeeperAPI#createBoss} produced for it, if any. FRO_057 playtest turned up that reporting
-     * {@code borderResult.border().id()} as "the next boss" was actively wrong -- a border id
-     * and a boss id are different UUIDs, and the chat feedback was showing the former labeled as
-     * the latter.
+     * Force-defeats a boss record without combat (boss.md § Commands and the Info report; {@code /boss defeat}). The
+     * base marks the record defeated, clears the respawn state, dismisses a loaded body, schedules the flush, then
+     * calls the kind's {@code onDefeat} with the record's own position, no body and no credited player, and returns its
+     * outcome; a boss with no {@code Persistent} then drops its record. It pays no reward -- an admin command
+     * force-defeating bosses for loot is exactly the riskless exploit a reward should not have -- and the combat path
+     * and this one share only the kind's hook. Nothing is mutated unless every check passes, so a rejected call leaves
+     * the record untouched rather than defeated with nothing done.
      *
-     * <p><b>FRO_083:</b> {@code growthGated} is {@code true} only for the two new cascade-gating
-     * outcomes ({@code borderId} empty -- an off-path {@code /boss add}-ed record was never
-     * meant to grow anything; or another record on the same {@code borderId} is still alive --
-     * "last one standing" not yet satisfied). Both leave {@code borderResult} as a
-     * {@code validationRejected} {@link Result} (there's no {@code BorderAPI.grow} outcome to
-     * report -- {@code grow} was never called), but the defeat mutation itself already
-     * succeeded by this point ({@code markDefeated} already ran) -- {@code growthGated} is what
-     * lets a caller like {@code BossCommandHandler.transformDefeat} tell "this genuinely failed"
-     * from "this succeeded, growth correctly withheld" instead of reporting the latter as a
-     * command failure.
-     */
-    public record DefeatOutcome(Result borderResult, Optional<BossRecord> nextBoss, boolean growthGated) {
-    }
-
-    /**
-     * Force-defeats a boss record without combat, then runs the same cascade a real death does
-     * ({@code BorderAPI.grow} centered on the record's own stored position, then
-     * {@link KeeperAPI#createBoss} for the resulting border) -- FRO_057's {@code /boss transform defeat},
-     * built to reproduce the full "boss defeated -> border grows -> next boss queued" effect on
-     * demand, not just flip the record's {@code alive} flag. Mirrors {@code BossModule
-     * .onLivingDeath}'s own cascade shape, but keyed off a selector-resolved {@code bossId}
-     * instead of a dying {@code Mob}, and centered on the record's stored {@code position()}
-     * rather than a live entity's block position -- deliberately not refactored to share code
-     * with {@code onLivingDeath} itself, which is Karen's own already playtest-verified path and
-     * out of this ticket's scope to touch.
-     *
-     * @return a {@link DefeatOutcome} -- {@code borderResult} is {@code notFound} if no record
-     *         matches {@code bossId}, {@code notReady} if the level's Boss/Border data isn't
-     *         resolvable yet, {@code validationRejected} if the record is already defeated
-     *         (FRO_058's guard -- see {@code BossFixture.markDefeated}), otherwise whatever
-     *         {@code grow} itself returns; {@code nextBoss} is empty whenever {@code borderResult}
-     *         isn't a success, and also (rarer) if {@code createBoss} itself couldn't resolve a
-     *         {@code BossFixture} for the newly-grown border -- see its own warn log in that case.
+     * @return the kind's outcome, or one that did not go through if the level's boss data is not resolvable yet,
+     *         there is no such record, its entry is not whole, it has no position yet, or it is already defeated
      */
     public static DefeatOutcome forceDefeat(Level level, UUID bossId) {
         Optional<BossFixture> fixtureOpt = bosses(level);
         if (fixtureOpt.isEmpty()) {
-            return new DefeatOutcome(
-                    Result.notReady("BossFixture not available for level "
-                            + level.dimension().location()),
-                    Optional.empty(), false);
+            return new DefeatOutcome(false, "boss data is not available for level "
+                    + level.dimension().location() + " yet.");
         }
         BossFixture fixture = fixtureOpt.get();
 
         Optional<BossRecord> recordOpt = fixture.CRUD.get(bossId);
         if (recordOpt.isEmpty()) {
-            return new DefeatOutcome(
-                    Result.notFound("No boss record for id " + Ids.shortId(bossId)), Optional.empty(), false);
+            return new DefeatOutcome(false, "there is no boss record for id " + Ids.shortId(bossId) + ".");
         }
         BossRecord record = recordOpt.get();
 
-        // The Keeper facts the cascade gates on. An entry without its Keeper record is not whole: it waits,
-        // and nothing is defeated or grown from it.
-        Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
-        Optional<KeeperRecord> keeperOpt = keepersOpt.flatMap(keepers -> keepers.get(bossId));
-        if (keeperOpt.isEmpty()) {
-            return new DefeatOutcome(
-                    Result.notReady("Keeper record for boss " + Ids.shortId(bossId)
-                            + " not available for level " + level.dimension().location()),
-                    Optional.empty(), false);
-        }
-        KeeperFixture keepers = keepersOpt.get();
-        KeeperRecord keeper = keeperOpt.get();
-
-        // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see
-        // BossRecord's own doc) -- grow() needs a real center to place the next border around, so
-        // a still-pending record can't be force-defeated yet. Checked before markDefeated() so a
-        // rejected call leaves the record untouched rather than defeated with no border grown.
-        if (!record.positioned()) {
-            return new DefeatOutcome(
-                    Result.validationRejected("Boss " + Ids.shortId(bossId)
-                            + " has no finalized position yet (home border still pregenerating)"
-                            + " -- cannot force-defeat."),
-                    Optional.empty(), false);
-        }
-
-        // FRO_058: markDefeated() now guards against an already-defeated record itself, returning
-        // false rather than mutating -- check it before running the grow/createBoss cascade.
-        // Without this check, running /boss transform defeat a second time against the same
-        // already-dead boss re-triggered the full grow-and-spawn cascade with no real defeat
-        // behind it (shipped bug, playtest-verified in FRO_057, closed by boss.md's "Mutation
-        // validation boundary" ruling).
-        // FRO_081: routed through BossCrudFacet, a pure pass-through onto the exact same
-        // BossFixture.markDefeated() call this always made.
-        if (!fixture.CRUD.markDefeated(bossId)) {
-            return new DefeatOutcome(
-                    Result.validationRejected("Boss " + Ids.shortId(bossId) + " is already defeated."),
-                    Optional.empty(), false);
-        }
-
-        // A forced defeat kills the boss's sentinels uncredited: drops, no XP.
-        SentinelJigHandlers.onBossDefeated(level, bossId, null);
-
-        // A defeat clears the Boss's respawn state, and its dismissal below is the project's own removal of
-        // the body, so the Boss is marked retiring first.
+        // A Boss exists only for a whole entry (the base record and the kind's own). An entry that is not whole
+        // waits, and nothing is defeated from it.
         Optional<Boss> bossOpt = roster(level).flatMap(roster -> roster.boss(bossId));
-        bossOpt.ifPresent(boss -> {
-            boss.clearRespawnState();
-            boss.retire();
-        });
+        if (bossOpt.isEmpty()) {
+            return new DefeatOutcome(false, "its entry is not whole yet (the kind's own record is missing) --"
+                    + " cannot force-defeat.");
+        }
+        Boss boss = bossOpt.get();
+        BossKind kind = BossKinds.get(record.kind()).orElseThrow();
 
-        // A forced defeat has no kill, so the boss's body would otherwise stay: it leaves in a puff.
-        // discard(), not kill(), so the real-death cascade doesn't re-enter (see removeBoss). One that
-        // is unloaded now is dismissed by its Boss when it next attaches.
+        // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see BossRecord's own
+        // doc) -- a kind needs a real place to defeat the boss at, so a still-pending record can't be
+        // force-defeated yet. Checked before markDefeated() so a rejected call leaves the record untouched.
+        if (!record.positioned()) {
+            return new DefeatOutcome(false, "it has no finalized position yet (home border still pregenerating)"
+                    + " -- cannot force-defeat.");
+        }
+
+        // FRO_058: markDefeated() guards against an already-defeated record itself, returning false rather than
+        // mutating -- without this check, forcing a defeat a second time against the same dead boss re-ran the
+        // whole cascade with no real defeat behind it (boss.md's "Mutation validation boundary").
+        if (!fixture.CRUD.markDefeated(bossId)) {
+            return new DefeatOutcome(false, "it is already defeated.");
+        }
+
+        // A defeat clears the Boss's respawn state, and the dismissal below is the project's own removal of the
+        // body, so the Boss is marked retiring first.
+        boss.clearRespawnState();
+        boss.retire();
+
+        // A forced defeat has no kill, so the boss's body would otherwise stay: it leaves in a puff. discard(), not
+        // kill(), so the real-death cascade doesn't re-enter (see removeBoss). One that is unloaded now is
+        // dismissed by its Boss when it next attaches.
         if (record.materialized()) {
             Satchel.require().egress().getEntity(level, record.bossEntityId())
                     .ifPresent(entity -> {
                         if (entity instanceof net.minecraft.world.entity.Mob mob) {
-                            fixture.RULES.dismiss(mob);
+                            Dismissal.dismiss(mob);
                         }
                     });
         }
 
-        // FRO_108: the defeat mark itself is a real mutation worth protecting even when cascade
-        // gating below stops growth right here -- see boss.md's "Cascade durability".
+        // FRO_108: the defeat mark itself is a real mutation worth protecting even when the kind's cascade then
+        // withholds everything -- see boss.md's "Cascade durability".
         roster(level).ifPresent(BossRoster::scheduleFlush);
 
-        // FRO_083 (boss.md "Cascade gating: on-path, and last one standing"), mirrors the
-        // identical check BossModule.onLivingDeath() runs right after its own markDefeated() --
-        // see that method's own comment for the full reasoning. The defeat mutation above already
-        // committed either way; only the grow/createBoss cascade is gated here.
-        if (keeper.borderId().isEmpty()) {
-            return new DefeatOutcome(
-                    Result.validationRejected("Boss " + Ids.shortId(bossId) + " was never on-path (borderId"
-                            + " empty, e.g. a hand-placed /boss add) -- force-defeated, but no"
-                            + " border growth to trigger."),
-                    Optional.empty(), true);
-        }
-        UUID borderId = keeper.borderId().get();
-        if (keepers.anyAliveWithBorderId(fixture, borderId)) {
-            return new DefeatOutcome(
-                    Result.validationRejected("Boss " + Ids.shortId(bossId) + " force-defeated, but another"
-                            + " boss on border " + Ids.shortId(borderId) + " is still alive -- border growth"
-                            + " withheld until every boss on this border falls."),
-                    Optional.empty(), true);
-        }
-
-        Result result = BorderAPI.grow(level, record.position());
-        if (!result.isSuccess()) {
-            OUT.warn("[Boss] forceDefeat(): BorderAPI.grow(level, " + record.position()
-                    + ") failed for bossId=" + bossId + ": " + result.message()
-                    + " -- not calling createBoss without a border.");
-            return new DefeatOutcome(result, Optional.empty(), false);
-        }
-
-        Optional<BossRecord> nextBoss = KeeperAPI.createBoss(level, result.border());
-        BorderAPI.startPregeneration(level, result.border().id());
-        BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
-        // RM_FRO_029 (Gloria): same paired-creation discipline -- this is one of the three call
-        // sites ensureSentinelCurves runs from (the other two are
-        // BossJigHandlers.onBordersScopeLoaded/onMobDied).
-        BossSentinelsFixture.ensureSentinelCurves(level, result.border().id());
-        return new DefeatOutcome(result, nextBoss, false);
+        DefeatOutcome outcome = kind.onDefeat(level, bossId, record.position(), Optional.empty(), Optional.empty());
+        boss.dropIfTransient(fixture, "was force-defeated");
+        return outcome;
     }
 }

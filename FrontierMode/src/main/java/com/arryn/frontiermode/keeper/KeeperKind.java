@@ -15,12 +15,12 @@ import com.arryn.frontiermode.boss.Persistent;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
 import com.arryn.frontiermode.boss.common.BossKind;
+import com.arryn.frontiermode.boss.common.DefeatOutcome;
 import com.arryn.frontiermode.boss.common.DeathVerdict;
 import com.arryn.frontiermode.boss.common.SiteOutcome;
 import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.keeper.common.BossMobTypes;
 import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
@@ -194,14 +194,18 @@ public final class KeeperKind implements BossKind {
     }
 
     /**
-     * The Keeper's defeat cascade (keeper.md § Defeat): it posts {@link KeeperDefeated} first, for the Sentinel
-     * module to queue its Sentinels' kill, the defeat loot is paid at the last-standing point, and an on-path
-     * Keeper that is the last standing on its Border grows the Frontier from where it fell, creates the next
-     * Keeper (whose {@link KeeperCreated} the Tell and Sentinel modules answer with their curves) and starts that
-     * Border's pregeneration. A hand-placed off-path Keeper (no {@code borderId}) grows nothing.
+     * The Keeper's defeat cascade (keeper.md § Defeat), for both defeat paths: a death in combat (where it fell, its
+     * body, the credited player) and a forced one, {@code /boss defeat} (the record's own position, no body, no
+     * player). It posts {@link KeeperDefeated} first, for the Sentinel module to queue its Sentinels' kill; the defeat
+     * loot is paid at the last-standing point, to a credited player only; and an on-path Keeper that is the last
+     * standing on its Border grows the Frontier from {@code where}, creates the next Keeper (whose
+     * {@link KeeperCreated} the Tell and Sentinel modules answer with their curves) and starts that Border's
+     * pregeneration. A hand-placed off-path Keeper (no {@code borderId}) grows nothing. The outcome says what
+     * happened, in the Keeper's words and with its level, for the command that forced it; the combat path ignores it.
      */
     @Override
-    public void onDefeat(Level level, UUID bossId, Mob mob, Optional<ServerPlayer> credited) {
+    public DefeatOutcome onDefeat(Level level, UUID bossId, BlockPos where, Optional<Mob> body,
+                                  Optional<ServerPlayer> credited) {
         Satchel.require().eventBus().post(new KeeperDefeated(level, bossId, credited));
 
         Optional<BossFixture> bossesOpt = BossAPI.bosses(level);
@@ -210,11 +214,13 @@ public final class KeeperKind implements BossKind {
         if (bossesOpt.isEmpty() || keepersOpt.isEmpty() || keeperOpt.isEmpty()) {
             OUT.warn("[Keeper] onDefeat(): boss or Keeper data not available for level "
                     + level.dimension().location() + " -- nothing paid or grown for bossId=" + Ids.shortId(bossId));
-            return;
+            return new DefeatOutcome(false, "its boss or Keeper data is not available for this level yet --"
+                    + " nothing paid or grown.");
         }
         BossFixture bosses = bossesOpt.get();
         KeeperFixture keepers = keepersOpt.get();
         KeeperRecord keeper = keeperOpt.get();
+        String fallen = "level " + KeeperAPI.pathPositionOf(keeper);
 
         // On-path gate: a hand-placed off-path boss never triggers growth. An on-path boss only
         // triggers growth once it's the last living sibling on that border.
@@ -223,25 +229,30 @@ public final class KeeperKind implements BossKind {
 
         // FRO_112: placeholder defeat loot -- pays out at the same last-standing point growth
         // itself gates on (trivially true for an off-path record), independent of whether growth
-        // actually fires afterward.
-        if (lastStanding && credited.isPresent()) {
-            grantDefeatLoot(keeper, credited.get(), mob, level);
+        // actually fires afterward. A forced defeat has no credited player and no body, so it pays nothing.
+        if (lastStanding && credited.isPresent() && body.isPresent()) {
+            grantDefeatLoot(keeper, credited.get(), body.get(), level);
         }
 
-        if (borderId.isEmpty() || !lastStanding) {
-            return;
+        if (borderId.isEmpty()) {
+            return new DefeatOutcome(true, fallen + ", defeated -- it was never on-path (borderId empty, e.g. a"
+                    + " hand-placed /boss add), so there is no border growth to trigger.");
+        }
+        if (!lastStanding) {
+            return new DefeatOutcome(true, fallen + ", defeated -- but another boss on border "
+                    + Ids.shortId(borderId.get()) + " is still alive, so border growth is withheld until every boss on"
+                    + " this border falls.");
         }
 
-        BlockPos deathLocation = mob.blockPosition();
-        Result result = BorderAPI.grow(level, deathLocation);
+        Result result = BorderAPI.grow(level, where);
 
         if (!result.isSuccess()) {
             // A boss that fell out of the world can die outside build-height range, making
-            // grow(deathLocation) fail. Fall back to the boss's own recorded position, which is
-            // always within build height by construction.
+            // grow(where) fail. Fall back to the boss's own recorded position, which is
+            // always within build height by construction. A forced defeat starts there already.
             BlockPos fallbackCenter = bosses.CRUD.get(bossId).map(BossRecord::position).orElse(null);
-            if (fallbackCenter != null) {
-                OUT.warn("[Keeper] onDefeat(): grow(" + deathLocation + ") failed for bossId="
+            if (fallbackCenter != null && !fallbackCenter.equals(where)) {
+                OUT.warn("[Keeper] onDefeat(): grow(" + where + ") failed for bossId="
                         + bossId + ": " + result.message()
                         + " -- retrying from recorded position " + fallbackCenter);
                 result = BorderAPI.grow(level, fallbackCenter);
@@ -249,9 +260,9 @@ public final class KeeperKind implements BossKind {
         }
 
         if (!result.isSuccess()) {
-            OUT.warn("[Keeper] onDefeat(): grow(" + deathLocation + ") failed for bossId="
+            OUT.warn("[Keeper] onDefeat(): grow(" + where + ") failed for bossId="
                     + bossId + ": " + result.message() + " -- not calling createBoss.");
-            return;
+            return new DefeatOutcome(false, fallen + ", defeated -- but border growth failed: " + result.message());
         }
 
         // FRO_233: tells a new player what just happened -- the Keeper fell and the frontier grew.
@@ -261,8 +272,17 @@ public final class KeeperKind implements BossKind {
                 Component.translatable("message.frontiermode.keeper_defeated", player.getDisplayName(),
                         KeeperAPI.pathPositionOf(keeper)), false));
 
-        KeeperAPI.createBoss(level, result.border());
+        Optional<BossRecord> nextBoss = KeeperAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
+
+        // outcome.nextBoss() carries the real boss record (a border id and a boss id are different UUIDs), or is
+        // honestly empty if createBoss itself couldn't resolve a fixture for it -- see its own warn log.
+        String nextText = nextBoss
+                .map(next -> Ids.shortId(next.bossId()) + keeper(level, next.bossId())
+                        .map(nextKeeper -> " (level " + KeeperAPI.pathPositionOf(nextKeeper) + ")").orElse(""))
+                .orElse("(none -- see server log)");
+        return new DefeatOutcome(true, fallen + ", defeated -- border " + Ids.shortId(result.border().id())
+                + " grown, next boss " + nextText + " queued.");
     }
 
     /**
@@ -282,7 +302,7 @@ public final class KeeperKind implements BossKind {
                 "[Keeper] subscribeAbilities(): no Keeper record for bossId=" + boss.bossId()));
 
         host.subscribe(new CreditTally(boss));
-        double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? leashRadiusFirst() : rules(level).bossLeashRadius();
+        double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? leashRadiusFirst() : Leash.standardRadius();
         host.subscribe(new Leash(boss, radius));
         if (KeeperAPI.isMilestone(keeper)) {
             host.subscribe(new HealthBar(boss, KeeperSetup.BOSS_NAME));
@@ -314,6 +334,16 @@ public final class KeeperKind implements BossKind {
     @Override
     public boolean canBeBody(EntityType<?> type) {
         return BossMobTypes.isEligible(type);
+    }
+
+    @Override
+    public boolean offersHandPlace() {
+        return true;
+    }
+
+    @Override
+    public boolean offersAttach() {
+        return true;
     }
 
     /**
@@ -365,12 +395,6 @@ public final class KeeperKind implements BossKind {
 
     private static Optional<KeeperRecord> keeper(Level level, UUID bossId) {
         return KeeperAPI.keepers(level).flatMap(keepers -> keepers.get(bossId));
-    }
-
-    /** The boss rules, which exist whenever the roster that calls a hook does. */
-    private static BossRulesFacet rules(Level level) {
-        return BossAPI.RULES(level).orElseThrow(() -> new IllegalStateException(
-                "[Keeper] rules(): boss rules not available for level " + level.dimension().location()));
     }
 
     private static Optional<Border> resolveHomeBorder(Level level, int layer) {

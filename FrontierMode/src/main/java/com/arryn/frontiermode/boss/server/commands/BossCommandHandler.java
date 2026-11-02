@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.boss.server.commands;
 
 import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.boss.common.DefeatOutcome;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossDisplay;
 import com.arryn.frontiermode.boss.common.BossKind;
@@ -11,9 +12,9 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
-import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.KeeperKind;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
+import com.arryn.frontiermode.core.InfoPrinter;
+import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.util.Ids;
 
@@ -25,7 +26,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,11 +56,22 @@ public final class BossCommandHandler {
         return BossKinds.get(KeeperKind.KEY).orElseThrow();
     }
 
+    // A kind that does not offer a verb answers that it does not apply.
+    private static Component doesNotApply(BossKind kind, String verb) {
+        return msg("/boss " + verb + " does not apply to the " + kind.key() + " kind.");
+    }
+
     // ------------------------------------------------------------
     // INFO
     // ------------------------------------------------------------
 
-    public static int info(CommandContext<CommandSourceStack> ctx, UUID id) {
+    /**
+     * {@code /boss info}: for each selected boss, the base header, then what the modules add about it (boss.md §
+     * Commands and the Info report). A boss's subject is its body if it is loaded, otherwise its base record; one
+     * {@link InfoRequest} carries them all, and the shared printer prints each subject's lines together. The header is
+     * added the way the Inspect Stick adds its own, ahead of what the consumers add.
+     */
+    public static int info(CommandContext<CommandSourceStack> ctx, List<BossRecord> bosses) {
         ServerLevel level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
@@ -64,21 +79,28 @@ public final class BossCommandHandler {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
-
         BossFixture fixture = fixtureOpt.get();
-        Optional<BossRecord> recordOpt = fixture.get(id);
-        recordOpt.ifPresentOrElse(
-                r -> {
-                    // Surfaces the bare-position selector's own index (BossFixture.all()'s list
-                    // order) -- otherwise there's no way to target a specific record with
-                    // /boss mob spawn <n> without counting list position by hand.
-                    int idx = fixture.all().indexOf(r);
-                    Optional<KeeperRecord> keeper = KeeperAPI.keepers(level).flatMap(k -> k.get(id));
-                    ctx.getSource().sendSuccess(() -> msg(BossDisplay.fullInfo(r, keeper, idx)), false);
-                },
-                () -> ctx.getSource().sendFailure(msg("Boss not found: " + id))
-        );
-        return 1;
+
+        List<Object> subjects = new ArrayList<>();
+        List<String> headers = new ArrayList<>();
+        for (BossRecord record : bosses) {
+            Optional<Entity> body = record.materialized()
+                    ? Satchel.require().egress().getEntity(level, record.bossEntityId())
+                    : Optional.empty();
+            subjects.add(body.isPresent() ? body.get() : record);
+            // Surfaces the bare-position selector's own index (BossFixture.all()'s list order) -- otherwise
+            // there's no way to target a specific record with /boss mob spawn <n> without counting list
+            // position by hand.
+            headers.add("[Boss] " + BossDisplay.header(record, fixture.all().indexOf(record)));
+        }
+
+        InfoRequest request = new InfoRequest(level, subjects);
+        for (int i = 0; i < subjects.size(); i++) {
+            String header = headers.get(i);
+            request.add(subjects.get(i), "boss", () -> header);
+        }
+        InfoPrinter.report(request, line -> ctx.getSource().sendSuccess(() -> Component.literal(line), false));
+        return bosses.size();
     }
 
     // ------------------------------------------------------------
@@ -96,6 +118,11 @@ public final class BossCommandHandler {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
+        BossKind kind = keeperKind();
+        if (!kind.offersHandPlace()) {
+            ctx.getSource().sendFailure(doesNotApply(kind, "add"));
+            return 0;
+        }
 
         // FRO_058: the kind answers empty on a rejected sub-1 layer -- Brigadier's own
         // IntegerArgumentType.integer(1) on "layer" already keeps this unreachable from this command, but the
@@ -103,7 +130,7 @@ public final class BossCommandHandler {
         // this command's whole point is an admin choosing the position directly, so the kind commits `pos`
         // immediately rather than waiting on BorderAPI.isPregenReady() -- the same "admin-forced position,
         // unvalidated terrain is expected" precedent debugGoto's own comment already uses.
-        Optional<BossRecord> recordOpt = keeperKind().handPlace(level, pos, layer);
+        Optional<BossRecord> recordOpt = kind.handPlace(level, pos, layer);
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: no boss record was created for layer " + layer
                     + " (see server log)."));
@@ -126,9 +153,14 @@ public final class BossCommandHandler {
             sp.sendSystemMessage(msg("Boss data not available for this level yet."));
             return 0;
         }
+        BossKind kind = keeperKind();
+        if (!kind.offersHandPlace()) {
+            sp.sendSystemMessage(doesNotApply(kind, "add"));
+            return 0;
+        }
 
         // Same hand placement as addExplicit() -- see its comment.
-        Optional<BossRecord> recordOpt = keeperKind().handPlace(sp.serverLevel(), sp.blockPosition(), layer);
+        Optional<BossRecord> recordOpt = kind.handPlace(sp.serverLevel(), sp.blockPosition(), layer);
         if (recordOpt.isEmpty()) {
             sp.sendSystemMessage(msg("Rejected: no boss record was created for layer " + layer
                     + " (see server log)."));
@@ -195,11 +227,16 @@ public final class BossCommandHandler {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
+        BossKind kind = keeperKind();
+        if (!kind.offersAttach()) {
+            ctx.getSource().sendFailure(doesNotApply(kind, "attach"));
+            return 0;
+        }
 
         // Clearing pendingAttach is a no-op, not an error, if border.id() wasn't actually pending -- attach
         // doesn't require the target to already be in it (boss.md's own spec places no such restriction on it).
         // The Tell and Sentinel curves are the downstream modules' answer to the Keeper's KeeperCreated event.
-        Optional<BossRecord> recordOpt = keeperKind().attachToBorder(level, border);
+        Optional<BossRecord> recordOpt = kind.attachToBorder(level, border);
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: could not create a boss record for border "
                     + border.id() + " (a boss needs layer 1 or more -- see server log)."));
@@ -261,70 +298,36 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     /**
-     * Force-defeats a boss without combat -- the item that actually motivated Joyce. Runs the
-     * same cascade a real death does ({@code markDefeated} -> {@code BorderAPI.grow} ->
-     * {@code KeeperAPI.createBoss}), via {@link BossAPI#forceDefeat}, rather than a bare flag flip
-     * -- so this reproduces the full "I just killed the boss!" effect (border grows, next boss
-     * queued) on demand.
+     * Force-defeats a boss without combat -- the item that actually motivated Joyce. Runs the same defeat a real
+     * death does, via {@link BossAPI#forceDefeat}, which marks the record defeated and calls the kind's
+     * {@code onDefeat} -- so this reproduces the full "I just killed the boss!" effect (for a Keeper, the border
+     * grows and the next boss is queued) on demand. The boss is named by short id and kind; the kind's message
+     * says the rest (the Keeper says its level).
      */
     public static int transformDefeat(CommandContext<CommandSourceStack> ctx, UUID id) {
         ServerLevel level = ctx.getSource().getLevel();
 
-        // Named with the Keeper's level (its path position), read before the defeat so every line
-        // below says which Keeper fell.
-        String fallen = Ids.shortId(id) + pathTag(level, id);
+        // Named before the defeat, so every line below says which boss it is about.
+        String fallen = Ids.shortId(id) + BossAPI.bosses(level).flatMap(fixture -> fixture.get(id))
+                .map(record -> " (" + record.kind() + ")").orElse("");
 
-        BossAPI.DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
-        Result result = outcome.borderResult();
+        DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
 
-        // FRO_083: growthGated means the defeat itself succeeded (markDefeated already ran) but
-        // the grow/createBoss cascade was correctly withheld -- report it as a success, not a
-        // command failure, even though borderResult() itself is a validationRejected Result (see
-        // DefeatOutcome's own doc for why there's no real grow() outcome to report here).
-        if (outcome.growthGated()) {
-            ctx.getSource().sendSuccess(
-                    () -> msg("Boss " + fallen + " force-defeated. " + result.message()),
-                    false
-            );
-            return 1;
-        }
-
-        if (!result.isSuccess()) {
+        // FRO_083: an outcome that went through includes a defeat whose cascade was correctly withheld (an
+        // off-path Keeper, or another still alive on the border) -- the kind's message says so, and it is a
+        // success, not a command failure.
+        if (!outcome.wentThrough()) {
             ctx.getSource().sendFailure(
-                    msg("Failed to force-defeat boss " + fallen + ": " + result.message())
+                    msg("Failed to force-defeat boss " + fallen + ": " + outcome.message())
             );
             return 0;
         }
 
-        // FRO_057 playtest bug: result.border().id() is the newly grown BORDER's id, not a
-        // boss id -- reporting it as "next boss X" was actively misleading. outcome.nextBoss()
-        // carries the real BossRecord (or is honestly empty if createBoss itself couldn't
-        // resolve a fixture for it -- see BossAPI.forceDefeat's own warn log for that case).
-        String nextBossText = outcome.nextBoss()
-                .map(r -> Ids.shortId(r.bossId()) + pathTag(level, r.bossId()))
-                .orElse("(none -- see server log)");
-
         ctx.getSource().sendSuccess(
-                () -> msg("Boss " + fallen + " defeated -- border " + Ids.shortId(result.border().id())
-                        + " grown, next boss " + nextBossText + " queued."),
+                () -> msg("Boss " + fallen + ": " + outcome.message()),
                 false
         );
         return 1;
-    }
-
-    /**
-     * " (level N)" for a boss, N being its path position -- what players are told a Keeper's level
-     * is -- so a defeat message says which Keeper it is about. Empty when there is no such record.
-     */
-    private static String pathTag(ServerLevel level, UUID id) {
-        return KeeperAPI.keepers(level)
-                .flatMap(keepers -> keepers.get(id))
-                .map(BossCommandHandler::pathTag)
-                .orElse("");
-    }
-
-    private static String pathTag(KeeperRecord keeper) {
-        return " (level " + KeeperAPI.pathPositionOf(keeper) + ")";
     }
 
     // ------------------------------------------------------------

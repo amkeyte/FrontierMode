@@ -8,6 +8,7 @@ import com.arryn.frontiermode.boss.common.SiteOutcome;
 import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.core.Dismissal;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -87,6 +88,23 @@ public final class Boss implements Leaving {
     /** The boss's live mob, empty until its scope attaches. */
     public Optional<Mob> mob() {
         return Optional.ofNullable(mob);
+    }
+
+    /**
+     * What this {@code Boss} knows that its record does not, for the Info report: the player-damage tally, the respawn
+     * state, and whether the kind subscribed {@code Persistent}.
+     */
+    public String describe() {
+        String respawn;
+        if (respawnSuspended) {
+            respawn = "suspended (" + nonPlayerDeaths + " non-player deaths)";
+        } else if (respawnDelay != null) {
+            respawn = "pending (" + nonPlayerDeaths + " non-player deaths)";
+        } else {
+            respawn = "ready";
+        }
+        return String.format("player damage %.1f, respawn %s, %s", playerDamage, respawn,
+                persistent != null ? "persistent" : "transient");
     }
 
     /** Adds health a player's own hit actually removed (after armor, capped at what the boss had left). */
@@ -297,10 +315,8 @@ public final class Boss implements Leaving {
         }
         clearRespawnState();
         roster.scheduleFlush();
-        kind.onDefeat(level, bossId, dying, Optional.ofNullable(credited));
-        if (persistent == null) {
-            dropRecord(fixture, "was defeated");
-        }
+        kind.onDefeat(level, bossId, dying.blockPosition(), Optional.of(dying), Optional.ofNullable(credited));
+        dropIfTransient(fixture, "was defeated");
     }
 
     /**
@@ -317,12 +333,20 @@ public final class Boss implements Leaving {
     }
 
     /**
-     * The transient default (boss.md § How a boss ends): a boss no kind keeps has its record dropped when it is
+     * After a defeat, forced or in combat: a transient boss (one with no {@code Persistent}) drops its record. The
+     * transient default (boss.md § How a boss ends): a boss no kind keeps has its record dropped when it is
      * defeated or lost. It is marked retiring first, as {@code removeBoss} does, so a later leave for the same
      * body is not a second loss. No body is discarded: it is already gone or leaving, and a changed-level copy
      * is dismissed by the leave handling before this runs. The kind's {@code onRemoved} runs through the fixture,
      * and the roster drops this {@code Boss} on its next reconcile.
      */
+    void dropIfTransient(BossFixture fixture, String why) {
+        if (persistent == null) {
+            dropRecord(fixture, why);
+        }
+    }
+
+    // Marks the Boss retiring, removes its base record and flushes; see dropIfTransient for when.
     private void dropRecord(BossFixture fixture, String why) {
         retire();
         if (fixture.CRUD.remove(bossId)) {
@@ -343,7 +367,7 @@ public final class Boss implements Leaving {
         boolean defeated = BossAPI.bosses(level).flatMap(fixture -> fixture.get(bossId))
                 .map(record -> !record.alive()).orElse(false);
         if (defeated) {
-            BossAPI.RULES(level).ifPresent(rules -> rules.dismiss(mob));
+            Dismissal.dismiss(mob);
             roster.endInterest(bossId, mob.getUUID());
         }
     }
@@ -423,18 +447,16 @@ public final class Boss implements Leaving {
         if (server == null) {
             return;
         }
-        BossAPI.RULES(originLevel).ifPresent(rules -> {
-            for (ServerLevel other : server.getAllLevels()) {
-                if (other == originLevel) {
-                    continue;
-                }
-                Satchel.require().egress().getEntity(other, original.getUUID())
-                        .ifPresent(copy -> {
-                            if (copy instanceof Mob copyMob) {
-                                rules.dismiss(copyMob);
-                            }
-                        });
+        for (ServerLevel other : server.getAllLevels()) {
+            if (other == originLevel) {
+                continue;
             }
-        });
+            Satchel.require().egress().getEntity(other, original.getUUID())
+                    .ifPresent(copy -> {
+                        if (copy instanceof Mob copyMob) {
+                            Dismissal.dismiss(copyMob);
+                        }
+                    });
+        }
     }
 }

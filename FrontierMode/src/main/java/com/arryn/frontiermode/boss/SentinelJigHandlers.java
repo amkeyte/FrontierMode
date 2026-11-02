@@ -29,7 +29,7 @@ import java.util.UUID;
  * gates, the conversion cancel, and the client trail's tick. A Sentinel is a record on the mob
  * ({@link SentinelData}), and {@link BossSentinelsFixture} tracks the ones present in the level.
  * Conversion itself is {@link BossSentinelsFixture#onMobSpawnFinalize}; the direct mob/level calls are
- * {@code DefaultBossRules}'.
+ * {@link SentinelRules}'.
  *
  * <p>The bare-signal handlers ({@code EntityJoinLevelSignal}, the two spawn-check signals and
  * {@code LivingConversionSignal}) are installed on {@code BOSS_JIG}'s config only because it is the
@@ -45,8 +45,10 @@ public final class SentinelJigHandlers {
      * a value differs), and nudges the wide Sentinels along their paths.
      */
     static void onBossTick(Level level, BossBundle bundle) {
-        bundle.boss().ifPresent(boss -> BossAPI.sentinelMarkers(level).ifPresent(pub -> pub.setTrail(
-                boss.RULES.trailIntervalTicks(), boss.RULES.trailLifetimeTicks(), boss.RULES.trailRadius())));
+        if (bundle.boss().isPresent()) {
+            BossAPI.sentinelMarkers(level).ifPresent(pub -> pub.setTrail(
+                    SentinelRules.trailIntervalTicks(), SentinelRules.trailLifetimeTicks(), SentinelRules.trailRadius()));
+        }
         unstickWideSentinels(bundle);
     }
 
@@ -105,7 +107,7 @@ public final class SentinelJigHandlers {
      * conversion uses runs here, before the mob exists, and on a hit the spawn is allowed and its
      * position recorded so conversion skips its own roll. Feral owns the Wilds' gate, so this
      * acts inside the Frontier only. Types that can't be sentinels (see
-     * {@code BossRules#canBeSentinel}) are left alone.
+     * {@code SentinelRules#canBeSentinel}) are left alone.
      */
     static void onSpawnPlacementCheck(SpawnPlacementCheckSignal signal) {
         EntityType<?> type = signal.entityType();
@@ -121,7 +123,7 @@ public final class SentinelJigHandlers {
             return;
         }
         BossAPI.sentinelsQuiet(level).ifPresent(sentinels -> {
-            if (!sentinels.canBeSentinel(type) || !sentinels.rollPlacementAt(level, pos)) {
+            if (!SentinelRules.canBeSentinel(type) || !sentinels.rollPlacementAt(level, pos)) {
                 return;
             }
             // allow() bypasses all of Monster.checkMonsterSpawnRules, not just its darkness test, so

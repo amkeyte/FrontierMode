@@ -8,7 +8,9 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.Shape;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.SentinelData;
+import com.arryn.frontiermode.boss.SentinelRules;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
+import com.arryn.frontiermode.core.Dismissal;
 import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.keeper.KeeperAPI;
@@ -143,13 +145,13 @@ public final class BossSentinelsFixture extends SatchelFixture {
         BossFixture boss = bossOpt.get();
         boolean bossStands = boss.CRUD.get(facts.get().bossId()).map(BossRecord::alive).orElse(false);
         if (!bossStands) {
-            boss.RULES.dismiss(mob);
+            Dismissal.dismiss(mob);
             return false;
         }
         BossAPI.sentinelMarkers(mob.level()).ifPresent(pub -> pub.add(mob.getUUID(), facts.get().scale()));
         mob.refreshDimensions();
         if (fresh) {
-            boss.RULES.healSentinel(mob);
+            SentinelRules.healSentinel(mob);
         }
         return true;
     }
@@ -189,21 +191,19 @@ public final class BossSentinelsFixture extends SatchelFixture {
      */
     public void alertSentinelsOf(UUID bossId, Mob boss, ServerPlayer player) {
         BossBundle bundle = getBundle();
-        Optional<BossFixture> bossOpt = bundle.boss();
-        if (bossOpt.isEmpty()) {
+        if (bundle.boss().isEmpty()) {
             return;
         }
-        BossFixture bossFixture = bossOpt.get();
         ServerLevel level = (ServerLevel) bundle.level();
-        double radius = bossFixture.RULES.sentinelAlertRadius();
-        long alertedUntil = level.getGameTime() + bossFixture.RULES.sentinelAlertMemoryTicks();
+        double radius = SentinelRules.sentinelAlertRadius();
+        long alertedUntil = level.getGameTime() + SentinelRules.sentinelAlertMemoryTicks();
         AABB box = AABB.unitCubeFromLowerCorner(boss.position()).inflate(radius, ALERT_HEIGHT, radius);
 
         for (Mob mob : level.getEntitiesOfClass(Mob.class, box)) {
             if (!present.contains(mob.getUUID()) || !isSentinelOf(mob, bossId)) {
                 continue;
             }
-            if (bossFixture.RULES.alertSentinel(mob, player)) {
+            if (SentinelRules.alertSentinel(mob, player)) {
                 alerts.put(mob.getUUID(), new Alert(player.getUUID(), alertedUntil));
             }
         }
@@ -211,7 +211,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
 
     /**
      * Retires lapsed alerts. A sentinel whose window has run out is let go through
-     * {@code BossRules#releaseSentinel}, which keeps it on the player only if it can see them. An
+     * {@code SentinelRules#releaseSentinel}, which keeps it on the player only if it can see them. An
      * entry whose sentinel is gone, unloaded or dead, or whose player has logged out, is simply
      * dropped.
      */
@@ -220,11 +220,9 @@ public final class BossSentinelsFixture extends SatchelFixture {
             return;
         }
         BossBundle bundle = getBundle();
-        Optional<BossFixture> bossOpt = bundle.boss();
-        if (bossOpt.isEmpty()) {
+        if (bundle.boss().isEmpty()) {
             return;
         }
-        BossFixture boss = bossOpt.get();
         long now = level.getGameTime();
 
         Iterator<Map.Entry<UUID, Alert>> it = alerts.entrySet().iterator();
@@ -246,7 +244,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
             // who logged out (null) needs no call -- vanilla drops a removed target itself.
             ServerPlayer player = level.getServer().getPlayerList().getPlayer(alert.playerUuid);
             if (player != null) {
-                boss.RULES.releaseSentinel(sentinel, player);
+                SentinelRules.releaseSentinel(sentinel, player);
             }
         }
     }
@@ -310,12 +308,10 @@ public final class BossSentinelsFixture extends SatchelFixture {
         }
         BossBundle bundle = getBundle();
         ServerLevel level = (ServerLevel) bundle.level();
-        Optional<BossFixture> bossOpt = bundle.boss();
-        if (bossOpt.isEmpty()) {
+        if (bundle.boss().isEmpty()) {
             return;
         }
-        BossFixture boss = bossOpt.get();
-        int budget = boss.RULES.sentinelDefeatKillsPerTick();
+        int budget = SentinelRules.sentinelDefeatKillsPerTick();
         while (budget > 0 && !pendingKills.isEmpty()) {
             PendingKill kill = pendingKills.poll();
             Optional<Entity> entity = Satchel.require().egress().getEntity(level, kill.mobUuid);
@@ -325,7 +321,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
             // A credited player who has left the level by now: the sentinel dies uncredited.
             ServerPlayer credited = kill.creditedPlayer != null
                     && level.getPlayerByUUID(kill.creditedPlayer) instanceof ServerPlayer player ? player : null;
-            boss.RULES.killSentinel(mob, credited);
+            SentinelRules.killSentinel(mob, credited);
             budget--;
         }
     }
@@ -363,7 +359,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
      */
     private void spawnAdd(ServerLevel level, BossFixture boss, Mob parent, PendingAdd add) {
         BlockPos spot = MobSpawns.scatter(level, parent, parent.blockPosition(),
-                boss.RULES.sentinelAddScatterRadius(), add.scale, ADD_SCATTER_TRIES);
+                SentinelRules.sentinelAddScatterRadius(), add.scale, ADD_SCATTER_TRIES);
         MobSpawns.spawn(level, add.type, spot, MobSpawns.Setup.VANILLA, mob -> {
             SentinelData.writeIfAbsent(mob, add.bossId, add.scale);
             applyConversion(mob, boss, add.keeperPathPosition, add.difficultyIntensity);
@@ -394,13 +390,12 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * Ensures {@code borderId} carries a {@code "placement"} and a {@code "difficulty"}
      * {@link BorderCurve} matching this class's own current {@code PLACEMENT_SHAPE}/
      * {@code DIFFICULTY_SHAPE} constants -- creates either if absent (mirroring
-     * {@link BossTellFixture#createTellCurveIfAbsent(Level, UUID)}'s idempotent shape), but also
+     * {@code BossTellFixture.createTellCurveIfAbsent}'s idempotent shape), but also
      * reconciles an existing record whose shape/steepness has drifted from the current constants
      * via {@link BorderCurveFixture#replace}, so a live world that seeded a curve under an older
      * "safe baseline, replace later" value picks up a later tuning pass without a world reset.
-     * Called from the same three paired boss-creation call sites
-     * {@code createTellCurveIfAbsent} already runs from
-     * ({@code BossJigHandlers.onBordersScopeLoaded}/{@code onMobDied}, {@code BossAPI.forceDefeat}).
+     * Called from the placement roll when a curve is missing. Its creation-time callers left with the Keeper events
+     * (nodes E and F); node G gives the Sentinel module its own consumer of {@code KeeperCreated}.
      */
     public static void ensureSentinelCurves(Level level, UUID borderId) {
         BorderAPI.CURVE(level).ifPresent(curves -> {
@@ -427,12 +422,6 @@ public final class BossSentinelsFixture extends SatchelFixture {
                           BorderCurve difficulty, double distanceToBoss) {
     }
 
-    /** {@code BossRules#canBeSentinel} through this level's boss rules; false if they aren't resolvable yet. */
-    public boolean canBeSentinel(EntityType<?> type) {
-        BossBundle bundle = getBundle();
-        return bundle.boss().map(boss -> boss.RULES.canBeSentinel(type)).orElse(false);
-    }
-
     /**
      * Called from {@code BossModule.onMobSpawnFinalize} for every mob about to finalize-spawn on
      * this fixture's own level. Rolls whether this spawn becomes a sentinel; on a hit, converts it in
@@ -440,7 +429,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * not a summon. Standby, don't crash: nothing resolvable means the spawn proceeds unmodified.
      */
     public void onMobSpawnFinalize(Mob mob, ServerLevel level) {
-        if (!canBeSentinel(mob.getType())) {
+        if (!SentinelRules.canBeSentinel(mob.getType())) {
             return;
         }
 
@@ -462,11 +451,11 @@ public final class BossSentinelsFixture extends SatchelFixture {
         Nearby nearby = nearbyOpt.get();
 
         // The two gates before the roll. A lifted spawn skips the roll, not the gates.
-        int room = conversionRoom(bossFixture, nearby.keeper());
+        int room = conversionRoom(nearby.keeper());
         if (room < 1) {
             return;
         }
-        if (!lifted && !rollPlacement(bossFixture, nearby)) {
+        if (!lifted && !rollPlacement(nearby)) {
             return;
         }
 
@@ -475,8 +464,8 @@ public final class BossSentinelsFixture extends SatchelFixture {
         double difficultyIntensity = BorderMath.intensityAt(
                 nearby.difficulty(), nearby.radius() > 0.0 ? nearby.distanceToBoss() / nearby.radius() : 1.0);
         int keeperPathPosition = KeeperAPI.pathPositionOf(nearby.keeper());
-        double target = bossFixture.RULES.sentinelTargetScale(keeperPathPosition);
-        float size = fitScale(level, mob, target, bossFixture);
+        double target = SentinelRules.sentinelTargetScale(keeperPathPosition);
+        float size = fitScale(level, mob, target);
 
         applyConversion(mob, bossFixture, keeperPathPosition, difficultyIntensity);
         SentinelData.writeIfAbsent(mob, nearby.boss().bossId(), size);
@@ -486,8 +475,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
             mob.refreshDimensions();
         }
 
-        queueAdds(mob, nearby.boss().bossId(), size, target, keeperPathPosition, difficultyIntensity, bossFixture,
-                room - 1);
+        queueAdds(mob, nearby.boss().bossId(), size, target, keeperPathPosition, difficultyIntensity, room - 1);
     }
 
     /**
@@ -495,11 +483,11 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * path position is below {@code sentinelFirstPathPosition} or the level is at
      * {@code sentinelMaxPerLevel}, so a result of 1 or more passes both gates.
      */
-    private int conversionRoom(BossFixture bossFixture, KeeperRecord keeper) {
-        if (KeeperAPI.pathPositionOf(keeper) < bossFixture.RULES.sentinelFirstPathPosition()) {
+    private int conversionRoom(KeeperRecord keeper) {
+        if (KeeperAPI.pathPositionOf(keeper) < SentinelRules.sentinelFirstPathPosition()) {
             return 0;
         }
-        return Math.max(0, bossFixture.RULES.sentinelMaxPerLevel() - sentinelCount());
+        return Math.max(0, SentinelRules.sentinelMaxPerLevel() - sentinelCount());
     }
 
     /**
@@ -516,9 +504,9 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * mob's position, stepping down from that ceiling by {@code sentinelFitStep} toward 1.0. Scale 1.0
      * needs no test: a natural spawn's spot has already passed vanilla's fit check for the unscaled mob.
      */
-    private static float fitScale(ServerLevel level, Mob mob, double target, BossFixture boss) {
-        double ceiling = Math.min(target, boss.RULES.sentinelMaxScale());
-        double step = boss.RULES.sentinelFitStep();
+    private static float fitScale(ServerLevel level, Mob mob, double target) {
+        double ceiling = Math.min(target, SentinelRules.sentinelMaxScale());
+        double step = SentinelRules.sentinelFitStep();
         BlockPos pos = mob.blockPosition();
         for (double s = ceiling; s > 1.0 + 1.0E-6; s -= step) {
             if (MobSpawns.fits(level, mob, (float) s, pos)) {
@@ -536,13 +524,13 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * the finalize-spawn dispatch that produced them.
      */
     private void queueAdds(Mob parent, UUID bossId, float size, double target, int keeperPathPosition,
-                           double difficultyIntensity, BossFixture boss, int roomForAdds) {
+                           double difficultyIntensity, int roomForAdds) {
         double leftover = (target - 1.0) - (size - 1.0);
-        double cost = boss.RULES.sentinelAddCost();
+        double cost = SentinelRules.sentinelAddCost();
         if (leftover <= 0.0 || cost <= 0.0 || roomForAdds <= 0) {
             return;
         }
-        int cap = Math.min(boss.RULES.sentinelMaxAddsPerSpawn(), roomForAdds);
+        int cap = Math.min(SentinelRules.sentinelMaxAddsPerSpawn(), roomForAdds);
         int count = MobSpawns.rollCount(leftover / cost, cap, RNG);
         for (int i = 0; i < count; i++) {
             pendingAdds.add(new PendingAdd(parent.getType(), parent.getUUID(), bossId, size,
@@ -564,8 +552,8 @@ public final class BossSentinelsFixture extends SatchelFixture {
         }
         BossFixture bossFixture = bossOpt.get();
         return resolveNearby(level, bossFixture, curvesOpt.get(), pos)
-                .filter(nearby -> conversionRoom(bossFixture, nearby.keeper()) >= 1)
-                .map(nearby -> rollPlacement(bossFixture, nearby))
+                .filter(nearby -> conversionRoom(nearby.keeper()) >= 1)
+                .map(nearby -> rollPlacement(nearby))
                 .orElse(false);
     }
 
@@ -631,13 +619,13 @@ public final class BossSentinelsFixture extends SatchelFixture {
      * sentinelPlacementRadiusFraction)}, so the ramp is concentrated in a ring around the boss;
      * beyond that fraction the LINEAR curve reads 0 and nothing converts.
      */
-    private boolean rollPlacement(BossFixture bossFixture, Nearby nearby) {
-        double placementRadius = nearby.radius() * bossFixture.RULES.sentinelPlacementRadiusFraction();
+    private boolean rollPlacement(Nearby nearby) {
+        double placementRadius = nearby.radius() * SentinelRules.sentinelPlacementRadiusFraction();
         double normalized = placementRadius > 0.0 ? nearby.distanceToBoss() / placementRadius : 1.0;
         double intensity = BorderMath.intensityAt(nearby.placement(), normalized);
         if (intensity <= 0.0) {
             return false;
         }
-        return RNG.nextDouble() < intensity * bossFixture.RULES.sentinelPlacementCoefficient();
+        return RNG.nextDouble() < intensity * SentinelRules.sentinelPlacementCoefficient();
     }
 }

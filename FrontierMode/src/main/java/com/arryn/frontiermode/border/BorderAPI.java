@@ -669,7 +669,7 @@ public final class BorderAPI {
 
         /**
          * RM_FRO_018/FRO_072: area-uniform sample in the annulus {@code [innerRadius,
-         * outerRadius]} around {@code center} -- {@code DefaultBossRules.choosePosition}'s own
+         * outerRadius]} around {@code center} -- {@code KeeperPlacement.choosePosition}'s own
          * edge-biased boss placement is the first real cross-module consumer this wrapper was
          * added for.
          */

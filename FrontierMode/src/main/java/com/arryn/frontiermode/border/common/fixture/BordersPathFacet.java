@@ -274,7 +274,9 @@ public final class BordersPathFacet {
      * that silently didn't. That gap is what RM_FRO_015 exists to close; below is the real fix.
      *
      * <p><b>RM_FRO_015, implemented:</b> builds this path's own target layer assignment --
-     * {@code target[borderPath.get(i)] = i + 1} for every path member -- and delegates the actual bulk
+     * {@code target[borderPath.get(i)] = i + 1} for every path member, counting only entries that
+     * have a Border (a stale entry takes no position, so the Borders after it match the path once
+     * {@code reassignLayers} has removed it) -- and delegates the actual bulk
      * apply to {@link BordersFixture#reassignLayers(Map)}. This still just sets each path member's
      * layer to its 1-based path position (layers start at 1), no more and no less -- layer collisions with off-path borders aren't
      * a concern to route around anymore (see {@code BordersCrudFacet}'s doc: Layer
@@ -290,9 +292,14 @@ public final class BordersPathFacet {
         Satchel.requireServer();
 
         Map<UUID, Integer> pathTargets = new LinkedHashMap<>();
-        List<UUID> path = fixture.borderPath;
-        for (int i = 0; i < path.size(); i++) {
-            pathTargets.put(path.get(i), i + 1);
+        int position = 0;
+        for (UUID id : fixture.borderPath) {
+            // A stale entry (no Border) takes no position: reassignLayers removes it, so the Borders
+            // after it are numbered as if it were already gone. Its own target is never used.
+            if (fixture.get(id).isPresent()) {
+                position++;
+            }
+            pathTargets.put(id, position);
         }
 
         return fixture.reassignLayers(pathTargets);

@@ -89,7 +89,7 @@ public final class BorderMath {
     /**
      * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): disc-edge distance -- {@code 0} when
      * {@code p} is inside or on the disc described by {@code center}/{@code radius}, the XZ gap
-     * otherwise. Unlike {@link #distanceToSurface}, this is never negative -- it answers "how far
+     * otherwise, rounded up to a whole block so a point outside the disc never reads 0. Unlike {@link #distanceToSurface}, this is never negative -- it answers "how far
      * *outside* this one border," not "how far from its edge in either direction," which is
      * exactly what a Frontier-distance reduction (a min over every established Border, per
      * wiki/frontiermode/architecture/wilds.md#the-distance-to-frontier-query) needs: a point
@@ -105,7 +105,9 @@ public final class BorderMath {
         }
 
         double centerDistance = BorderMathLogic.distanceTo(p.getX(), p.getZ(), center.getX(), center.getZ());
-        return (int) Math.round(Math.max(0.0, BorderMathLogic.distanceToEdge(centerDistance, radius)));
+        // Rounded up, not to the nearest: the result is 0 only for a point on or inside the disc, as
+        // isInside answers, and any point outside reads at least 1.
+        return (int) Math.ceil(Math.max(0.0, BorderMathLogic.distanceToEdge(centerDistance, radius)));
     }
 
     /** See {@link BorderMathLogic#waveRadius}. */
@@ -168,7 +170,7 @@ public final class BorderMath {
      * <p>Added for Boss placement (FRO_072): {@code center}/{@code outerRadius} here are meant
      * to be one and the same border's own center and radius -- both bounds share one circle, so
      * (unlike trying to exclude a *different*, differently-centered border's disk) this is a
-     * real, exact closed-form region. See {@code DefaultBossRules.choosePosition}'s own
+     * real, exact closed-form region. See {@code KeeperPlacement.choosePosition}'s own
      * {@code EDGE_BIAS_INNER_FRACTION} for why: each new border centers on wherever its boss
      * died, so a boss placed near its own border's center barely moves the next border's center
      * either -- biasing placement toward this same border's outer edge is what makes the whole

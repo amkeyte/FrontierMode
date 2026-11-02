@@ -6,7 +6,7 @@ package com.arryn.frontiermode.border.server.rules;
  * <p>RM_FRO_037 ("Brenda," Frontier Sickness epoch 1 / FRO_099): this class's own placeholder
  * doc called it "intentionally minimal in early versions" with nothing real wired in yet --
  * Frontier Sickness is the first real consumer. Same "safe baseline, replace later" convention
- * {@code BorderConstants}/{@code DefaultBossRules}' own tunables already follow -- none of these
+ * {@code BorderConstants}/{@code SentinelRules}' own tunables already follow -- none of these
  * numbers are playtest-tuned; wiki/frontiermode/design/wilds.md's own "Open questions" section
  * explicitly leaves exact thresholds and climb/decay rates to Lead Dev to pick and playtest
  * against, which is exactly what this pass does.
@@ -46,7 +46,7 @@ public final class PlayerRules {
 
     /**
      * How often (in ticks) an active tier's effects get refreshed on the afflicted player.
-     * Matches {@code BossRules.tellTickInterval()}'s own cadence-gate shape -- no need to touch
+     * Matches {@code BossTellFixture}'s {@code tellTickInterval} cadence-gate shape -- no need to touch
      * {@code MobEffectInstance}s every single tick.
      */
     public static final int SICKNESS_EFFECT_REFRESH_INTERVAL_TICKS = 20;

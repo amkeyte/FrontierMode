@@ -376,7 +376,7 @@ public final class BorderModule {
             return;
         }
 
-        // Cadence-gated the same way BossRules.tellTickInterval() gates BossTellFixture's own
+        // Cadence-gated the same way BossTellFixture's tellTickInterval() gates its own
         // tell pass -- ScopeEvent.Tick fires every tick, but effects only need refreshing every
         // PlayerRules.SICKNESS_EFFECT_REFRESH_INTERVAL_TICKS.
         if (player.tickCount % PlayerRules.SICKNESS_EFFECT_REFRESH_INTERVAL_TICKS != 0) {

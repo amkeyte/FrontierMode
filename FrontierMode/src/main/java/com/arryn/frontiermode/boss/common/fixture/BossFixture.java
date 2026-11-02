@@ -31,7 +31,7 @@ import java.util.UUID;
  * <p>A kind that keeps a record of its own (the Keeper's {@code KeeperRecord}) keeps it in its own module and
  * bundle under the same {@code bossId}; {@link #create} and {@link #remove} reach it through the kind's hooks.
  *
- * <p>Split into the {@link #CRUD}/{@link #RULES}/{@link #INFO} facets, mirroring {@code BordersFixture}'s
+ * <p>Split into the {@link #CRUD}/{@link #INFO} facets, mirroring {@code BordersFixture}'s
  * split. This fixture's own methods stay {@code public} rather than being narrowed to package-private --
  * {@code BossCommandHandler} and {@code BossSelector} hold direct {@link BossFixture} references from
  * {@code BossAPI.bosses(Level)}. The facets are thin pass-throughs onto these same methods.
@@ -48,12 +48,6 @@ public final class BossFixture extends SatchelFixture {
      * were.
      */
     public final BossCrudFacet CRUD = new BossCrudFacet(this);
-
-    /**
-     * FRO_081: pluggable position/materialization strategy -- reach through
-     * {@code BossAPI.RULES(Level)} where possible, mirroring {@code BorderAPI.RULES(Level)}.
-     */
-    public final BossRulesFacet RULES = new BossRulesFacet(this);
 
     /**
      * FRO_081: queries/diagnostics -- reach through {@code BossAPI.INFO(Level)} where possible,

@@ -1,11 +1,11 @@
 package com.arryn.frontiermode.boss;
 
-import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
 import com.arryn.frontiermode.effects.common.BossBarHandle;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Ticking;
+import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.network.chat.Component;
@@ -17,7 +17,6 @@ import net.minecraft.world.entity.Mob;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -53,11 +52,8 @@ public final class HealthBar implements Ticking {
         if (!(mob.level() instanceof ServerLevel level)) {
             return;
         }
-        Optional<BossRulesFacet> rules = BossAPI.RULES(level);
-        if (rules.isEmpty()) {
-            return;
-        }
-        int lingerTicks = rules.get().bossBarLingerTicks();
+        // How long a player keeps seeing the bar after they last held the boss's kill credit.
+        int lingerTicks = new Tunable("bossBarLingerTicks", 1, 72000, 600).intValue();
 
         if (!mob.isAlive()) {
             hide();

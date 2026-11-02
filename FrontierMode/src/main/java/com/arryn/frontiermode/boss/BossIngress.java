@@ -1,12 +1,8 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
-import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.core.InfoRequest;
-import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.keeper.KeeperBodies;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -62,9 +58,9 @@ final class BossIngress {
     }
 
     /**
-     * Registers the boss answers; the work happens in the suppliers, once per report. The {@code boss:}
-     * line is {@code -} for an entity that is not a boss, and the Sentinel line is left out for a mob
-     * that is not a Sentinel.
+     * Registers the boss answers; the work happens in the suppliers, once per report. The {@code boss:} line is for
+     * a boss's mob (found through the roster) or a {@code BossRecord}, and {@code -} for an entity that is not a boss;
+     * the Sentinel line is left out for a mob that is not a Sentinel.
      */
     private static void onInfo(InfoRequest request) {
         OUT.debug("[Boss] InfoRequest reached its consumer");
@@ -72,7 +68,9 @@ final class BossIngress {
         ServerLevel level = request.level();
         for (Object subject : request.subjects()) {
             if (subject instanceof Entity entity) {
-                request.add(subject, "boss", () -> "  boss: " + bossLine(level, entity.getUUID()));
+                request.add(subject, "boss", () -> "  boss: " + mobLine(level, entity));
+            } else if (subject instanceof BossRecord record) {
+                request.add(subject, "boss", () -> "  boss: " + recordLine(level, record.bossId()));
             }
             if (subject instanceof Mob mob) {
                 request.add(subject, "boss", () -> sentinelLine(mob));
@@ -80,30 +78,18 @@ final class BossIngress {
         }
     }
 
-    private static String bossLine(ServerLevel level, UUID entityId) {
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        if (fixtureOpt.isEmpty()) {
-            return "-";
-        }
-        BossFixture fixture = fixtureOpt.get();
-        for (BossRecord record : fixture.all()) {
-            if (entityId.equals(record.bossEntityId())) {
-                Optional<KeeperRecord> keeperOpt = KeeperAPI.keepers(level).flatMap(k -> k.get(record.bossId()));
-                if (keeperOpt.isEmpty()) {
-                    return String.format("#%s %s%s, no Keeper record yet", Ids.shortId(record.bossId()),
-                            record.alive() ? "alive" : "defeated", record.materialized() ? ", materialized" : "");
-                }
-                KeeperRecord keeper = keeperOpt.get();
-                return String.format("#%s layer %d path position %d body %s border %s %s%s scale %.2f",
-                        Ids.shortId(record.bossId()), keeper.layer(), KeeperAPI.pathPositionOf(keeper),
-                        keeper.body().isEmpty() ? "-" : keeper.body(),
-                        keeper.borderId().map(Ids::shortId).orElse("-"),
-                        record.alive() ? "alive" : "defeated",
-                        record.materialized() ? ", materialized" : "",
-                        KeeperBodies.keeperScale(keeper));
-            }
-        }
-        return "-";
+    /** What the {@code Boss} knows about the mob that is its body, with its id and kind; {@code -} for any other entity. */
+    private static String mobLine(ServerLevel level, Entity entity) {
+        return BossAPI.roster(level).flatMap(roster -> roster.bossFor(entity.getUUID()))
+                .map(boss -> "#" + Ids.shortId(boss.bossId()) + " " + boss.kind() + ", " + boss.describe())
+                .orElse("-");
+    }
+
+    /** What the {@code Boss} knows about a record; the command's header already names the record's id and kind. */
+    private static String recordLine(ServerLevel level, UUID bossId) {
+        return BossAPI.roster(level).flatMap(roster -> roster.boss(bossId))
+                .map(Boss::describe)
+                .orElse("no Boss yet (its entry is not whole)");
     }
 
     /** The Sentinel line, or null for a mob that carries no Sentinel record. */
