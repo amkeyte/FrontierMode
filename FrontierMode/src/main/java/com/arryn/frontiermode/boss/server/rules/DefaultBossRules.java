@@ -366,9 +366,6 @@ public final class DefaultBossRules implements BossRules {
         Optional<Mob> spawned = MobSpawns.spawn(serverLevel, type, position, MobSpawns.Setup.VANILLA,
                 mob -> {
                 }, mob -> {
-                    // A plain vanilla Mob is still subject to natural despawn unless persistence is
-                    // required, and Border Pregeneration can run minutes before a player arrives.
-                    mob.setPersistenceRequired();
                     // Vanilla setup rolls a Rabbit's variant, so the Killer Bunny is set after it.
                     if (bodyName.equals("killer_bunny") && mob instanceof Rabbit rabbit) {
                         rabbit.setVariant(Rabbit.Variant.EVIL);
@@ -428,17 +425,6 @@ public final class DefaultBossRules implements BossRules {
         // The tag's visibility is the client-side debug view's to turn on (AdminViewClient); the
         // name itself stays set.
         mob.setCustomNameVisible(false);
-    }
-
-    // FRO_160: non-player-death respawn tuning -- see BossRules for the meaning of each.
-    @Override
-    public int respawnDelayTicks() {
-        return new Tunable("respawnDelayTicks", 1, 6000, 100).intValue();
-    }
-
-    @Override
-    public int maxConsecutiveNonPlayerDeaths() {
-        return new Tunable("maxConsecutiveNonPlayerDeaths", 1, 100, 5).intValue();
     }
 
     // ------------------------------------------------------------------

@@ -49,8 +49,9 @@ import java.util.UUID;
  * parcels, in either order; a half entry waits, and the server follows the same rule so that both sides run
  * one code path. An entry still half after {@link #ENTRY_TIMEOUT_TICKS} is a programming error and throws.
  *
- * <p>On the server it also drives each {@code Boss}'s base lifecycle and owns the delayed durability flush
- * (boss.md § Cascade durability).
+ * <p>It hands each {@code Boss} it builds to the {@link RecordAbilities} Trinket before any lifecycle step, and
+ * takes it back when it drops the {@code Boss}. On the server it also drives each {@code Boss}'s base lifecycle
+ * and owns the delayed durability flush (boss.md § Cascade durability).
  */
 public final class BossRoster implements Ticking {
 
@@ -84,6 +85,9 @@ public final class BossRoster implements Ticking {
     // The level's base fixture, as of the last tick; what the record lookups read.
     private BossFixture fixture;
 
+    // The record-abilities Trinket, declared after this one; found on the first tick, when it is attached.
+    private RecordAbilities recordAbilities;
+
     /** Ready once the base fixture is: on a client, once the first parcel has arrived. */
     @Override
     public boolean isReady(ScopeInfo info) {
@@ -100,6 +104,14 @@ public final class BossRoster implements Ticking {
 
         BossBundle bundle = info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
         fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
+
+        if (recordAbilities == null) {
+            // Empty means the scope is not standing yet: standby, and no Boss is built without its abilities.
+            recordAbilities = Satchel.trinket(FrontierKeys.BOSS_JIG, scope, RecordAbilities.class).orElse(null);
+            if (recordAbilities == null) {
+                return;
+            }
+        }
 
         reconcile(level, fixture);
 
@@ -120,6 +132,7 @@ public final class BossRoster implements Ticking {
             }
         }
         fixture = null;
+        recordAbilities = null;
         held.clear();
         ended.clear();
         byEntity.clear();
@@ -205,6 +218,9 @@ public final class BossRoster implements Ticking {
                 waiting.remove(bossId);
                 boss = new Boss(bossId, record.kind(), this);
                 bosses.put(bossId, boss);
+                // Before syncInterest and any advance: a body that materializes on this tick already has its
+                // Persistent, and a loss in the meantime is not read as a transient boss's.
+                recordAbilities.bossBuilt(level, boss);
             }
             syncInterest(boss, record);
         }
@@ -219,9 +235,13 @@ public final class BossRoster implements Ticking {
                 stopHolding(bossId, entityId);
             }
             ended.remove(bossId);
+            recordAbilities.bossDropped(bossId);
             it.remove();
         }
         waiting.keySet().retainAll(recorded);
+        // A transient boss is dropped at its death, ahead of the leave that follows it by about 20 ticks, and that
+        // leave ends interest for a boss this roster no longer holds.
+        ended.keySet().retainAll(recorded);
     }
 
     /**
@@ -277,15 +297,15 @@ public final class BossRoster implements Ticking {
 
     /**
      * The mob a kind spawned is in the level: the order is fixed (boss.md § Spawn). The record's materialize
-     * sets the entity id and the scale, then the entity-to-{@code Boss} map is updated, then {@code interest}
-     * returns the mob scope and its Trinkets attach.
+     * sets the entity id and the scale, a {@code Persistent} boss makes the body persistent, then the
+     * entity-to-{@code Boss} map is updated, then {@code interest} returns the mob scope and its Trinkets attach.
      */
     void materialized(Boss boss, BossFixture fixture, Spawned spawned) {
         Mob mob = spawned.mob();
         UUID bossId = boss.bossId();
 
         fixture.CRUD.materialize(bossId, mob.getUUID(), spawned.scale());
-        boss.onMaterialized();
+        boss.onMaterialized(mob);
 
         UUID old = held.get(bossId);
         if (old != null) {

@@ -11,6 +11,7 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.CreditTally;
 import com.arryn.frontiermode.boss.HealthBar;
 import com.arryn.frontiermode.boss.Leash;
+import com.arryn.frontiermode.boss.Persistent;
 import com.arryn.frontiermode.boss.SentinelJigHandlers;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
@@ -293,6 +294,17 @@ public final class KeeperKind implements BossKind {
             host.subscribe(new HealthBar(boss));
         }
         host.subscribe(new Defense(boss));
+    }
+
+    /**
+     * The Keeper's record-side abilities (keeper.md § Abilities): {@code Persistent} only, on the server. A
+     * non-player death, a discard and a change of level return the Keeper to its home.
+     */
+    @Override
+    public void subscribeRecordAbilities(Level level, Boss boss, DynamicTrinket host) {
+        if (Satchel.isServer()) {
+            host.subscribe(new Persistent(boss));
+        }
     }
 
     /**

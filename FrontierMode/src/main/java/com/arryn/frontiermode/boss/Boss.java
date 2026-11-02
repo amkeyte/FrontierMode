@@ -35,8 +35,9 @@ import java.util.UUID;
  * keeps no copy.
  *
  * <p>It runs the base lifecycle on the server (position, site, spawn) and the endings: a death is settled at
- * the death, and the endings that are not deaths reach it through {@link Leaving}. Every boss takes the loss
- * path of the {@code Persistent} kind: a loss returns the record to unmaterialized and respawns it at home.
+ * the death, and the endings that are not deaths reach it through {@link Leaving}. A loss goes to the
+ * {@link Persistent} ability when the kind subscribed one: the record returns to unmaterialized and the boss
+ * respawns at home. Without one the boss is transient, and a defeat or a loss drops its record.
  */
 public final class Boss implements Leaving {
 
@@ -58,6 +59,10 @@ public final class Boss implements Leaving {
     // Set by the project's own removals before they discard the body, so the generic rule never reads them
     // as a loss.
     private boolean retiring;
+
+    // The Persistent ability the kind subscribed to the record host, set at its attach and cleared at its
+    // detach; null means the boss is transient.
+    private Persistent persistent;
 
     // The respawn state of the Persistent loss path (boss.md § Player credit and non-player death).
     private int nonPlayerDeaths;
@@ -140,24 +145,41 @@ public final class Boss implements Leaving {
 
     /**
      * Counts a loss against the repeat-death cap; under the cap, arms the respawn delay, at the cap suspends
-     * auto-respawn (the record stays alive and unmaterialized until {@code /boss mob spawn}).
+     * auto-respawn (the record stays alive and unmaterialized until {@code /boss mob spawn}). The two settings
+     * are {@code Persistent}'s, which calls this.
      *
      * @return true if a respawn is now pending; false if the cap was reached and it's suspended
      */
-    private boolean scheduleRespawn(BossFixture fixture) {
+    boolean countLoss(BossFixture fixture, int delayTicks, int cap) {
         nonPlayerDeaths++;
-        int cap = fixture.RULES.maxConsecutiveNonPlayerDeaths();
         if (nonPlayerDeaths >= cap) {
             respawnSuspended = true;
             respawnDelay = null;
             BlockPos position = fixture.get(bossId).map(BossRecord::position).orElse(null);
-            OUT.warn("[Boss] scheduleRespawn(): bossId=" + Ids.shortId(bossId) + " (position " + position
+            OUT.warn("[Boss] countLoss(): bossId=" + Ids.shortId(bossId) + " (position " + position
                     + ") has died to non-player causes " + nonPlayerDeaths + " times in a row -- auto-respawn"
                     + " suspended. Use /boss mob spawn to bring it back (that resets the count).");
             return false;
         }
-        respawnDelay = new TickDelay(Math.max(1, fixture.RULES.respawnDelayTicks()), new SchedulerClock.AutoClock());
+        respawnDelay = new TickDelay(Math.max(1, delayTicks), new SchedulerClock.AutoClock());
         return true;
+    }
+
+    /** Called by the {@code Persistent} ability as it attaches. */
+    void attachPersistent(Persistent ability) {
+        persistent = ability;
+    }
+
+    /** Called by the {@code Persistent} ability as it detaches; only its own attach is cleared. */
+    void detachPersistent(Persistent ability) {
+        if (persistent == ability) {
+            persistent = null;
+        }
+    }
+
+    /** Schedules the roster's delayed, coalesced durability flush (boss.md § Cascade durability). */
+    void scheduleFlush() {
+        roster.scheduleFlush();
     }
 
     // ------------------------------------------------------------------
@@ -223,10 +245,16 @@ public final class Boss implements Leaving {
         roster.materialized(this, fixture, spawned.get());
     }
 
-    /** A new body materialized: its tally starts at zero and its death has not been settled. */
-    void onMaterialized() {
+    /**
+     * A new body materialized: its tally starts at zero, its death has not been settled, and a boss that has the
+     * {@code Persistent} ability makes the body persistent.
+     */
+    void onMaterialized(Mob mob) {
         playerDamage = 0.0;
         deathHandled = false;
+        if (persistent != null) {
+            persistent.onMaterialized(mob);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -236,8 +264,9 @@ public final class Boss implements Leaving {
     /**
      * A death is settled at the death, once, at the top of the combat path before {@code markDefeated}
      * (boss.md § Player credit and non-player death). The kind judges it: a defeat marks the record defeated,
-     * schedules the flush and calls the kind's {@code onDefeat}; a death that is not a defeat is a loss. A
-     * second death event for one death is a no-op ({@code markDefeated} and {@code dematerialize} refuse it).
+     * schedules the flush and calls the kind's {@code onDefeat}, after which a transient boss drops its record; a
+     * death that is not a defeat is a loss. A second death event for one death is a no-op ({@code markDefeated}
+     * and {@code dematerialize} refuse it).
      */
     void onDeath(Mob dying) {
         Level level = dying.level();
@@ -259,7 +288,7 @@ public final class Boss implements Leaving {
                 credited != null, playerDamage, dying.getMaxHealth(), dying.blockPosition()));
 
         if (verdict == DeathVerdict.LOSS) {
-            lose(level, fixture, "died with no player credit at " + dying.blockPosition());
+            lose(fixture, "died with no player credit at " + dying.blockPosition());
             return;
         }
 
@@ -269,23 +298,37 @@ public final class Boss implements Leaving {
         clearRespawnState();
         roster.scheduleFlush();
         kind.onDefeat(level, bossId, dying, Optional.ofNullable(credited));
+        if (persistent == null) {
+            dropRecord(fixture, "was defeated");
+        }
     }
 
     /**
-     * A loss: no defeat, no payout. The record returns to unmaterialized (a duplicate event for one loss is
-     * a no-op) and the ordinary lifecycle respawns the boss at home after the delay.
+     * A loss: no defeat, no payout. A boss with the {@code Persistent} ability hands it the loss, which returns
+     * the record to unmaterialized for the ordinary lifecycle to respawn; a boss without one is transient and
+     * drops its record.
      */
-    private void lose(Level level, BossFixture fixture, String why) {
-        if (!fixture.CRUD.dematerialize(bossId)) {
+    private void lose(BossFixture fixture, String why) {
+        if (persistent != null) {
+            persistent.onLoss(fixture, why);
             return;
         }
-        // The cleared bossEntityId is real state worth protecting: a crash before the next autosave would
-        // restore a "materialized" record whose entity is dead.
-        roster.scheduleFlush();
+        dropRecord(fixture, why);
+    }
 
-        if (scheduleRespawn(fixture)) {
-            OUT.info("[Boss] lose(): bossId=" + Ids.shortId(bossId) + " " + why
-                    + " -- respawning at its recorded position.");
+    /**
+     * The transient default (boss.md § How a boss ends): a boss no kind keeps has its record dropped when it is
+     * defeated or lost. It is marked retiring first, as {@code removeBoss} does, so a later leave for the same
+     * body is not a second loss. No body is discarded: it is already gone or leaving, and a changed-level copy
+     * is dismissed by the leave handling before this runs. The kind's {@code onRemoved} runs through the fixture,
+     * and the roster drops this {@code Boss} on its next reconcile.
+     */
+    private void dropRecord(BossFixture fixture, String why) {
+        retire();
+        if (fixture.CRUD.remove(bossId)) {
+            roster.scheduleFlush();
+            OUT.info("[Boss] dropRecord(): bossId=" + Ids.shortId(bossId) + " " + why
+                    + " -- not Persistent, record removed.");
         }
     }
 
@@ -365,7 +408,7 @@ public final class Boss implements Leaving {
         BossAPI.bosses(level).ifPresent(fixture -> {
             boolean current = fixture.get(bossId).map(record -> entityId.equals(record.bossEntityId())).orElse(false);
             if (current) {
-                lose(level, fixture, why);
+                lose(fixture, why);
             }
         });
     }

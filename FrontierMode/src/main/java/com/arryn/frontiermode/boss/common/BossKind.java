@@ -73,4 +73,14 @@ public interface BossKind {
      * is saved.
      */
     void subscribeAbilities(Level level, Boss boss, DynamicTrinket host);
+
+    /**
+     * Subscribes the kind's record-side abilities, with their settings, to {@code host}, the dynamic host of the
+     * level scope, on the side this runs on (boss.md § Abilities, § Sides). Called by the roster the moment it
+     * builds the {@code Boss}, before any lifecycle step, for every {@code Boss} it builds, alive or not: a record's
+     * {@code alive} changes while its {@code Boss} exists, and an ability decides for itself what a defeated record
+     * means. A subscriber lives with the scope, so nothing here is saved; the roster takes the subscribers back out
+     * when it drops the {@code Boss}.
+     */
+    void subscribeRecordAbilities(Level level, Boss boss, DynamicTrinket host);
 }

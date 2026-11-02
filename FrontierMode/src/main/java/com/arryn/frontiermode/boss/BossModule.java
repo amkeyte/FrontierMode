@@ -165,6 +165,9 @@ public final class BossModule {
                 .eventHandlers(eventHandlers);
         // The roster ticks before the mob abilities (Module Graph § Trinket tick order).
         config.trinkets().declare(BossRoster.class, BossRoster::new).order(Order.NORMAL - 10);
+        // The record host, then the record-abilities Trinket that the roster hands each Boss (boss.md § Abilities).
+        config.trinkets().declare(DynamicTrinket.class, DynamicTrinket::new);
+        config.trinkets().declare(RecordAbilities.class, RecordAbilities::new);
 
         return config;
     }
