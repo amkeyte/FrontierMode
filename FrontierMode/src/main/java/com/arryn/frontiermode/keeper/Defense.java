@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.boss.Boss;
-import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -14,7 +14,7 @@ import net.minecraft.world.entity.Mob;
  * new hit credited to a player; on one, its Sentinels near the fight turn on that player, once per hit.
  *
  * <p>Its one field is the boss's last-seen hurt timestamp, seeded at attach so a hit from before the attach never
- * counts. It calls the Sentinel fixture directly; the Keeper events replace that call later.
+ * counts. The hit is announced as a {@link KeeperHit} on Satchel's bus, which the Sentinel module answers.
  */
 final class Defense implements Ticking {
 
@@ -44,8 +44,7 @@ final class Defense implements Ticking {
         }
         lastSeenHurtTimestamp = stamp;
         if (mob.getKillCredit() instanceof ServerPlayer credited) {
-            BossAPI.sentinels(mob.level()).ifPresent(sentinels ->
-                    sentinels.alertSentinelsOf(boss.bossId(), mob, credited));
+            Satchel.require().eventBus().post(new KeeperHit(mob.level(), boss.bossId(), mob, credited));
         }
     }
 }

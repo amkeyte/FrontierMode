@@ -1,5 +1,7 @@
 package com.arryn.frontiermode.boss.common;
 
+import net.minecraft.world.entity.EntityType;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,5 +29,18 @@ public final class BossKinds {
     /** The kind registered under {@code key}, or empty if none is. */
     public static Optional<BossKind> get(String key) {
         return Optional.ofNullable(KINDS.get(key));
+    }
+
+    /**
+     * Whether any registered kind can have a body of {@code type}: the base's cheap type gate. Nothing is registered
+     * until the kinds' modules have initialized, so before that no type is a body.
+     */
+    public static boolean anyBody(EntityType<?> type) {
+        for (BossKind kind : KINDS.values()) {
+            if (kind.canBeBody(type)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

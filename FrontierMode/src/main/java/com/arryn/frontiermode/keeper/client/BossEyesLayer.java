@@ -1,6 +1,7 @@
-package com.arryn.frontiermode.boss.client;
+package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
+import com.arryn.frontiermode.keeper.KeeperKind;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.EntityModel;
@@ -18,10 +19,10 @@ import net.minecraft.world.entity.LivingEntity;
  * by day). One layer instance per boss-eligible mob type, each with that model's own eye-overlay
  * texture (UV layouts differ per species); see {@link BossClientEvents}.
  *
- * <p>The per-entity gate is "does the client's own roster hold this entity's UUID with an alive record"
- * (via {@link BossMarkers}) -- not the vanilla {@code Glowing} tag or a
- * scoreboard team (boss.md's "Client-side visual marker"). Plain vanilla mobs of the same type are
- * untouched.
+ * <p>The per-entity gate is "does the client's own roster hold this entity's UUID with an alive record of the
+ * Keeper kind" (via {@link BossMarkers}) -- not the vanilla {@code Glowing} tag or a
+ * scoreboard team (boss.md's "Client-side visual marker"). Plain vanilla mobs of the same type, and another
+ * kind's bosses, are untouched.
  */
 public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
 
@@ -36,7 +37,7 @@ public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T
     public void render(PoseStack pose, MultiBufferSource buffer, int packedLight, T entity,
             float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
             float netHeadYaw, float headPitch) {
-        if (!BossMarkers.isLiveBoss(entity)) {
+        if (!BossMarkers.kindOf(entity).filter(KeeperKind.KEY::equals).isPresent()) {
             return;
         }
         VertexConsumer vc = buffer.getBuffer(renderType);

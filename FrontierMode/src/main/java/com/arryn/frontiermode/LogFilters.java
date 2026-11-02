@@ -1,6 +1,6 @@
 package com.arryn.frontiermode;
 
-import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
+import com.arryn.frontiermode.keeper.KeeperSetup;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
@@ -49,7 +49,7 @@ final class LogFilters {
         @Override
         public Result filter(LogEvent event) {
             String message = event.getMessage().getFormattedMessage();
-            if (message.startsWith("Named entity ") && message.contains("'" + DefaultBossRules.BOSS_NAME + "'")) {
+            if (message.startsWith("Named entity ") && message.contains("'" + KeeperSetup.BOSS_NAME + "'")) {
                 return onMatch;
             }
             return onMismatch;

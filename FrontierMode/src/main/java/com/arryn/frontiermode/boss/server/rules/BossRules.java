@@ -1,69 +1,18 @@
 package com.arryn.frontiermode.boss.server.rules;
 
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.Level;
 
-import java.util.Optional;
 
 /**
- * Strategy interface for Boss's own two genuinely separate mechanisms -- position and
- * materialization -- mirroring {@code BorderRules}/{@code DefaultBorderRules}' existing
- * "safe baseline, replace later" shape. See wiki/frontiermode/architecture/boss.md's "Spawn
- * algorithm" section: these are not one fused loop.
- *
- * <p><b>Position, revised by Border Pregeneration:</b> no longer commits the instant a
- * {@code BossFixture} record is created -- {@link #choosePosition} is only ever called once
- * {@code BorderAPI.isPregenReady()} has returned true for {@code border}'s own disk (real,
- * validated terrain), and scores several candidates rather than picking one blind column. See
- * wiki/frontiermode/architecture/border-pregeneration.md#worked-example-boss-placement-revised.
+ * The base's tunable numbers and the Tell and Sentinel behaviours that still hang off it, mirroring
+ * {@code BorderRules}/{@code DefaultBorderRules}' "safe baseline, replace later" shape. The Keeper's own rules --
+ * where it goes, what it spawns and is made of, its share and loot -- live in the keeper module
+ * ({@code KeeperPlacement}, {@code KeeperBodies}, {@code KeeperSetup}); what is left here leaves with nodes F and G.
  */
 public interface BossRules {
-
-    /**
-     * Position -- called only once the whole target {@code border}'s disk is already
-     * pregenerated. Samples several chunk-center candidates within {@code border}'s disk
-     * ({@code BorderMath.randomPointInDisk}), resolves each candidate's real ground Y (safe now
-     * that the disk is real, generated terrain), scores them via Siting's
-     * flatness and hazard scores, and returns the winning full position (X, resolved Y, Z) -- already
-     * validated, nothing left for materialization to check.
-     */
-    BlockPos choosePosition(Level level, Border border);
-
-    /**
-     * Materialization -- called only once the caller (BOSS_JIG's own tick) has already confirmed
-     * {@code Level.isLoaded(position)}. {@code position} is already validated, real terrain by
-     * this point (chosen and scored by {@link #choosePosition} above) -- no in-place Y-resolution
-     * or liquid-column check happens here anymore, per border-pregeneration.md's "What this
-     * changes in Boss" section. Spawns the {@code keeper}'s body, puts it on the Keeper rung of the
-     * stat ladder from the Keeper stat tables (boss.md § Keeper stats), and sets it up as a Keeper
-     * (fire immunity, sun ward, name). Returns empty only if the entity itself couldn't be created
-     * or added (not a terrain problem anymore) -- the caller retries next tick, same fixed
-     * {@code position}.
-     *
-     * <p>Deliberately does not call {@code MobScope.getFor(mob)} or touch {@code BossFixture} --
-     * both are Satchel-wiring concerns owned by {@code BossModule}, not a "boss design" decision.
-     */
-    Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper);
-
-    /**
-     * The name of the body a boss gets at path position {@code pathPosition}, from the
-     * {@code keeper-bodies} table: the authored body through path position 20, a body rolled by
-     * pool weight past it. Called once, at record creation.
-     */
-    String chooseBody(int pathPosition);
-
-    /**
-     * The Keeper's size multiplier -- the {@code keeper-size} table through path position 20, its
-     * body's size past it (boss.md § Keeper stats). One number driving both the entity's own
-     * hitbox/render scale (FRO_148) and the spawn platform's footprint and clearance. Computed from
-     * the record's own path position and body, never from a live Border.
-     */
-    float keeperScale(KeeperRecord keeper);
 
     /**
      * FRO_087 (Janice): cadence for the tell-pass in {@code BossTellFixture} -- how many server
@@ -155,30 +104,10 @@ public interface BossRules {
     int sentinelDefeatKillsPerTick();
 
     /**
-     * The share of a Keeper's maximum health that players' own damage must add up to for its death to
-     * count as a player's defeat (boss.md § Player credit and non-player death). Safe baseline 0.5.
-     */
-    double keeperPlayerShare();
-
-    /**
-     * How much a Keeper's wave and milestone loot grows for each milestone its path position has passed
-     * beyond 20: the multiplier is {@code 1 + keeperLootStep x k} (keeper.md § Defeat loot; FRO_242).
-     * Safe baseline 0.3.
-     */
-    double keeperLootStep();
-
-    /**
      * How far, in blocks, a present boss may be from its recorded position before it is teleported back
      * (border-pregeneration.md § Movement). Safe baseline 40.
      */
     int bossLeashRadius();
-
-    /**
-     * The leash for the level 1 Keeper (path position 1, the Rabbit), in place of
-     * {@link #bossLeashRadius()}: a Rabbit is fast and small, and the first Border is radius 8, so the
-     * standard 40 lets it be kited far outside its own Border. Safe baseline 20.
-     */
-    int bossLeashRadiusFirst();
 
     /** How long a player keeps seeing a boss's health bar after they last held its kill credit. */
     int bossBarLingerTicks();
@@ -261,10 +190,4 @@ public interface BossRules {
 
     /** How close to the local player a sentinel must be to leave a trail. Reaches the client through the public fixture. */
     int trailRadius();
-
-    /**
-     * Equips {@code mob} with the sun ward: an invisible, non-damageable, Curse-of-Binding item in
-     * its head slot with a drop chance of 0, so vanilla's sun-ignition check never burns it.
-     */
-    void equipSunWard(Mob mob);
 }

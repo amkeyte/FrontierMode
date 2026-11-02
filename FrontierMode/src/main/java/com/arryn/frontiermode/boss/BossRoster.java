@@ -178,6 +178,11 @@ public final class BossRoster implements Ticking {
         return recordOf(entityId).map(BossRecord::alive).orElse(false);
     }
 
+    /** The kind key of the live boss with this entity id, from its record, or empty for anything else. */
+    public Optional<String> kindOf(UUID entityId) {
+        return recordOf(entityId).filter(BossRecord::alive).map(BossRecord::kind);
+    }
+
     /** The size multiplier of the boss with this entity id, from its record, or {@code 1.0F} for anything else. */
     public float scaleOf(UUID entityId) {
         return recordOf(entityId).map(BossRecord::scale).orElse(1.0F);

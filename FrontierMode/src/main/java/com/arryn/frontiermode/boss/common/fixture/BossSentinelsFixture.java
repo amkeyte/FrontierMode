@@ -12,6 +12,7 @@ import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.KeeperItems;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.spawn.MobSpawns;
@@ -374,7 +375,7 @@ public final class BossSentinelsFixture extends SatchelFixture {
     private void applyConversion(Mob mob, BossFixture boss, int keeperPathPosition, double difficultyIntensity) {
         DifficultyAPI.applySentinelRung(mob, keeperPathPosition, difficultyIntensity);
         // Before vanilla's own setup, which only fills empty equipment slots.
-        boss.RULES.equipSunWard(mob);
+        KeeperItems.equipSunWard(mob);
     }
 
     private static final String PURPOSE_PLACEMENT = "placement";

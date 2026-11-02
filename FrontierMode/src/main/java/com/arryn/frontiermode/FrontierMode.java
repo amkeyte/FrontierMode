@@ -16,6 +16,7 @@ import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.feral.FeralModule;
+import com.arryn.frontiermode.keeper.KeeperItems;
 import com.arryn.frontiermode.keeper.KeeperModule;
 import com.arryn.frontiermode.structure.StructureModule;
 import com.arryn.satchel.common.platform.PlatformBound;
@@ -138,8 +139,8 @@ public final class FrontierMode {
         // see BossTellModule's own class doc), but a DeferredRegister still needs the mod bus
         // instance to register onto, which only exists in this constructor.
         BossTellModule.ITEMS.register(modBus);
-        // The sun ward's register lives on BossModule for the same reason.
-        BossModule.ITEMS.register(modBus);
+        // The sun ward's register lives on KeeperItems for the same reason.
+        KeeperItems.ITEMS.register(modBus);
         // FRO_211: the diorite module's items live on their own holder, wired the same way.
         DioriteItems.ITEMS.register(modBus);
         DioriteEntities.ENTITY_TYPES.register(modBus);

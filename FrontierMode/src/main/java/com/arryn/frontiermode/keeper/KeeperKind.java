@@ -12,7 +12,6 @@ import com.arryn.frontiermode.boss.CreditTally;
 import com.arryn.frontiermode.boss.HealthBar;
 import com.arryn.frontiermode.boss.Leash;
 import com.arryn.frontiermode.boss.Persistent;
-import com.arryn.frontiermode.boss.SentinelJigHandlers;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
 import com.arryn.frontiermode.boss.common.BossKind;
@@ -22,24 +21,26 @@ import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.keeper.common.BossMobTypes;
 import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
+import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -76,15 +77,14 @@ public final class KeeperKind implements BossKind {
         }
 
         Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
-        Optional<BossRulesFacet> rulesOpt = BossAPI.RULES(level);
-        if (keepersOpt.isEmpty() || rulesOpt.isEmpty()) {
-            OUT.warn("[Keeper] onCreate(): KeeperFixture or boss rules not available for level "
+        if (keepersOpt.isEmpty()) {
+            OUT.warn("[Keeper] onCreate(): KeeperFixture not available for level "
                     + level.dimension().location() + " -- no Keeper record written for bossId="
                     + Ids.shortId(bossId));
             return false;
         }
 
-        String body = rulesOpt.get().chooseBody(creation.pathPosition().orElse(creation.layer()));
+        String body = KeeperBodies.chooseBody(creation.pathPosition().orElse(creation.layer()));
         keepersOpt.get().add(new KeeperRecord(
                 bossId, creation.layer(), creation.pathPosition(), body, creation.borderId(), null));
         return true;
@@ -132,7 +132,7 @@ public final class KeeperKind implements BossKind {
         if (borderOpt.isEmpty() || !BorderAPI.isPregenReady(level, borderOpt.get().id())) {
             return Optional.empty();
         }
-        return Optional.of(rules(level).choosePosition(level, borderOpt.get()));
+        return Optional.of(KeeperPlacement.choosePosition(level, borderOpt.get()));
     }
 
     /**
@@ -151,7 +151,7 @@ public final class KeeperKind implements BossKind {
         if (keeperOpt.get().platformBuilt()) {
             return SiteOutcome.READY;
         }
-        BossPlatform.place(level, position, rules(level).keeperScale(keeperOpt.get()));
+        BossPlatform.place(level, position, KeeperBodies.keeperScale(keeperOpt.get()));
         keepersOpt.get().setPlatform(bossId, position.below());
         OUT.info("[Keeper] prepareSite(): built bedrock platform for bossId=" + Ids.shortId(bossId)
                 + " centered at " + position.below());
@@ -168,10 +168,9 @@ public final class KeeperKind implements BossKind {
         if (keeperOpt.isEmpty()) {
             return Optional.empty();
         }
-        BossRulesFacet rules = rules(level);
         KeeperRecord keeper = keeperOpt.get();
-        return rules.materialize(level, position, keeper)
-                .map(mob -> new Spawned(mob, rules.keeperScale(keeper)));
+        return KeeperSetup.materialize(level, position, keeper)
+                .map(mob -> new Spawned(mob, KeeperBodies.keeperScale(keeper)));
     }
 
     /**
@@ -184,7 +183,7 @@ public final class KeeperKind implements BossKind {
         if (!death.playerCredited()) {
             return DeathVerdict.LOSS;
         }
-        double share = rules(level).keeperPlayerShare();
+        double share = new Tunable("keeperPlayerShare", 0f, 1f, 0.5f).floatValue();
         if (death.playerDamage() < share * death.maxHealth()) {
             OUT.info("[Keeper] judgeDeath(): boss at " + death.position()
                     + " died with a player credited, but players dealt under " + share
@@ -195,13 +194,16 @@ public final class KeeperKind implements BossKind {
     }
 
     /**
-     * The Keeper's defeat cascade (keeper.md § Defeat): its Sentinels die with it, the defeat loot is paid at
-     * the last-standing point, and an on-path Keeper that is the last standing on its Border grows the
-     * Frontier from where it fell, creates the next Keeper and starts that Border's pregeneration and curves.
-     * A hand-placed off-path Keeper (no {@code borderId}) grows nothing.
+     * The Keeper's defeat cascade (keeper.md § Defeat): it posts {@link KeeperDefeated} first, for the Sentinel
+     * module to queue its Sentinels' kill, the defeat loot is paid at the last-standing point, and an on-path
+     * Keeper that is the last standing on its Border grows the Frontier from where it fell, creates the next
+     * Keeper (whose {@link KeeperCreated} the Tell and Sentinel modules answer with their curves) and starts that
+     * Border's pregeneration. A hand-placed off-path Keeper (no {@code borderId}) grows nothing.
      */
     @Override
     public void onDefeat(Level level, UUID bossId, Mob mob, Optional<ServerPlayer> credited) {
+        Satchel.require().eventBus().post(new KeeperDefeated(level, bossId, credited));
+
         Optional<BossFixture> bossesOpt = BossAPI.bosses(level);
         Optional<KeeperRecord> keeperOpt = KeeperAPI.keepers(level).flatMap(keepers -> keepers.get(bossId));
         Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
@@ -214,9 +216,6 @@ public final class KeeperKind implements BossKind {
         KeeperFixture keepers = keepersOpt.get();
         KeeperRecord keeper = keeperOpt.get();
 
-        // The boss's sentinels die with it, staggered; see sentinels.md's "When the boss is defeated".
-        SentinelJigHandlers.onBossDefeated(level, bossId, credited.map(ServerPlayer::getUUID).orElse(null));
-
         // On-path gate: a hand-placed off-path boss never triggers growth. An on-path boss only
         // triggers growth once it's the last living sibling on that border.
         Optional<UUID> borderId = keeper.borderId();
@@ -226,7 +225,7 @@ public final class KeeperKind implements BossKind {
         // itself gates on (trivially true for an off-path record), independent of whether growth
         // actually fires afterward.
         if (lastStanding && credited.isPresent()) {
-            grantDefeatLoot(keeper, credited.get(), mob, level, bosses.RULES.keeperLootStep());
+            grantDefeatLoot(keeper, credited.get(), mob, level);
         }
 
         if (borderId.isEmpty() || !lastStanding) {
@@ -264,15 +263,13 @@ public final class KeeperKind implements BossKind {
 
         KeeperAPI.createBoss(level, result.border());
         BorderAPI.startPregeneration(level, result.border().id());
-        BossTellFixture.createTellCurveIfAbsent(level, result.border().id());
-        // RM_FRO_029 (Gloria): same paired-creation discipline as the Tell curve line above.
-        BossSentinelsFixture.ensureSentinelCurves(level, result.border().id());
     }
 
     /**
      * The Keeper's mob-side abilities (keeper.md § Abilities). The hitbox follows the record's scale on both sides; the
      * rest are the server's: the damage tally, the leash (the first Keeper has its own, shorter radius), the health bar
-     * for a milestone Keeper, and the Sentinels' defense.
+     * for a milestone Keeper, the Sentinels' defense, and the three rules that keep a live Keeper what it is (it never
+     * converts, takes no fire damage, and is left alone by allies).
      */
     @Override
     public void subscribeAbilities(Level level, Boss boss, DynamicTrinket host) {
@@ -280,20 +277,26 @@ public final class KeeperKind implements BossKind {
         if (!Satchel.isServer()) {
             return;
         }
-        Optional<KeeperRecord> keeperOpt = keeper(level, boss.bossId());
-        if (keeperOpt.isEmpty()) {
-            return;
-        }
-        KeeperRecord keeper = keeperOpt.get();
-        BossRulesFacet rules = rules(level);
+        // The whole-entry rule makes a missing Keeper record impossible here, so one is a programming error.
+        KeeperRecord keeper = keeper(level, boss.bossId()).orElseThrow(() -> new IllegalStateException(
+                "[Keeper] subscribeAbilities(): no Keeper record for bossId=" + boss.bossId()));
 
         host.subscribe(new CreditTally(boss));
-        double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? rules.bossLeashRadiusFirst() : rules.bossLeashRadius();
+        double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? leashRadiusFirst() : rules(level).bossLeashRadius();
         host.subscribe(new Leash(boss, radius));
         if (KeeperAPI.isMilestone(keeper)) {
-            host.subscribe(new HealthBar(boss));
+            host.subscribe(new HealthBar(boss, KeeperSetup.BOSS_NAME));
         }
         host.subscribe(new Defense(boss));
+        host.subscribe(new NoConvert());
+        host.subscribe(new FireAndSunProof());
+        host.subscribe(new AllyTruce());
+    }
+
+    // The level 1 Keeper's own, shorter leash: a Rabbit is fast and small, and the first Border is radius 8, so the
+    // standard radius lets it be kited far outside its own Border.
+    private static int leashRadiusFirst() {
+        return new Tunable("bossLeashRadiusFirst", 8, 512, 20).intValue();
     }
 
     /**
@@ -307,18 +310,56 @@ public final class KeeperKind implements BossKind {
         }
     }
 
+    /** The Keeper's bodies are the entity types in {@link BossMobTypes}, the union of the {@code keeper-bodies} table's. */
+    @Override
+    public boolean canBeBody(EntityType<?> type) {
+        return BossMobTypes.isEligible(type);
+    }
+
+    /**
+     * {@code /boss add}: a Keeper with no Border at a position an admin chose (keeper.md § Creation). The record is
+     * created unpositioned and its position committed at once, rather than waiting on Border pregeneration: an
+     * admin-forced position, where unvalidated terrain is expected. Empty if the layer is rejected (below 1) or the
+     * boss data is not resolvable yet.
+     */
+    @Override
+    public Optional<BossRecord> handPlace(Level level, BlockPos position, int layer) {
+        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
+        if (fixtureOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        BossFixture fixture = fixtureOpt.get();
+        Optional<BossRecord> recordOpt = fixture.create(KEY,
+                new KeeperCreation(layer, Optional.empty(), OptionalInt.empty()));
+        recordOpt.ifPresent(record -> fixture.finalizePosition(record.bossId(), position));
+        return recordOpt;
+    }
+
+    /**
+     * {@code /boss attach}: pairs a Keeper onto an existing boss-less path Border (keeper.md § Boss-less path layers
+     * and attach). Creates it the normal way, which sets its {@code borderId}, then clears the Border from
+     * {@code pendingAttach}. That clear is a no-op, not an error, if the Border wasn't actually pending: attach does
+     * not require it to be. Empty if the layer is rejected (a Keeper needs layer 1 or more).
+     */
+    @Override
+    public Optional<BossRecord> attachToBorder(Level level, Border border) {
+        Optional<BossRecord> recordOpt = KeeperAPI.createBoss(level, border);
+        recordOpt.ifPresent(record ->
+                KeeperAPI.keepers(level).ifPresent(keepers -> keepers.removePendingAttach(border.id())));
+        return recordOpt;
+    }
+
     /**
      * The Keeper's defeat reward: vanilla-format loot tables rolled and dropped by {@link KeeperLoot}
      * (keeper.md § Defeat loot; FRO_213). Only reached for a player-credited defeat. FRO_134: a real item drop
      * at the death position, never a direct inventory insert, so it reads as a reward the player walks over
      * and picks up.
      */
-    private static void grantDefeatLoot(KeeperRecord keeper, ServerPlayer credited, Mob mob, Level level,
-                                        double lootStep) {
+    private static void grantDefeatLoot(KeeperRecord keeper, ServerPlayer credited, Mob mob, Level level) {
         OUT.debug("[Keeper] grantDefeatLoot(): paying " + credited.getGameProfile().getName()
                 + " for bossId=" + Ids.shortId(keeper.bossId()));
         if (level instanceof ServerLevel serverLevel) {
-            KeeperLoot.pay(serverLevel, mob, keeper, credited, lootStep);
+            KeeperLoot.pay(serverLevel, mob, keeper, credited);
         }
     }
 

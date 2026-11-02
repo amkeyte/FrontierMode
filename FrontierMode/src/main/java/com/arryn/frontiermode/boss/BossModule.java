@@ -1,17 +1,12 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.FrontierKeys;
-import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
-import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.core.EntityScales;
-import com.arryn.frontiermode.boss.common.items.SunWardItem;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
 import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.boss.server.commands.BossCommands;
 import com.arryn.satchel.Satchel;
@@ -22,7 +17,6 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
-import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -33,11 +27,7 @@ import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.item.Item;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
 
 import java.util.List;
 
@@ -54,13 +44,6 @@ import java.util.List;
  */
 public final class BossModule {
 
-    // The sun ward: registered here, not on BossTellModule.ITEMS (Boss must not depend on BossTell).
-    // Still has to be registered onto the mod event bus from FrontierMode's constructor.
-    public static final DeferredRegister<Item> ITEMS =
-            DeferredRegister.create(ForgeRegistries.ITEMS, FrontierMode.MODID);
-
-    public static final RegistryObject<Item> SUN_WARD = ITEMS.register("sun_ward", SunWardItem::new);
-
     private BossModule() {
     }
 
@@ -70,7 +53,6 @@ public final class BossModule {
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> buildBossJig());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> buildBossMobJig());
         registerSentinelPublicJig();
-        registerNavigatorResolver();
         EntityScales.register(new BossScaleSource());
     }
 
@@ -92,15 +74,6 @@ public final class BossModule {
     public static void onMobSpawnFinalize(Mob mob, ServerLevel level) {
         BossAPI.sentinels(level).ifPresent(sentinels ->
                 sentinels.onMobSpawnFinalize(mob, level));
-    }
-
-    // ── TargetType.BOSS resolver ──────────────────────────────────────────────
-
-    private static void registerNavigatorResolver() {
-        TargetResolverRegistry.register(TargetType.BOSS, (level, bossId) ->
-                BossAPI.bosses(level)
-                        .flatMap(fixture -> fixture.CRUD.get(bossId))
-                        .map(BossRecord::position));
     }
 
     // ── BOSS_JIG ─────────────────────────────────────────────────────────────
@@ -137,7 +110,6 @@ public final class BossModule {
         EventHandlers eventHandlers =
                 EventHandlers.builder()
                         .on(ScopeEvent.Tick.class, BossJigHandlers::onTick)
-                        .on(ScopeEvent.Loaded.class, BossJigHandlers::onBordersScopeLoaded)
                         .on(MobDied.class, BossJigHandlers::onMobDied)
                         // Bare, unscoped signals -- declared here only because this is the topically
                         // closest config, not a claim they are BOSS_JIG-scoped.
@@ -181,19 +153,10 @@ public final class BossModule {
      * mob scope's Trinket attach, {@code Leaving} and detach are the hooks.
      */
     private static MobJigConfig buildBossMobJig() {
-        EventHandlers eventHandlers =
-                EventHandlers.builder()
-                        // Bare, unscoped signals -- declared here only because this is the topically
-                        // closest config, not a claim they are BOSS_MOB_JIG-scoped.
-                        .on(LivingChangeTargetSignal.class, KeeperCombatHandlers::onChangeTarget)
-                        .on(LivingConversionSignal.class, KeeperCombatHandlers::onConversion)
-                        .build();
-
         MobJigConfig config = new MobJigConfig(FrontierKeys.BOSS_MOB_JIG);
         config.bundles().schema(new JigBundles.Schema<>(List.of()));
         config.execution()
-                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true))
-                .eventHandlers(eventHandlers);
+                .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true));
 
         // The dynamic host holds the Boss and the kind's abilities as subscribers and forwards Leaving to them;
         // MobAbilities, declared after it, finds the mob's Boss through the roster and subscribes them.

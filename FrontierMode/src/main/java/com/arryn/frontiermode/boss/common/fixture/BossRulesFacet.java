@@ -1,22 +1,17 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
-import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.server.rules.BossRules;
 import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
-import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.Level;
 
-import java.util.Optional;
 
 /**
  * FRO_081: Boss's pluggable-strategy facet, mirroring {@code BordersRulesFacet}'s shape -- wraps
  * the {@link BossRules}/{@link DefaultBossRules} strategy object (moved here from
- * {@code BossModule}'s own private {@code static final BossRules RULES} field), exposing position
- * validation (flatness/hazard scoring) and materialization as this fixture's RULES surface.
+ * {@code BossModule}'s own private {@code static final BossRules RULES} field), exposing the base's rules as this
+ * fixture's RULES surface. The Keeper's own rules are in the keeper module.
  *
  * <p>The wrapped {@link BossRules} instance is declared {@code static} on this class -- one
  * instance shared by every level's {@code BossFixture} (and so every level's own
@@ -33,29 +28,6 @@ public final class BossRulesFacet {
     BossRulesFacet(BossFixture fixture) {
     }
 
-
-    public BlockPos choosePosition(Level level, Border border) {
-        return RULES.choosePosition(level, border);
-    }
-
-    /**
-     * See {@link BossRules#materialize(Level, BlockPos, KeeperRecord)}.
-     */
-    public Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper) {
-        return RULES.materialize(level, position, keeper);
-    }
-
-    /** See {@link BossRules#chooseBody(int)}. */
-    public String chooseBody(int pathPosition) {
-        return RULES.chooseBody(pathPosition);
-    }
-
-    /**
-     * See {@link BossRules#keeperScale(KeeperRecord)}.
-     */
-    public float keeperScale(KeeperRecord keeper) {
-        return RULES.keeperScale(keeper);
-    }
 
     /**
      * See {@link com.arryn.frontiermode.boss.server.rules.BossRules#tellTickInterval()}.
@@ -125,24 +97,9 @@ public final class BossRulesFacet {
         return RULES.sentinelDefeatKillsPerTick();
     }
 
-    /** See {@link BossRules#keeperPlayerShare()}. */
-    public double keeperPlayerShare() {
-        return RULES.keeperPlayerShare();
-    }
-
-    /** See {@link BossRules#keeperLootStep()}. */
-    public double keeperLootStep() {
-        return RULES.keeperLootStep();
-    }
-
     /** See {@link BossRules#bossLeashRadius()}. */
     public int bossLeashRadius() {
         return RULES.bossLeashRadius();
-    }
-
-    /** See {@link BossRules#bossLeashRadiusFirst()}. */
-    public int bossLeashRadiusFirst() {
-        return RULES.bossLeashRadiusFirst();
     }
 
     /** See {@link BossRules#bossBarLingerTicks()}. */
@@ -228,10 +185,5 @@ public final class BossRulesFacet {
     /** See {@link BossRules#trailRadius()}. */
     public int trailRadius() {
         return RULES.trailRadius();
-    }
-
-    /** See {@link BossRules#equipSunWard(Mob)}. */
-    public void equipSunWard(Mob mob) {
-        RULES.equipSunWard(mob);
     }
 }

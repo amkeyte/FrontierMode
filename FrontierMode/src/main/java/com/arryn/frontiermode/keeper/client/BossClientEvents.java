@@ -1,7 +1,7 @@
-package com.arryn.frontiermode.boss.client;
+package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.boss.common.BossMobTypes;
+import com.arryn.frontiermode.keeper.common.BossMobTypes;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.client.Minecraft;

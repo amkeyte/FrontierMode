@@ -6,7 +6,8 @@ import com.arryn.frontiermode.border.BorderModule;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
-import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.border.server.BorderPathGrown;
+import com.arryn.satchel.Satchel;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -198,23 +199,12 @@ public final class BorderCommandHandler {
             return 0;
         }
 
-        // FRO_082 (FRO_063's ruling, boss.md's "Boss-less path layers and attach" section):
-        // pathGrow() is deliberately boss-less (FRO_048) -- the newly-grown border's id is
-        // marked pendingAttach so the Keeper's own reconciliation check reads this as a
-        // sanctioned wait-state ("awaiting /boss attach"), not a real data bug, until an admin
-        // runs /boss attach against it. Same "whoever calls a border-creating operation also
-        // calls into the sibling module's own API right after" shape every other paired call
-        // site in this codebase uses -- but note this is the reverse direction from every other
-        // instance of that shape: those all live on Boss's own side calling into BorderAPI
-        // (Boss depends on Border, never the reverse -- see BossModule's class doc and FRO_075).
-        // This one call, explicitly named by both FRO_082's ticket text and boss.md's own ruling,
-        // is the one place Border imports the Keeper (KeeperAPI) -- a deliberate, ticket-mandated
-        // exception to that stated direction, not an oversight; flagged here and in FRO_082's own
-        // ticket log for whoever revisits this boundary later. A missing KeeperAPI.keepers(level)
-        // here (the Keeper's own data not resolvable yet) is a silent no-op, same "standby, don't
-        // crash" discipline every other resolution failure in this codebase already
-        // follows -- the grow itself already succeeded and is not rolled back for it.
-        KeeperAPI.keepers(level).ifPresent(keepers -> keepers.addPendingAttach(result.border().id()));
+        // pathGrow() is deliberately Keeper-less (FRO_048): the newly-grown border is announced on Satchel's bus,
+        // and the Keeper's consumer marks it pending attach, so its reconciliation check reads the gap as a
+        // sanctioned wait-state ("awaiting /boss attach"), not a real data bug, until an admin runs /boss attach
+        // against it. Border imports neither Boss nor Keeper (border.md § Path grown). Only this command posts
+        // the event, not BorderAPI.grow, which the Keeper's own defeat cascade calls too.
+        Satchel.require().eventBus().post(new BorderPathGrown(level, result.border()));
 
         ctx.getSource().sendSuccess(
                 () -> msg("Advanced border progression"),

@@ -122,8 +122,9 @@ public final class KeeperAPI {
     /**
      * Creates the Keeper for a progression {@code border}: the base {@code create("keeper", ...)}, whose kind
      * hook writes the {@code KeeperRecord}. {@code layer} and the path position are copied once from
-     * {@code border} and never re-read. Returns empty on a rejection (a layer below 1) or when the boss data
-     * is not resolvable yet, logged.
+     * {@code border} and never re-read. Posts {@link KeeperCreated} once the record exists, which the modules
+     * downstream of the Keeper answer with their own paired steps. Returns empty on a rejection (a layer below 1)
+     * or when the boss data is not resolvable yet, logged.
      */
     public static Optional<BossRecord> createBoss(Level level, Border border) {
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
@@ -134,7 +135,10 @@ public final class KeeperAPI {
             return Optional.empty();
         }
 
-        return fixtureOpt.get().CRUD.create(KeeperKind.KEY,
+        Optional<BossRecord> created = fixtureOpt.get().CRUD.create(KeeperKind.KEY,
                 new KeeperCreation(border.layer(), Optional.of(border.id()), pathPositionOf(level, border)));
+        created.ifPresent(record ->
+                Satchel.require().eventBus().post(new KeeperCreated(level, record.bossId(), border.id())));
+        return created;
     }
 }

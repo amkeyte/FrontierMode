@@ -1,6 +1,7 @@
-package com.arryn.frontiermode.boss.client;
+package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
+import com.arryn.frontiermode.keeper.KeeperKind;
 import com.arryn.frontiermode.effects.client.ClientEffectsAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import net.minecraft.client.Minecraft;
@@ -60,6 +61,11 @@ public final class BossFlashClient {
         return new double[]{x, y, z};
     }
 
+    // A live boss of the Keeper kind: the draws are gated on the kind, so another kind's visuals are its own.
+    private static boolean isKeeper(Mob boss) {
+        return BossMarkers.kindOf(boss).filter(KeeperKind.KEY::equals).isPresent();
+    }
+
     public static void tick(Level level) {
         if (!(level instanceof ClientLevel clientLevel) || level.getGameTime() % CHECKPOINT_INTERVAL != 0) {
             return;
@@ -72,7 +78,7 @@ public final class BossFlashClient {
         double rangeSq = RANGE * RANGE;
         RandomSource random = level.getRandom();
         for (Mob boss : clientLevel.getEntitiesOfClass(Mob.class, player.getBoundingBox().inflate(RANGE),
-                BossMarkers::isLiveBoss)) {
+                BossFlashClient::isKeeper)) {
             if (boss.distanceToSqr(player) > rangeSq) {
                 continue;
             }

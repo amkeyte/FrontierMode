@@ -5,6 +5,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.KeeperBodies;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.Scopes;
@@ -99,7 +100,7 @@ final class BossIngress {
                         keeper.borderId().map(Ids::shortId).orElse("-"),
                         record.alive() ? "alive" : "defeated",
                         record.materialized() ? ", materialized" : "",
-                        fixture.RULES.keeperScale(keeper));
+                        KeeperBodies.keeperScale(keeper));
             }
         }
         return "-";

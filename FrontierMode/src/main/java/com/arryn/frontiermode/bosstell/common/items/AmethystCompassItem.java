@@ -5,9 +5,10 @@ import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
-import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.KeeperBodies;
+import com.arryn.frontiermode.keeper.KeeperSetup;
 import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
@@ -306,7 +307,7 @@ public class AmethystCompassItem extends CompassItem {
                 KeeperAPI.keepers(level).flatMap(keepers -> fixture.all().stream()
                         .filter(record -> record.positioned() && keepers.get(record.bossId())
                                 .map(keeper -> matchesPlatform(record.position(), clicked,
-                                        BossPlatform.halfWidth(fixture.RULES.keeperScale(keeper))))
+                                        BossPlatform.halfWidth(KeeperBodies.keeperScale(keeper))))
                                 .orElse(false))
                         .findFirst()));
         if (recordOpt.isEmpty()) {
@@ -365,6 +366,6 @@ public class AmethystCompassItem extends CompassItem {
         super.appendHoverText(stack, level, tooltip, flag);
 
         CompassAttunement.bossLevel(stack).ifPresent(bossLevel ->
-                tooltip.add(Component.literal(DefaultBossRules.BOSS_NAME + ", level " + bossLevel)));
+                tooltip.add(Component.literal(KeeperSetup.BOSS_NAME + ", level " + bossLevel)));
     }
 }

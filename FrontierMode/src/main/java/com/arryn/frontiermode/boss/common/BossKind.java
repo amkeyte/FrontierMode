@@ -1,9 +1,12 @@
 package com.arryn.frontiermode.boss.common;
 
+import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.Boss;
+import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -22,6 +25,13 @@ public interface BossKind {
 
     /** The key a base record names this kind by, and {@link BossKinds} registers it under. */
     String key();
+
+    /**
+     * Whether a body of {@code type} can belong to this kind. The base asks every kind, through
+     * {@link BossKinds#anyBody}, as its cheap gate before any roster lookup: the render and size reads run for every
+     * entity, so a type no kind can have bounces first. Must be cheap and must not touch the level.
+     */
+    boolean canBeBody(EntityType<?> type);
 
     /**
      * Writes the kind's own record for {@code bossId} from {@code args}. Returns whether the kind accepted the
@@ -83,4 +93,22 @@ public interface BossKind {
      * when it drops the {@code Boss}.
      */
     void subscribeRecordAbilities(Level level, Boss boss, DynamicTrinket host);
+
+    /**
+     * {@code /boss add}: creates a record of this kind at a position an admin chose, with no Border, and commits the
+     * position at once. Empty means the kind does not offer the verb, or rejected the arguments (logged); the default
+     * is a kind that does not offer it.
+     */
+    default Optional<BossRecord> handPlace(Level level, BlockPos position, int layer) {
+        return Optional.empty();
+    }
+
+    /**
+     * {@code /boss attach}: creates a record of this kind for an existing Border and clears the Border's pending
+     * attach. Empty means the kind does not offer the verb, or rejected the Border (logged); the default is a kind
+     * that does not offer it.
+     */
+    default Optional<BossRecord> attachToBorder(Level level, Border border) {
+        return Optional.empty();
+    }
 }

@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.boss;
 
-import com.arryn.frontiermode.boss.common.BossMobTypes;
+import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.satchel.Satchel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -13,8 +13,8 @@ import java.util.Optional;
  * the roster holds whose record is alive; its size is the record's {@code scale}. No client classes here, so it loads on
  * a dedicated server.
  *
- * <p>Bosses are only ever one of {@link BossMobTypes#ELIGIBLE}, so anything else is rejected before any
- * roster lookup -- these are called from hot paths (every entity's dimension refresh, every
+ * <p>Bosses are only ever a type some kind can have a body of ({@link BossKinds#anyBody}), so anything else is
+ * rejected before any roster lookup -- these are called from hot paths (every entity's dimension refresh, every
  * rendered frame).
  */
 public final class BossMarkers {
@@ -27,13 +27,21 @@ public final class BossMarkers {
     // level() can be null for an entity built off-world (dimension queries, registry probes) -- the
     // Size event fires from the Entity constructor, so it has to tolerate that.
     public static boolean isEligible(Entity entity) {
-        return BossMobTypes.isEligible(entity.getType()) && entity.level() != null;
+        return BossKinds.anyBody(entity.getType()) && entity.level() != null;
     }
 
     /** True if {@code entity} is a currently-tracked, alive boss. */
     public static boolean isLiveBoss(Entity entity) {
         return isEligible(entity)
                 && roster(entity.level()).map(roster -> roster.isLive(entity.getUUID())).orElse(false);
+    }
+
+    /** The kind key of the live boss this entity is, or empty for anything that isn't a tracked, alive boss. */
+    public static Optional<String> kindOf(Entity entity) {
+        if (!isEligible(entity)) {
+            return Optional.empty();
+        }
+        return roster(entity.level()).flatMap(roster -> roster.kindOf(entity.getUUID()));
     }
 
     /** The boss's size multiplier, or {@code 1.0} for anything that isn't a tracked boss. */

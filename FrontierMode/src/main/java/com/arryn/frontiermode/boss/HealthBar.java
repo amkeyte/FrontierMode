@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.fixture.BossRulesFacet;
-import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.effects.common.BossBarHandle;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -34,13 +33,17 @@ public final class HealthBar implements Ticking {
 
     private final Boss boss;
 
+    // The bar's title, which the kind supplies at subscribe.
+    private final String title;
+
     // Created on the first viewer; null until then.
     private BossBarHandle healthBar;
     // Viewing player -> game time they last held the boss's kill credit.
     private final Map<UUID, Long> barViewers = new HashMap<>();
 
-    public HealthBar(Boss boss) {
+    public HealthBar(Boss boss, String title) {
         this.boss = boss;
+        this.title = title;
     }
 
     @Override
@@ -64,7 +67,7 @@ public final class HealthBar implements Ticking {
         long now = level.getGameTime();
         if (mob.getKillCredit() instanceof ServerPlayer credited) {
             if (healthBar == null) {
-                healthBar = EffectsAPI.createBossBar(Component.literal(DefaultBossRules.BOSS_NAME),
+                healthBar = EffectsAPI.createBossBar(Component.literal(title),
                         BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.PROGRESS);
             }
             if (barViewers.put(credited.getUUID(), now) == null) {
