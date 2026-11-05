@@ -1,21 +1,19 @@
-package com.arryn.frontiermode.boss;
+package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.tunable.Tunable;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
 
 /**
  * The Sentinels' numbers and behaviours (wiki/frontiermode/architecture/sentinels.md): placement, the per-level cap,
- * heal, kill, alert and release, which spawns can convert, size, adds and the trail. They sat on the boss rules
- * classes; those ended with node F (FRO_289), and there is no {@code sentinel} module yet to hold them, so they are
- * here, unchanged, for node G to carry into it. A Tunable's key includes its class, so these keys are
- * {@code SentinelRules:<name>}. The numbers are Tunable-backed, constructed inside their own accessor methods rather
- * than cached as fields.
+ * heal, kill, alert and release, size, adds and the trail. They sat on the boss rules classes until node F
+ * (FRO_289) and moved here unchanged with the module (node G, FRO_292); the conversion decision that reads them is
+ * {@link SentinelConversion}. A Tunable's key includes its class, so these keys are {@code SentinelRules:<name>}
+ * and did not change with the package. The numbers are Tunable-backed, constructed inside their own accessor
+ * methods rather than cached as fields.
  */
 public final class SentinelRules {
 
@@ -81,7 +79,7 @@ public final class SentinelRules {
         mob.setHealth(mob.getMaxHealth());
     }
 
-    /** How many of a defeated boss's sentinels die per {@code BOSS_JIG} tick, so their loot doesn't land in one tick. */
+    /** How many of a defeated boss's sentinels die per tick, so their loot doesn't land in one tick. */
     public static int sentinelDefeatKillsPerTick() {
         return new Tunable("sentinelDefeatKillsPerTick", 1, 100, 5).intValue();
     }
@@ -151,20 +149,6 @@ public final class SentinelRules {
         }
     }
 
-    /**
-     * Whether a spawn of {@code type} can become a sentinel, and so whether the daylight gates may lift for it.
-     * {@code MobCategory.MONSTER} is the base test (not {@code instanceof Monster}: Slime and MagmaCube are
-     * {@code MONSTER}-category hostiles that don't extend it). Excluded: Phantom, which ignites in sunlight with no
-     * helmet check so the sun ward can't protect it; and Slime and MagmaCube, which split on death and would crowd the
-     * hostile cap.
-     */
-    public static boolean canBeSentinel(EntityType<?> type) {
-        return type.getCategory() == MobCategory.MONSTER
-                && type != EntityType.PHANTOM
-                && type != EntityType.SLIME
-                && type != EntityType.MAGMA_CUBE;
-    }
-
     // Sentinel size and adds: starting values for playtest (sentinels.md, "Size and adds").
 
     /**
@@ -205,20 +189,20 @@ public final class SentinelRules {
         return new Tunable("sentinelAddScatterRadius", 1, 32, 4).intValue();
     }
 
-    // The trail's three numbers. Tunables are server-only, so BOSS_JIG's tick copies them into
-    // SentinelPublicFixture, the one channel from server to client for sentinels.
+    // The trail's three numbers. Tunables are server-only, so SentinelPresence's tick copies them into
+    // SentinelFixture, the one channel from server to client for sentinels.
 
-    /** Ticks between trail particles per sentinel. Reaches the client through the public fixture. */
+    /** Ticks between trail particles per sentinel. Reaches the client through the synced fixture. */
     public static int trailIntervalTicks() {
         return new Tunable("trailIntervalTicks", 1, 200, 4).intValue();
     }
 
-    /** How long each trail particle lives, in ticks. Reaches the client through the public fixture. */
+    /** How long each trail particle lives, in ticks. Reaches the client through the synced fixture. */
     public static int trailLifetimeTicks() {
         return new Tunable("trailLifetimeTicks", 1, 600, 30).intValue();
     }
 
-    /** How close to the local player a sentinel must be to leave a trail. Reaches the client through the public fixture. */
+    /** How close to the local player a sentinel must be to leave a trail. Reaches the client through the synced fixture. */
     public static int trailRadius() {
         return new Tunable("trailRadius", 1, 128, 24).intValue();
     }

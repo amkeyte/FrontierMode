@@ -55,7 +55,7 @@ public final class BorderModule {
 
     // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): shared RNG for Sick Wildlife's spawn-
     // density roll in onMobSpawnFinalize below -- same static-field, not-persisted shape
-    // BossTellFixture.RNG/BossSentinelsFixture.RNG already use.
+    // BossTellFixture.RNG/SentinelConversion.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
 
     // Debug toggle, project owner request (2026-09-18): "/border debug sickness <true|false>" --
@@ -459,7 +459,7 @@ public final class BorderModule {
 
     // ─────────────────────────────────────────────
     // RM_FRO_037 ("Brenda"): Sick Wildlife's density half -- a Border-side MobSpawnEvent
-    // .FinalizeSpawn hook, mirroring BossSentinelsFixture's own hook shape but simpler (no
+    // .FinalizeSpawn hook, mirroring SentinelPresence's own hook shape but simpler (no
     // player, no boss, no curve -- just "is this passive mob's spawn position in the Wilds").
     // Called from SpawnCoordinator alongside the Boss/Feral delegates
     // -- Feral (RM_FRO_038 "Martha") used to share this one method too, but was pulled out into
@@ -475,7 +475,7 @@ public final class BorderModule {
     /**
      * Never cancels the spawn either way -- this is a modifier on an already-happening spawn
      * (spawning an extra nearby companion), not a summon or a block, same discipline
-     * {@code BossSentinelsFixture.onMobSpawnFinalize} already follows. "Standby, don't crash":
+     * {@code SentinelPresence.onMobSpawnFinalize} already follows. "Standby, don't crash":
      * Border state not resolvable yet, or the spawning mob isn't a passive {@link Animal}, is a
      * silent no-op.
      */

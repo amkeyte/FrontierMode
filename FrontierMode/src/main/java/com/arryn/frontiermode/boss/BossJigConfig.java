@@ -3,18 +3,12 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
-import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.MobDied;
-import com.arryn.satchel.common.lifecycle.ScopeEvent;
-import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
-import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
 import com.arryn.satchel.common.trinket.Order;
 
@@ -38,32 +32,16 @@ final class BossJigConfig {
                         BossFixture::new,
                         JigPolicies.CreatePolicy.ALWAYS
                 );
-        // RM_FRO_029 (Gloria): second BossBundle sibling. Runtime state only (a Sentinel is a record on
-        // the mob); conversion is event-driven off onMobSpawnFinalize, and the fixture rides BOSS_JIG's
-        // tick for presence, adds and the defeat kills.
-        var bossSentinelsFixture =
-                new JigBundles.FixtureDecl<>(
-                        FrontierKeys.BOSS_SENTINELS,
-                        BossSentinelsFixture::new,
-                        JigPolicies.CreatePolicy.ALWAYS
-                );
         var bossBundle =
                 new JigBundles.BundleDecl<>(
                         FrontierKeys.BOSS_BUNDLE,
                         (LevelScope scope) -> new BossBundle(scope, FrontierKeys.BOSS_BUNDLE),
-                        List.of(bossFixture, bossSentinelsFixture)
+                        List.of(bossFixture)
                 );
 
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(ScopeEvent.Tick.class, BossJigHandlers::onTick)
                         .on(MobDied.class, BossJigHandlers::onMobDied)
-                        // Bare, unscoped signals -- declared here only because this is the topically
-                        // closest config, not a claim they are BOSS_JIG-scoped.
-                        .on(EntityJoinLevelSignal.class, SentinelJigHandlers::onEntityJoinLevel)
-                        .on(SpawnPlacementCheckSignal.class, SentinelJigHandlers::onSpawnPlacementCheck)
-                        .on(SpawnPositionCheckSignal.class, SentinelJigHandlers::onSpawnPositionCheck)
-                        .on(LivingConversionSignal.class, SentinelJigHandlers::onConversion)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);

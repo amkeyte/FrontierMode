@@ -6,11 +6,9 @@ import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.frontiermode.boss.common.DefeatOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossCrudFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
-import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.core.Dismissal;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
@@ -134,72 +132,6 @@ public final class BossAPI {
         }
 
         return Optional.ofNullable(record.position());
-    }
-
-    /**
-     * Resolves {@link BossSentinelsFixture} for {@code level} -- same "standby, don't crash"
-     * discipline as {@link #bosses(Level)}, mirroring it exactly. Used by
-     * {@code BossModule.onMobSpawnFinalize}.
-     */
-    public static Optional<BossSentinelsFixture> sentinels(Level level) {
-        if (!Satchel.isReady()) {
-            OUT.debug("[BossAPI] sentinels(): Satchel not ready yet -> Optional.empty level="
-                    + level.dimension().location());
-            return Optional.empty();
-        }
-
-        LevelScope scope = new LevelScope(level);
-
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
-        var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
-        if (infoOpt.isEmpty()) {
-            OUT.debug("[BossAPI] sentinels(): scope not ready -> Optional.empty level="
-                    + level.dimension().location());
-            return Optional.empty();
-        }
-
-        try {
-            return levelJig()
-                    .getOrCreate(scope, FrontierKeys.BOSS_BUNDLE)
-                    .get(FrontierKeys.BOSS_SENTINELS);
-        } catch (RuntimeException e) {
-            throw new SatchelException.AccessFailed(
-                    "Failed to resolve BossSentinelsFixture for level " + level.dimension().location(), e);
-        }
-    }
-
-    /**
-     * {@link #sentinels(Level)} for hot paths -- the hitbox {@code Size} handler runs for every
-     * entity's dimension refresh, including from the {@code Entity} constructor. Never logs; empty
-     * for anything not resolvable yet.
-     */
-    public static Optional<BossSentinelsFixture> sentinelsQuiet(Level level) {
-        if (!Satchel.isReady()) {
-            return Optional.empty();
-        }
-        LevelScope scope = new LevelScope(level);
-        if (Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope).isEmpty()) {
-            return Optional.empty();
-        }
-        return levelJig().getOrCreate(scope, FrontierKeys.BOSS_BUNDLE).get(FrontierKeys.BOSS_SENTINELS);
-    }
-
-    /**
-     * The client-visible sentinel record on either side. Like {@link #roster(Level)} is for the boss markers: never
-     * logs -- "not ready yet" is the normal state for the first moments after joining
-     * a world, and this is called from render and tick paths.
-     */
-    public static Optional<SentinelPublicFixture> sentinelMarkers(Level level) {
-        if (!Satchel.isReady()) {
-            return Optional.empty();
-        }
-        LevelScope scope = new LevelScope(level);
-        if (Satchel.tryReadyScopeInfo(FrontierKeys.SENTINEL_PUBLIC_JIG, scope).isEmpty()) {
-            return Optional.empty();
-        }
-        var jig = (LevelJig) foundation().requireJigInfo(FrontierKeys.SENTINEL_PUBLIC_JIG).jig;
-        return jig.getOrCreate(scope, FrontierKeys.SENTINEL_PUBLIC_BUNDLE).get(FrontierKeys.SENTINEL_PUBLIC);
     }
 
     /**

@@ -1,8 +1,8 @@
 package com.arryn.frontiermode.coordination;
 
 import com.arryn.frontiermode.border.BorderModule;
-import com.arryn.frontiermode.boss.BossModule;
 import com.arryn.frontiermode.feral.FeralAPI;
+import com.arryn.frontiermode.sentinel.SentinelModule;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.util.out.OUT;
@@ -14,7 +14,7 @@ import net.minecraft.world.level.Level;
 
 /**
  * The one consumer of {@link MobSpawnFinalizing}, fanning out to the modules that each need a turn on
- * a spawn, in a fixed order: Feral's Wilds Slime/MagmaCube deny first, then Boss (sentinel
+ * a spawn, in a fixed order: Feral's Wilds Slime/MagmaCube deny first, then the Sentinel module (sentinel
  * conversion), Border (Sick Wildlife's density roll), and Feral (its density roll). The fan-out is
  * right to exist -- one place that states the order -- but it depends on all three modules and is
  * depended on by none, so it lives here, not in any of them. Each module's own decision logic stays
@@ -51,7 +51,7 @@ public final class SpawnCoordinator {
             return;
         }
 
-        BossModule.onMobSpawnFinalize(mob, level);
+        SentinelModule.onMobSpawnFinalize(mob, level);
         BorderModule.onMobSpawnFinalize(mob, level);
         FeralAPI.onMobSpawnFinalize(mob, level);
     }

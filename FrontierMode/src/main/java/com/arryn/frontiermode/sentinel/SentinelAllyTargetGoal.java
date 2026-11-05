@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss;
+package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import net.minecraft.world.entity.LivingEntity;

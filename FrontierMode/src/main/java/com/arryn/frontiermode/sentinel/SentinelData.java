@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss;
+package com.arryn.frontiermode.sentinel;
 
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
@@ -13,7 +13,7 @@ import java.util.UUID;
  * A Sentinel's record on the mob: the {@code frontiermode:sentinel} MobData namespace holding
  * {@code bossId} and {@code scale} (sentinels.md § The Sentinel record on the mob). "Is a Sentinel" is
  * "carries the namespace". The server's answer is this record; the client's is the synced
- * {@code SentinelPublicFixture}, because MobData is server-only. Module code touches the mob's data only
+ * {@code SentinelFixture}, because MobData is server-only. Module code touches the mob's data only
  * through {@link MobData}.
  *
  * <p>Written once, before the mob joins the level, with {@code writeIfAbsent}: the first conversion

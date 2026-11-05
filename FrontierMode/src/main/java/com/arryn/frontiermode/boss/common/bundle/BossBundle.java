@@ -2,7 +2,6 @@ package com.arryn.frontiermode.boss.common.bundle;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
@@ -45,9 +44,5 @@ public final class BossBundle extends SatchelBundle {
 
     public Optional<BossFixture> boss() {
         return get(FrontierKeys.BOSS);
-    }
-
-    public Optional<BossSentinelsFixture> sentinels() {
-        return get(FrontierKeys.BOSS_SENTINELS);
     }
 }

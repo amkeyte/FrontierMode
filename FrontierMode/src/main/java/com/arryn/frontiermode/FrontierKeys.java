@@ -10,13 +10,12 @@ import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.common.player.WildsTellFixture;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
-import com.arryn.frontiermode.boss.common.bundle.SentinelPublicBundle;
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
-import com.arryn.frontiermode.boss.common.fixture.SentinelPublicFixture;
 import com.arryn.frontiermode.bosstell.common.bundle.TellBundle;
 import com.arryn.frontiermode.bosstell.common.fixture.BossTellFixture;
 import com.arryn.frontiermode.keeper.common.bundle.KeeperBundle;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
+import com.arryn.frontiermode.sentinel.common.bundle.SentinelBundle;
+import com.arryn.frontiermode.sentinel.common.fixture.SentinelFixture;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.StructureBundle;
 import com.arryn.satchel.common.identity.BundleKey;
@@ -162,16 +161,6 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    // RM_FRO_029 (Gloria): BossSentinelsFixture -- sibling fixture in BOSS_BUNDLE alongside
-    // BossFixture. See BossJigConfig for the schema wiring and
-    // wiki/frontiermode/architecture/sentinels.md for the design.
-
-    public static final FixtureKey<BossSentinelsFixture> BOSS_SENTINELS =
-            new FixtureKey<>(
-                    "frontiermode:boss_sentinels_fixture",
-                    BossSentinelsFixture.class
-            );
-
     // RM_FRO_060 ("Carole"): the Keeper's own records -- KeeperFixture in KeeperBundle on KEEPER_JIG, a
     // LevelJig of its own beside BOSS_JIG. See KeeperModule.init() for the registration and
     // wiki/frontiermode/architecture/keeper.md#the-keeper-record for the design.
@@ -195,24 +184,26 @@ public final class FrontierKeys {
             );
 
 
-    // FRO_167: the client-visible sentinel record -- its own BOTH-applicability bundle and jig so
-    // sentinel churn never resends the boss records. See BossModule.registerSentinelPublicJig().
+    // RM_FRO_066 ("Evelyn"): the Sentinel module's jig -- SentinelFixture (the synced record of the Sentinels present) in
+    // SentinelBundle on SENTINEL_JIG, BOTH, networked and not persisted, with SentinelPresence on the server and the
+    // client Trinket. Its own jig so Sentinel churn never resends the boss records. See SentinelModule.init() for the
+    // registration and wiki/frontiermode/architecture/sentinels.md#sentinelfixture-the-synced-record for the design.
 
-    public static final BundleKey<SentinelPublicBundle> SENTINEL_PUBLIC_BUNDLE =
+    public static final BundleKey<SentinelBundle> SENTINEL_BUNDLE =
             new BundleKey<>(
-                    "frontiermode:sentinel_public_bundle",
-                    SentinelPublicBundle.class
+                    "frontiermode:sentinel_bundle",
+                    SentinelBundle.class
             );
 
-    public static final FixtureKey<SentinelPublicFixture> SENTINEL_PUBLIC =
+    public static final FixtureKey<SentinelFixture> SENTINEL =
             new FixtureKey<>(
-                    "frontiermode:sentinel_public_fixture",
-                    SentinelPublicFixture.class
+                    "frontiermode:sentinel_fixture",
+                    SentinelFixture.class
             );
 
-    public static final JigKey<LevelJig> SENTINEL_PUBLIC_JIG =
+    public static final JigKey<LevelJig> SENTINEL_JIG =
             new JigKey<>(
-                    "frontiermode:sentinel_public_jig",
+                    "frontiermode:sentinel_jig",
                     LevelJig.class
             );
 
@@ -275,6 +266,13 @@ public final class FrontierKeys {
 
     public static final IngressKey KEEPER_INGRESS =
             new IngressKey("frontiermode:keeper");
+
+    // RM_FRO_066 ("Evelyn"): names the Sentinel module's ingress, which carries its consumers of the Keeper's
+    // KeeperCreated, KeeperHit and KeeperDefeated and of the Info report's InfoRequest. Wired in
+    // SentinelIngress.build(), registered from SentinelModule.init().
+
+    public static final IngressKey SENTINEL_INGRESS =
+            new IngressKey("frontiermode:sentinel");
 
     // RM_FRO_062 ("Joanne"): names core's ingress, which carries HitboxResize and its one consumer. Wired in
     // CoreIngress.build(), registered from CoreModule.init().

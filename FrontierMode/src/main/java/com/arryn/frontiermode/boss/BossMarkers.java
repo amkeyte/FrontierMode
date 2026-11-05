@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.BossKinds;
+import com.arryn.frontiermode.core.ClientFixtureCache;
 import com.arryn.satchel.Satchel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;

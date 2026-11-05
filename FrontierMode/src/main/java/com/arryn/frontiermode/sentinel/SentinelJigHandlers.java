@@ -1,17 +1,9 @@
-package com.arryn.frontiermode.boss;
+package com.arryn.frontiermode.sentinel;
 
-import com.arryn.frontiermode.core.WidePathing;
-import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.boss.client.SentinelTrailClient;
-import com.arryn.frontiermode.boss.common.bundle.BossBundle;
-import com.arryn.frontiermode.boss.common.fixture.BossSentinelsFixture;
 import com.arryn.frontiermode.spawn.MobSpawns;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
-import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import net.minecraft.core.BlockPos;
@@ -20,64 +12,25 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.level.Level;
-
-import java.util.UUID;
 
 /**
- * Event handlers for the sentinel jigs: the join that queues a Sentinel in presence, the daylight
- * gates, the conversion cancel, and the client trail's tick. A Sentinel is a record on the mob
- * ({@link SentinelData}), and {@link BossSentinelsFixture} tracks the ones present in the level.
- * Conversion itself is {@link BossSentinelsFixture#onMobSpawnFinalize}; the direct mob/level calls are
- * {@link SentinelRules}'.
+ * Event handlers for the Sentinel module's bare signals: the join that queues a Sentinel in presence, the daylight
+ * gates, and the conversion cancel. A Sentinel is a record on the mob ({@link SentinelData}), and
+ * {@link SentinelPresence} tracks the ones present in the level. Conversion itself is
+ * {@link SentinelPresence#onMobSpawnFinalize}; the direct mob calls are {@link SentinelRules}'.
  *
- * <p>The bare-signal handlers ({@code EntityJoinLevelSignal}, the two spawn-check signals and
- * {@code LivingConversionSignal}) are installed on {@code BOSS_JIG}'s config only because it is the
- * topically closest config; they are not scoped to it.
+ * <p>The handlers are installed on {@code SENTINEL_JIG}'s config only because it is the topically closest config;
+ * the signals are bare and not scoped to it.
  */
-public final class SentinelJigHandlers {
+final class SentinelJigHandlers {
 
     private SentinelJigHandlers() {
     }
 
     /**
-     * {@code BOSS_JIG}'s tick: copies the trail's tuning into the public fixture (which pushes only when
-     * a value differs), and nudges the wide Sentinels along their paths.
-     */
-    static void onBossTick(Level level, BossBundle bundle) {
-        if (bundle.boss().isPresent()) {
-            BossAPI.sentinelMarkers(level).ifPresent(pub -> pub.setTrail(
-                    SentinelRules.trailIntervalTicks(), SentinelRules.trailLifetimeTicks(), SentinelRules.trailRadius()));
-        }
-        unstickWideSentinels(bundle);
-    }
-
-    /** FRO_224: advances a wide Sentinel's path when it stands on its next waypoint; see {@link WidePathing}. */
-    private static void unstickWideSentinels(BossBundle bundle) {
-        bundle.sentinels().ifPresent(g -> {
-            for (Mob mob : g.presentSentinels()) {
-                WidePathing.advanceIfOnWaypoint(mob);
-            }
-        });
-    }
-
-    /**
-     * {@code SENTINEL_PUBLIC_JIG}'s tick, client side only: draws the trail. {@code ScopeEvent.Tick}
-     * fires for every jig on the shared bus, so the jig key is checked. The drawing itself lives in a
-     * client class that never loads on a dedicated server.
-     */
-    static void onSentinelPublicTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-        if (!FrontierKeys.SENTINEL_PUBLIC_JIG.equals(info.jigKey())) return;
-        Level level = ((LevelScope) info.scope()).level();
-        if (!level.isClientSide) return;
-        SentinelMarkers.clientFixture(level).ifPresent(fixture -> SentinelTrailClient.tick(level, fixture));
-    }
-
-    /**
      * A mob that carries the Sentinel record has joined the level, fresh or loaded from disk. It gets its
      * ally goal back (goals aren't saved, and the call is idempotent) and is queued in presence; the
-     * fixture's tick adopts it, or dismisses it when its boss is defeated or unknown.
+     * Trinket's tick adopts it, or dismisses it when its boss is defeated or unknown.
      */
     static void onEntityJoinLevel(EntityJoinLevelSignal signal) {
         if (!(signal.level() instanceof ServerLevel level)
@@ -87,7 +40,7 @@ public final class SentinelJigHandlers {
             return;
         }
         SentinelAllyTargetGoal.addTo(mob);
-        BossAPI.sentinelsQuiet(level).ifPresent(sentinels -> sentinels.join(mob, !signal.loadedFromDisk()));
+        SentinelPresence.of(level).ifPresent(presence -> presence.join(mob, !signal.loadedFromDisk()));
     }
 
     /**
@@ -107,7 +60,7 @@ public final class SentinelJigHandlers {
      * conversion uses runs here, before the mob exists, and on a hit the spawn is allowed and its
      * position recorded so conversion skips its own roll. Feral owns the Wilds' gate, so this
      * acts inside the Frontier only. Types that can't be sentinels (see
-     * {@code SentinelRules#canBeSentinel}) are left alone.
+     * {@code SentinelConversion#canBeSentinel}) are left alone.
      */
     static void onSpawnPlacementCheck(SpawnPlacementCheckSignal signal) {
         EntityType<?> type = signal.entityType();
@@ -122,8 +75,8 @@ public final class SentinelJigHandlers {
         if (BorderAPI.frontierDistanceAt(level, pos) > 0) {
             return;
         }
-        BossAPI.sentinelsQuiet(level).ifPresent(sentinels -> {
-            if (!SentinelRules.canBeSentinel(type) || !sentinels.rollPlacementAt(level, pos)) {
+        SentinelPresence.of(level).ifPresent(presence -> {
+            if (!SentinelConversion.canBeSentinel(type) || !presence.rollPlacementAt(level, pos)) {
                 return;
             }
             // allow() bypasses all of Monster.checkMonsterSpawnRules, not just its darkness test, so
@@ -132,7 +85,7 @@ public final class SentinelJigHandlers {
             EntityType<? extends Mob> mobType = (EntityType<? extends Mob>) type;
             if (MobSpawns.surfaceAllows(level, mobType, signal.spawnType(), pos)) {
                 signal.allow();
-                sentinels.markLifted(pos);
+                presence.markLifted(pos);
             }
         });
     }
@@ -150,19 +103,10 @@ public final class SentinelJigHandlers {
             return;
         }
         Mob mob = signal.mob();
-        BossAPI.sentinelsQuiet(level).ifPresent(sentinels -> {
-            if (sentinels.isLifted(mob.blockPosition()) && MobSpawns.obstructionClear(level, mob)) {
+        SentinelPresence.of(level).ifPresent(presence -> {
+            if (presence.isLifted(mob.blockPosition()) && MobSpawns.obstructionClear(level, mob)) {
                 signal.allow();
             }
         });
-    }
-
-    /**
-     * A boss was defeated (a player kill or a forced defeat): queues its present sentinels for the
-     * staggered kill. {@code creditedPlayer} is null for a forced defeat. Called from both defeat paths
-     * right after {@code markDefeated} returns true; a non-player boss death runs neither.
-     */
-    public static void onBossDefeated(Level level, UUID bossId, UUID creditedPlayer) {
-        BossAPI.sentinelsQuiet(level).ifPresent(g -> g.doomSentinelsOf(bossId, creditedPlayer));
     }
 }

@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.boss.common.fixture;
+package com.arryn.frontiermode.sentinel.common.fixture;
 
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import net.minecraft.nbt.CompoundTag;
@@ -14,16 +14,16 @@ import java.util.UUID;
  * present in the level. Carries no position and no {@code bossId} -- sentinels cluster around
  * their boss, so a client able to pair one with the other would learn more than the trail is meant
  * to give away. see sentinels.md's
- * "SentinelPublicFixture".
+ * "SentinelFixture".
  *
  * <p>Written server-side as presence adopts and drops a Sentinel; the client's copy hydrates
- * from Satchel's parcel. Networked, not persisted (see {@code SentinelPublicBundle}).
+ * from Satchel's parcel. Networked, not persisted (see {@code SentinelBundle}).
  *
  * <p>A change forces a network push, coalesced to at most one per tick: writers set a pending flag
  * and this fixture's own tick flushes it, so a burst of sentinels joining in one tick costs one push
  * and a sentinel still reaches clients with its scale when it spawns, not a sync interval later.
  */
-public final class SentinelPublicFixture extends SatchelFixture {
+public final class SentinelFixture extends SatchelFixture {
 
     private static final String KEY_SENTINELS = "sentinels";
 
@@ -40,7 +40,7 @@ public final class SentinelPublicFixture extends SatchelFixture {
     private int trailLifetimeTicks = 30;
     private int trailRadius = 24;
 
-    public SentinelPublicFixture() {
+    public SentinelFixture() {
         registerCustom(KEY_SENTINELS, this::saveEntries, this::loadEntries);
         registerCustom(KEY_TRAIL, this::saveTrail, this::loadTrail);
     }

@@ -10,7 +10,6 @@ import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.entity.EntityMountEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -20,8 +19,7 @@ import java.util.UUID;
 
 /**
  * The holder class for the boss module's ingress: one consumer of the Info report's {@link InfoRequest},
- * which adds the {@code boss:} line for an entity and the {@code Sentinel:} line for a Sentinel, and the two module
- * events the mob abilities hear, {@link BossMount} and {@link BossDamaged}.
+ * which adds the {@code boss:} line for an entity, and the two module events the mob abilities hear, {@link BossMount} and {@link BossDamaged}.
  * {@link BossModule#init()} registers {@link #build()} through a lambda, so this class loads when the
  * server side boots.
  */
@@ -59,8 +57,7 @@ final class BossIngress {
 
     /**
      * Registers the boss answers; the work happens in the suppliers, once per report. The {@code boss:} line is for
-     * a boss's mob (found through the roster) or a {@code BossRecord}, and {@code -} for an entity that is not a boss;
-     * the Sentinel line is left out for a mob that is not a Sentinel.
+     * a boss's mob (found through the roster) or a {@code BossRecord}, and {@code -} for an entity that is not a boss.
      */
     private static void onInfo(InfoRequest request) {
         OUT.debug("[Boss] InfoRequest reached its consumer");
@@ -71,9 +68,6 @@ final class BossIngress {
                 request.add(subject, "boss", () -> "  boss: " + mobLine(level, entity));
             } else if (subject instanceof BossRecord record) {
                 request.add(subject, "boss", () -> "  boss: " + recordLine(level, record.bossId()));
-            }
-            if (subject instanceof Mob mob) {
-                request.add(subject, "boss", () -> sentinelLine(mob));
             }
         }
     }
@@ -90,13 +84,5 @@ final class BossIngress {
         return BossAPI.roster(level).flatMap(roster -> roster.boss(bossId))
                 .map(Boss::describe)
                 .orElse("no Boss yet (its entry is not whole)");
-    }
-
-    /** The Sentinel line, or null for a mob that carries no Sentinel record. */
-    private static String sentinelLine(Mob mob) {
-        return SentinelData.read(mob)
-                .map(facts -> String.format(
-                        "  Sentinel: scale %.2f, boss #%s", facts.scale(), Ids.shortId(facts.bossId())))
-                .orElse(null);
     }
 }

@@ -6,7 +6,7 @@ import com.arryn.frontiermode.admin.common.Role;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.boss.SentinelMarkers;
+import com.arryn.frontiermode.sentinel.SentinelMarkers;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import net.minecraft.client.Minecraft;
