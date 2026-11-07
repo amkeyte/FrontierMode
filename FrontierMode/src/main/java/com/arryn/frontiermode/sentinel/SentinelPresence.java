@@ -42,7 +42,9 @@ import java.util.UUID;
  * darkness gate was lifted, the alert windows and the defeat kill queue. It persists nothing: a Sentinel is a record
  * on the mob itself ({@link SentinelData}), so no record outside the mob can go stale. A Trinket on
  * {@code SENTINEL_JIG}, one per level scope on each side; it acts on the server only, and its client twin is
- * {@link SentinelClient}.
+ * {@link SentinelClient}. Its tick is in two steps by phase: the writes into the synced fixture (the trail tuning,
+ * adoption, drop) run before the fixtures tick, so the fixture's own tick pushes them in the tick they are made, and
+ * the rest of the module logic runs after.
  *
  * <p>Conversion runs at spawn finalization, before the mob is in the world: it writes the record onto the mob. The
  * mob's join queues it in presence, and this Trinket's tick adopts it. The bodies were {@code BossSentinelsFixture}'s
@@ -250,22 +252,19 @@ final class SentinelPresence implements Ticking {
     // ── the tick ─────────────────────────────────────────────────────────────
 
     /**
-     * Server only. Waits for the boss records (a Sentinel is adopted, killed and alerted against them), then
-     * copies the trail's tuning into the synced fixture, adopts the Sentinels that joined, spawns the queued extra
-     * sentinels, runs the defeat kills, releases lapsed alerts, nudges the wide Sentinels along their paths, and
-     * clears the lifted spawn positions. Presence goes first so a parent that joined this tick is present when its
-     * adds spawn.
+     * Server only, before the fixtures tick: the phase for writing into them (trinket-tick.md § The tick, in three
+     * steps), so {@code SentinelFixture}'s own tick pushes each change in the tick it is made. Waits for the boss
+     * records (a Sentinel is adopted against them), then copies the trail's tuning into the synced fixture, adopts the
+     * Sentinels that joined and drops the ones that left. Presence goes first so a parent that joined this tick is
+     * present when {@link #onTickAfter} spawns its adds.
      */
     @Override
-    public void onTickAfter(ScopeInfo info) {
-        if (!Satchel.isServer()) {
+    public void onTickBefore(ScopeInfo info) {
+        Optional<ServerLevel> ready = readyServerLevel(info);
+        if (ready.isEmpty()) {
             return;
         }
-        LevelScope scope = info.scopeAs();
-        ServerLevel level = (ServerLevel) scope.level();
-        if (BossAPI.bosses(level).isEmpty()) {
-            return;
-        }
+        ServerLevel level = ready.get();
 
         SentinelMarkers.fixture(level).ifPresent(fixture -> fixture.setTrail(
                 SentinelRules.trailIntervalTicks(), SentinelRules.trailLifetimeTicks(), SentinelRules.trailRadius()));
@@ -275,11 +274,39 @@ final class SentinelPresence implements Ticking {
             joinSentinelsAlreadyInLevel(level);
         }
         present.tick(level, presenceHooks);
+    }
+
+    /**
+     * Server only, after the internal walk: the module logic that writes nothing into the fixture. Spawns the queued
+     * extra sentinels, runs the defeat kills, releases lapsed alerts, nudges the wide Sentinels along their paths, and
+     * clears the lifted spawn positions.
+     */
+    @Override
+    public void onTickAfter(ScopeInfo info) {
+        Optional<ServerLevel> ready = readyServerLevel(info);
+        if (ready.isEmpty()) {
+            return;
+        }
+        ServerLevel level = ready.get();
+
         spawnPendingAdds(level);
         killDoomed(level);
         releaseLapsedAlerts(level);
         unstickWideSentinels();
         liftedPositions.clear();
+    }
+
+    /**
+     * The level this tick runs on: empty on the client, or while the boss records aren't known yet (there is nothing
+     * to adopt, kill or alert against).
+     */
+    private static Optional<ServerLevel> readyServerLevel(ScopeInfo info) {
+        if (!Satchel.isServer()) {
+            return Optional.empty();
+        }
+        LevelScope scope = info.scopeAs();
+        ServerLevel level = (ServerLevel) scope.level();
+        return BossAPI.bosses(level).isPresent() ? Optional.of(level) : Optional.empty();
     }
 
     /**

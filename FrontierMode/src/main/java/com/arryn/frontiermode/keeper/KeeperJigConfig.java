@@ -41,7 +41,8 @@ public final class KeeperJigConfig {
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.KEEPER_JIG);
         config.bundles().schema(new JigBundles.Schema<>(List.of(keeperBundle)));
         // Persisted and networked: persistence is declared in three places, all required -- the capability
-        // flag, the matching policy, and KeeperBundle.required(). Networking is the second capability flag.
+        // flag, the matching policy, and KeeperBundle.required(). Networking is declared in two, both required -- the
+        // second capability flag and KeeperBundle.required().
         config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
         config.policies().persistence(
                 new JigPolicies.Persistence(

@@ -25,11 +25,14 @@ public final class KeeperBundle extends SatchelBundle {
 
     /**
      * {@link KeeperFixture} holds the Keepers' durable records and must survive a restart; the engine gates
-     * hydration and flush on the bundle's own declaration as well as the jig's persistence policy.
+     * hydration and flush on the bundle's own declaration as well as the jig's persistence policy. It is networked
+     * too: the fixture pushes its changes with {@code forceSync()}, which the engine refuses on a bundle that does not
+     * declare NETWORKING, and a client bundle that does not declare it never receives a parcel (FRO_115, as
+     * {@code BordersBundle}; FRO_295).
      */
     @Override
     public int required() {
-        return Capability.PERSISTENCE.bit();
+        return Capability.PERSISTENCE.bit() | Capability.NETWORKING.bit();
     }
 
     public Level level() {

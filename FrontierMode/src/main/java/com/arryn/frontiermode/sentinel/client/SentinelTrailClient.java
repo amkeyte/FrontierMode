@@ -11,7 +11,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 import java.util.Map;
-import java.util.WeakHashMap;
 
 /**
  * What the client does for the Sentinels it knows (sentinels.md § The trail, § Size and adds), driven by the client
@@ -30,36 +29,36 @@ import java.util.WeakHashMap;
  *
  * <p><b>The hitbox:</b> the synced scale lands after the entity exists, so each tick a Sentinel whose synced scale
  * differs from the one last applied has its dimensions refreshed, and the size handler reads the new scale. The last
- * scale applied is held in a weak map beside the trail state, keyed by the entity, so it ends with the entity.
+ * scale applied is held in a weak map the client Trinket owns, keyed by the entity, so it ends with the entity and,
+ * as a field of the Trinket, with the world.
  *
  * <p>Client-only; the Trinket that calls it guards on the client side, so this class never loads on
  * a dedicated server.
  */
 public final class SentinelTrailClient {
 
-    // The scale each client Sentinel's dimensions were last refreshed at.
-    private static final Map<Entity, Float> APPLIED_SCALE = new WeakHashMap<>();
-
     private SentinelTrailClient() {
     }
 
-    public static void tick(Level level, SentinelFixture fixture) {
+    /** {@code appliedScale} is the client Trinket's: the scale each Sentinel's dimensions were last refreshed at. */
+    public static void tick(Level level, SentinelFixture fixture, Map<Entity, Float> appliedScale) {
         if (!(level instanceof ClientLevel clientLevel)) {
             return;
         }
-        refreshDimensions(clientLevel, fixture);
+        refreshDimensions(clientLevel, fixture, appliedScale);
         drawTrail(clientLevel, fixture);
     }
 
-    private static void refreshDimensions(ClientLevel level, SentinelFixture fixture) {
+    private static void refreshDimensions(ClientLevel level, SentinelFixture fixture,
+                                          Map<Entity, Float> appliedScale) {
         for (Entity entity : level.entitiesForRendering()) {
             if (!(entity instanceof Mob mob) || !fixture.isSentinel(mob.getUUID())) {
                 continue;
             }
             float scale = fixture.scaleOf(mob.getUUID());
-            Float applied = APPLIED_SCALE.get(mob);
+            Float applied = appliedScale.get(mob);
             if (applied == null || applied != scale) {
-                APPLIED_SCALE.put(mob, scale);
+                appliedScale.put(mob, scale);
                 mob.refreshDimensions();
             }
         }

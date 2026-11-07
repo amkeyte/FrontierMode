@@ -3,6 +3,8 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.frontiermode.core.ClientFixtureCache;
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
@@ -51,6 +53,17 @@ public final class BossMarkers {
             return 1.0F;
         }
         return roster(entity.level()).map(roster -> roster.scaleOf(entity.getUUID())).orElse(1.0F);
+    }
+
+    /**
+     * Subscribed to {@code ScopeEvent.Unloaded} in {@code BossJigConfig} (new-module-checklist.md item 9): the client
+     * cache holds the last level and its roster, so that level's unload drops it. The per-side bus fires this for every
+     * scope on the side; the cache's own level check makes every scope but the cached client level a no-op.
+     */
+    static void onScopeUnloaded(ScopeEvent.Unloaded event) {
+        if (event.info().scope() instanceof LevelScope scope) {
+            CLIENT_ROSTER.evict(scope.level());
+        }
     }
 
     // The side check is Satchel's, and only once Satchel is ready: isClient() throws on a thread no side is bound to,

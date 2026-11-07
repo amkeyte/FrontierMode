@@ -9,6 +9,7 @@ import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.lifecycle.MobDied;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
 import com.arryn.satchel.common.trinket.Order;
 
@@ -42,13 +43,17 @@ final class BossJigConfig {
         EventHandlers eventHandlers =
                 EventHandlers.builder()
                         .on(MobDied.class, BossJigHandlers::onMobDied)
+                        // The client roster cache holds the last level: evict it when the level's scope unloads
+                        // (new-module-checklist.md item 9). The per-side bus fires this for every scope.
+                        .on(ScopeEvent.Unloaded.class, BossMarkers::onScopeUnloaded)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(FrontierKeys.BOSS_JIG);
         config.bundles().schema(new JigBundles.Schema<>(List.of(bossBundle)));
         // BossFixture is the sole durable record of boss identity -- needs real persistence -- and it is
         // networked: the client receives the fixture, positions included, and runs the same code over it
-        // (boss.md § Module wiring). Networking is the second capability flag.
+        // (boss.md § Module wiring). Networking is declared in two places, both required -- the second capability
+        // flag and BossBundle.required().
         config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
         config.policies().persistence(
                 new JigPolicies.Persistence(

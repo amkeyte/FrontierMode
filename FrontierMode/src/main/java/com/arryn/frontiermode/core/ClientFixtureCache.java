@@ -10,7 +10,9 @@ import java.util.function.Function;
  * every entity on every frame. Caches per level and, while unresolved (the normal state for the
  * first moments after joining, before the first parcel lands), retries at most once a second. Used by
  * Boss's {@code BossMarkers} and the Sentinel module's {@code SentinelMarkers}; not for the server side, which
- * asks rarely and isn't cached. No client classes here, so it loads on a dedicated server.
+ * asks rarely and isn't cached. A holder evicts it on {@code ScopeEvent.Unloaded} through {@link #evict}
+ * (new-module-checklist.md item 9), so the cache never keeps the last world's level and fixture alive. No client
+ * classes here, so it loads on a dedicated server.
  */
 public final class ClientFixtureCache<T> {
 
@@ -43,5 +45,17 @@ public final class ClientFixtureCache<T> {
             }
         }
         return Optional.of(cached);
+    }
+
+    /**
+     * Drops the cache if it holds {@code level}: called when that level's scope unloads. Any other level is a no-op,
+     * so the caller needs no side or jig check.
+     */
+    public void evict(Level level) {
+        if (level == cachedLevel) {
+            cachedLevel = null;
+            cached = null;
+            nextResolveTick = 0;
+        }
     }
 }

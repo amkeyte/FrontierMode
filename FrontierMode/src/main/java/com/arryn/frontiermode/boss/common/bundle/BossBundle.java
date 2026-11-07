@@ -30,11 +30,13 @@ public final class BossBundle extends SatchelBundle {
      * SAT_053: BossFixture is the sole durable record of boss identity and must survive a
      * restart (see BossModule.registerBossJig's capabilities/persistence policy). This bundle
      * declares the matching requirement itself; the engine now gates promotion on this, not on
-     * the jig-level policy alone.
+     * the jig-level policy alone. It is networked too: {@link BossFixture} pushes its changes with {@code forceSync()},
+     * which the engine refuses on a bundle that does not declare NETWORKING, and a client bundle that does not declare
+     * it never receives a parcel (FRO_115, as {@code BordersBundle}; FRO_295).
      */
     @Override
     public int required() {
-        return Capability.PERSISTENCE.bit();
+        return Capability.PERSISTENCE.bit() | Capability.NETWORKING.bit();
     }
 
     public Level level() {

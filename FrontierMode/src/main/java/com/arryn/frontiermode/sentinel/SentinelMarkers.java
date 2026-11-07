@@ -6,6 +6,7 @@ import com.arryn.frontiermode.sentinel.common.fixture.SentinelFixture;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
@@ -64,6 +65,17 @@ public final class SentinelMarkers {
         return Satchel.isClient()
                 ? CLIENT_FIXTURE.get(level).map(f -> f.scaleOf(entity.getUUID())).orElse(1.0F)
                 : SentinelData.scaleOf(entity);
+    }
+
+    /**
+     * Subscribed to {@code ScopeEvent.Unloaded} in {@code SentinelJigConfig} (new-module-checklist.md item 9): the
+     * client cache holds the last level and its fixture, so that level's unload drops it. The per-side bus fires this
+     * for every scope on the side; the cache's own level check makes every scope but the cached client level a no-op.
+     */
+    static void onScopeUnloaded(ScopeEvent.Unloaded event) {
+        if (event.info().scope() instanceof LevelScope scope) {
+            CLIENT_FIXTURE.evict(scope.level());
+        }
     }
 
     /** The client's synced sentinel fixture, cached; for the client Trinket's tick. Empty until it arrives. */

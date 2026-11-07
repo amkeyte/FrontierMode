@@ -88,6 +88,9 @@ public final class BossRoster implements Ticking {
     // The record-abilities Trinket, declared after this one; found on the first tick, when it is attached.
     private RecordAbilities recordAbilities;
 
+    // FRO_295 probe: whether this roster's first tick has been logged.
+    private boolean firstTickLogged;
+
     /** Ready once the base fixture is: on a client, once the first parcel has arrived. */
     @Override
     public boolean isReady(ScopeInfo info) {
@@ -97,6 +100,17 @@ public final class BossRoster implements Ticking {
                 .orElse(false);
     }
 
+    /**
+     * Creates the Boss bundle at attach, the pattern {@code ScopeInfo.getOrCreate} documents for a Trinket that needs
+     * its bundle then (FRO_295, finding 2). On a client nothing else creates it: the engine applies a parcel only to a
+     * bundle it holds, and {@link #isReady} waits for that parcel, so without this call the roster never ticks. On the
+     * server the scope's own {@code getOrCreate} finds the bundle already there.
+     */
+    @Override
+    public void onAttach(ScopeInfo info) {
+        info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
+    }
+
     @Override
     public void onTickAfter(ScopeInfo info) {
         LevelScope scope = info.scopeAs();
@@ -104,6 +118,12 @@ public final class BossRoster implements Ticking {
 
         BossBundle bundle = info.getOrCreate(FrontierKeys.BOSS_BUNDLE);
         fixture = bundle.getOrCreateFixture(FrontierKeys.BOSS, BossFixture::new);
+
+        if (!firstTickLogged) {
+            firstTickLogged = true;
+            OUT.debug("[Boss] BossRoster first tick on the " + side() + " side: " + fixture.all().size()
+                    + " record(s) in the fixture.");
+        }
 
         if (recordAbilities == null) {
             // Empty means the scope is not standing yet: standby, and no Boss is built without its abilities.
@@ -144,6 +164,11 @@ public final class BossRoster implements Ticking {
     @Override
     public String describe() {
         return bosses.size() + " boss(es), " + held.size() + " held interest(s)";
+    }
+
+    // The side this roster is on, for the FRO_295 probe lines.
+    private static String side() {
+        return Satchel.isServer() ? "server" : "client";
     }
 
     // ------------------------------------------------------------------
@@ -223,6 +248,8 @@ public final class BossRoster implements Ticking {
                 waiting.remove(bossId);
                 boss = new Boss(bossId, record.kind(), this);
                 bosses.put(bossId, boss);
+                OUT.debug("[Boss] BossRoster built boss " + Ids.shortId(bossId) + " (kind " + record.kind()
+                        + ") on the " + side() + " side.");
                 // Before syncInterest and any advance: a body that materializes on this tick already has its
                 // Persistent, and a loss in the meantime is not read as a transient boss's.
                 recordAbilities.bossBuilt(level, boss);
@@ -276,6 +303,8 @@ public final class BossRoster implements Ticking {
     private void startHolding(Boss boss, UUID entityId) {
         byEntity.put(entityId, boss);
         held.put(boss.bossId(), entityId);
+        OUT.debug("[Boss] BossRoster holds entity " + Ids.shortId(entityId) + " for boss "
+                + Ids.shortId(boss.bossId()) + " on the " + side() + " side.");
         Satchel.mobJig(FrontierKeys.BOSS_MOB_JIG).interest(entityId);
     }
 
