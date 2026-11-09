@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.feral.server.commands;
 
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -9,10 +9,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * Backs {@code /feral debug spawn} -- same real-{@code FinalizeSpawn} shape as
@@ -33,7 +33,7 @@ public final class FeralCommandHandler {
     private static final RandomSource DEBUG_RNG = RandomSource.create();
 
     public static int spawnTestHostiles(CommandContext<CommandSourceStack> ctx, int count) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        Player player = ctx.getSource().getPlayerOrException();
         ServerLevel level = ctx.getSource().getLevel();
 
         int spawned = 0;

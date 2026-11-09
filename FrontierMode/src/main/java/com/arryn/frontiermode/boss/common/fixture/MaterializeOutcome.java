@@ -12,6 +12,8 @@ public enum MaterializeOutcome {
     /** The boss is alive out in the world, so it was teleported back to its spot instead. */
     TELEPORTED_HOME,
     NO_RECORD,
+    /** The record is defeated, and a defeated boss is done: nothing was changed. A new boss is a new record. */
+    DEFEATED,
     /** The home Border is still pregenerating, so the record has no spot yet. */
     NOT_POSITIONED,
     /** The spot was reached but the entity couldn't be created or added. */

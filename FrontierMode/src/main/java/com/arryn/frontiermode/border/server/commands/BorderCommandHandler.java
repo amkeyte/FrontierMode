@@ -1,8 +1,8 @@
 package com.arryn.frontiermode.border.server.commands;
 
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.BorderModule;
+import com.arryn.frontiermode.border.server.player.SicknessSwitch;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
@@ -14,10 +14,11 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.UUID;
 
@@ -41,7 +42,7 @@ public final class BorderCommandHandler {
             int radius,
             int layer
     ) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         // FRO_047: BorderAPI.addBorder now returns Result instead of throwing -- same rejection
         // (bad radius, negative layer), but read as data instead of an IllegalStateException.
@@ -65,10 +66,10 @@ public final class BorderCommandHandler {
             int layer
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
         Result result = BorderAPI.addBorder(
-                sp.serverLevel(),
+                sp.level(),
                 sp.blockPosition(),
                 radius,
                 layer
@@ -119,7 +120,7 @@ public final class BorderCommandHandler {
             UUID id
     ) {
 
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         BorderAPI.border(level, id).ifPresentOrElse(
                 b -> {
@@ -178,7 +179,7 @@ public final class BorderCommandHandler {
 
     public static int pathGrow(CommandContext<CommandSourceStack> ctx, BlockPos center) {
 
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         // RM_FRO_015: removed an "if no borders exist, refuse to grow" guard that used to sit
         // here. It was backwards -- BordersPathFacet.grow() already branches internally on an
@@ -338,7 +339,7 @@ public final class BorderCommandHandler {
     }
 
     public static int debug(CommandContext<CommandSourceStack> ctx) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         var opt = BorderAPI.CRUD(level);
 
@@ -366,10 +367,14 @@ public final class BorderCommandHandler {
     // DEBUG SICKNESS -- project owner request (2026-09-18). Global debug state (not per-player),
     // same "/boss debug glow" shape -- no retroactive-apply concern here though: unlike glow (a
     // synced entity flag set once), sickness is re-evaluated every refresh interval already, so
-    // toggling BorderModule.sicknessEnabled just changes what the very next refresh does.
+    // toggling the switch just changes what the very next refresh does.
     // ------------------------------------------------------------------
     public static int setSicknessEnabled(CommandContext<CommandSourceStack> ctx, boolean value) {
-        BorderModule.setSicknessEnabled(value);
+        if (!SicknessSwitch.set(ctx.getSource().getServer(), value)) {
+            ctx.getSource().sendFailure(msg("[Border][Debug] The sickness switch is not available yet: the"
+                    + " Overworld's Border scope is not ready. Try again in a moment."));
+            return 0;
+        }
 
         ctx.getSource().sendSuccess(
                 () -> msg("[Border][Debug] Frontier Sickness " + (value ? "enabled" : "disabled")
@@ -385,14 +390,14 @@ public final class BorderCommandHandler {
     // RM_FRO_037 ("Brenda") test aid: unlike /summon (which loads a raw entity from NBT and never
     // touches Mob#finalizeSpawn at all), this spawns each rabbit with DISPATCHED setup -- the real
     // Forge finalize-spawn event, which SpawnIngress translates into
-    // MobSpawnFinalizing, which SpawnCoordinator fans out to BorderModule
-    // (Sick Wildlife's density hook) and BossModule. A deterministic way to exercise that hook on
+    // MobSpawnFinalizing, which SpawnCoordinator fans out to SickWildlife
+    // (Sick Wildlife's density hook) and the other modules. A deterministic way to exercise that hook on
     // demand instead of waiting on natural spawn RNG.
     // ------------------------------------------------------------------
     private static final RandomSource DEBUG_RNG = RandomSource.create();
 
     public static int spawnTestAnimals(CommandContext<CommandSourceStack> ctx, int count) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        Player player = ctx.getSource().getPlayerOrException();
         ServerLevel level = ctx.getSource().getLevel();
 
         int spawned = 0;

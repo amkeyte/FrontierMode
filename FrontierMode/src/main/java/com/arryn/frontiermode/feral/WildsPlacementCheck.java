@@ -2,9 +2,9 @@ package com.arryn.frontiermode.feral;
 
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
 
 import java.util.Objects;
@@ -21,13 +21,13 @@ import java.util.Objects;
  * Valid only during dispatch: after the consumer returns, a read of the native event throws, and the
  * values copied at construction stay readable.
  */
-public final class WildsPlacementCheck extends ModuleSignal<MobSpawnEvent.SpawnPlacementCheck, ServerLevel> {
+public final class WildsPlacementCheck extends ModuleSignal<MobSpawnEvent.SpawnPlacementCheck, Level> {
 
     private final EntityType<?> entityType;
     private final MobSpawnType spawnType;
     private final BlockPos pos;
 
-    WildsPlacementCheck(MobSpawnEvent.SpawnPlacementCheck forgeEvent, ServerLevel level) {
+    WildsPlacementCheck(MobSpawnEvent.SpawnPlacementCheck forgeEvent, Level level) {
         super(forgeEvent, level);
         this.entityType = Objects.requireNonNull(forgeEvent.getEntityType(), "entityType");
         this.spawnType = Objects.requireNonNull(forgeEvent.getSpawnType(), "spawnType");
@@ -35,7 +35,7 @@ public final class WildsPlacementCheck extends ModuleSignal<MobSpawnEvent.SpawnP
     }
 
     /** The level the spawn attempt is happening in. */
-    public ServerLevel level() {
+    public Level level() {
         return context();
     }
 

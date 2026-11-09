@@ -10,19 +10,19 @@ import com.arryn.frontiermode.core.Dismissal;
 import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.core.WidePathing;
 import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Ticking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -182,7 +182,7 @@ final class SentinelPresence implements Ticking {
      * {@code sentinelAlertMemoryTicks} from now. Sentinels of any other boss don't join in. See
      * sentinels.md § Defending the boss.
      */
-    void alertSentinelsOf(ServerLevel level, UUID bossId, Mob boss, ServerPlayer player) {
+    void alertSentinelsOf(Level level, UUID bossId, Mob boss, Player player) {
         double radius = SentinelRules.sentinelAlertRadius();
         long alertedUntil = level.getGameTime() + SentinelRules.sentinelAlertMemoryTicks();
         AABB box = AABB.unitCubeFromLowerCorner(boss.position()).inflate(radius, ALERT_HEIGHT, radius);
@@ -226,7 +226,7 @@ final class SentinelPresence implements Ticking {
             // Server-wide, not this level: a player who took a portal is revived as the same object in
             // another level, still alive, so the sentinel keeps chasing unless released. Only a player
             // who logged out (null) needs no call -- vanilla drops a removed target itself.
-            ServerPlayer player = level.getServer().getPlayerList().getPlayer(alert.playerUuid);
+            Player player = level.getServer().getPlayerList().getPlayer(alert.playerUuid);
             if (player != null) {
                 SentinelRules.releaseSentinel(sentinel, player);
             }
@@ -333,7 +333,7 @@ final class SentinelPresence implements Ticking {
      * is no longer present (unloaded) is skipped and costs nothing: it is dismissed when it next loads,
      * because its boss is defeated.
      */
-    private void killDoomed(ServerLevel level) {
+    private void killDoomed(Level level) {
         if (pendingKills.isEmpty()) {
             return;
         }
@@ -345,8 +345,7 @@ final class SentinelPresence implements Ticking {
                 continue;
             }
             // A credited player who has left the level by now: the sentinel dies uncredited.
-            ServerPlayer credited = kill.creditedPlayer != null
-                    && level.getPlayerByUUID(kill.creditedPlayer) instanceof ServerPlayer player ? player : null;
+            Player credited = kill.creditedPlayer != null ? level.getPlayerByUUID(kill.creditedPlayer) : null;
             SentinelRules.killSentinel(mob, credited);
             budget--;
         }
@@ -394,7 +393,7 @@ final class SentinelPresence implements Ticking {
      * place. Never cancels or blocks the spawn -- this is a modifier on an already-happening spawn,
      * not a summon. Standby, don't crash: nothing resolvable means the spawn proceeds unmodified.
      */
-    void onMobSpawnFinalize(Mob mob, ServerLevel level) {
+    void onMobSpawnFinalize(Mob mob, Level level) {
         if (!SentinelConversion.canBeSentinel(mob.getType())) {
             return;
         }
@@ -407,7 +406,7 @@ final class SentinelPresence implements Ticking {
                         tryMakeSentinel(mob, level, bossFixture, curves, lifted)));
     }
 
-    private void tryMakeSentinel(Mob mob, ServerLevel level, BossFixture bossFixture,
+    private void tryMakeSentinel(Mob mob, Level level, BossFixture bossFixture,
                                  BorderCurveFixture curves, boolean lifted) {
         Optional<SentinelConversion.Nearby> nearbyOpt =
                 SentinelConversion.resolveNearby(level, bossFixture, curves, mob.blockPosition());
@@ -468,7 +467,7 @@ final class SentinelPresence implements Ticking {
      * nearest boss's placement radius, the two conversion gates pass, and the roll hits. Standby, don't
      * crash: nothing resolvable means no.
      */
-    boolean rollPlacementAt(ServerLevel level, BlockPos pos) {
+    boolean rollPlacementAt(Level level, BlockPos pos) {
         Optional<BossFixture> bossOpt = BossAPI.bosses(level);
         Optional<BorderCurveFixture> curvesOpt = BorderAPI.CURVE(level);
         if (bossOpt.isEmpty() || curvesOpt.isEmpty()) {

@@ -22,7 +22,7 @@ import java.util.*;
  * key is constructed and consumed, which reaches this class from three sibling packages that
  * aren't part of Border's own surface: {@code FrontierKeys} (top-level key registry),
  * {@code BordersBundle} (bundle wiring, {@code border.common.bundle}), and
- * {@code BorderModule.init()}'s own {@code FixtureDecl}/schema registration
+ * {@code BorderJig.build()}'s own {@code FixtureDecl}/schema registration
  * ({@code border}). Making this literally package-private would require moving those out of
  * their own packages, which is a bigger restructuring than this ticket scopes. The encapsulation
  * this ticket actually cares about -- nothing outside Border reaching through the raw fixture --
@@ -46,8 +46,8 @@ public final class BordersFixture
     // RM_FRO_018: whether this level's path has ever had a border appended to it, ever -- set
     // once inside BordersPathFacet.grow()'s own append (every caller, not just the bootstrap
     // case), cleared by nothing. isEmpty() alone can't distinguish "brand-new world" from "an
-    // admin removed every border," so this is what BossModule's own ScopeEvent.Loaded bootstrap
-    // hook (FRO_075) checks instead -- see Border's "Known gaps" section.
+    // admin removed every border," so this is what the Keeper's ScopeEvent.Loaded bootstrap
+    // hook (KeeperJigHandlers.onBordersScopeLoaded) checks instead -- see Border's "Known gaps" section.
     private static final String KEY_SEEDED = "seeded";
     /**
      * Not readiness-gated on its own -- reach only through {@code BorderAPI.PATH(Level)}, never

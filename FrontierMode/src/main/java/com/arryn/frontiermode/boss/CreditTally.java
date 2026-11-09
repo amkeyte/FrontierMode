@@ -2,7 +2,7 @@ package com.arryn.frontiermode.boss;
 
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.trinket.Trinket;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * Feeds the damage tally held on the {@link Boss} (wiki/frontiermode/architecture/boss.md § Player credit and
@@ -27,7 +27,7 @@ public final class CreditTally implements Trinket {
     }
 
     private void onDamage(BossDamaged event) {
-        if (event.source().getEntity() instanceof ServerPlayer) {
+        if (event.source().getEntity() instanceof Player) {
             boss.addPlayerDamage(event.healthRemoved());
         }
     }

@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.keeper;
 
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -16,5 +16,5 @@ import java.util.UUID;
  * @param bossId   the Keeper's boss id
  * @param credited the credited player; empty for a defeat with no killer
  */
-public record KeeperDefeated(Level level, UUID bossId, Optional<ServerPlayer> credited) {
+public record KeeperDefeated(Level level, UUID bossId, Optional<Player> credited) {
 }

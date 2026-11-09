@@ -64,7 +64,7 @@ public final class FrontierMode {
     // ------------------------------------------------------------
     // Sound Event Registration (Forge Registry)
     // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): Entry Cue's real sound -- replaces the
-    // SoundEvents.AMBIENT_CAVE placeholder BorderModule.onFrontierSicknessTick used until the
+    // SoundEvents.AMBIENT_CAVE placeholder FrontierSickness.onTick used until the
     // project owner supplied an actual asset. Same DeferredRegister/RegistryObject shape as
     // ARGUMENT_TYPES above -- the first real SoundEvent this mod has registered, so there was no
     // existing facility to reuse here.

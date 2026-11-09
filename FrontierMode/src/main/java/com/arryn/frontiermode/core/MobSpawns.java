@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.spawn;
+package com.arryn.frontiermode.core;
 
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -10,6 +10,7 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.ForgeEventFactory;
 
 import java.util.Optional;
@@ -108,7 +109,7 @@ public final class MobSpawns {
      * is found near {@code center}'s own height -- never the surface heightmap, which would put a
      * cave spawn's companion on the surface above it.
      */
-    public static BlockPos scatter(ServerLevel level, Mob mob, BlockPos center, int radius, float scale, int tries) {
+    public static BlockPos scatter(Level level, Mob mob, BlockPos center, int radius, float scale, int tries) {
         RandomSource random = level.getRandom();
         for (int i = 0; i < tries; i++) {
             int x = center.getX() + random.nextInt(radius * 2 + 1) - radius;
@@ -127,7 +128,7 @@ public final class MobSpawns {
      * {@code mob} fits at {@code scale}. Empty if the column has none within reach -- a column that is
      * solid rock at that height, say. Never the surface heightmap.
      */
-    public static Optional<BlockPos> standingSpot(ServerLevel level, Mob mob, float scale, int x, int centerY, int z) {
+    public static Optional<BlockPos> standingSpot(Level level, Mob mob, float scale, int x, int centerY, int z) {
         for (int step = 0; step <= FLOOR_SEARCH_RANGE * 2; step++) {
             int dy = (step + 1) / 2 * (step % 2 == 1 ? 1 : -1);
             BlockPos pos = new BlockPos(x, centerY + dy, z);
@@ -149,7 +150,7 @@ public final class MobSpawns {
      * {@code pos}. The full-size type dimensions, not the mob's current ones: a caller asks about a
      * mob that hasn't been set up yet.
      */
-    public static boolean fits(ServerLevel level, Mob mob, float scale, BlockPos pos) {
+    public static boolean fits(Level level, Mob mob, float scale, BlockPos pos) {
         EntityDimensions dimensions = mob.getType().getDimensions().scale(scale);
         return level.noCollision(mob, dimensions.makeBoundingBox(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5));
     }
@@ -158,7 +159,7 @@ public final class MobSpawns {
      * {@code Mob#checkSpawnObstruction}: no liquid or entity in the way of {@code mob}'s box. For any
      * handler that {@code allow()}s a position check, which bypasses this test along with the light one.
      */
-    public static boolean obstructionClear(ServerLevel level, Mob mob) {
+    public static boolean obstructionClear(Level level, Mob mob) {
         return mob.checkSpawnObstruction(level);
     }
 
@@ -166,7 +167,7 @@ public final class MobSpawns {
      * {@code Mob.checkMobSpawnRules}: the block below {@code pos} is a valid spawn surface. For any
      * handler that {@code allow()}s a spawn and so bypasses vanilla's own predicate.
      */
-    public static boolean surfaceAllows(ServerLevel level, EntityType<? extends Mob> type,
+    public static boolean surfaceAllows(Level level, EntityType<? extends Mob> type,
                                         MobSpawnType spawnType, BlockPos pos) {
         return Mob.checkMobSpawnRules(type, level, spawnType, pos, level.getRandom());
     }

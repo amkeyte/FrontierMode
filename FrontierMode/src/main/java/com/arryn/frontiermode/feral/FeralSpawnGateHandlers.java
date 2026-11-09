@@ -1,13 +1,13 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 /**
  * Feral's two natural-spawn gates: hostiles in the Wilds spawn regardless of light level. Vanilla
@@ -40,7 +40,7 @@ final class FeralSpawnGateHandlers {
      * </ul>
      */
     static void onPlacementCheck(WildsPlacementCheck event) {
-        ServerLevel level = event.level();
+        Level level = event.level();
         BlockPos pos = event.pos();
 
         Player nearest = level.getNearestPlayer(pos.getX(), pos.getY(), pos.getZ(), -1.0, false);
@@ -68,11 +68,7 @@ final class FeralSpawnGateHandlers {
      */
     static void onPositionCheck(WildsPositionCheck event) {
         Mob mob = event.mob();
-        //noinspection resource
-        if (!(event.level() instanceof ServerLevel level)) {
-            return;
-        }
-        if (MobSpawns.obstructionClear(level, mob)) {
+        if (MobSpawns.obstructionClear(event.level(), mob)) {
             event.allow();
             OUT.debug("[Feral] position gate allowed " + EntityType.getKey(mob.getType()) + " at "
                     + mob.blockPosition().toShortString());

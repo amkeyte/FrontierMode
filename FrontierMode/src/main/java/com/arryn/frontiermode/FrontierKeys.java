@@ -2,7 +2,6 @@ package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.fixture.BordersFixture;
-import com.arryn.frontiermode.border.common.fixture.NavigatorFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.BorderPregenFixture;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
@@ -47,19 +46,8 @@ public final class FrontierKeys {
                     LevelJig.class
             );
 
-    // RM_FRO_026 ("Dorothy"): Navigator target-resolution fixture -- a sibling fixture inside
-    // BORDERS_BUNDLE itself, not a new bundle/jig. See BorderModule.init() for the schema wiring
-    // and wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border for the
-    // design this backs.
-
-    public static final FixtureKey<NavigatorFixture> NAVIGATOR =
-            new FixtureKey<>(
-                    "frontiermode:navigator_fixture",
-                    NavigatorFixture.class
-            );
-
     // RM_FRO_027 ("Janet"): BorderCurve intensity-curve fixture -- another sibling fixture inside
-    // BORDERS_BUNDLE. See BorderModule.init() for the schema wiring and
+    // BORDERS_BUNDLE. See BorderJig.build() for the schema wiring and
     // wiki/frontiermode/architecture/border-curve.md for the design this backs.
 
     public static final FixtureKey<BorderCurveFixture> CURVE =
@@ -69,7 +57,7 @@ public final class FrontierKeys {
             );
 
     // RM_FRO_028 ("Diane"): BorderPregen terrain pregeneration fixture -- a fourth sibling
-    // fixture inside BORDERS_BUNDLE. See BorderModule.init() for the schema wiring and
+    // fixture inside BORDERS_BUNDLE. See BorderJig.build() for the schema wiring and
     // wiki/frontiermode/architecture/border-pregeneration.md for the design this backs.
 
     public static final FixtureKey<BorderPregenFixture> PREGEN =
@@ -78,7 +66,7 @@ public final class FrontierKeys {
                     BorderPregenFixture.class
             );
 
-    // RM_FRO_006 (Sandra): per-player border evaluation, PlayerJig-scoped (see BorderModule.init()
+    // RM_FRO_006 (Sandra): per-player border evaluation, PlayerJig-scoped (see BorderPlayerJig.build()
     // for the schema/config wiring these three keys back).
 
     public static final BundleKey<BorderPlayerBundle> BORDER_PLAYER_BUNDLE =
@@ -101,7 +89,7 @@ public final class FrontierKeys {
 
     // RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): WildsTellFixture -- Sick Wildlife's
     // cosmetic tell, a sibling fixture inside BORDER_PLAYER_BUNDLE alongside
-    // BorderPlayerStatusFixture. See BorderModule.init() for the schema wiring and
+    // BorderPlayerStatusFixture. See BorderPlayerJig.build() for the schema wiring and
     // wiki/frontiermode/design/wilds.md#sensory-design for the design.
 
     public static final FixtureKey<WildsTellFixture> WILDS_TELL =

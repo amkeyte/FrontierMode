@@ -10,9 +10,9 @@ import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -61,7 +61,7 @@ public final class HealthBar implements Ticking {
         }
 
         long now = level.getGameTime();
-        if (mob.getKillCredit() instanceof ServerPlayer credited) {
+        if (mob.getKillCredit() instanceof Player credited) {
             if (healthBar == null) {
                 healthBar = EffectsAPI.createBossBar(Component.literal(title),
                         BossEvent.BossBarColor.PURPLE, BossEvent.BossBarOverlay.PROGRESS);
@@ -76,7 +76,7 @@ public final class HealthBar implements Ticking {
         Iterator<Map.Entry<UUID, Long>> it = barViewers.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Long> viewer = it.next();
-            ServerPlayer player = level.getServer().getPlayerList().getPlayer(viewer.getKey());
+            Player player = level.getServer().getPlayerList().getPlayer(viewer.getKey());
             boolean stillWatching = player != null
                     && !player.isDeadOrDying()
                     && player.level() == level

@@ -16,7 +16,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.UUID;
@@ -67,7 +67,7 @@ public final class StructureCommands {
     private static int goTo(CommandContext<CommandSourceStack> ctx, BossSelectorResult selector, int cairnNumber)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
         List<BossRecord> matches = BossSelector.resolve(selector, sp);
 
@@ -83,7 +83,7 @@ public final class StructureCommands {
 
         UUID bossId = matches.get(0).bossId();
 
-        var fixtureOpt = StructureAPI.cairnFixture(sp.serverLevel());
+        var fixtureOpt = StructureAPI.cairnFixture(sp.level());
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Structure data not available for this level yet."));
             return 0;

@@ -12,12 +12,18 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 import org.joml.Vector3f;
 
 /**
  * Side-agnostic ingress facade for cross-cutting effect dispatch (particles, sounds) -- mirrors
  * {@code BorderAPI}/{@code BossAPI}'s shape. See wiki/frontiermode/architecture/effects.md and
  * FRO_089.
+ *
+ * <p><b>One code set on both sides.</b> Each method takes the common type ({@code Level}, {@code Player}) and
+ * does its server work only when it is handed the server's: given a client's level or player it does nothing,
+ * because the server sends the effect. The side difference lives in this facade, which is the I/O, so a caller
+ * carries no {@code ServerLevel} or {@code ServerPlayer}.
  *
  * <p><b>Server-broadcast path:</b> the methods on this class. The server makes a real decision
  * (a probability roll, anything depending on server-only state) once and pushes the result to
@@ -39,24 +45,26 @@ public final class EffectsAPI {
     /**
      * Targeted particle send, visible only to {@code player} -- the shape
      * {@code BossTellFixture}'s own tell particle already used before this module existed
-     * (FRO_087/FRO_089). Requires a real {@link ServerPlayer} (not just a {@code Player}) because
-     * the underlying targeted-send overload only exists on {@code ServerLevel}, resolved here via
-     * {@link ServerPlayer#serverLevel()} so callers don't need to carry a separate
-     * {@code ServerLevel} reference alongside the player. {@code forceVisible=false} lets
-     * vanilla's own render-distance rules decide whether the client actually shows it.
+     * (FRO_087/FRO_089). The targeted-send overload only exists on {@code ServerLevel} and takes a
+     * {@code ServerPlayer}, so this sends only when {@code player} is one, resolving the level through
+     * {@link ServerPlayer#serverLevel()}; for any other {@code Player} it does nothing.
+     * {@code forceVisible=false} lets vanilla's own render-distance rules decide whether the client
+     * actually shows it.
      */
     @SuppressWarnings("resource")
     public static void sendParticleToPlayer(
-            ServerPlayer player,
+            Player player,
             ParticleOptions particle,
             double x, double y, double z,
             int count,
             double xOffset, double yOffset, double zOffset,
             double speed
     ) {
-        //noinspection resource
-        player.serverLevel().sendParticles(
-                player, particle, false, x, y, z, count, xOffset, yOffset, zOffset, speed);
+        if (player instanceof ServerPlayer serverPlayer) {
+            //noinspection resource
+            serverPlayer.serverLevel().sendParticles(
+                    serverPlayer, particle, false, x, y, z, count, xOffset, yOffset, zOffset, speed);
+        }
     }
 
     /**
@@ -64,17 +72,20 @@ public final class EffectsAPI {
      * {@link #broadcastSound} below -- every nearby tracking player gets it, per
      * {@code ServerLevel.sendParticles}'s own no-target overload, rather than
      * {@link #sendParticleToPlayer}'s single-viewer shape. First real consumer: Cairn's own pulse
-     * bee-line, which several players standing near the same Cairn should all see at once.
+     * bee-line, which several players standing near the same Cairn should all see at once. Sends only when
+     * {@code level} is the server's; for a client's level it does nothing.
      */
     public static void broadcastParticle(
-            ServerLevel level,
+            Level level,
             ParticleOptions particle,
             double x, double y, double z,
             int count,
             double xOffset, double yOffset, double zOffset,
             double speed
     ) {
-        level.sendParticles(particle, x, y, z, count, xOffset, yOffset, zOffset, speed);
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(particle, x, y, z, count, xOffset, yOffset, zOffset, speed);
+        }
     }
 
     /**
@@ -102,18 +113,21 @@ public final class EffectsAPI {
      * an otherwise-broadcast sound (vanilla's own "don't double-play this player's own sound
      * effect back at them" case) -- so it can't do this. Sending a {@link ClientboundSoundPacket}
      * straight to {@code player}'s own connection is the standard vanilla mechanism for a sound
-     * only one specific player hears.
+     * only one specific player hears. The connection is a {@code ServerPlayer}'s, so this sends only when
+     * {@code player} is one; for any other {@code Player} it does nothing.
      */
     public static void sendSoundToPlayer(
-            ServerPlayer player,
+            Player player,
             SoundEvent sound,
             SoundSource category,
             double x, double y, double z,
             float volume,
             float pitch
     ) {
-        player.connection.send(new ClientboundSoundPacket(
-                Holder.direct(sound), category, x, y, z, volume, pitch, player.getRandom().nextLong()));
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.connection.send(new ClientboundSoundPacket(
+                    Holder.direct(sound), category, x, y, z, volume, pitch, serverPlayer.getRandom().nextLong()));
+        }
     }
 
     /**

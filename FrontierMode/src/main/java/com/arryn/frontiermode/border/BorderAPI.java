@@ -13,6 +13,9 @@ import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersRulesFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.border.common.navigator.TargetRef;
+import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
+import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
@@ -30,6 +33,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.Map;
@@ -315,8 +319,8 @@ public final class BorderAPI {
 
     /**
      * RM_FRO_006: resolves {@code player}'s live {@link BorderPlayerStatus} snapshot -- the
-     * per-player, {@code PlayerJig}-scoped derived-evaluation state ({@code BorderModule.init()}'s
-     * {@code onPlayerScopeTick} handler keeps this current every tick). Follows the same
+     * per-player, {@code PlayerJig}-scoped derived-evaluation state ({@code BorderPlayerTick}
+     * keeps this current every tick). Follows the same
      * "standby, don't crash" discipline as {@link #resolveFixture(Level)}: not ready yet (Satchel
      * not booted, scope not yet known, scope known but not ready) all fall through to
      * {@code Optional.empty()} rather than throwing, since callers like
@@ -324,7 +328,7 @@ public final class BorderAPI {
      * player who hasn't ticked even once yet (e.g. mid-login) is a real, expected transient state,
      * not an error.
      */
-    public static Optional<BorderPlayerStatus> playerStatus(ServerPlayer player) {
+    public static Optional<BorderPlayerStatus> playerStatus(Player player) {
         if (!Satchel.isReady()) {
             return Optional.empty();
         }
@@ -367,7 +371,7 @@ public final class BorderAPI {
      *
      * <p>Does nothing while Satchel or the player's scope is not ready.
      */
-    public static void resetSicknessSeverity(ServerPlayer player) {
+    public static void resetSicknessSeverity(Player player) {
         if (!Satchel.isReady()) {
             return;
         }
@@ -396,10 +400,10 @@ public final class BorderAPI {
      * entering one) -- {@code nearestBorderId} is null in that case per
      * {@code BorderPlayerLogic.evaluate}'s own no-borders branch.
      */
-    public static Optional<Border> getRelevant(ServerPlayer player) {
+    public static Optional<Border> getRelevant(Player player) {
         return playerStatus(player)
                 .map(BorderPlayerStatus::nearestBorderId)
-                .flatMap(id -> border(player.serverLevel(), id));
+                .flatMap(id -> border(player.level(), id));
     }
 
     /**
@@ -410,7 +414,7 @@ public final class BorderAPI {
      * {@code pos} isn't in the Wilds at all (inside or on at least one Border), matching
      * {@code distanceOutside}'s own zero-inside convention. Not resolvable yet, or no Borders
      * established, both degrade to {@code 0} rather than throwing -- same "standby, don't crash"
-     * discipline as every other query on this class. {@code BorderModule.onMobSpawnFinalize} used
+     * discipline as every other query on this class. {@code SickWildlife.onMobSpawnFinalize} used
      * to compute this inline per spawn (Sick Wildlife's own density hook); this is that same
      * reduction, promoted to a real accessor so Feral's own consumer isn't a second copy of it.
      */
@@ -448,7 +452,7 @@ public final class BorderAPI {
      * {@link #grow(Level, BlockPos)} overload instead -- this no-center form defers to
      * {@link com.arryn.frontiermode.border.server.rules.BorderRules#chooseNextCenter}/
      * {@code chooseInitialCenter} with no way for a caller to override it. Not removed: 
-     * {@code BossModule.onBordersScopeLoaded}'s level-bootstrap listener (FRO_075) is a real,
+     * {@code KeeperJigHandlers.onBordersScopeLoaded}'s level-bootstrap listener (FRO_075) is a real,
      * legitimate remaining caller -- a fresh level's very first border genuinely has no natural
      * center to supply, which is exactly the case this overload exists for. New callers should
      * use {@link #grow(Level, BlockPos)}; {@code /border path grow} was migrated to it (FRO_080)
@@ -587,9 +591,8 @@ public final class BorderAPI {
      * never automatic on border creation, per border-pregeneration.md's own "Starting a border's
      * pregeneration is an explicit call" section. The direct call, paired with whatever code just
      * created the border and its matching boss record -- see that page's own framing, and
-     * {@code BossModule.onBordersScopeLoaded} (FRO_075)/{@code BossModule.onLivingDeath}/
-     * {@code BossAPI.forceDefeat} for the three call sites that make it a third call alongside
-     * those two.
+     * {@code KeeperJigHandlers.onBordersScopeLoaded}/{@code KeeperKind.onDefeat} for the call sites that
+     * make it a third call alongside those two.
      *
      * <p>Idempotent: a border that already has a job (in progress or complete) still returns
      * {@link Result#success(Border)} -- "ensure this border's pregeneration has been triggered"
@@ -692,5 +695,31 @@ public final class BorderAPI {
         public static double intensityAt(Border border, BorderCurve descriptor, BlockPos point) {
             return BorderMath.intensityAt(border, descriptor, point);
         }
+    }
+
+    /**
+     * Resolves {@code ref} to a live position in {@code level} (border.md, Navigator). A {@link TargetRef.RawPos}
+     * answers itself; any other reference goes to the {@link TargetResolverRegistry} resolver of its type, which
+     * the module that owns the type registered at init. Empty means "not resolvable now": nothing registered for
+     * the type yet, or the resolver has no record for the id in this level. A normal outcome, not an error.
+     */
+    public static Optional<BlockPos> resolveTarget(Level level, TargetRef ref) {
+        if (ref instanceof TargetRef.RawPos raw) {
+            return Optional.of(raw.pos());
+        }
+        if (ref instanceof TargetRef.Boss boss) {
+            return resolveByType(TargetType.BOSS, level, boss.bossId());
+        }
+        if (ref instanceof TargetRef.Border border) {
+            return resolveByType(TargetType.BORDER, level, border.borderId());
+        }
+        if (ref instanceof TargetRef.Structure structure) {
+            return resolveByType(TargetType.STRUCTURE, level, structure.structureId());
+        }
+        throw new IllegalStateException("Unhandled TargetRef variant: " + ref);
+    }
+
+    private static Optional<BlockPos> resolveByType(TargetType type, Level level, UUID id) {
+        return TargetResolverRegistry.get(type).flatMap(resolver -> resolver.resolve(level, id));
     }
 }

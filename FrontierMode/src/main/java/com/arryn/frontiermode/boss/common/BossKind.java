@@ -5,10 +5,10 @@ import com.arryn.frontiermode.boss.Boss;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -79,7 +79,7 @@ public interface BossKind {
      * to tell the command that forced it; the combat path ignores it.
      */
     DefeatOutcome onDefeat(Level level, UUID bossId, BlockPos where, Optional<Mob> body,
-                           Optional<ServerPlayer> credited);
+                           Optional<Player> credited);
 
     /**
      * Subscribes the kind's mob-side abilities, with their settings, to {@code host}, the dynamic host of the boss's

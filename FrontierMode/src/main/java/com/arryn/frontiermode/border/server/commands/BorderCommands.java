@@ -12,7 +12,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.UUID;
@@ -75,7 +75,7 @@ public final class BorderCommands {
             BorderOperator op
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
         List<Border> borders = BorderSelector.resolve(selector, sp);
 
@@ -166,7 +166,7 @@ public final class BorderCommands {
 
                         .then(Commands.literal("here")
                                 .executes(ctx -> {
-                                    ServerPlayer sp = ctx.getSource().getPlayerOrException();
+                                    Player sp = ctx.getSource().getPlayerOrException();
                                     return applySelector(
                                             ctx,
                                             BorderSelectorArgumentType.getSelector(ctx, "selector"),
@@ -179,7 +179,7 @@ public final class BorderCommands {
                                 })
                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1))
                                         .executes(ctx -> {
-                                            ServerPlayer sp = ctx.getSource().getPlayerOrException();
+                                            Player sp = ctx.getSource().getPlayerOrException();
                                             int r = IntegerArgumentType.getInteger(ctx, "radius");
                                             return applySelector(
                                                     ctx,
@@ -346,7 +346,7 @@ public final class BorderCommands {
                         )
                 )
                 // Project owner request (2026-09-18): "/border debug sickness <true|false>" --
-                // toggles whether Frontier Sickness's own debuff (BorderModule.applySicknessEffects)
+                // toggles whether Frontier Sickness's own debuff (FrontierSickness.onTick)
                 // applies at all. Same simple global-flag shape as Boss's own "/boss debug glow".
                 .then(Commands.literal("sickness")
                         .then(Commands.argument("value", BoolArgumentType.bool())

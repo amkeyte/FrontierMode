@@ -6,7 +6,6 @@ import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnRecord;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -41,7 +40,7 @@ public final class CairnPulse {
      * ({@code CairnCapBlock.use}/{@code neighborChanged}). Resolves where the pulse points, then fires it.
      */
     public static void triggerPulse(Level level, BlockPos capPos) {
-        if (!(level instanceof ServerLevel serverLevel)) {
+        if (level.isClientSide) {
             return;
         }
 
@@ -75,7 +74,7 @@ public final class CairnPulse {
             target = randomPointInSphere(CairnPlacer.RNG, anchorPos, DEAD_SPHERE_RADIUS);
         }
 
-        fire(serverLevel, capPos, target);
+        fire(level, capPos, target);
     }
 
     /** Uniform random point within a sphere of {@code radius} centered on {@code center}. */
@@ -94,7 +93,7 @@ public final class CairnPulse {
     }
 
     /** Fires the pulse from {@code capPos} toward {@code target}'s bearing: the ping, then the stream. */
-    static void fire(ServerLevel level, BlockPos capPos, BlockPos target) {
+    static void fire(Level level, BlockPos capPos, BlockPos target) {
         Vec3 start = new Vec3(capPos.getX() + 0.5, capPos.getY() + 1.0, capPos.getZ() + 0.5);
 
         EffectsAPI.broadcastSound(level, start.x, start.y, start.z, FrontierMode.CAIRN_PING.get(),

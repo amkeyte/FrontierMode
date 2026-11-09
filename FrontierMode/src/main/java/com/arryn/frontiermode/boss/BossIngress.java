@@ -8,8 +8,8 @@ import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityMountEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -62,7 +62,7 @@ final class BossIngress {
     private static void onInfo(InfoRequest request) {
         OUT.debug("[Boss] InfoRequest reached its consumer");
 
-        ServerLevel level = request.level();
+        Level level = request.level();
         for (Object subject : request.subjects()) {
             if (subject instanceof Entity entity) {
                 request.add(subject, "boss", () -> "  boss: " + mobLine(level, entity));
@@ -73,14 +73,14 @@ final class BossIngress {
     }
 
     /** What the {@code Boss} knows about the mob that is its body, with its id and kind; {@code -} for any other entity. */
-    private static String mobLine(ServerLevel level, Entity entity) {
+    private static String mobLine(Level level, Entity entity) {
         return BossAPI.roster(level).flatMap(roster -> roster.bossFor(entity.getUUID()))
                 .map(boss -> "#" + Ids.shortId(boss.bossId()) + " " + boss.kind() + ", " + boss.describe())
                 .orElse("-");
     }
 
     /** What the {@code Boss} knows about a record; the command's header already names the record's id and kind. */
-    private static String recordLine(ServerLevel level, UUID bossId) {
+    private static String recordLine(Level level, UUID bossId) {
         return BossAPI.roster(level).flatMap(roster -> roster.boss(bossId))
                 .map(Boss::describe)
                 .orElse("no Boss yet (its entry is not whole)");

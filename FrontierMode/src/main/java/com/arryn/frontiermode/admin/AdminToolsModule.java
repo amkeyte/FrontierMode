@@ -41,7 +41,7 @@ public final class AdminToolsModule {
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> AdminIngress.build());
         Satchel.contributePlayerTrinket("frontiermode:admin", JigPolicies.SideApplicability.SERVER, Order.NORMAL,
                 SoulboundStash.class, () -> new SoulboundStash());
-        Satchel.contributeLevelTrinket("frontiermode:admin", JigPolicies.SideApplicability.CLIENT, Order.NORMAL,
+        Satchel.contributePlayerTrinket("frontiermode:admin", JigPolicies.SideApplicability.CLIENT, Order.NORMAL,
                 DebugViewTick.class, () -> new DebugViewTick());
     }
 

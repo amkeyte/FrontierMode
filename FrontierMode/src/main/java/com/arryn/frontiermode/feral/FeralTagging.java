@@ -3,10 +3,10 @@ package com.arryn.frontiermode.feral;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.level.Level;
 
 /**
  * What makes a hostile that joined the Wilds Feral: the Feral record on the mob ({@link FeralData}) and
@@ -38,10 +38,7 @@ final class FeralTagging {
      */
     static void onHostileJoining(HostileJoining event) {
         Mob mob = event.mob();
-        //noinspection resource
-        if (!(event.level() instanceof ServerLevel level)) {
-            return;
-        }
+        Level level = event.level();
 
         if (event.loadedFromDisk()) {
             if (FeralData.has(mob)) {
@@ -71,7 +68,7 @@ final class FeralTagging {
      *
      * @return whether the mob is Feral, and so belongs in presence
      */
-    private static boolean tag(Mob mob, ServerLevel level) {
+    private static boolean tag(Mob mob, Level level) {
         boolean wrote = false;
         if (!FeralData.has(mob)) {
             int frontierDistance = BorderAPI.frontierDistanceAt(level, mob.blockPosition());

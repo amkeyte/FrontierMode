@@ -1,17 +1,18 @@
 package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
 import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.level.Level;
 
 /**
  * Event handlers for the Sentinel module's bare signals: the join that queues a Sentinel in presence, the daylight
@@ -33,14 +34,14 @@ final class SentinelJigHandlers {
      * Trinket's tick adopts it, or dismisses it when its boss is defeated or unknown.
      */
     static void onEntityJoinLevel(EntityJoinLevelSignal signal) {
-        if (!(signal.level() instanceof ServerLevel level)
+        if (!Satchel.isServer()
                 || !(signal.entity() instanceof Mob mob)
                 || !SentinelMarkers.isCandidate(mob)
                 || !SentinelData.has(mob)) {
             return;
         }
         SentinelAllyTargetGoal.addTo(mob);
-        SentinelPresence.of(level).ifPresent(presence -> presence.join(mob, !signal.loadedFromDisk()));
+        SentinelPresence.of(signal.level()).ifPresent(presence -> presence.join(mob, !signal.loadedFromDisk()));
     }
 
     /**
@@ -68,9 +69,10 @@ final class SentinelJigHandlers {
         if (type.getCategory() != MobCategory.MONSTER
                 || signal.spawnType() != MobSpawnType.NATURAL
                 || signal.defaultResult()
-                || !(signal.level() instanceof ServerLevel level)) {
+                || !Satchel.isServer()) {
             return;
         }
+        Level level = signal.level();
         BlockPos pos = signal.pos();
         if (BorderAPI.frontierDistanceAt(level, pos) > 0) {
             return;
@@ -99,9 +101,10 @@ final class SentinelJigHandlers {
      */
     static void onSpawnPositionCheck(SpawnPositionCheckSignal signal) {
         if (signal.spawnType() != MobSpawnType.NATURAL
-                || !(signal.level() instanceof ServerLevel level)) {
+                || !Satchel.isServer()) {
             return;
         }
+        Level level = signal.level();
         Mob mob = signal.mob();
         SentinelPresence.of(level).ifPresent(presence -> {
             if (presence.isLifted(mob.blockPosition()) && MobSpawns.obstructionClear(level, mob)) {

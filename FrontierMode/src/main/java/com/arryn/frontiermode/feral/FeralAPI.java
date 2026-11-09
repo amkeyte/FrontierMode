@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.level.Level;
 
 /**
  * The feral module's public surface (feral.md § Class map): the two entry points
@@ -25,7 +26,7 @@ public final class FeralAPI {
      * {@code MobSpawnFinalizing#denySpawn()}, not a cancel, which only skips
      * {@code Mob#finalizeSpawn}'s initialization and still lets the entity spawn.
      */
-    public static boolean shouldDenySpawn(Mob mob, ServerLevel level) {
+    public static boolean shouldDenySpawn(Mob mob, Level level) {
         boolean deny = mob instanceof Slime && BorderAPI.frontierDistanceAt(level, mob.blockPosition()) > 0;
         if (deny) {
             OUT.debug("[Feral] Wilds spawn of " + EntityType.getKey(mob.getType()) + " at "

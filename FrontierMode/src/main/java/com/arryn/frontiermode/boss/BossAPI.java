@@ -150,7 +150,8 @@ public final class BossAPI {
      * Forces materialization of {@code bossId} regardless of chunk-loaded state -- used by
      * {@code /boss mob spawn}. Goes through the same {@link Boss} path as the tick, with the differences the
      * admin command has: it loads the chunk synchronously, works on a record that has no entity or a stale
-     * one, and clears the respawn state. An entry that is not whole answers {@code NO_RECORD}.
+     * one, and clears the respawn state. An entry that is not whole answers {@code NO_RECORD}, and a defeated
+     * record answers {@code DEFEATED} with nothing changed.
      */
     public static MaterializeOutcome forceMaterialize(Level level, UUID bossId) {
         Optional<BossFixture> fixtureOpt = bosses(level);

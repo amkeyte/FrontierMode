@@ -9,7 +9,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Comparator;
 import java.util.List;
@@ -84,10 +84,10 @@ public final class BossSelector {
     // Resolution
     // ------------------------------------------------------------
 
-    public static List<BossRecord> resolve(BossSelectorResult sel, ServerPlayer player)
+    public static List<BossRecord> resolve(BossSelectorResult sel, Player player)
             throws CommandSyntaxException {
 
-        List<BossRecord> all = BossAPI.bosses(player.serverLevel())
+        List<BossRecord> all = BossAPI.bosses(player.level())
                 .map(BossFixture::all)
                 .orElseGet(List::of);
 
@@ -124,7 +124,7 @@ public final class BossSelector {
      * this produces (the frontier path's own tip is ordinarily the one boss still alive), not a
      * literal path lookup this selector needs to perform itself.
      */
-    private static List<BossRecord> resolveNearest(List<BossRecord> all, ServerPlayer player) {
+    private static List<BossRecord> resolveNearest(List<BossRecord> all, Player player) {
         double px = player.getX();
         double py = player.getY();
         double pz = player.getZ();

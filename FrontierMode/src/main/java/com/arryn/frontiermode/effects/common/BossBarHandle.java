@@ -2,6 +2,7 @@ package com.arryn.frontiermode.effects.common;
 
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.UUID;
@@ -20,9 +21,14 @@ public final class BossBarHandle {
         this.event = event;
     }
 
-    /** Shows the bar to {@code player}; a no-op if they already see it. */
-    public void addPlayer(ServerPlayer player) {
-        event.addPlayer(player);
+    /**
+     * Shows the bar to {@code player}; a no-op if they already see it. A bar is server state, so a {@code Player}
+     * that is not the server's (a client's) is ignored.
+     */
+    public void addPlayer(Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            event.addPlayer(serverPlayer);
+        }
     }
 
     /**

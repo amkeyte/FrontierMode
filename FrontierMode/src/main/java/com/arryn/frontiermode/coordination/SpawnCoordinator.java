@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.coordination;
 
-import com.arryn.frontiermode.border.BorderModule;
+import com.arryn.frontiermode.border.server.player.SickWildlife;
 import com.arryn.frontiermode.feral.FeralAPI;
 import com.arryn.frontiermode.sentinel.SentinelModule;
 import com.arryn.satchel.Satchel;
@@ -52,7 +52,7 @@ public final class SpawnCoordinator {
         }
 
         SentinelModule.onMobSpawnFinalize(mob, level);
-        BorderModule.onMobSpawnFinalize(mob, level);
+        SickWildlife.onMobSpawnFinalize(mob, level);
         FeralAPI.onMobSpawnFinalize(mob, level);
     }
 

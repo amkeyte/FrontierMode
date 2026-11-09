@@ -8,7 +8,6 @@ import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
@@ -17,6 +16,7 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,7 +44,7 @@ public final class KeeperLoot {
      * last standing on its border; never from {@code BossAPI.forceDefeat} (an admin command
      * force-defeating bosses for loot is the riskless exploit this reward shouldn't have).
      */
-    public static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, ServerPlayer credited) {
+    public static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, Player credited) {
         int waveLength = BorderRules.ACTIVE.borderWaveLength();
         double lootStep = new Tunable("keeperLootStep", 0f, 2f, 0.3f).floatValue();
         LootParams params = new LootParams.Builder(level)

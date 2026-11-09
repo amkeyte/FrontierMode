@@ -10,8 +10,9 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Comparator;
 import java.util.List;
@@ -96,9 +97,9 @@ public final class BorderSelector {
     // Resolution
     // ------------------------------------------------------------
 
-    public static List<Border> resolve(BorderSelectorResult sel, ServerPlayer player) throws CommandSyntaxException {
+    public static List<Border> resolve(BorderSelectorResult sel, Player player) throws CommandSyntaxException {
 
-        ServerLevel level = player.serverLevel();
+        Level level = player.level();
         List<Border> borders =
                 BorderAPI.CRUD(level)
                         .map(BordersCrudFacet::all)
@@ -123,7 +124,7 @@ public final class BorderSelector {
      * the way Boss's own {@code @nearest} has one -- every {@code Border} already in the CRUD
      * facet's list is real.
      */
-    private static List<Border> resolveNearest(List<Border> borders, ServerPlayer player) {
+    private static List<Border> resolveNearest(List<Border> borders, Player player) {
         double px = player.getX();
         double py = player.getY();
         double pz = player.getZ();
@@ -148,30 +149,30 @@ public final class BorderSelector {
         return List.of(borders.get(index));
     }
 
-    private static List<Border> resolveAll(ServerLevel level) {
+    private static List<Border> resolveAll(Level level) {
         return BorderAPI.CRUD(level)
                         .map(BordersCrudFacet::all)
                         .orElseGet(List::of);
     }
 
-    private static List<Border> resolveInside(ServerPlayer player) {
-        return BorderAPI.bordersContaining(player.serverLevel(), player.blockPosition()).stream().toList();
+    private static List<Border> resolveInside(Player player) {
+        return BorderAPI.bordersContaining(player.level(), player.blockPosition()).stream().toList();
     }
 
-    private static List<Border> resolveCoord(ServerLevel level, BlockPos coord) {
+    private static List<Border> resolveCoord(Level level, BlockPos coord) {
         return BorderAPI.bordersContaining(level, coord).stream().toList();
     }
 
-    private static List<Border> resolveRelevant(ServerPlayer player) {
+    private static List<Border> resolveRelevant(Player player) {
         // RM_FRO_006: BorderAPI.getRelevant(ServerPlayer) is real now -- backed by the
-        // PlayerJig-scoped BorderPlayerStatusFixture BorderModule keeps current every tick.
+        // PlayerJig-scoped BorderPlayerStatusFixture BorderPlayerTick keeps current every tick.
         // Empty here is a real, honest result (no nearest border yet -- e.g. an empty dimension,
         // or the player hasn't ticked since logging in), same as every other selector mode's
         // empty case, not the "feature isn't built" placeholder this used to be.
         return BorderAPI.getRelevant(player).stream().toList();
     }
 
-    public static Border resolveSingle(BorderSelectorResult sel, ServerPlayer player) throws CommandSyntaxException {
+    public static Border resolveSingle(BorderSelectorResult sel, Player player) throws CommandSyntaxException {
 
         List<Border> resolved = resolve(sel, player);
 
@@ -186,7 +187,7 @@ public final class BorderSelector {
         return resolved.get(0);
     }
 
-    public static Optional<Border> resolveOptional(BorderSelectorResult sel, ServerPlayer player) throws CommandSyntaxException {
+    public static Optional<Border> resolveOptional(BorderSelectorResult sel, Player player) throws CommandSyntaxException {
 
         List<Border> resolved = resolve(sel, player);
 

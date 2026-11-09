@@ -29,6 +29,15 @@ public final class ParcelInbox {
     public static synchronized void clear() {
         INBOX.clear();
     }
+
+    /**
+     * Whether a parcel for {@code bundleId} is queued under {@code scopeId}. A peek: nothing is removed. The client
+     * engine's unclaimed-parcel sweep asks it, to find a parcel whose bundle no one on this side has created.
+     */
+    public static synchronized boolean holds(UUID scopeId, UUID bundleId) {
+        Map<UUID, S2cBundleParcel> parcels = INBOX.get(scopeId);
+        return parcels != null && parcels.containsKey(bundleId);
+    }
 //
 //    public static synchronized S2cBundleParcel poll(
 //            UUID scopeId,

@@ -107,7 +107,7 @@ public final class FeralPresence implements Ticking {
         return despawnTimers;
     }
 
-    TickThrottler diagnosticsThrottler(ServerLevel level) {
+    TickThrottler diagnosticsThrottler(Level level) {
         if (diagnostics == null) {
             diagnostics = new TickThrottler(20, level::getGameTime);
         }

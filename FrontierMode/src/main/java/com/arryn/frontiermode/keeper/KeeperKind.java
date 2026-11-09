@@ -34,10 +34,10 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -205,7 +205,7 @@ public final class KeeperKind implements BossKind {
      */
     @Override
     public DefeatOutcome onDefeat(Level level, UUID bossId, BlockPos where, Optional<Mob> body,
-                                  Optional<ServerPlayer> credited) {
+                                  Optional<Player> credited) {
         Satchel.require().eventBus().post(new KeeperDefeated(level, bossId, credited));
 
         Optional<BossFixture> bossesOpt = BossAPI.bosses(level);
@@ -268,7 +268,7 @@ public final class KeeperKind implements BossKind {
         // FRO_233: tells a new player what just happened -- the Keeper fell and the frontier grew.
         // Server-wide, and only once the Border has actually grown. Names the Keeper's level, its path
         // position.
-        credited.ifPresent(player -> player.server.getPlayerList().broadcastSystemMessage(
+        credited.ifPresent(player -> player.getServer().getPlayerList().broadcastSystemMessage(
                 Component.translatable("message.frontiermode.keeper_defeated", player.getDisplayName(),
                         KeeperAPI.pathPositionOf(keeper)), false));
 
@@ -385,7 +385,7 @@ public final class KeeperKind implements BossKind {
      * at the death position, never a direct inventory insert, so it reads as a reward the player walks over
      * and picks up.
      */
-    private static void grantDefeatLoot(KeeperRecord keeper, ServerPlayer credited, Mob mob, Level level) {
+    private static void grantDefeatLoot(KeeperRecord keeper, Player credited, Mob mob, Level level) {
         OUT.debug("[Keeper] grantDefeatLoot(): paying " + credited.getGameProfile().getName()
                 + " for bossId=" + Ids.shortId(keeper.bossId()));
         if (level instanceof ServerLevel serverLevel) {

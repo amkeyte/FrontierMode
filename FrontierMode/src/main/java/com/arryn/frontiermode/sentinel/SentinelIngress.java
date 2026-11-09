@@ -8,9 +8,9 @@ import com.arryn.frontiermode.keeper.KeeperHit;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 /**
  * The holder class for the Sentinel module's ingress (wiki/frontiermode/architecture/sentinels.md § Class map): the three
@@ -48,9 +48,7 @@ final class SentinelIngress {
      */
     private static void onKeeperHit(KeeperHit hit) {
         OUT.debug("[Sentinel] KeeperHit reached its consumer");
-        if (!(hit.level() instanceof ServerLevel level)) {
-            return;
-        }
+        Level level = hit.level();
         SentinelPresence.of(level).ifPresent(
                 presence -> presence.alertSentinelsOf(level, hit.bossId(), hit.mob(), hit.player()));
     }
@@ -62,11 +60,8 @@ final class SentinelIngress {
      */
     private static void onKeeperDefeated(KeeperDefeated defeated) {
         OUT.debug("[Sentinel] KeeperDefeated reached its consumer");
-        if (!(defeated.level() instanceof ServerLevel level)) {
-            return;
-        }
-        SentinelPresence.of(level).ifPresent(presence -> presence.doomSentinelsOf(
-                defeated.bossId(), defeated.credited().map(ServerPlayer::getUUID).orElse(null)));
+        SentinelPresence.of(defeated.level()).ifPresent(presence -> presence.doomSentinelsOf(
+                defeated.bossId(), defeated.credited().map(Player::getUUID).orElse(null)));
     }
 
     /** Registers the Sentinel answer; the work happens in the supplier, once per report. */

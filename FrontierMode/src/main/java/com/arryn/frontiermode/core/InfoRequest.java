@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.core;
 
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,17 +25,17 @@ public final class InfoRequest {
     record Entry(Object subject, String source, Supplier<String> text) {
     }
 
-    private final ServerLevel level;
+    private final Level level;
     private final List<Object> subjects;
     private final List<Entry> entries = new ArrayList<>();
 
-    public InfoRequest(ServerLevel level, List<Object> subjects) {
+    public InfoRequest(Level level, List<Object> subjects) {
         this.level = Objects.requireNonNull(level, "level");
         this.subjects = List.copyOf(subjects);
     }
 
     /** The level the subjects are in. */
-    public ServerLevel level() {
+    public Level level() {
         return level;
     }
 

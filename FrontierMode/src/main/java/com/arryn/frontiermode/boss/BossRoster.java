@@ -354,7 +354,8 @@ public final class BossRoster implements Ticking {
      * the same {@code Boss} path as the tick, except it loads the chunk synchronously (safe: only ever called
      * from a player command), works on a record that has no entity or a stale one, and clears the respawn
      * state, which is the way back from a repeat-death suspension. An entry that is not whole answers
-     * {@code NO_RECORD}.
+     * {@code NO_RECORD}. A defeated record answers {@code DEFEATED} before anything is changed: a defeated
+     * boss is done, and a body spawned for it would be one the record never adopts.
      */
     MaterializeOutcome forceMaterialize(Level level, BossFixture fixture, UUID bossId) {
         Boss boss = bosses.get(bossId);
@@ -365,6 +366,14 @@ public final class BossRoster implements Ticking {
             return MaterializeOutcome.NO_RECORD;
         }
         BossRecord record = recordOpt.get();
+
+        // The same flag Boss.advance checks. Before anything is changed: no teleport, no stale-id clear,
+        // no chunk load, no site, no spawn.
+        if (!record.alive()) {
+            OUT.warn("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId)
+                    + " is defeated -- refusing: a defeated boss is done.");
+            return MaterializeOutcome.DEFEATED;
+        }
 
         if (!record.positioned()) {
             OUT.warn("[Boss] forceMaterialize(): bossId=" + Ids.shortId(bossId)

@@ -7,7 +7,6 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -40,11 +39,11 @@ final class AdminToolHandlers {
 
         swing.stopAttack();
         Player player = swing.player();
-        if (!(swing.target() instanceof LivingEntity target) || !(player.level() instanceof ServerLevel level)) {
+        if (!(swing.target() instanceof LivingEntity target)) {
             return;
         }
 
-        InfoRequest request = new InfoRequest(level, List.of(target));
+        InfoRequest request = new InfoRequest(player.level(), List.of(target));
         request.add(target, "admin", () -> baseLines(target));
         InfoPrinter.report(request, line -> player.sendSystemMessage(Component.literal(line)));
     }

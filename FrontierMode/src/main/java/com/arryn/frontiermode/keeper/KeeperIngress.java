@@ -12,8 +12,8 @@ import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingConversionEvent;
 
@@ -59,7 +59,7 @@ final class KeeperIngress {
     private static void onInfo(InfoRequest request) {
         OUT.debug("[Keeper] InfoRequest reached its consumer");
 
-        ServerLevel level = request.level();
+        Level level = request.level();
         for (Object subject : request.subjects()) {
             if (subject instanceof Entity entity) {
                 request.add(subject, "keeper", () -> keeperLine(level,
@@ -71,7 +71,7 @@ final class KeeperIngress {
     }
 
     /** The {@code keeper:} line, or null (no line) for a subject that is not a Keeper. */
-    private static String keeperLine(ServerLevel level, Optional<UUID> bossId) {
+    private static String keeperLine(Level level, Optional<UUID> bossId) {
         return bossId.flatMap(id -> KeeperAPI.keepers(level).flatMap(keepers -> keepers.get(id)))
                 .map(keeper -> String.format("  keeper: layer %d, path position %d, body %s, border %s, platform %s",
                         keeper.layer(), KeeperAPI.pathPositionOf(keeper),

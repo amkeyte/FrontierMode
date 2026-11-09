@@ -2,10 +2,10 @@ package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.tunable.Tunable;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.targeting.TargetingConditions;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * The Sentinels' numbers and behaviours (wiki/frontiermode/architecture/sentinels.md): placement, the per-level cap,
@@ -89,7 +89,7 @@ public final class SentinelRules {
      * {@code credited} player it is marked as recently hurt by them first, so experience and player-only drops follow;
      * {@code null} kills it uncredited (drops, no XP).
      */
-    public static void killSentinel(Mob mob, ServerPlayer credited) {
+    public static void killSentinel(Mob mob, Player credited) {
         if (credited != null) {
             mob.setLastHurtByPlayer(credited);
         }
@@ -115,7 +115,7 @@ public final class SentinelRules {
      *
      * @return true if the sentinel now targets {@code player}
      */
-    public static boolean alertSentinel(Mob sentinel, ServerPlayer player) {
+    public static boolean alertSentinel(Mob sentinel, Player player) {
         // Allies come first: a Sentinel already fighting an ally is left to it, so no alert window is
         // recorded; once the ally is gone or out of sight the next hit on the boss alerts it as usual.
         if (sentinel.getTarget() != null && DifficultyAPI.isAlly(sentinel.getTarget())) {
@@ -133,7 +133,7 @@ public final class SentinelRules {
      * them within its own follow range -- which a player in another level never is. One that can see them keeps the
      * target, and vanilla's own targeting and forgiveness take over; any other target is left alone.
      */
-    public static void releaseSentinel(Mob sentinel, ServerPlayer player) {
+    public static void releaseSentinel(Mob sentinel, Player player) {
         if (sentinel.getTarget() != player) {
             return;
         }

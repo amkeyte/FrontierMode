@@ -6,12 +6,12 @@ import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +49,7 @@ final class FeralCleanup {
      * <p>Level-wide, not bounded to a player's tell radius: the guarantee has to hold everywhere a Feral
      * mob might wander back to.
      */
-    static void sweep(ServerLevel level, FeralPresence presence) {
+    static void sweep(Level level, FeralPresence presence) {
         // Collect first, act after: killing or discarding a mob removes entities (a slime's split
         // children), and presence drops them on its own tick, not mid-sweep.
         List<Mob> feral = new ArrayList<>(presence.mobs());
@@ -82,7 +82,7 @@ final class FeralCleanup {
      * ({@link #LEGACY_DISTANCE_DESPAWN_ENABLED}); kept so it is a one-flag flip to compare against
      * {@link #despawnIfBeyondPackRadius}.
      */
-    private static void despawnWithLegacyLinger(ServerLevel level, Mob monster, Map<UUID, TickDelay> timers) {
+    private static void despawnWithLegacyLinger(Level level, Mob monster, Map<UUID, TickDelay> timers) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.despawnRadius();
         if (!farFromEveryPlayer) {
@@ -107,7 +107,7 @@ final class FeralCleanup {
      * passed a mob: with the speed boost it can trail a sprinter indefinitely without ever covering a
      * large radius, quietly eating the cap.
      */
-    private static void despawnIfBeyondPackRadius(ServerLevel level, Mob monster) {
+    private static void despawnIfBeyondPackRadius(Level level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         if (nearest == null) {
             monster.discard();
@@ -127,7 +127,7 @@ final class FeralCleanup {
      * {@link FeralRules#ambientDespawnRadius()} from every player it was never going to be encountered
      * and only sits on the cap. A flat distance check, no direction, no linger.
      */
-    private static void despawnIfBeyondAmbientRadius(ServerLevel level, Mob monster) {
+    private static void despawnIfBeyondAmbientRadius(Level level, Mob monster) {
         Player nearest = level.getNearestPlayer(monster, -1.0);
         boolean farFromEveryPlayer = nearest == null || monster.distanceTo(nearest) > FeralRules.ambientDespawnRadius();
         if (!farFromEveryPlayer) {
@@ -143,7 +143,7 @@ final class FeralCleanup {
      * {@code kill()} returns and are discarded here in the same tick -- an artifact of the parent's own
      * death, not a second encounter.
      */
-    private static void killAndCleanupSplit(ServerLevel level, Mob monster) {
+    private static void killAndCleanupSplit(Level level, Mob monster) {
         BlockPos pos = monster.blockPosition();
         boolean splits = monster instanceof Slime;
 
@@ -162,7 +162,8 @@ final class FeralCleanup {
     /**
      * At most once a second per level, and only when a Feral mob exists: the counts of pack members, all
      * Feral and all mobs, and per player in the Wilds whether they sprint, their frontier distance, and
-     * the distance to their nearest pack member. Switched off ({@link #DIAGNOSTIC_LOGGING_ENABLED}).
+     * the distance to their nearest pack member. Switched off ({@link #DIAGNOSTIC_LOGGING_ENABLED}). Takes a
+     * {@code ServerLevel} because {@code getAllEntities()} is the server's.
      */
     static void logPackDiagnostics(ServerLevel level, FeralPresence presence) {
         if (!DIAGNOSTIC_LOGGING_ENABLED) {
@@ -193,7 +194,7 @@ final class FeralCleanup {
         }
 
         StringBuilder perPlayer = new StringBuilder();
-        for (ServerPlayer player : level.players()) {
+        for (Player player : level.players()) {
             double nearestPackDist = Double.NaN;
             for (Mob mob : packMembers) {
                 double d = mob.distanceTo(player);

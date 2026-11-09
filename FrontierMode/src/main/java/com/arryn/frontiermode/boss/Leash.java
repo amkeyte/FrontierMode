@@ -3,6 +3,7 @@ package com.arryn.frontiermode.boss;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.core.WidePathing;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Ticking;
@@ -11,10 +12,10 @@ import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 
 /**
  * A boss chased off its post goes home (border-pregeneration.md § Movement; owner 2026-10-03). Every distance-keyed
@@ -47,14 +48,15 @@ public final class Leash implements Ticking {
     public void onTickAfter(ScopeInfo info) {
         MobScope scope = info.scopeAs();
         Mob mob = scope.mob();
-        if (mob.level() instanceof ServerLevel level) {
-            leash(level, mob);
+        // The leash teleports and retargets the boss, so it runs only on the server's side.
+        if (Satchel.isServer()) {
+            leash(mob.level(), mob);
         }
         // FRO_224: a scaled Keeper's path advances like a Sentinel's.
         WidePathing.advanceIfOnWaypoint(mob);
     }
 
-    private void leash(ServerLevel level, Mob mob) {
+    private void leash(Level level, Mob mob) {
         double radiusSq = radius * radius;
         BlockPos home = BossAPI.bosses(level).flatMap(fixture -> fixture.get(boss.bossId()))
                 .map(BossRecord::position).orElse(null);
@@ -78,7 +80,7 @@ public final class Leash implements Ticking {
         puff(level, x, home.getY(), z);
     }
 
-    private static void puff(ServerLevel level, double x, double y, double z) {
+    private static void puff(Level level, double x, double y, double z) {
         EffectsAPI.broadcastParticle(level, ParticleTypes.PORTAL, x, y + 1.0, z, 30, 0.5, 1.0, 0.5, 0.1);
         EffectsAPI.broadcastSound(level, x, y, z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0F, 1.0F);
     }

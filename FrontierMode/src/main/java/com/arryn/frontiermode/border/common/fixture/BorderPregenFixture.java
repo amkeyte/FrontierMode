@@ -32,7 +32,7 @@ import java.util.UUID;
  * {@link com.arryn.frontiermode.border.common.bundle.BordersBundle} -- proactively,
  * throttle-paced generates a border's entire disk once explicitly triggered to, per RM_FRO_028
  * ("Diane") / wiki/frontiermode/architecture/border-pregeneration.md. Registered alongside its
- * siblings in {@code BorderModule.init()}.
+ * siblings in {@code BorderJig.build()}.
  *
  * <p><b>Pregeneration is an explicit action, never automatic on border creation</b> -- see that
  * page's "Starting a border's pregeneration is an explicit call" section. No record for a given
@@ -42,8 +42,7 @@ import java.util.UUID;
  * <p>Tick-driven work runs through {@link #onJigTick()} -- fixture-level, automatically invoked
  * once per valid tick for this fixture's own bundle instance (Satchel's {@code TrackerFixture} is
  * the precedent for this hook), so no separate {@code EventHandlers} wiring is needed in
- * {@code BorderModule.init()} the way {@code Rendering} need for
- * {@link BordersFixture}'s own tick-driven neighbors. Reuses
+ * {@code BorderJig.build()}. Reuses
  * {@code com.arryn.satchel.common.util.schedule.TickThrottler} for pacing, per that page's
  * "Reused, not reinvented" section -- the same class {@link SatchelFixture}'s own trace-log
  * rate-limiting already uses, general-purpose rather than log-specific.

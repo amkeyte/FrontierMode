@@ -18,16 +18,14 @@ import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.tunable.Tunable;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.HashMap;
 import java.util.List;
@@ -163,7 +161,7 @@ public final class BossTellFixture extends SatchelFixture {
      * (distance-to-boss) decides how many bursts fire, this method only places them. A fresh random
      * point per burst avoids the one-blob-relocating-each-interval look (2026-09-06).
      */
-    private static void spawnTellParticle(Level level, ServerPlayer player, BlockPos center, int bursts) {
+    private static void spawnTellParticle(Level level, Player player, BlockPos center, int bursts) {
         for (int i = 0; i < bursts; i++) {
             // An area-uniform point in the ring [PARTICLE_INNER_SPREAD, PARTICLE_PLAYER_RADIUS] around
             // the PLAYER (center). FRO_159 playtest: the tell used to scatter around the boss over a
@@ -180,7 +178,7 @@ public final class BossTellFixture extends SatchelFixture {
             BlockPos groundPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, new BlockPos(scatter.getX(), 0, scatter.getZ()));
             // Targeted send (only this player sees it) -- unchanged from before; the fix here is
             // *where* it spawns, not who sees it. Routed through EffectsAPI (FRO_089) rather than
-            // calling ServerLevel#sendParticles directly.
+            // calling the server's sendParticles directly.
             // FRO_159: jitter each puff inside its block (a bare +0.5 centred every burst on a block
             // centre, so repeated bursts piled onto the same spot) and use a wider horizontal offset.
             EffectsAPI.sendParticleToPlayer(player, ParticleTypes.SMOKE,
@@ -263,21 +261,14 @@ public final class BossTellFixture extends SatchelFixture {
         }
         tickCounter = 0;
 
-        // Tell pass needs a ServerLevel (EffectsAPI's targeted-particle path needs ServerPlayer,
-        // which only comes off a real ServerLevel's player list) -- same warn-and-return
-        // discipline as this fixture's other defensive guards (e.g. the ServerLevel check).
-        if (!(level instanceof ServerLevel serverLevel)) {
-            OUT.warn("[BossTell] tick(): level is not a ServerLevel -- skipping tell pass.");
-            return;
-        }
-        runTellsForPlayers(serverLevel, bossFixture, curveFixture);
+        runTellsForPlayers(level, bossFixture, curveFixture);
     }
 
     // ------------------------------------------------------------------
     // Tell pass
     // ------------------------------------------------------------------
 
-    private void runTellsForPlayers(ServerLevel level, BossFixture bossFixture, BorderCurveFixture curveFixture) {
+    private void runTellsForPlayers(Level level, BossFixture bossFixture, BorderCurveFixture curveFixture) {
 
         Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
         if (keepersOpt.isEmpty()) {
@@ -304,7 +295,7 @@ public final class BossTellFixture extends SatchelFixture {
         double particleCoeff = tellParticleCoefficient();
         double soundCoeff = tellSoundCoefficient();
 
-        for (ServerPlayer player : level.players()) {
+        for (Player player : level.players()) {
             BlockPos playerPos = player.blockPosition();
 
             // Nearest alive+positioned boss to this player -- stateless, resolved fresh every

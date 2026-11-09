@@ -3,7 +3,6 @@ package com.arryn.frontiermode.keeper;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
 /**
@@ -21,7 +20,7 @@ final class KeeperPositionListener {
      * yet -- gets "An Amethyst Keeper waits..."; any later one gets "A new Amethyst Keeper waits...".
      */
     static void onBossPositioned(Level level, BossRecord record) {
-        if (!KeeperKind.KEY.equals(record.kind()) || !(level instanceof ServerLevel serverLevel)) {
+        if (!KeeperKind.KEY.equals(record.kind()) || level.isClientSide) {
             return;
         }
         boolean first = BossAPI.bosses(level).map(fixture -> fixture.all().stream().allMatch(BossRecord::alive))
@@ -29,7 +28,7 @@ final class KeeperPositionListener {
         Component message = Component.translatable(first
                 ? "message.frontiermode.keeper_waits_first"
                 : "message.frontiermode.keeper_waits_next");
-        for (var player : serverLevel.players()) {
+        for (var player : level.players()) {
             player.sendSystemMessage(message);
         }
     }

@@ -130,7 +130,7 @@ final class DifficultyHandlers {
      * hostiles. {@link DifficultyAPI#isLadderHostile} leaves both out (the Piglin is a barterer, the
      * Hoglin an {@code Animal}), and everywhere else they stay vanilla.
      */
-    private static boolean isNetherPiglinKin(ServerLevel level, Mob mob) {
+    private static boolean isNetherPiglinKin(Level level, Mob mob) {
         return level.dimension() == Level.NETHER && (mob instanceof Piglin || mob instanceof Hoglin);
     }
 
@@ -144,7 +144,7 @@ final class DifficultyHandlers {
     }
 
     /** The ambient Difficulty at {@code pos}; empty with no Relevant Border or before Border is ready. */
-    private static OptionalInt ambientDifficulty(ServerLevel level, BlockPos pos) {
+    private static OptionalInt ambientDifficulty(Level level, BlockPos pos) {
         Optional<List<Border>> containing = BorderAPI.RULES(level).map(rules -> rules.containing(pos));
         if (containing.isEmpty()) {
             return OptionalInt.empty();

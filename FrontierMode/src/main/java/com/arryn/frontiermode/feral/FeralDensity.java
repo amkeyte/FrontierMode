@@ -3,11 +3,12 @@ package com.arryn.frontiermode.feral;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.feral.common.FeralLogic;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.level.Level;
 
 /**
  * The density companion (feral.md § The spawn decision): an extra hostile of the same type riding a real
@@ -87,7 +88,7 @@ final class FeralDensity {
     }
 
     /** How many Feral mobs the level holds now, from presence; 0 while presence isn't ready. */
-    private static int countAliveFeral(ServerLevel level) {
+    private static int countAliveFeral(Level level) {
         return FeralPresence.of(level).map(FeralPresence::count).orElse(0);
     }
 

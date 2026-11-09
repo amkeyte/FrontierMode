@@ -5,10 +5,10 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
@@ -64,11 +64,11 @@ final class FeralIngress {
      * {@code MobCategory.MONSTER} type at a position in the Wilds gets an event built. The level is the
      * context, because the consumer needs it and the filter has already resolved it.
      */
-    private static Optional<ServerLevel> wildsPlacement(MobSpawnEvent.SpawnPlacementCheck event) {
+    private static Optional<Level> wildsPlacement(MobSpawnEvent.SpawnPlacementCheck event) {
         if (event.getEntityType().getCategory() != MobCategory.MONSTER) {
             return Optional.empty();
         }
-        ServerLevel level = event.getLevel().getLevel();
+        Level level = event.getLevel().getLevel();
         if (BorderAPI.frontierDistanceAt(level, event.getPos()) <= 0) {
             return Optional.empty();
         }

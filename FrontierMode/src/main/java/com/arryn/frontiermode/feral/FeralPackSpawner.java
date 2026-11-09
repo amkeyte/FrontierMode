@@ -2,12 +2,11 @@ package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.feral.server.rules.FeralRules;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -16,6 +15,8 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -95,7 +96,7 @@ final class FeralPackSpawner {
      * cone ahead of the player ({@link #choosePackSpot}), skipped if it resolves inside a border;
      * {@link #applyPackSpeedBoost} gives it the speed to keep pace with a sprinting player.
      */
-    static void spawnMember(ServerPlayer player, ServerLevel level, RandomSource random) {
+    static void spawnMember(Player player, ServerLevel level, RandomSource random) {
         BlockPos ground = choosePackSpot(player, level, random);
         if (ground == null) {
             return;
@@ -128,7 +129,7 @@ final class FeralPackSpawner {
      * if none is open -- nothing spawns in rock, and the next maintenance pass tries again. In a tight
      * tunnel expect fewer members than in an open cave.
      */
-    private static BlockPos choosePackSpot(ServerPlayer player, ServerLevel level, RandomSource random) {
+    private static BlockPos choosePackSpot(Player player, Level level, RandomSource random) {
         BlockPos playerPos = player.blockPosition();
         int surfaceY = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, playerPos).getY();
         if (playerPos.getY() >= surfaceY - UNDERGROUND_DEPTH) {
@@ -153,7 +154,7 @@ final class FeralPackSpawner {
     }
 
     /** A random column in the cone ahead of {@code player}: a bearing within the cone, at a random distance in range. */
-    private static double[] samplePackColumn(ServerPlayer player, RandomSource random) {
+    private static double[] samplePackColumn(Player player, RandomSource random) {
         double halfAngleRad = Math.toRadians(FeralRules.packSpawnConeHalfAngleDegrees());
         double angle = Math.toRadians(player.getYRot()) + (random.nextDouble() * 2.0 - 1.0) * halfAngleRad;
         double distance = FeralRules.packSpawnMinDistance()

@@ -24,9 +24,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,7 +72,7 @@ public final class BossCommandHandler {
      * added the way the Inspect Stick adds its own, ahead of what the consumers add.
      */
     public static int info(CommandContext<CommandSourceStack> ctx, List<BossRecord> bosses) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
@@ -112,7 +112,7 @@ public final class BossCommandHandler {
             BlockPos pos,
             int layer
     ) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         if (BossAPI.bosses(level).isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
@@ -147,9 +147,9 @@ public final class BossCommandHandler {
             int layer
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
-        if (BossAPI.bosses(sp.serverLevel()).isEmpty()) {
+        if (BossAPI.bosses(sp.level()).isEmpty()) {
             sp.sendSystemMessage(msg("Boss data not available for this level yet."));
             return 0;
         }
@@ -160,7 +160,7 @@ public final class BossCommandHandler {
         }
 
         // Same hand placement as addExplicit() -- see its comment.
-        Optional<BossRecord> recordOpt = kind.handPlace(sp.serverLevel(), sp.blockPosition(), layer);
+        Optional<BossRecord> recordOpt = kind.handPlace(sp.level(), sp.blockPosition(), layer);
         if (recordOpt.isEmpty()) {
             sp.sendSystemMessage(msg("Rejected: no boss record was created for layer " + layer
                     + " (see server log)."));
@@ -178,7 +178,7 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     public static int delete(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         // Routed through BossAPI.removeBoss() rather than calling BossFixture.remove(id) directly --
         // removeBoss() wraps the same removal, whose kind hook adds the pendingAttach step boss.md's
@@ -218,8 +218,8 @@ public final class BossCommandHandler {
     public static int attach(CommandContext<CommandSourceStack> ctx, BorderSelectorResult selector)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-        ServerLevel level = ctx.getSource().getLevel();
+        Player sp = ctx.getSource().getPlayerOrException();
+        Level level = ctx.getSource().getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, sp);
 
@@ -256,7 +256,7 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     public static int mobSpawn(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         MaterializeOutcome outcome = BossAPI.forceMaterialize(level, id);
         return switch (outcome) {
@@ -284,6 +284,11 @@ public final class BossCommandHandler {
                         + " (or boss data not available for this level yet)."));
                 yield 0;
             }
+            case DEFEATED -> {
+                ctx.getSource().sendFailure(msg("Boss " + id + " is defeated. /boss mob spawn does not bring a"
+                        + " defeated boss back; /boss add or /boss attach makes a new one."));
+                yield 0;
+            }
             case DECLINED -> {
                 ctx.getSource().sendFailure(msg("Could not spawn boss " + id
                         + " -- the entity could not be created or added at its stored position."
@@ -305,7 +310,7 @@ public final class BossCommandHandler {
      * says the rest (the Keeper says its level).
      */
     public static int transformDefeat(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         // Named before the defeat, so every line below says which boss it is about.
         String fallen = Ids.shortId(id) + BossAPI.bosses(level).flatMap(fixture -> fixture.get(id))
@@ -337,8 +342,8 @@ public final class BossCommandHandler {
     public static int debugGoto(CommandContext<CommandSourceStack> ctx, UUID id)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-        ServerLevel level = ctx.getSource().getLevel();
+        Player sp = ctx.getSource().getPlayerOrException();
+        Level level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
@@ -386,8 +391,8 @@ public final class BossCommandHandler {
     public static int debugDistance(CommandContext<CommandSourceStack> ctx, UUID id)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-        ServerLevel level = ctx.getSource().getLevel();
+        Player sp = ctx.getSource().getPlayerOrException();
+        Level level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {

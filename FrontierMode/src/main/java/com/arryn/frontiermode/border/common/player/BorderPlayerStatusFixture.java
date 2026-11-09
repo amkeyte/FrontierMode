@@ -105,7 +105,7 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
      * death and respawn never reset it on their own, so a player who died deep in the Wilds
      * kept decaying down from whatever severity they died at, at {@code PlayerRules
      * .SICKNESS_CLIMB_RATE}'s own slow per-tick rate, regardless of their new (possibly safe)
-     * respawn position -- re-triggering {@code BorderModule.applySicknessEffects} on every
+     * respawn position -- re-triggering {@code FrontierSickness.applySicknessEffects} on every
      * refresh interval until it organically decayed below tier 1, which can take well over ten
      * seconds from a high starting severity. Clearing the active {@code MobEffectInstance}s on
      * respawn did nothing to this separate, underlying numeric state, which is why the debuff

@@ -5,8 +5,8 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Ticking;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * Sentinels defend their Keeper (sentinels.md § Defending the boss; FRO_197), a Keeper ability the Keeper kind
@@ -43,7 +43,7 @@ final class Defense implements Ticking {
             return;
         }
         lastSeenHurtTimestamp = stamp;
-        if (mob.getKillCredit() instanceof ServerPlayer credited) {
+        if (mob.getKillCredit() instanceof Player credited) {
             Satchel.require().eventBus().post(new KeeperHit(mob.level(), boss.bossId(), mob, credited));
         }
     }

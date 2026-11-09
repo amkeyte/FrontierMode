@@ -3,7 +3,7 @@ package com.arryn.frontiermode.keeper;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.satchel.common.tunable.TuningTable;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;

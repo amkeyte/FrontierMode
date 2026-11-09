@@ -20,10 +20,9 @@ import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -299,7 +298,7 @@ public final class Boss implements Leaving {
 
         // FRO_160: vanilla's own kill credit -- the player who last damaged the mob, still set only while
         // vanilla's 100-tick (5 s) window is open; a tamed pet's hit credits its online owner.
-        ServerPlayer credited = dying.getKillCredit() instanceof ServerPlayer player ? player : null;
+        Player credited = dying.getKillCredit() instanceof Player player ? player : null;
 
         BossKind kind = BossKinds.get(kindKey).orElseThrow();
         DeathVerdict verdict = kind.judgeDeath(level, bossId, new BossDeath(
@@ -447,7 +446,7 @@ public final class Boss implements Leaving {
         if (server == null) {
             return;
         }
-        for (ServerLevel other : server.getAllLevels()) {
+        for (Level other : server.getAllLevels()) {
             if (other == originLevel) {
                 continue;
             }

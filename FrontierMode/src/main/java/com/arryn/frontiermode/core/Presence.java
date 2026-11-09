@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.core;
 
 import com.arryn.satchel.Satchel;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -61,7 +61,7 @@ public final class Presence {
     }
 
     /** Adopts the queued mobs, then drops the ones that were removed. */
-    public void tick(ServerLevel level, Hooks hooks) {
+    public void tick(Level level, Hooks hooks) {
         if (!queue.isEmpty()) {
             List<Joined> joined = List.copyOf(queue);
             queue.clear();
@@ -72,7 +72,7 @@ public final class Presence {
         dropRemoved(hooks);
     }
 
-    private void adoptQueued(ServerLevel level, Hooks hooks, Joined join) {
+    private void adoptQueued(Level level, Hooks hooks, Joined join) {
         Mob mob = join.mob();
         UUID uuid = mob.getUUID();
 

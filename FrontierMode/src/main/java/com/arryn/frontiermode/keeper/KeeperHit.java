@@ -1,8 +1,8 @@
 package com.arryn.frontiermode.keeper;
 
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.UUID;
 
@@ -17,5 +17,5 @@ import java.util.UUID;
  * @param mob    the Keeper's body
  * @param player the player holding the kill credit: their hit, projectile, or tamed pet
  */
-public record KeeperHit(Level level, UUID bossId, Mob mob, ServerPlayer player) {
+public record KeeperHit(Level level, UUID bossId, Mob mob, Player player) {
 }

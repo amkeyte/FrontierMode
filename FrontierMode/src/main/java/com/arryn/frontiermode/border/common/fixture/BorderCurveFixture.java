@@ -13,15 +13,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Sibling fixture to {@link BordersFixture} (and {@link NavigatorFixture}) inside
+ * Sibling fixture to {@link BordersFixture} inside
  * {@link com.arryn.frontiermode.border.common.bundle.BordersBundle} -- zero-to-many named
  * intensity curves per border, per RM_FRO_027 ("Janet") /
  * wiki/frontiermode/architecture/border-curve.md. Registered alongside its siblings in
- * {@code BorderModule.init()}.
+ * {@code BorderJig.build()}.
  *
  * <p>No tick wiring, per that page's own "Data model" section -- these are static descriptors,
- * set once and read on demand, unlike {@link NavigatorFixture}'s periodic recomputation (which
- * this fixture has none of) or {@link BorderPregenFixture}'s throttled tick-driven work.
+ * set once and read on demand, unlike {@link BorderPregenFixture}'s throttled tick-driven work.
  *
  * <p>Deletion cascade lives in {@code BorderAPI.removeBorder} (see that page's "Deletion:
  * explicit, not orphaned" section) -- {@link #removeForBorder(UUID)} is the method it calls,

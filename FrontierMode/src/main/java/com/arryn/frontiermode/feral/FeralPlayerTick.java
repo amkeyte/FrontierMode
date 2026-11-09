@@ -16,6 +16,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Optional;
 
@@ -26,7 +28,7 @@ import java.util.Optional;
  * Feral keeps no jig, so nothing here is declared on one and nothing is saved.
  *
  * <p>Both pieces are gated on {@code player.tickCount} with the modulo shape {@code
- * BorderModule.applySicknessEffects} uses, rather than a per-player counter field. The player's scope
+ * FrontierSickness.applySicknessEffects} uses, rather than a per-player counter field. The player's scope
  * outlives death, respawn and a dimension change and looks its player up fresh on every call, so one
  * instance serves a player for the whole login; its random source is the one field it keeps.
  */
@@ -73,7 +75,7 @@ public final class FeralPlayerTick implements Ticking {
      * {@code WildsTellFixture}'s Sick Wildlife tell (two independent rolls, particle targeted and sound
      * broadcast). Never touches health or combat.
      */
-    private void rollTell(ServerPlayer player, ServerLevel level, Mob monster) {
+    private void rollTell(Player player, Level level, Mob monster) {
         Vec3 pos = monster.position();
 
         // Two independent rolls, same shape WildsTellFixture/BossTellFixture already use --

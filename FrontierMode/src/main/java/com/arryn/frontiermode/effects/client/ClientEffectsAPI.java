@@ -23,9 +23,7 @@ import java.util.UUID;
  * clients (or a client and the server, if the server ever wants to run the identical check for
  * its own reasons) agree by construction rather than by broadcast.
  *
- * <p>Not wired to a real consumer yet as of FRO_089's initial build -- {@code
- * GrowthTriggerRenderer}'s particle is the likely first one, once FRO_055's stale-tip bug clears
- * (see FRO_089's own migration notes for why that one isn't moved yet). Built for real now,
+ * <p>Not wired to a real consumer yet as of FRO_089's initial build. Built for real now,
  * rather than left as a stub, so the shape doesn't need to be re-derived later.
  *
  * <p>A sound or particle gated on server-only state (attunement, team membership, anything a

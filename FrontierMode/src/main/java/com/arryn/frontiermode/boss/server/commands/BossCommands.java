@@ -15,7 +15,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.UUID;
@@ -88,7 +88,7 @@ public final class BossCommands {
             boolean livingOnly
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
         List<BossRecord> bosses = BossSelector.resolve(selector, sp);
 

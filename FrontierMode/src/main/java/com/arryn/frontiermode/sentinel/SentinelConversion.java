@@ -13,9 +13,8 @@ import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.KeeperItems;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -105,7 +104,7 @@ final class SentinelConversion {
      * boss placement is biased toward the border's outer edge, so a center-measured distance
      * under-reports intensity near the boss.
      */
-    static Optional<Nearby> resolveNearby(ServerLevel level, BossFixture bossFixture,
+    static Optional<Nearby> resolveNearby(Level level, BossFixture bossFixture,
                                           BorderCurveFixture curves, BlockPos pos) {
         Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
         if (keepersOpt.isEmpty()) {
@@ -197,7 +196,7 @@ final class SentinelConversion {
      * mob's position, stepping down from that ceiling by {@code sentinelFitStep} toward 1.0. Scale 1.0
      * needs no test: a natural spawn's spot has already passed vanilla's fit check for the unscaled mob.
      */
-    static float fitScale(ServerLevel level, Mob mob, double target) {
+    static float fitScale(Level level, Mob mob, double target) {
         double ceiling = Math.min(target, SentinelRules.sentinelMaxScale());
         double step = SentinelRules.sentinelFitStep();
         BlockPos pos = mob.blockPosition();
