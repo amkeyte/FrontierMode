@@ -117,7 +117,7 @@ public final class BorderSelector {
     }
 
     /**
-     * FRO_131: literal nearest-by-raw-distance-to-center, mirroring {@code BossSelector
+     * literal nearest-by-raw-distance-to-center, mirroring {@code BossSelector
      * .resolveNearest}'s shape exactly -- deliberately distinct from {@code @relevant}, which
      * (per wiki/frontiermode/architecture/border-vocabulary.md's Relevance definition) sorts by
      * Layer first and only tie-breaks on distance. No {@code materialized}-style filter needed
@@ -164,11 +164,11 @@ public final class BorderSelector {
     }
 
     private static List<Border> resolveRelevant(Player player) {
-        // RM_FRO_006: BorderAPI.getRelevant(ServerPlayer) is real now -- backed by the
+        // BorderAPI.getRelevant(ServerPlayer) is backed by the
         // PlayerJig-scoped BorderPlayerStatusFixture BorderPlayerTick keeps current every tick.
         // Empty here is a real, honest result (no nearest border yet -- e.g. an empty dimension,
         // or the player hasn't ticked since logging in), same as every other selector mode's
-        // empty case, not the "feature isn't built" placeholder this used to be.
+        // empty case.
         return BorderAPI.getRelevant(player).stream().toList();
     }
 

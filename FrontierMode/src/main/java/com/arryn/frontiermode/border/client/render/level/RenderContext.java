@@ -41,7 +41,7 @@ public final class RenderContext implements Trinket {
      * Creates this scope's {@code BordersBundle} at attach, the pattern {@code ScopeInfo.getOrCreate} documents for
      * a Trinket that needs its bundle then. A client bundle exists only once something creates it, and {@link
      * #isReady} waits for its first parcel, so without this call nothing would ask for the bundle and the ring would
-     * never draw ({@code BossRoster} had exactly this fault, FRO_295 finding 2).
+     * never draw.
      */
     @Override
     public void onAttach(ScopeInfo info) {
@@ -71,10 +71,9 @@ public final class RenderContext implements Trinket {
         return Satchel.trinket(FrontierKeys.BORDERS_JIG, new LevelScope(level), RenderContext.class);
     }
 
-    // FRO_047: three facets instead of one raw BordersFixture -- BordersFixture is no longer
-    // reachable from outside border.common.fixture (see that class's own doc for why the Java
-    // modifier itself can't follow). Each lazy-loads and memoizes independently: retry
-    // while empty, keep once resolved.
+    // The three facets stand in for one raw BordersFixture, which is not reachable from outside
+    // border.common.fixture (see that class's own doc for why the Java modifier itself can't
+    // follow). Each lazy-loads and memoizes independently: retry while empty, keep once resolved.
     private Optional<BordersCrudFacet> crud = Optional.empty();
     private Optional<BordersPathFacet> path = Optional.empty();
     private Optional<BordersInfoFacet> info = Optional.empty();

@@ -19,17 +19,17 @@ final class KeeperPlacement {
 
     // Border Pregeneration: how many candidate chunk-center positions choosePosition() scores
     // before picking a winner -- a tuning number ("safe baseline, replace later"), not settled by
-    // border-pregeneration.md itself. Bumped from 5 -> 20 after a real playtest hit "all 5
-    // candidates scored hazardous" on a radius-32 (3209-chunk) border and fell back to placing a
-    // boss at the world floor -- 5 independent random draws just isn't enough coverage once a
-    // disk gets that large, and a heightmap + block-state lookup is cheap enough (this only runs
-    // once per boss, not per tick) that quadrupling it is effectively free insurance.
+    // border-pregeneration.md itself. 20, not 5: with 5 independent random draws a radius-32
+    // (3209-chunk) border could score every candidate hazardous and fall back to placing a
+    // boss at the world floor -- 5 draws isn't enough coverage once a disk gets that large, and
+    // a heightmap + block-state lookup is cheap enough (this only runs once per boss, not per
+    // tick) that 20 is effectively free insurance.
     private static final int POSITION_CANDIDATES = 20;
 
-    // FRO_163: Y used when every candidate scores hazardous -- see choosePosition's fallback branch.
+    // Y used when every candidate scores hazardous -- see choosePosition's fallback branch.
     private static final int FALLBACK_Y = 64;
 
-    // FRO_072: each new border centers on wherever its own boss died (BossModule
+    // each new border centers on wherever its own boss died (BossModule
     // .onLivingDeath -- deathLocation is the grow() center directly). A boss placed near its own
     // border's center barely moves the *next* border's center either, so successive growths were
     // nesting almost concentrically instead of the path actually "crawling" outward -- exactly
@@ -60,7 +60,7 @@ final class KeeperPlacement {
         BlockPos bestAny = null;
         double bestAnyScore = Double.NEGATIVE_INFINITY;
 
-        // FRO_072: bias every candidate toward border's own outer edge -- see
+        // bias every candidate toward border's own outer edge -- see
         // EDGE_BIAS_INNER_FRACTION's own doc for why. innerRadius clamps to border.radius() so a
         // small border (radius 0 or 1, shouldn't happen given BorderConstants.MIN_RADIUS but
         // cheap to guard) never produces an invalid inner > outer annulus.
@@ -70,7 +70,7 @@ final class KeeperPlacement {
         for (int i = 0; i < POSITION_CANDIDATES; i++) {
             BlockPos sample = BorderAPI.MATH.randomPointInAnnulus(RNG, border.center(), innerRadius, border.radius());
             BlockPos chunkCenter = chunkCenterOf(sample);
-            // FRO_156: snapping to a chunk center can move a candidate up to ~11 blocks, which on a
+            // snapping to a chunk center can move a candidate up to ~11 blocks, which on a
             // tiny border (an admin-made one can be a chunk or less across) throws it outside the
             // border entirely. Keep the unsnapped sample -- already inside the annulus -- when the
             // snap would leave the border.
@@ -92,9 +92,8 @@ final class KeeperPlacement {
             // A disqualifying hazard (fluid, world-floor void, or no solid footing -- see
             // SitingAPI.hazardScore's own doc) never wins a real spot, no matter how it scores -- an empty
             // column reads back as artificially flat (every sample lands on the same "nothing
-            // found" sentinel height, so neighbor deltas are all zero), which is exactly what let
-            // a hazardous candidate win outright before this fix caught a real playtest boss
-            // landing at y=0 in open space.
+            // found" sentinel height, so neighbor deltas are all zero), which would otherwise let a
+            // hazardous candidate win outright and land a boss at y=0 in open space.
             if (hazard < 1.0 && score > bestSafeScore) {
                 bestSafeScore = score;
                 bestSafe = ground;
@@ -112,7 +111,7 @@ final class KeeperPlacement {
         // loud on purpose -- a boss placed from this branch is placed somewhere hazardous, and
         // that belongs in the log the moment it happens, not discovered later by someone
         // teleporting out to an empty location.
-        // FRO_163: the best-scoring hazardous column is often the void sentinel (y = world floor),
+        // the best-scoring hazardous column is often the void sentinel (y = world floor),
         // which reads as perfectly flat -- placing there dropped a boss into the void. Keep the
         // chosen X/Z but pin Y to a fixed height instead: it may end up in the ground or floating
         // over water, but it is never the void, and it is loud in the log so a real occurrence

@@ -36,7 +36,7 @@ final class FeralSpawnGateHandlers {
      *       {@code allow()}, so the Wilds reads as dangerous from inside the Frontier. {@code allow()}
      *       bypasses vanilla's whole monster predicate, not just its darkness test, so the spawn
      *       surface is re-checked first; if it fails, the result stays unset and vanilla refuses
-     *       (FRO_170).
+     *.
      * </ul>
      */
     static void onPlacementCheck(WildsPlacementCheck event) {
@@ -64,7 +64,7 @@ final class FeralSpawnGateHandlers {
      * {@code checkSpawnRules} (a light test for every {@code Monster}) and
      * {@code checkSpawnObstruction}. The event is only built for a {@code MobCategory.MONSTER} standing in
      * the Wilds -- for a natural spawn, one gate 1 allowed -- and it is allowed if nothing is in its way;
-     * {@code allow()} bypasses the obstruction test too, so it's re-checked here (FRO_170).
+     * {@code allow()} bypasses the obstruction test too, so it's re-checked here.
      */
     static void onPositionCheck(WildsPositionCheck event) {
         Mob mob = event.mob();

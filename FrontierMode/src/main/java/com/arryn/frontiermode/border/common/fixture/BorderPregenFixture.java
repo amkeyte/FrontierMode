@@ -30,8 +30,8 @@ import java.util.UUID;
 /**
  * Fourth sibling fixture to {@link BordersFixture} inside
  * {@link com.arryn.frontiermode.border.common.bundle.BordersBundle} -- proactively,
- * throttle-paced generates a border's entire disk once explicitly triggered to, per RM_FRO_028
- * ("Diane") / wiki/frontiermode/architecture/border-pregeneration.md. Registered alongside its
+ * throttle-paced generates a border's entire disk once explicitly triggered to, per
+ * wiki/frontiermode/architecture/border-pregeneration.md. Registered alongside its
  * siblings in {@code BorderJig.build()}.
  *
  * <p><b>Pregeneration is an explicit action, never automatic on border creation</b> -- see that
@@ -53,11 +53,11 @@ public final class BorderPregenFixture extends SatchelFixture {
 
     // Exact throttle budget lives on BorderRules/DefaultBorderRules (pregenChunksPerBatch() /
     // pregenThrottleIntervalTicks()) as a Lead Dev-tunable coefficient, per
-    // wiki/frontiermode/architecture/border-pregeneration.md's "Open questions" / FRO_092 -- not
+    // wiki/frontiermode/architecture/border-pregeneration.md's "Open questions" -- not
     // a hardcoded constant here. See DefaultBorderRules for the current values and the playtest
     // notes behind them.
 
-    // Liveness check (FRO_092): fires every STALL_CHECK_INTERVAL_TICKS and crashes if an
+    // Liveness check: fires every STALL_CHECK_INTERVAL_TICKS and crashes if an
     // in-progress job's cursor hasn't moved since the last check -- a border-creation call site
     // that forgot to trigger pregeneration, or any other reason a job stops making progress,
     // surfaces immediately and loudly instead of stalling silently forever. Deliberately
@@ -211,7 +211,7 @@ public final class BorderPregenFixture extends SatchelFixture {
 
         // Defensive copy -- runBatch()'s own advance() call mutates `jobs` in place per record,
         // same "don't iterate the live backing list while mutating it" discipline
-        // BossFixture.all()'s own FRO_060 fix documents.
+        // BossFixture.all() documents.
         for (BorderPregenRecord record : List.copyOf(jobs)) {
             if (record.complete()) {
                 continue;
@@ -248,7 +248,7 @@ public final class BorderPregenFixture extends SatchelFixture {
     }
 
     private void runBatch(Level level, BorderPregenRecord record) {
-        // FRO_077: direct sibling access within this fixture's own BordersBundle, not the
+        // direct sibling access within this fixture's own BordersBundle, not the
         // BorderAPI.CRUD() facade -- the facade exists for external callers, not internal bundle
         // communication (see BordersBundle -- this fixture is a sibling of BordersFixture in the
         // same bundle instance, reached here via getBundle() rather than a fresh level lookup).
@@ -316,10 +316,10 @@ public final class BorderPregenFixture extends SatchelFixture {
                 // Not already there -- the real, forcing call, same as this loop always made.
                 level.getChunk(chunkX, chunkZ);
 
-                // FRO_092: Border only promises generation, never suitability (see
+                // Border only promises generation, never suitability (see
                 // wiki/frontiermode/architecture/border-pregeneration.md) -- but generation
                 // itself is still expected to succeed every time it's forced. Vanishingly
-                // unlikely per FRO_091's own ruling, and not worth a retry/reroll mechanism
+                // unlikely, and not worth a retry/reroll mechanism
                 // against a failure mode nobody's actually hit -- crash loudly instead so a
                 // pathological seed or extreme biome surfaces immediately as a bug report, not a
                 // silently incomplete disk.

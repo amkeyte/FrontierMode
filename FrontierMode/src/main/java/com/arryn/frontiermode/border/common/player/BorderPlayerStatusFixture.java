@@ -17,8 +17,7 @@ import java.util.UUID;
  * - materializes BorderPlayerStatus
  * - tracks dirty state
  * <p>
- * FRO_026 rewrite: rebuilt against {@link SatchelFixture} (the current base class) instead of
- * the predecessor {@code SatchelSetting}, which no longer exists. Deliberately not persisted --
+ * Deliberately not persisted --
  * {@link BorderPlayerStatus}/{@link BorderPlayerEval}'s own docs already call this data
  * "not persisted or synced": it's a live-recomputed snapshot derived from world state
  * ({@code borders}, player position) each time {@link #accept} runs, not source-of-truth state
@@ -69,7 +68,7 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
             List<Border> borders,
             BlockPos pos
     ) {
-        // RM_FRO_037: `current` (this fixture's own previous snapshot, or null before the first
+        // `current` (this fixture's own previous snapshot, or null before the first
         // tick) is threaded in so sicknessSeverity's target-and-catch-up climb has continuity to
         // climb from -- see BorderPlayerLogic.evaluate's own doc for why that state lives here
         // rather than on the stateless evaluator.
@@ -100,7 +99,7 @@ public final class BorderPlayerStatusFixture extends SatchelFixture {
     }
 
     /**
-     * FRO_133 (playtest root cause, 2026-09-22): {@code sicknessSeverity}'s target-and-catch-up
+     * {@code sicknessSeverity}'s target-and-catch-up
      * climb carries forward from {@code current} tick to tick (see {@link #compute}'s own doc) --
      * death and respawn never reset it on their own, so a player who died deep in the Wilds
      * kept decaying down from whatever severity they died at, at {@code PlayerRules

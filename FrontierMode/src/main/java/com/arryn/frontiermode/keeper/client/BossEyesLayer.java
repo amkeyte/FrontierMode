@@ -14,7 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
- * FRO_145: draws shining amethyst eyes on a boss -- the same technique vanilla uses for
+ * draws shining amethyst eyes on a boss -- the same technique vanilla uses for
  * Enderman/Spider/Warden ({@code RenderType.eyes}, full-bright, so it reads at night the same as
  * by day). One layer instance per boss-eligible mob type, each with that model's own eye-overlay
  * texture (UV layouts differ per species); see {@link BossClientEvents}.

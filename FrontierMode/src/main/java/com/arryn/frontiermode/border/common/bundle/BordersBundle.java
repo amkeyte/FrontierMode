@@ -27,10 +27,10 @@ public final class BordersBundle extends SatchelBundle {
     }
 
     /**
-     * SAT_053: Border state must survive a restart (see BorderJig's LevelJigConfig --
+     * Border state must survive a restart (see BorderJig's LevelJigConfig --
      * capabilities/persistence policy declared there), so this bundle declares the matching
      * requirement itself; the engine now gates promotion on this, not on the jig-level policy
-     * alone. NETWORKING added (FRO_115): without it the client-side bundle never receives a
+     * alone. NETWORKING added: without it the client-side bundle never receives a
      * parcel and stays stuck CREATED, so cachedBorders is always empty and rings never render.
      */
     @Override

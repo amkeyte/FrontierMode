@@ -41,7 +41,7 @@ public final class BossFixture extends SatchelFixture {
     private static final String KEY_BOSSES = "bosses";
 
     /**
-     * FRO_081: record lifecycle/mutations -- reach through {@code BossAPI.CRUD(Level)}
+     * record lifecycle/mutations -- reach through {@code BossAPI.CRUD(Level)}
      * from outside {@code boss.common.fixture} where possible, mirroring
      * {@code BorderAPI.CRUD(Level)}. See this class's own doc for why {@code BossFixture}'s
      * methods themselves stay public rather than being narrowed the way {@code BordersFixture}'s
@@ -50,7 +50,7 @@ public final class BossFixture extends SatchelFixture {
     public final BossCrudFacet CRUD = new BossCrudFacet(this);
 
     /**
-     * FRO_081: queries/diagnostics -- reach through {@code BossAPI.INFO(Level)} where possible,
+     * queries/diagnostics -- reach through {@code BossAPI.INFO(Level)} where possible,
      * mirroring {@code BorderAPI.INFO(Level)}.
      */
     public final BossInfoFacet INFO = new BossInfoFacet(this);
@@ -98,23 +98,20 @@ public final class BossFixture extends SatchelFixture {
     // ------------------------------------------------------------------
 
     /**
-     * FRO_060 hotfix, found via real playtest (not by reading source alone): this used to return
-     * {@code Collections.unmodifiableList(bosses)} -- a live *view* over the mutable backing
-     * list, not a snapshot. {@code BossSelector.resolve()}'s {@code @all} case hands this
-     * straight to {@code BossCommands.applySelector}'s {@code for (BossRecord b : bosses)} loop,
-     * and {@code /boss transform defeat @all} is the one boss operation that adds a brand-new
-     * record as a side effect mid-loop ({@code forceDefeat} -> {@code createBoss} ->
-     * {@code create()} -> {@code bosses.add(...)}) -- structurally modifying the exact list the
+     * A defensive copy, not a live view: {@code BossSelector.resolve()}'s {@code @all} case
+     * hands this straight to {@code BossCommands.applySelector}'s
+     * {@code for (BossRecord b : bosses)} loop, and {@code /boss transform defeat @all} is the one
+     * boss operation that adds a brand-new record as a side effect mid-loop
+     * ({@code forceDefeat} -> {@code createBoss} -> {@code create()} ->
+     * {@code bosses.add(...)}). Over a live view that structurally modifies the exact list the
      * for-each is iterating, which throws {@code ConcurrentModificationException} on the
-     * iterator's next advance. That exception is thrown by the for-each's own iterator
-     * bookkeeping, not by {@code op.run(...)}, so it lands outside
-     * {@code applySelector}'s per-boss {@code try/catch} and aborts the whole command --
-     * "defeats one boss, then errors out" is exactly what that looks like from the chat. A real
-     * defensive copy here (not a live wrapper) closes it at the fixture boundary, the same
-     * "fix it where the data crosses out of the fixture" shape FRO_058's validation boundary
-     * used -- every current caller (selector resolution, {@code BossCommandHandler.info}'s
-     * {@code indexOf}, {@code BossModule}'s one-shot lookups) already treats the result as a
-     * point-in-time snapshot, so this changes nothing for them.
+     * iterator's next advance -- from the for-each's own iterator bookkeeping, not from
+     * {@code op.run(...)}, so it would land outside {@code applySelector}'s per-boss
+     * {@code try/catch} and abort the whole command. Copying here closes it at the fixture
+     * boundary, the same "fix it where the data crosses out of the fixture" shape as the
+     * validation boundary -- every current caller (selector resolution,
+     * {@code BossCommandHandler.info}'s {@code indexOf}, {@code BossModule}'s one-shot lookups)
+     * treats the result as a point-in-time snapshot.
      */
     public List<BossRecord> all() {
         return List.copyOf(bosses);
@@ -159,7 +156,7 @@ public final class BossFixture extends SatchelFixture {
 
     /**
      * Marks the fixture dirty and pushes it to clients now instead of waiting out Satchel's sync interval
-     * (SAT_081), so a client sees the change when it lands. A push with nobody in the dimension is skipped
+     *, so a client sees the change when it lands. A push with nobody in the dimension is skipped
      * by Satchel itself.
      */
     private void changed() {
@@ -247,7 +244,7 @@ public final class BossFixture extends SatchelFixture {
 
         BossRecord record = existing.get();
         if (record.materialized()) {
-            // FRO_058: fixture-level guard -- the roster's forceMaterialize already checks
+            // fixture-level guard -- the roster's forceMaterialize already checks
             // record.materialized() before calling in, but the fixture itself had no defense of
             // its own. Without this, any other future caller could re-materialize a live record
             // with a fresh entityId, silently orphaning the old one.
@@ -267,7 +264,7 @@ public final class BossFixture extends SatchelFixture {
     }
 
     /**
-     * FRO_160: returns a materialized, alive record to unmaterialized by clearing only
+     * returns a materialized, alive record to unmaterialized by clearing only
      * {@code bossEntityId} -- {@code alive}, {@code position} and {@code scale}
      * are untouched. The ordinary materialization tick then respawns the boss at
      * {@code position} through the same path as any first materialization (boss.md's "Player
@@ -307,8 +304,7 @@ public final class BossFixture extends SatchelFixture {
      * Marks a boss record defeated (`alive: false`), addressed by its own {@code bossId} --
      * never via any {@code Border} reference, this fixture isn't keyed by one (see this class's
      * own doc and boss.md's "Data model" section). Replaces the record in place (records are
-     * immutable), same remove-then-add-back shape {@link #materialize} uses. RM_FRO_019
-     * ("Karen")'s own concern.
+     * immutable), same remove-then-add-back shape {@link #materialize} uses.
      */
     public boolean markDefeated(UUID bossId) {
         Satchel.requireServer();
@@ -321,7 +317,7 @@ public final class BossFixture extends SatchelFixture {
 
         BossRecord record = existing.get();
         if (!record.alive()) {
-            // FRO_058: real, shipped bug this guard closes -- BossAPI.forceDefeat() had no check
+            // real, shipped bug this guard closes -- BossAPI.forceDefeat() had no check
             // that the record was still alive before running the full grow-and-spawn cascade, so
             // /boss transform defeat run twice against the same boss re-triggered it a second
             // time with no real defeat behind it. See boss.md's "Mutation validation boundary".

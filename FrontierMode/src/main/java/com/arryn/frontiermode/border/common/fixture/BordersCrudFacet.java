@@ -32,10 +32,9 @@ public class BordersCrudFacet {
     }
 
     /**
-     * FRO_047: returns {@link Result} instead of throwing on rejection -- the real reason
+     * returns {@link Result} instead of throwing on rejection -- the real reason
      * ({@link #failureReason}) is carried through in the {@code Result}'s message rather than
-     * only ever reaching {@code OUT.warn()}, same fix RM_FRO_011 originally made for the
-     * player-facing message, now expressed as data instead of an exception. See the Border wiki
+     * only reaching {@code OUT.warn()}, so the player-facing message says why. See the Border wiki
      * page's "Mutation surface" section for the full contract this follows.
      */
     public Result applyProposal(BorderProposal proposal) {
@@ -52,19 +51,17 @@ public class BordersCrudFacet {
     }
 
     /**
-     * Real validation logic. <b>Layer-collision rejection was removed, RM_FRO_015, 2026-08-20</b>
-     * -- project owner's direct design call: Layer and Path are definitionally unrelated (see
-     * Border Vocabulary's own "Layer" section, "only coincidentally tied to Path"), and
-     * {@code DefaultBorderRules.getRelevant()} already fully resolves a same-layer overlap by
-     * nearest center (see that method, and Border Vocabulary's Relevance section: "lowest Layer
-     * wins, tie-broken by nearest center") -- a tie-break that was already shipped and already
-     * correct *before* this uniqueness guard ever existed. The guard was solving a problem
-     * {@code getRelevant()} didn't have: two borders sharing a layer, even two that geometrically
-     * overlap, resolve deterministically without it. Global layer uniqueness was actively harmful
-     * in practice: organic growth's hardcoded {@code layer = 1} / {@code previous.layer() + 1}
-     * (now inlined in {@link BordersPathFacet#grow()}) would collide with any unrelated off-path
-     * border already holding that value, blocking ordinary path growth for a reason that was never
-     * a real correctness requirement (found via real playtest, RM_FRO_015).
+     * Real validation logic. Layer collisions are not rejected: Layer and Path are
+     * definitionally unrelated (see Border Vocabulary's own "Layer" section, "only
+     * coincidentally tied to Path"), and {@code DefaultBorderRules.getRelevant()} already fully
+     * resolves a same-layer overlap by nearest center (see that method, and Border
+     * Vocabulary's Relevance section: "lowest Layer wins, tie-broken by nearest center"). Two
+     * borders sharing a layer, even two that geometrically overlap, resolve deterministically
+     * without a uniqueness guard, and global layer uniqueness would be harmful: organic growth's
+     * hardcoded {@code layer = 1} / {@code previous.layer() + 1} (inlined in
+     * {@link BordersPathFacet#grow()}) would collide with any unrelated off-path border already
+     * holding that value, blocking ordinary path growth for a reason that is not a real
+     * correctness requirement.
      */
     private Optional<String> failureReason(BorderProposal proposal) {
         Satchel.requireServer();
@@ -77,7 +74,7 @@ public class BordersCrudFacet {
         }
 
         int layerIndex = proposal.layerIndex();
-        // Layer 0 is valid for a Border (an admin's special case, FRO_191); path growth still
+        // Layer 0 is valid for a Border (an admin's special case); path growth still
         // starts at 1, and a boss record still needs layer 1 or more.
         if (layerIndex < 0) {
             String reason = "negative layer " + layerIndex + ".";
@@ -85,7 +82,7 @@ public class BordersCrudFacet {
             return Optional.of(reason);
         }
 
-        // FRO_059: displayName gets a real bound -- no sanctioned pattern needs an unbounded one,
+        // displayName gets a real bound -- no sanctioned pattern needs an unbounded one,
         // every named operation already sources it from either the curated default pool or
         // insert()'s carry-forward. See border.md's "Proposal identity and validation" section.
         String displayName = proposal.displayName();
@@ -101,7 +98,7 @@ public class BordersCrudFacet {
             return Optional.of(reason);
         }
 
-        // FRO_059: center gets a real bounds check mirrored off vanilla's own world limits, not a
+        // center gets a real bounds check mirrored off vanilla's own world limits, not a
         // bespoke gameplay number -- a corrupt-input guard, not a gameplay-balance constraint the
         // way radius/layerIndex are. Same "Proposal identity and validation" ruling.
         BlockPos center = proposal.center();
@@ -143,24 +140,22 @@ public class BordersCrudFacet {
     }
 
     /**
-     * FRO_060 hotfix (Border side, preemptive -- no live bug today): {@code fixture.all()}
-     * stays a package-private live view over the fixture's mutable backing list (cheap, correct
-     * for the internal same-call-frame reads {@code getDefaultDisplayName()} below and
-     * {@code BordersPathFacet} already make), but this is the public boundary the data crosses
-     * out through -- copied here, the same place {@link BordersPathFacet#all()} already copies
-     * {@code fixture.borderPath} for the identical reason. Closes the same
-     * {@code ConcurrentModificationException} shape found (and fixed) on
-     * {@code BossFixture.all()} via real playtest: no current Border operation reachable through
-     * a selector adds a new border as a side effect mid-loop, so nothing exercises this today,
-     * but the hazard is structurally identical and {@link BordersPathFacet#all()} is the
-     * established in-repo precedent for copying right here rather than at the fixture.
+     * {@code fixture.all()} is a package-private live view over the fixture's mutable backing
+     * list (cheap, correct for the internal same-call-frame reads {@code getDefaultDisplayName()}
+     * below and {@code BordersPathFacet} already make), but this is the public boundary the data
+     * crosses out through -- so it is copied here, the same place {@link BordersPathFacet#all()}
+     * copies {@code fixture.borderPath} for the identical reason. This closes the
+     * {@code ConcurrentModificationException} shape {@code BossFixture.all()} also guards
+     * against: no current Border operation reachable through a selector adds a new border as a
+     * side effect mid-loop, so nothing exercises it today, but the hazard is structurally
+     * identical.
      */
     public List<Border> all() {
         return List.copyOf(fixture.all());
     }
 
     /**
-     * FRO_047: moved here from the deleted {@code BorderLogic.getDefaultDisplayName()} -- needs
+     * moved here from the deleted {@code BorderLogic.getDefaultDisplayName()} -- needs
      * {@link #all()} for name dedup, which {@code BorderRules} never touches (rules are stateless,
      * fixture-blind by design -- see {@code BorderRules}'s own interface doc).
      */

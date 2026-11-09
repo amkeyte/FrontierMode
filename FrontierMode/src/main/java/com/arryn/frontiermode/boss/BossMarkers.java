@@ -11,7 +11,7 @@ import net.minecraft.world.level.Level;
 import java.util.Optional;
 
 /**
- * FRO_145/FRO_148: side-agnostic "is this entity a boss, and how big" lookup over the {@link BossRoster} -- the one place
+ * side-agnostic "is this entity a boss, and how big" lookup over the {@link BossRoster} -- the one place
  * the eye render layer, the hitbox {@code Size} handler, and the render-scale handler all ask. A live boss is an entity
  * the roster holds whose record is alive; its size is the record's {@code scale}. No client classes here, so it loads on
  * a dedicated server.

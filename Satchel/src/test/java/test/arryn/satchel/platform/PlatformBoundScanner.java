@@ -1,22 +1,28 @@
 package test.arryn.satchel.platform;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * The first rule of Platform-Bound Code § The check: a class with a direct Forge listener carries
- * {@code @PlatformBound} with a non-empty reason. The scanner reads a source tree as text and needs no
+ * Both rules of Platform-Bound Code § The check. The first: a class with a direct Forge listener carries
+ * {@code @PlatformBound} with a non-empty reason. The second, further down ({@link #scanImports}): every platform
+ * import is on the authorized list, or its file carries the marker or extends a Satchel type. The scanner reads a source tree as text and needs no
  * Forge classes and no parser library, so it runs under a plain {@code gradle test}. It is one file with
  * only JDK imports, so another project's build can compile it from this tree (FrontierMode's
  * {@code syncPlatformCheck} does) and point it at its own source. Keep it that way: no import outside the JDK.
@@ -71,6 +77,18 @@ public final class PlatformBoundScanner {
 
     /** Every {@code .java} file under {@code sourceRoot}. */
     public static Result scanAll(Path sourceRoot) {
+        List<Offender> offenders = new ArrayList<>();
+        List<String> listenerClasses = new ArrayList<>();
+        for (Map.Entry<String, String> file : readTree(sourceRoot).entrySet()) {
+            Result one = scanSource(file.getKey(), file.getValue());
+            offenders.addAll(one.offenders());
+            listenerClasses.addAll(one.listenerClasses());
+        }
+        return new Result(offenders, listenerClasses);
+    }
+
+    /** Every {@code .java} file under {@code sourceRoot}: its name relative to the root, with forward slashes, to its text. */
+    private static Map<String, String> readTree(Path sourceRoot) {
         List<Path> files;
         try (Stream<Path> walk = Files.walk(sourceRoot)) {
             files = walk.filter(p -> p.toString().endsWith(".java")).sorted().toList();
@@ -78,21 +96,16 @@ public final class PlatformBoundScanner {
             throw new UncheckedIOException("Cannot read the source root " + sourceRoot, e);
         }
 
-        List<Offender> offenders = new ArrayList<>();
-        List<String> listenerClasses = new ArrayList<>();
+        Map<String, String> sources = new LinkedHashMap<>();
         for (Path file : files) {
             String name = sourceRoot.relativize(file).toString().replace('\\', '/');
-            String source;
             try {
-                source = new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
+                sources.put(name, new String(Files.readAllBytes(file), StandardCharsets.UTF_8));
             } catch (IOException e) {
                 throw new UncheckedIOException("Cannot read " + file, e);
             }
-            Result one = scanSource(name, source);
-            offenders.addAll(one.offenders());
-            listenerClasses.addAll(one.listenerClasses());
         }
-        return new Result(offenders, listenerClasses);
+        return sources;
     }
 
     /** One file's text, named {@code name} in the report. */
@@ -275,16 +288,23 @@ public final class PlatformBoundScanner {
     private record Annotation(String name, String args) {
     }
 
-    /** A class, interface, enum, record or annotation type: where its header starts and its body ends. */
+    /**
+     * A class, interface, enum, record or annotation type: where its modifiers start, its keyword and its body
+     * begin, and its body ends. The text from {@code keywordStart} to {@code bodyStart} is its header.
+     */
     private static final class Type {
         final String name;
         final int declStart;
+        final int keywordStart;
+        final int bodyStart;
         final int bodyEnd;
         final List<Annotation> annotations;
 
-        Type(String name, int declStart, int bodyEnd, List<Annotation> annotations) {
+        Type(String name, int declStart, int keywordStart, int bodyStart, int bodyEnd, List<Annotation> annotations) {
             this.name = name;
             this.declStart = declStart;
+            this.keywordStart = keywordStart;
+            this.bodyStart = bodyStart;
             this.bodyEnd = bodyEnd;
             this.annotations = annotations;
         }
@@ -325,7 +345,7 @@ public final class PlatformBoundScanner {
         int declStart = declarationStart(code, keywordStart);
         int bodyEnd = matchingBrace(code, body);
         List<Annotation> annotations = annotations(s.text().substring(declStart, keywordStart));
-        types.add(new Type(name, declStart, bodyEnd, annotations));
+        types.add(new Type(name, declStart, keywordStart, body, bodyEnd, annotations));
     }
 
     /** The '{' that opens a declaration's body, or -1 if a ';' comes first. */
@@ -484,5 +504,383 @@ public final class PlatformBoundScanner {
             if (!kinds.contains(token.kind())) kinds.add(token.kind());
         }
         return kinds;
+    }
+
+    // =================================================================
+    // The second rule: platform imports
+    // =================================================================
+
+    /**
+     * A platform class a file imports or names, and the second rule says is not allowed there.
+     *
+     * <p>
+     * The second rule of Platform-Bound Code § The check: every {@code net.minecraft} and {@code net.minecraftforge}
+     * class a file imports is on the authorized list, or the file carries {@code @PlatformBound} with a reason on
+     * any of its classes, or any of its classes extends or implements a Satchel type (a class under
+     * {@code com.arryn.satchel}, or a class in the scanned tree that itself extends one). The unit is the outermost
+     * class: an import of {@code Entity.RemovalReason} is an import of {@code Entity}, a static import of
+     * {@code Blocks.STONE} is one of {@code Blocks}, and a fully qualified name in the code counts as an import. A
+     * package wildcard import cannot be checked against a list of classes, so it never passes.
+     *
+     * @param file     the source file, relative to the scanned root, with forward slashes
+     * @param line     the line of the first import or use of the class
+     * @param imported the platform class ({@code net.minecraft.world.entity.Mob}), or the package import as written
+     *                 ({@code net.minecraft.world.entity.*})
+     * @param problem  why it is not allowed
+     */
+    public record ImportOffender(String file, int line, String imported, String problem) {
+        /** The line a baseline file holds for this offender: the file, two spaces, the class. */
+        public String baselineLine() {
+            return file + "  " + imported;
+        }
+
+        @Override
+        public String toString() {
+            return file + ":" + line + "  " + imported + "  " + problem;
+        }
+    }
+
+    /**
+     * @param offenders       every platform class a file may not import
+     * @param platformClasses how many platform classes the files import or name, allowed or not, counted once per
+     *                        file; a caller asserts it is not zero, so a scan that read nothing cannot pass
+     */
+    public record ImportResult(List<ImportOffender> offenders, int platformClasses) {
+    }
+
+    /**
+     * What a baseline of known offenders leaves.
+     *
+     * @param fresh offenders the baseline does not list
+     * @param stale baseline lines that no longer offend, because the import went or the file gained a marker
+     */
+    public record BaselineDiff(List<ImportOffender> fresh, List<String> stale) {
+    }
+
+    /** Where a Satchel type lives. */
+    private static final String SATCHEL_PACKAGE = "com.arryn.satchel.";
+
+    private static final String PACKAGE_IMPORT_PROBLEM =
+            "a package import cannot be checked against the list; import the classes by name";
+
+    private static final Pattern IMPORT = Pattern.compile(
+            "(?<![\\w$.])import\\s+(static\\s+)?([A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)*)(\\s*\\.\\s*\\*)?\\s*;");
+
+    private static final Pattern PACKAGE = Pattern.compile(
+            "(?<![\\w$.])package\\s+([A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)*)\\s*;");
+
+    /** A fully qualified platform class in code: lower-case package segments, then the first class. */
+    private static final Pattern QUALIFIED_PLATFORM = Pattern.compile(
+            "(?<![\\w$.])net\\.(?:minecraftforge|minecraft)(?:\\.[a-z_]\\w*)*\\.[A-Z][\\w$]*");
+
+    private static final Pattern HEADER_KEYWORD = Pattern.compile("\\b(extends|implements|permits)\\b");
+
+    /** The import offenders under {@code sourceRoot}; {@code authorized} is the list's fully qualified class names. */
+    public static ImportResult scanImports(Path sourceRoot, Set<String> authorized) {
+        return scanImportSources(readTree(sourceRoot), authorized);
+    }
+
+    /**
+     * The import offenders in {@code sources}, each file's name to its text. The files are read together, since
+     * whether a class extends a Satchel type can run through another class in the same tree.
+     */
+    public static ImportResult scanImportSources(Map<String, String> sources, Set<String> authorized) {
+        List<Unit> units = new ArrayList<>();
+        for (Map.Entry<String, String> source : sources.entrySet()) {
+            units.add(unit(source.getKey(), source.getValue()));
+        }
+        Hierarchy hierarchy = new Hierarchy(units);
+
+        List<ImportOffender> offenders = new ArrayList<>();
+        int platformClasses = 0;
+        for (Unit unit : units) {
+            platformClasses += unit.uses.size();
+            if (unit.marked) continue;
+            if (unit.declared.stream().anyMatch(hierarchy::extendsSatchel)) continue;
+
+            String problem = unit.unreasoned
+                    ? "not on the authorized list, and the file's @PlatformBound has no reason"
+                    : "not on the authorized list, and the file neither carries @PlatformBound nor extends a Satchel type";
+            for (PlatformUse use : unit.uses) {
+                if (use.packageImport()) {
+                    offenders.add(new ImportOffender(unit.name, lineOf(unit.source, use.offset()), use.imported(),
+                            PACKAGE_IMPORT_PROBLEM));
+                } else if (!authorized.contains(use.imported())) {
+                    offenders.add(new ImportOffender(unit.name, lineOf(unit.source, use.offset()), use.imported(),
+                            problem));
+                }
+            }
+        }
+        return new ImportResult(offenders, platformClasses);
+    }
+
+    /**
+     * Sets {@code offenders} against a baseline of known ones ({@link #baselineLines}). The baseline may only
+     * shrink: an offender it does not list is fresh, and a line that no longer offends is stale.
+     */
+    public static BaselineDiff againstBaseline(List<ImportOffender> offenders, Set<String> baseline) {
+        Set<String> offending = new TreeSet<>();
+        for (ImportOffender offender : offenders) offending.add(offender.baselineLine());
+
+        List<ImportOffender> fresh = offenders.stream().filter(o -> !baseline.contains(o.baselineLine())).toList();
+        List<String> stale = baseline.stream().filter(line -> !offending.contains(line)).sorted().toList();
+        return new BaselineDiff(fresh, stale);
+    }
+
+    /**
+     * The lines of a baseline file, each as {@code file  class}: blank lines and comments dropped, and anything
+     * after the second word ignored.
+     */
+    public static Set<String> baselineLines(String text) {
+        Set<String> lines = new TreeSet<>();
+        for (String line : text.lines().toList()) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+            String[] words = trimmed.split("\\s+");
+            if (words.length < 2) {
+                throw new IllegalArgumentException("A baseline line is a file and a class, not '" + trimmed + "'");
+            }
+            lines.add(words[0] + "  " + words[1]);
+        }
+        return lines;
+    }
+
+    /** The class names in the authorized list's text: the first word of each line that is not blank or a comment. */
+    public static Set<String> authorizedClasses(String text) {
+        Set<String> classes = new TreeSet<>();
+        for (String line : text.lines().toList()) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
+            classes.add(trimmed.split("\\s+")[0]);
+        }
+        return classes;
+    }
+
+    /** The list as the build ships it, read from {@code /platform/authorized-classes.txt} on the test classpath. */
+    public static Set<String> authorizedClasses() {
+        try (InputStream in = PlatformBoundScanner.class.getResourceAsStream("/platform/authorized-classes.txt")) {
+            if (in == null) {
+                throw new IllegalStateException("Missing test resource /platform/authorized-classes.txt");
+            }
+            return authorizedClasses(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // One file, read for the second rule
+    // -----------------------------------------------------------------
+
+    /** The first use of a platform class in a file: {@code imported} is the class, or the package import as written. */
+    private record PlatformUse(String imported, int offset, boolean packageImport) {
+    }
+
+    /** A type a file declares, by its fully qualified name, with the names its header extends or implements. */
+    private record Declared(String fqn, Unit unit, Type type, List<String> supers) {
+    }
+
+    private static final class Unit {
+        final String name;
+        final String source;
+        final String pkg;
+        /** Simple name to fully qualified name, for the file's single-type imports. */
+        final Map<String, String> imports = new HashMap<>();
+        final List<PlatformUse> uses = new ArrayList<>();
+        final List<Declared> declared = new ArrayList<>();
+        /** Some class in the file carries {@code @PlatformBound} with a reason. */
+        boolean marked;
+        /** Some class in the file carries {@code @PlatformBound} with no reason. */
+        boolean unreasoned;
+
+        Unit(String name, String source, String pkg) {
+            this.name = name;
+            this.source = source;
+            this.pkg = pkg;
+        }
+    }
+
+    private static Unit unit(String name, String source) {
+        Stripped stripped = strip(source);
+        String code = stripped.code();
+        Unit unit = new Unit(name, source, packageOf(code));
+
+        // The first use of each platform class: an import, or a fully qualified name in the code.
+        Map<String, PlatformUse> uses = new LinkedHashMap<>();
+        List<int[]> importSpans = new ArrayList<>();
+
+        Matcher imports = IMPORT.matcher(code);
+        while (imports.find()) {
+            importSpans.add(new int[]{imports.start(), imports.end()});
+            boolean isStatic = imports.group(1) != null;
+            boolean wildcard = imports.group(3) != null;
+            String imported = imports.group(2).replaceAll("\\s+", "");
+            if (!wildcard && !isStatic) {
+                unit.imports.put(imported.substring(imported.lastIndexOf('.') + 1), imported);
+            }
+            if (!isPlatform(imported)) continue;
+
+            String owner = outermostClass(imported);
+            if (owner != null) {
+                uses.putIfAbsent(owner, new PlatformUse(owner, imports.start(), false));
+            } else {
+                String shown = wildcard ? imported + ".*" : imported;
+                uses.putIfAbsent(shown, new PlatformUse(shown, imports.start(), true));
+            }
+        }
+
+        Matcher qualified = QUALIFIED_PLATFORM.matcher(code);
+        while (qualified.find()) {
+            if (insideAny(importSpans, qualified.start())) continue;
+            uses.putIfAbsent(qualified.group(), new PlatformUse(qualified.group(), qualified.start(), false));
+        }
+        unit.uses.addAll(uses.values());
+        unit.uses.sort(Comparator.comparingInt(PlatformUse::offset));
+
+        List<Type> types = types(stripped);
+        for (Type type : types) {
+            String dotted = displayName(enclosing(types, type));
+            unit.declared.add(new Declared(qualify(unit.pkg, dotted), unit, type,
+                    supertypeNames(code.substring(type.keywordStart, type.bodyStart))));
+            for (Annotation annotation : type.annotations) {
+                if (!annotation.name().equals("PlatformBound")) continue;
+                if (hasReason(annotation.args())) unit.marked = true;
+                else unit.unreasoned = true;
+            }
+        }
+        return unit;
+    }
+
+    private static String packageOf(String code) {
+        Matcher m = PACKAGE.matcher(code);
+        return m.find() ? m.group(1).replaceAll("\\s+", "") : "";
+    }
+
+    private static String qualify(String pkg, String name) {
+        return pkg.isEmpty() ? name : pkg + "." + name;
+    }
+
+    private static boolean isPlatform(String name) {
+        return name.startsWith("net.minecraft.") || name.startsWith("net.minecraftforge.");
+    }
+
+    /**
+     * The name up to and including its first class, where a package segment starts lower-case and a class upper-case,
+     * or null if no segment is a class (a package import).
+     */
+    private static String outermostClass(String name) {
+        StringBuilder owner = new StringBuilder();
+        for (String segment : name.split("\\.")) {
+            if (owner.length() > 0) owner.append('.');
+            owner.append(segment);
+            if (!segment.isEmpty() && Character.isUpperCase(segment.charAt(0))) return owner.toString();
+        }
+        return null;
+    }
+
+    private static boolean insideAny(List<int[]> spans, int offset) {
+        for (int[] span : spans) {
+            if (span[0] <= offset && offset < span[1]) return true;
+        }
+        return false;
+    }
+
+    /**
+     * The names a type's header lists after {@code extends} and {@code implements}, with generics and a record's
+     * parameters dropped first so a bound ({@code T extends Mob}) is not read as a supertype.
+     */
+    private static List<String> supertypeNames(String header) {
+        StringBuilder flat = new StringBuilder();
+        int depth = 0;
+        for (int i = 0; i < header.length(); i++) {
+            char c = header.charAt(i);
+            if (c == '<' || c == '(') {
+                depth++;
+            } else if (c == '>' || c == ')') {
+                if (depth > 0) depth--;
+            } else if (depth == 0) {
+                flat.append(c);
+            }
+        }
+
+        String text = flat.toString();
+        List<String> names = new ArrayList<>();
+        Matcher keyword = HEADER_KEYWORD.matcher(text);
+        String kind = null;
+        int segmentStart = 0;
+        while (true) {
+            boolean found = keyword.find();
+            int segmentEnd = found ? keyword.start() : text.length();
+            if (kind != null && !kind.equals("permits")) {
+                for (String part : text.substring(segmentStart, segmentEnd).split(",")) {
+                    String name = part.replaceAll("\\s+", "");
+                    if (!name.isEmpty()) names.add(name);
+                }
+            }
+            if (!found) break;
+            kind = keyword.group(1);
+            segmentStart = keyword.end();
+        }
+        return names;
+    }
+
+    /** Whether a declared type extends a Satchel type, directly or through other types in the scanned tree. */
+    private static final class Hierarchy {
+        private final Map<String, List<Declared>> index = new HashMap<>();
+        private final Map<Declared, Boolean> memo = new IdentityHashMap<>();
+
+        Hierarchy(List<Unit> units) {
+            for (Unit unit : units) {
+                for (Declared declared : unit.declared) {
+                    index.computeIfAbsent(declared.fqn(), k -> new ArrayList<>()).add(declared);
+                }
+            }
+        }
+
+        boolean extendsSatchel(Declared declared) {
+            Boolean known = memo.get(declared);
+            if (known != null) return known;
+
+            memo.put(declared, false);   // a cycle in the source ends here and does not loop
+            boolean result = false;
+            for (String name : declared.supers()) {
+                if (isSatchel(declared, name)) {
+                    result = true;
+                    break;
+                }
+            }
+            memo.put(declared, result);
+            return result;
+        }
+
+        /** Whether the supertype {@code name}, as written in {@code from}'s header, is or extends a Satchel type. */
+        private boolean isSatchel(Declared from, String name) {
+            if (name.startsWith(SATCHEL_PACKAGE)) return true;
+
+            Unit unit = from.unit();
+            int dot = name.indexOf('.');
+            String first = dot < 0 ? name : name.substring(0, dot);
+            String imported = unit.imports.get(first);
+            if (imported != null) {
+                String fqn = imported + name.substring(first.length());
+                return fqn.startsWith(SATCHEL_PACKAGE) || inTree(fqn, from);
+            }
+
+            // Not imported: a fully qualified name, a class in this package, or a class declared in this file.
+            if (inTree(name, from) || inTree(qualify(unit.pkg, name), from)) return true;
+            if (dot < 0) {
+                for (Declared sibling : unit.declared) {
+                    if (sibling != from && sibling.type().name.equals(name) && extendsSatchel(sibling)) return true;
+                }
+            }
+            return false;
+        }
+
+        private boolean inTree(String fqn, Declared from) {
+            for (Declared other : index.getOrDefault(fqn, List.of())) {
+                if (other != from && extendsSatchel(other)) return true;
+            }
+            return false;
+        }
     }
 }

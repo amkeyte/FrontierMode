@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * A boss's health bar (wiki/frontiermode/architecture/boss.md § Health bar; FRO_189, FRO_209), on or off per kind: the
+ * A boss's health bar (wiki/frontiermode/architecture/boss.md § Health bar), on or off per kind: the
  * Keeper subscribes it only for a milestone Keeper. Each tick, a player holding the boss's kill credit -- their hit,
  * projectile, or tamed pet -- starts watching; a viewer stops {@code bossBarLingerTicks} after they last held it, or at
  * once if they die, disconnect, or leave the level. The one audience that exists is the credited players.

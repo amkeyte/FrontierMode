@@ -87,11 +87,8 @@ public final class WorldBordersRenderer {
         float radius = border.radius();
         Vector3f color = RingColorPalette.get(border.layer());
 
-        // Was a hardcoded RING_Y = 100.0f, completely ignoring the border's own center height --
-        // rendered fine (no crash, no error), just wherever Y 100 happened to land relative to
-        // real terrain, which could easily be underground or otherwise depth-occluded depending
-        // on the world. It needed the border's own center().getY() instead of a magic constant.
-        // See FRO_019.
+        // The ring's height is the border's own center().getY(), not a fixed constant: a fixed Y
+        // would land arbitrarily relative to real terrain, possibly underground or depth-occluded.
         double cx = border.center().getX();
         double cy = border.center().getY();
         double cz = border.center().getZ();

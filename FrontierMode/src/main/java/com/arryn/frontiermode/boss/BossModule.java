@@ -18,8 +18,7 @@ import net.minecraftforge.event.RegisterCommandsEvent;
  * <p><b>Known limitation:</b> a boss removed without a wired {@code LivingDeathEvent} (bare
  * {@code /kill}, external world editing, unrelated-mod bug) is not detected -- {@link BossFixture}
  * keeps {@code alive: true} and nothing here clears it. Distinguishing that from a chunk unload
- * needs either a real death signal or a "expected but absent for N ticks" heuristic; see
- * FRO_043's log for the design call.
+ * needs either a real death signal or a "expected but absent for N ticks" heuristic.
  */
 public final class BossModule {
 

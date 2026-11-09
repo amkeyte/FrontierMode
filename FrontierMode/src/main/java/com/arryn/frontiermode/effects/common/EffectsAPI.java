@@ -17,8 +17,7 @@ import org.joml.Vector3f;
 
 /**
  * Side-agnostic ingress facade for cross-cutting effect dispatch (particles, sounds) -- mirrors
- * {@code BorderAPI}/{@code BossAPI}'s shape. See wiki/frontiermode/architecture/effects.md and
- * FRO_089.
+ * {@code BorderAPI}/{@code BossAPI}'s shape. See wiki/frontiermode/architecture/effects.md.
  *
  * <p><b>One code set on both sides.</b> Each method takes the common type ({@code Level}, {@code Player}) and
  * does its server work only when it is handed the server's: given a client's level or player it does nothing,
@@ -45,7 +44,7 @@ public final class EffectsAPI {
     /**
      * Targeted particle send, visible only to {@code player} -- the shape
      * {@code BossTellFixture}'s own tell particle already used before this module existed
-     * (FRO_087/FRO_089). The targeted-send overload only exists on {@code ServerLevel} and takes a
+     *. The targeted-send overload only exists on {@code ServerLevel} and takes a
      * {@code ServerPlayer}, so this sends only when {@code player} is one, resolving the level through
      * {@link ServerPlayer#serverLevel()}; for any other {@code Player} it does nothing.
      * {@code forceVisible=false} lets vanilla's own render-distance rules decide whether the client
@@ -68,7 +67,7 @@ public final class EffectsAPI {
     }
 
     /**
-     * FRO_120 (Cairn): area particle broadcast, the particle-side counterpart to
+     * area particle broadcast, the particle-side counterpart to
      * {@link #broadcastSound} below -- every nearby tracking player gets it, per
      * {@code ServerLevel.sendParticles}'s own no-target overload, rather than
      * {@link #sendParticleToPlayer}'s single-viewer shape. First real consumer: Cairn's own pulse
@@ -106,7 +105,7 @@ public final class EffectsAPI {
     }
 
     /**
-     * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): targeted sound send, visible only to
+     * targeted sound send, visible only to
      * {@code player} -- the sound-side counterpart to {@link #sendParticleToPlayer} above, added
      * for Entry Cue (a per-player-only tell, not an area broadcast). {@code Level.playSound}'s
      * {@code Player} parameter is deliberately not a target -- it's the player to *exclude* from

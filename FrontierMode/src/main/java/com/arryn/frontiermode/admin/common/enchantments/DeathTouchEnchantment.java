@@ -38,7 +38,7 @@ public class DeathTouchEnchantment extends Enchantment {
     }
 
     /**
-     * FRO_126: without this override, {@code Enchantment}'s base implementation returns 0, and
+     * without this override, {@code Enchantment}'s base implementation returns 0, and
      * Death Touch supplies no bonus toward {@code Player#attack()}'s own pre-{@code hurt()} check
      * (raw {@code Attributes.ATTACK_DAMAGE} contribution {@code > 0} OR enchant bonus {@code > 0}).
      * Deep enough into the Wilds, Frontier Sickness's Weakness effect floors the attribute

@@ -108,8 +108,8 @@ public final class StructureCommands {
             return 0;
         }
 
-        // Bug fix (playtest): anchorPos is the pad's own center, at ground level -- teleporting
-        // there dropped the player inside the solid pad block (suffocation). The pillar
+        // anchorPos is the pad's own center, at ground level -- teleporting
+        // there would drop the player inside the solid pad block (suffocation). The pillar
         // (Mossy Cobblestone x2 + cap) sits directly above that same center column, so standing
         // on an *edge* cell of the 3x3 pad instead (offset by 1 in X, one block above the pad's
         // own surface) is guaranteed solid ground -- part of the pad StructureModule already

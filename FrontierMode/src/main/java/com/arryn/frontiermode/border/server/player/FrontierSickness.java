@@ -63,7 +63,7 @@ public final class FrontierSickness {
                 + player.getRandom().nextInt(PlayerRules.SICKNESS_EFFECT_JITTER_TICKS + 1);
 
         // Additive tiers: a higher tier keeps every lower tier's effects too. Weakness is the earliest tell and
-        // nausea the last (owner direction, 2026-09-18). Amplifier 0 throughout; whether severity should scale
+        // nausea the last. Amplifier 0 throughout; whether severity should scale
         // the amplifier is a playtest question.
         player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, duration, 0, false, true));
 

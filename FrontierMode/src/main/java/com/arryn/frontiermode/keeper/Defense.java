@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 
 /**
- * Sentinels defend their Keeper (sentinels.md § Defending the boss; FRO_197), a Keeper ability the Keeper kind
+ * Sentinels defend their Keeper (sentinels.md § Defending the boss), a Keeper ability the Keeper kind
  * subscribes on the server (wiki/frontiermode/architecture/keeper.md § Abilities). Each tick the boss is checked for a
  * new hit credited to a player; on one, its Sentinels near the fight turn on that player, once per hit.
  *

@@ -3,13 +3,10 @@ package com.arryn.frontiermode.border.server.rules;
 /**
  * Player-side interpretation rules for border evaluation.
  *
- * <p>RM_FRO_037 ("Brenda," Frontier Sickness epoch 1 / FRO_099): this class's own placeholder
- * doc called it "intentionally minimal in early versions" with nothing real wired in yet --
- * Frontier Sickness is the first real consumer. Same "safe baseline, replace later" convention
- * {@code BorderConstants}/{@code SentinelRules}' own tunables already follow -- none of these
- * numbers are playtest-tuned; wiki/frontiermode/design/wilds.md's own "Open questions" section
- * explicitly leaves exact thresholds and climb/decay rates to Lead Dev to pick and playtest
- * against, which is exactly what this pass does.
+ * <p>Frontier Sickness thresholds and climb/decay rates are "safe baseline, replace later"
+ * values, the same convention {@code BorderConstants}/{@code SentinelRules}' own tunables
+ * follow -- wiki/frontiermode/design/wilds.md's "Open questions" section leaves exact
+ * thresholds and climb/decay rates to Lead Dev to pick and playtest against.
  */
 public final class PlayerRules {
 
@@ -34,9 +31,8 @@ public final class PlayerRules {
     // Effect tiers -- illustrative, non-binding sketch from
     // wiki/frontiermode/design/wilds.md#frontier-sickness, turned into concrete severity
     // breakpoints. Each tier is additive (a higher tier keeps every lower tier's effects too).
-    // Reordered from that page's own original sketch (project owner, 2026-09-18): weakness now
-    // shows up first instead of nausea, and nausea moved to the last tier alongside blindness/
-    // damage instead of being the earliest sign something's wrong.
+    // Differs from that page's sketch in order: weakness shows up first, and nausea sits in the
+    // last tier alongside blindness/damage.
     // ------------------------------------------------------------------
 
     public static final double SICKNESS_TIER_1_WEAKNESS = 10.0;

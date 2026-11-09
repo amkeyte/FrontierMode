@@ -175,7 +175,7 @@ public final class KeeperKind implements BossKind {
 
     /**
      * A defeat needs a credited player, and the players' own damage must add up to {@code keeperPlayerShare}
-     * of the Keeper's maximum health (FRO_215): allies, a raid, lava or another mob can finish a Keeper but
+     * of the Keeper's maximum health: allies, a raid, lava or another mob can finish a Keeper but
      * not carry the fight. Counted against maximum health, so a Keeper that healed simply needs more hits.
      */
     @Override
@@ -227,7 +227,7 @@ public final class KeeperKind implements BossKind {
         Optional<UUID> borderId = keeper.borderId();
         boolean lastStanding = borderId.isEmpty() || !keepers.anyAliveWithBorderId(bosses, borderId.get());
 
-        // FRO_112: placeholder defeat loot -- pays out at the same last-standing point growth
+        // placeholder defeat loot -- pays out at the same last-standing point growth
         // itself gates on (trivially true for an off-path record), independent of whether growth
         // actually fires afterward. A forced defeat has no credited player and no body, so it pays nothing.
         if (lastStanding && credited.isPresent() && body.isPresent()) {
@@ -265,7 +265,7 @@ public final class KeeperKind implements BossKind {
             return new DefeatOutcome(false, fallen + ", defeated -- but border growth failed: " + result.message());
         }
 
-        // FRO_233: tells a new player what just happened -- the Keeper fell and the frontier grew.
+        // tells a new player what just happened -- the Keeper fell and the frontier grew.
         // Server-wide, and only once the Border has actually grown. Names the Keeper's level, its path
         // position.
         credited.ifPresent(player -> player.getServer().getPlayerList().broadcastSystemMessage(
@@ -381,7 +381,7 @@ public final class KeeperKind implements BossKind {
 
     /**
      * The Keeper's defeat reward: vanilla-format loot tables rolled and dropped by {@link KeeperLoot}
-     * (keeper.md § Defeat loot; FRO_213). Only reached for a player-credited defeat. FRO_134: a real item drop
+     * (keeper.md § Defeat loot). Only reached for a player-credited defeat. A real item drop
      * at the death position, never a direct inventory insert, so it reads as a reward the player walks over
      * and picks up.
      */

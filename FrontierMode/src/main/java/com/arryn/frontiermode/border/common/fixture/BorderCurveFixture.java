@@ -15,7 +15,7 @@ import java.util.UUID;
 /**
  * Sibling fixture to {@link BordersFixture} inside
  * {@link com.arryn.frontiermode.border.common.bundle.BordersBundle} -- zero-to-many named
- * intensity curves per border, per RM_FRO_027 ("Janet") /
+ * intensity curves per border, per
  * wiki/frontiermode/architecture/border-curve.md. Registered alongside its siblings in
  * {@code BorderJig.build()}.
  *
@@ -102,11 +102,11 @@ public final class BorderCurveFixture extends SatchelFixture {
      * via {@link #forBorder(UUID, String)}), or creates one if absent -- same net effect as
      * {@link #create} on a border with no such curve yet.
      *
-     * <p>Added for exactly the gap {@code create}-if-absent helpers like
+     * <p>Covers exactly the gap {@code create}-if-absent helpers like
      * {@code BossTellFixture.createTellCurveIfAbsent}/{@code SentinelConversion
      * .ensureSentinelCurves} can't cover on their own: a curve's shape/steepness is "safe
-     * baseline, replace later" tuning territory by design, and this whole cluster is still being
-     * played and adjusted -- a live world that already seeded a curve under the old constants
+     * baseline, replace later" tuning territory by design, and a live world that already
+     * seeded a curve under earlier constants
      * would otherwise be stuck with them until the world resets, since {@code create}-if-absent
      * never touches an existing record. This lets a consumer's own "ensure current shape" helper
      * reconcile forward instead.

@@ -29,7 +29,7 @@ import java.util.UUID;
  * spawn types can become a Sentinel, the nearest Keeper and its two curves, the two gates, the placement roll,
  * the size that fits, the stat step and the ward, and how many extra Sentinels the leftover budget buys. Stateless:
  * what is counted, queued or lifted is {@link SentinelPresence}'s. The bodies were {@code BossSentinelsFixture}'s
- * and moved here unchanged with node G (FRO_292).
+ * and moved here unchanged with node G.
  */
 final class SentinelConversion {
 

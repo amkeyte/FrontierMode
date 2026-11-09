@@ -10,7 +10,7 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.filter.AbstractFilter;
 
 /**
- * FRO_155: drops vanilla's per-death INFO line for a boss.
+ * drops vanilla's per-death INFO line for a boss.
  *
  * <p>{@code LivingEntity.die()} logs {@code "Named entity {} died: {}"} for every entity with a
  * custom name. A boss always carries one (shown only in the debug view; it also reaches death

@@ -16,7 +16,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
 /**
  * Client-only wiring for {@code AmethystCompassItem}'s visual -- checked against the real
- * 1.20.1-47.4.10 sources, not assumed (see FRO_118's log): vanilla's needle-rotation model
+ * 1.20.1-47.4.10 sources, not assumed: vanilla's needle-rotation model
  * system is registered per exact {@code Item} instance
  * ({@code ItemProperties.register(Items.COMPASS, "angle", ...)}, a {@code Map<Item, ...>} keyed
  * by reference), never for "anything {@code instanceof CompassItem}." Extending
@@ -37,15 +37,13 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
  * {@code LodestonePos}/{@code LodestoneDimension} NBT keys vanilla's own compass reads, so the
  * lodestone branch below is unchanged.
  *
- * <p><b>Visual: 32 edited texture frames, no runtime tint.</b> An earlier pass here tried a
- * two-layer split (vanilla's own casing+needle texture plus a needle-only cutout, tinted via a
- * registered {@code ItemColor}) to get a purple needle without new texture assets. Superseded --
- * the project owner recolored the needle directly, per-frame, in the actual texture files
+ * <p><b>Visual: 32 edited texture frames, no runtime tint.</b> The needle is recolored
+ * directly, per-frame, in the actual texture files
  * ({@code textures/item/amethyst_compass_00.png}..{@code _31.png}, the needle's red half
  * repainted purple, casing and the needle's white half left untouched). Color is baked into the
- * pixels now, so {@code models/item/amethyst_compass_XX.json} is back to a single
+ * pixels, so {@code models/item/amethyst_compass_XX.json} is a single
  * {@code layer0} pointing at those files directly, and no {@code RegisterColorHandlersEvent}
- * registration is needed at all -- only the "angle" property below still applies.
+ * registration is needed at all -- only the "angle" property below applies.
  */
 @PlatformBound(reason = "registration")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)

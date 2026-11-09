@@ -17,7 +17,7 @@ import java.util.List;
  * {@code SERVER}-only {@code LevelJigConfig} holding {@link BossTellFixture} in {@link TellBundle}. The client does
  * nothing with tells (they are broadcast sound and particles), so there is no networking. It ticks, with the execution
  * pulse on, and the fixture's tick is the tell pass. The bundle is created when the jig's scope loads, because a bundle
- * exists only once something creates it and nothing else asks for this one (FRO_295, finding 3).
+ * exists only once something creates it and nothing else asks for this one.
  *
  * <p>Not persisted, which departs from the page: the fixture keeps nothing durable. Its cadence counter, RNG and
  * per-boss sound rotation are transient, and the Border's {@code "tell"} curve is Border's own record, so a persisted

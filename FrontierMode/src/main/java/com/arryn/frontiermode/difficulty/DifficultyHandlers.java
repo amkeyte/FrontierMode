@@ -126,7 +126,7 @@ final class DifficultyHandlers {
     }
 
     /**
-     * All Nether mobs scale (FRO_230), so in the Nether the Piglin and the Hoglin join the ladder
+     * All Nether mobs scale, so in the Nether the Piglin and the Hoglin join the ladder
      * hostiles. {@link DifficultyAPI#isLadderHostile} leaves both out (the Piglin is a barterer, the
      * Hoglin an {@code Animal}), and everywhere else they stay vanilla.
      */

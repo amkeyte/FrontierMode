@@ -93,7 +93,7 @@ public interface BorderRules {
     OptionalInt ambientDifficultyAt(List<Border> containing, BlockPos pos);
 
     // ------------------------------------------------------------------
-    // Border Pregeneration (wiki/frontiermode/architecture/border-pregeneration.md, FRO_092).
+    // Border Pregeneration (wiki/frontiermode/architecture/border-pregeneration.md).
     // Tuning numbers only, not architecture decisions -- same "safe baseline, replace later"
     // category as the growth-wave Tunables. Kept on this interface rather than a separate
     // PregenRules sibling, matching this interface's existing one-rules-helper-per-module

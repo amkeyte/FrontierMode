@@ -24,8 +24,7 @@ public final class StructureAPI {
             return Optional.empty();
         }
         LevelScope scope = new LevelScope(level);
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
+        // Satchel.tryReadyScopeInfo() resolves the scope info and checks it is ready in one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.STRUCTURE_JIG, scope);
         if (infoOpt.isEmpty()) {
             return Optional.empty();

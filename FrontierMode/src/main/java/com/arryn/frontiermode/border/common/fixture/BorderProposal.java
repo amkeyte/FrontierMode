@@ -80,7 +80,7 @@ public final class BorderProposal {
     // ============================================================
 
     /**
-     * <b>FRO_059:</b> {@link #insert(Border)} is the one sanctioned way to build a proposal that
+     * {@link #insert(Border)} is the one sanctioned way to build a proposal that
      * intentionally collides with an existing border's id (a replace) -- see border.md's
      * "Proposal identity and validation" section. A raw {@code id(existingId)} call outside that
      * path collides on identity alone while every other field keeps this proposal's own fresh
@@ -96,7 +96,7 @@ public final class BorderProposal {
     }
 
     /**
-     * <b>FRO_059:</b> validated at {@link BordersCrudFacet#applyProposal(BorderProposal)} time
+     * validated at {@link BordersCrudFacet#applyProposal(BorderProposal)} time
      * (blank/whitespace-only rejected, capped at {@link
      * com.arryn.frontiermode.border.common.BorderConstants#MAX_DISPLAY_NAME_LENGTH}) -- not here,
      * since a proposal's fields are meant to be freely mutable up to that point.

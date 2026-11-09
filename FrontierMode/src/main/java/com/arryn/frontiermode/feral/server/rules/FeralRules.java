@@ -4,12 +4,12 @@ import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.out.OUT;
 
 /**
- * Tunables for Feral (RM_FRO_038 "Martha"). Feral's stat growth is not here: the {@code feral} rung's
+ * Tunables for Feral. Feral's stat growth is not here: the {@code feral} rung's
  * growth factors are {@code DifficultyRules} Tunables. The numbers are placeholder baselines, not
  * tuned against play, the same "safe baseline, replace later" convention every other rules class in this
  * codebase follows (e.g. {@code PlayerRules}, {@code SentinelRules}).
  *
- * <p>Every number here but one is {@link Tunable}-backed (SAT_074, begun in FRO_141): an accessor
+ * <p>Every number here but one is {@link Tunable}-backed: an accessor
  * <b>method</b>, not a field, since a {@code Tunable} is constructed fresh at point of use rather than
  * cached (see that class's own doc). The one plain field is {@link FeralRules#DENSITY_COMPANION_SPREAD_RADIUS}.
  */
@@ -79,7 +79,7 @@ public final class FeralRules {
     }
 
     // ------------------------------------------------------------------
-    // Re-entry kill (FRO_111) -- a Feral mob that wanders back inside the Frontier must not survive.
+    // Re-entry kill -- a Feral mob that wanders back inside the Frontier must not survive.
     // The sweep is level-wide, not bound to a player's radius like the cosmetic tell, because the
     // guarantee has to hold everywhere a Feral mob might wander back to.
     // ------------------------------------------------------------------
@@ -292,7 +292,7 @@ public final class FeralRules {
     }
 
     // ------------------------------------------------------------------
-    // Pack Tunable consistency check (FRO_141). The pack Tunables have relationships the docs above
+    // Pack Tunable consistency check. The pack Tunables have relationships the docs above
     // state but nothing enforces. A bad CSV edit is warned about, not clamped, so it is diagnosed from the
     // log instead of being silently corrected or silently broken.
     // ------------------------------------------------------------------

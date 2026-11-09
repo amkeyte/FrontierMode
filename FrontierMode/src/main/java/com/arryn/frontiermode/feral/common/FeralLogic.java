@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.feral.common;
 
 /**
- * Pure, Minecraft-type-free math backing Feral (RM_FRO_038 "Martha"), split out so plain JUnit can
+ * Pure, Minecraft-type-free math backing Feral, split out so plain JUnit can
  * test it: this project's test sourceSet has no Minecraft userdev classes on its classpath, the same
  * reason {@code FrontierSicknessLogic} and {@code BorderMathLogic} are separate.
  *

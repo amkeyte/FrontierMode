@@ -15,10 +15,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Parses and resolves {@code /boss}'s selector chain -- the four modes FRO_057 scopes this build
- * to (bare position / {@code @nearest} / {@code @all} / {@code @none}). See
+ * Parses and resolves {@code /boss}'s selector chain -- four modes (bare position /
+ * {@code @nearest} / {@code @all} / {@code @none}). See
  * wiki/frontiermode/architecture/boss-commands.md's "Selector scheme" for the full design space
- * this is deliberately a subset of -- no {@code @id}/{@code @name}/{@code @border} this pass, no
+ * this is deliberately a subset of -- no {@code @id}/{@code @name}/{@code @border}, no
  * {@code borderId} on {@code BossRecord} needed for it. Mirrors {@code BorderSelector}'s parse/
  * resolve split exactly.
  */
@@ -108,7 +108,7 @@ public final class BossSelector {
     }
 
     /**
-     * FRO_132 (project owner ask): nearest *active* boss to the command source, not raw nearest
+     * nearest *active* boss to the command source, not raw nearest
      * -- distance is measured against each record's own stored {@code position()}, not a
      * live-entity search. Unlike {@code MobTrackCommands}' generic nearest-mob convention, we
      * already have the data set (every boss record); no reason to re-derive it from a world scan.
@@ -118,9 +118,9 @@ public final class BossSelector {
      * are {@link BossRecord#materialized()} (a real entity has been placed for this record) and
      * {@link BossRecord#alive()} (not yet defeated -- {@code false} once
      * {@code BossModule.onLivingDeath}/{@code BossAPI.forceDefeat} runs, and the record stays in
-     * the fixture rather than being removed). "Active" is the conjunction of both: previously
-     * this filtered only {@code materialized()}, so a defeated-but-still-recorded boss could still
-     * win nearest -- the project owner's "usually the path tip" framing describes the common case
+     * the fixture rather than being removed). "Active" is the conjunction of both: filtering
+     * only {@code materialized()} would let a defeated-but-still-recorded boss win nearest --
+     * the project owner's "usually the path tip" framing describes the common case
      * this produces (the frontier path's own tip is ordinarily the one boss still alive), not a
      * literal path lookup this selector needs to perform itself.
      */

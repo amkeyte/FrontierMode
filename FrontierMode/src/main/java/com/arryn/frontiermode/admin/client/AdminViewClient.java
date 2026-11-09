@@ -47,7 +47,7 @@ import java.util.Set;
  * set ({@code Entity#setGlowingTag} on the client writes the flag's own current value back), so the
  * marker replaces it. See FRO_202.
  *
- * <p>Registered on the client command dispatcher, the same shape {@code /border debug rings} used:
+ * <p>Registered on the client command dispatcher:
  * Forge's client and server command graphs are separate, so this runs locally regardless of the
  * server's own {@code /admin} tree. Client-only ({@code Dist.CLIENT}).
  */

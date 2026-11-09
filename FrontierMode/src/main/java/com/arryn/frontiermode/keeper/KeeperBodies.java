@@ -35,7 +35,7 @@ public final class KeeperBodies {
     // referenceHit: one ordinary hit on Normal (0: an ordinary Rabbit deals none). The Killer Bunny is a
     // Rabbit variant, hence a body named apart from its entity type. The pool past 20 is a placeholder:
     // the authored bodies at equal weight (the Game Designer's to design). The Killer Bunny is an easter
-    // egg: no pool weight, an eggChance of its own (FRO_229).
+    // egg: no pool weight, an eggChance of its own.
     private static final List<BodyDefault> BODY_DEFAULTS = List.of(
             new BodyDefault("rabbit", EntityType.RABBIT, 0f, 1f, "", "1.0", ""),
             new BodyDefault("killer_bunny", EntityType.RABBIT, 8f, 1f, "", "", "0.05"),
@@ -60,7 +60,7 @@ public final class KeeperBodies {
             "vindicator", "vindicator", "vindicator",
             "evoker");
 
-    // The owner's authored sizes (FRO_208, 2026-10-01). Rabbit (1) and Evoker (20) are the named
+    // The owner's authored sizes. Rabbit (1) and Evoker (20) are the named
     // exceptions to "always larger than its kind". The seed only: the value column is for tuning.
     private static final float[] AUTHORED_SIZE = {
             1f, 1.2f, 1.3f, 1.5f, 2f, 1.5f, 2f, 1.2f, 1.5f, 2.3f,
@@ -195,7 +195,7 @@ public final class KeeperBodies {
 
     /**
      * The Keeper's size multiplier -- the {@code keeper-size} table through path position 20, its body's size past it
-     * (boss.md § Keeper stats). One number driving both the entity's own hitbox/render scale (FRO_148) and the spawn
+     * (boss.md § Keeper stats). One number driving both the entity's own hitbox/render scale and the spawn
      * platform's footprint and clearance. Computed from the record's own path position and body, never from a live
      * Border. Past 20 it is the body's size, growing by its optional {@code sizeGrowth} per path position past 20
      * (the Zombie's, uncapped).

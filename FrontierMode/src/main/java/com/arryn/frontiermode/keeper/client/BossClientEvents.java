@@ -17,7 +17,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * FRO_145: client-side wiring for the boss eye layer -- adds a {@link BossEyesLayer} to each of the
+ * client-side wiring for the boss eye layer -- adds a {@link BossEyesLayer} to each of the
  * boss-eligible mob renderer ({@link BossMobTypes#ELIGIBLE}, Rabbit through Evoker). The set is
  * bounded, not open-ended: each model's UV layout needs its own texture, so adding a mob type to
  * the list means adding a texture named for its registry path.

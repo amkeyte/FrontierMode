@@ -17,7 +17,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
 /**
- * Entry point for {@code BossTellModule} (FRO_118, RM_FRO_033 "Marilyn") -- the Admin Compass and
+ * Entry point for {@code BossTellModule} -- the Admin Compass and
  * the shared core underneath it, per
  * wiki/frontiermode/architecture/special-compass.md#lives-in-bosstellmodule-not-bossbundle-and-not-a-bordermodule-file.
  * Its own top-level module, sibling to {@code BorderModule}/{@code BossModule}/{@code FeralModule}
@@ -51,7 +51,7 @@ public final class BossTellModule {
             ITEMS.register("amethyst_compass",
                     () -> new AmethystCompassItem(new net.minecraft.world.item.Item.Properties()));
 
-    // FRO_121: same reasoning as ITEMS above -- confirmed against real Forge 1.20.1-47.4.10
+    // same reasoning as ITEMS above -- confirmed against real Forge 1.20.1-47.4.10
     // sources that ForgeRegistries.ENCHANTMENTS is a plain IForgeRegistry<Enchantment>, no
     // Keys-based DeferredRegister overload needed (unlike some other registries this version
     // moved onto Keys for).

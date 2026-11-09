@@ -6,7 +6,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * FRO_121 (Tiers 2-4 of RM_FRO_033 "Marilyn"): Intuition I-III, per
+ * Intuition I-III, per
  * wiki/frontiermode/architecture/special-compass.md#intuition-and-resonance-what-the-enchant-classes-need-to-do-and-dont.
  * Thin by design -- Forge gives enchantments no generic "do something" hook, and Intuition isn't
  * a combat enchantment, so there's no vanilla override point to plug real logic into anyway. All
@@ -14,11 +14,10 @@ import org.jetbrains.annotations.NotNull;
  * {@code AmethystCompassItem}/{@code CompassRefresh}'s own throttled refresh, keyed off
  * {@code EnchantmentHelper.getItemEnchantmentLevel} -- this class is configuration only.
  *
- * <p>Cost curve originally copied from vanilla's {@code FishingSpeedEnchantment} ("Lure") --
- * the closest real parallel per the ticket's own instruction (multi-level, non-combat,
- * comparable rarity). Lowered for dev-test purposes (project owner request, 2026-09-20): Lure's
- * own {@code 15 + (level-1)*9} floor needs real bookshelf coverage to reach reliably (the base
- * enchanting-table roll caps around 8 at zero bookshelf power), which was slowing down testing.
+ * <p>Cost curve modeled on vanilla's {@code FishingSpeedEnchantment} ("Lure") --
+ * the closest real parallel (multi-level, non-combat, comparable rarity), lowered for dev testing:
+ * Lure's own {@code 15 + (level-1)*9} floor needs real bookshelf coverage to reach reliably (the
+ * base enchanting-table roll caps around 8 at zero bookshelf power), which slows testing.
  * {@code 1 + (level-1)*5} is trivially reachable regardless of bookshelf setup -- a dev-test
  * convenience, not a final balance decision; revisit before this ships for real play.
  */

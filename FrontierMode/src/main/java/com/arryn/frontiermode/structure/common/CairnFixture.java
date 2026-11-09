@@ -16,13 +16,13 @@ import java.util.UUID;
 import java.util.function.UnaryOperator;
 
 /**
- * {@code LevelScope}-hosted, persisted collection of {@link CairnRecord}s -- FRO_120's build
- * against wiki/frontiermode/architecture/cairn.md#data-model. Real persistence wired explicitly
+ * {@code LevelScope}-hosted, persisted collection of {@link CairnRecord}s -- see
+ * wiki/frontiermode/architecture/cairn.md#data-model. Real persistence wired explicitly
  * by {@code StructureModule} (see cairn.md's "Real persistence has to be wired explicitly"
  * note) -- this class itself just registers the field, the same {@code registerCustom} shape
  * {@code BossFixture} already establishes.
  *
- * <p>A boss can have several Cairns (FRO_226), so everything here is keyed by a record's own
+ * <p>A boss can have several Cairns, so everything here is keyed by a record's own
  * {@code cairnId}, never by {@code bossId}.
  */
 public final class CairnFixture extends SatchelFixture {

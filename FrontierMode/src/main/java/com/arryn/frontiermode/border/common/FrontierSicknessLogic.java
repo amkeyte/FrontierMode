@@ -2,14 +2,13 @@ package com.arryn.frontiermode.border.common;
 
 /**
  * Pure, Minecraft-type-free math backing Frontier Sickness's severity climb
- * (RM_FRO_037 "Brenda," FRO_099) and Sick Wildlife's spawn-density multiplier -- split out for
+ * and Sick Wildlife's spawn-density multiplier -- split out for
  * the same unit-testability reason {@link BorderMathLogic}/{@link BorderCurveMath} already are:
  * this project's test sourceSet has no Minecraft userdev classes on its classpath.
  *
  * <p>Both formulas here are explicitly "safe baseline, replace later" placeholders, per
  * wiki/frontiermode/design/wilds.md's own framing ("Lead Dev owns picking sane initial numbers
- * to playtest against") -- FRO_099's own scope note makes the same call for this ticket
- * specifically. Nothing here is tuned against real playtest feedback yet.
+ * to playtest against").
  */
 public final class FrontierSicknessLogic {
 
@@ -53,7 +52,7 @@ public final class FrontierSicknessLogic {
     }
 
     // ------------------------------------------------------------------
-    // Sick Wildlife's density multiplier -- per project owner direction (FRO_099 planning): NOT
+    // Sick Wildlife's density multiplier -- NOT
     // a continuous climb like severity above. Pronounced right at the Frontier edge (a fast
     // initial rise), flattening to a flat multiplier further out -- not an unbounded climb the
     // way severity/Feral's own scaling is.

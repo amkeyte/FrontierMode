@@ -9,7 +9,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 /**
- * FRO_148: the render transform for a scaled entity (a boss or a Sentinel), client only -- the hitbox scale is
+ * the render transform for a scaled entity (a boss or a Sentinel), client only -- the hitbox scale is
  * {@code CoreIngress}' consumer (both sides), and the dimension refresh that makes the client's own hitbox catch up is
  * the boss's {@code BodyScale} ability and the Sentinel's client Trinket. The scale comes from {@link EntityScales},
  * which the render handler reads for every drawn entity on every frame, which a request event per read cannot serve.

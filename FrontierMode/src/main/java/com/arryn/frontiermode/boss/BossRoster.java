@@ -88,7 +88,7 @@ public final class BossRoster implements Ticking {
     // The record-abilities Trinket, declared after this one; found on the first tick, when it is attached.
     private RecordAbilities recordAbilities;
 
-    // FRO_295 probe: whether this roster's first tick has been logged.
+    // Probe: whether this roster's first tick has been logged.
     private boolean firstTickLogged;
 
     /** Ready once the base fixture is: on a client, once the first parcel has arrived. */
@@ -102,7 +102,7 @@ public final class BossRoster implements Ticking {
 
     /**
      * Creates the Boss bundle at attach, the pattern {@code ScopeInfo.getOrCreate} documents for a Trinket that needs
-     * its bundle then (FRO_295, finding 2). On a client nothing else creates it: the engine applies a parcel only to a
+     * its bundle then. On a client nothing else creates it: the engine applies a parcel only to a
      * bundle it holds, and {@link #isReady} waits for that parcel, so without this call the roster never ticks. On the
      * server the scope's own {@code getOrCreate} finds the bundle already there.
      */
@@ -166,7 +166,7 @@ public final class BossRoster implements Ticking {
         return bosses.size() + " boss(es), " + held.size() + " held interest(s)";
     }
 
-    // The side this roster is on, for the FRO_295 probe lines.
+    // The side this roster is on, for the probe lines.
     private static String side() {
         return Satchel.isServer() ? "server" : "client";
     }
@@ -424,7 +424,7 @@ public final class BossRoster implements Ticking {
         }
 
         materialized(boss, fixture, spawned.get());
-        // FRO_160: an admin spawn is the way back from a repeat-death suspension.
+        // an admin spawn is the way back from a repeat-death suspension.
         boss.clearRespawnState();
         OUT.info("[Boss] forceMaterialize(): spawned bossId=" + Ids.shortId(bossId)
                 + " entity=" + Ids.shortId(spawned.get().mob().getUUID()) + " at "

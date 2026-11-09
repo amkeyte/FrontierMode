@@ -6,7 +6,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * FRO_121 (Tier 5 of RM_FRO_033 "Marilyn"): Resonance, per
+ * Resonance, per
  * wiki/frontiermode/architecture/special-compass.md#intuition-and-resonance-what-the-enchant-classes-need-to-do-and-dont.
  * Thin, same reasoning as {@link IntuitionEnchantment}'s own doc.
  *

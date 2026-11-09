@@ -112,7 +112,7 @@ public final class FeralPlayerTick implements Ticking {
             return;
         }
 
-        // FRO_141: warn (never clamp) if the pack Tunables' documented relationships are broken.
+        // warn (never clamp) if the pack Tunables' documented relationships are broken.
         FeralRules.warnIfPackTunablesInconsistent();
 
         ServerLevel level = player.serverLevel();

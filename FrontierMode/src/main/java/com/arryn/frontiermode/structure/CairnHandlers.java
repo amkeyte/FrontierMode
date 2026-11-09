@@ -7,15 +7,15 @@ import net.minecraft.world.level.Level;
 /** What the structure module does when a Cairn's cap is broken: the capstone explosion. */
 final class CairnHandlers {
 
-    // Capstone explosion power. Playtest found 1.0F effectively harmless -- Level.explode()'s
+    // Capstone explosion power. 1.0F is effectively harmless -- Level.explode()'s
     // entity-damage/knockback pass only touches entities within (power * 2) blocks of the
-    // center, so at 1.0F only something standing almost exactly on top of the cap felt anything
+    // center, so at 1.0F only something standing almost exactly on top of the cap would feel anything
     // at all; ExplosionInteraction.NONE (block-damage-free) doesn't affect that pass, only
     // whether blocks themselves get destroyed. 2.0F widens the hit radius to 4 blocks and scales
     // up damage/knockback with it -- still well under a Creeper's 3.0F or TNT's 4.0F. Damage
     // scales sharply with this value and further with distance/armor, so "a heart and some
-    // knockback" at typical break range is a playtest estimate, not a guarantee -- tune further
-    // if it still reads as too weak (or too strong) in practice.
+    // knockback" at typical break range is an estimate, not a guarantee -- tune further
+    // if it reads as too weak (or too strong) in practice.
     private static final float CAPSTONE_EXPLOSION_POWER = 2.0F;
 
     private CairnHandlers() {

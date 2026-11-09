@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * FRO_121: injects Resonance into the Librarian's enchanted-book trade pool, per
+ * injects Resonance into the Librarian's enchanted-book trade pool, per
  * special-compass.md's "Registration" section -- not part of vanilla's default pool for a
  * modded enchantment, so this has to be added explicitly rather than relying on
  * {@code Enchantment.isTradeable()} (vanilla's own generic "pick any tradeable enchant"
  * listing, {@code VillagerTrades.EnchantBookForEmeralds}, is package-private and unusable from
  * mod code anyway -- checked against the real 1.20.1-47.4.10 sources). A Nether fortress chest
- * source is a planned later addition on top, not part of this ticket.
+ * source is a planned later addition on top.
  *
  * <p>{@code VillagerTradesEvent} fires once per registered profession, on the Forge (not mod)
  * event bus, common-side (not client-only) -- trades are server-authoritative state. This class

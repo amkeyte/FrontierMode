@@ -7,7 +7,7 @@ import net.minecraft.world.entity.Mob;
 
 /**
  * Always on, on the server, for every kind: a boss rides nothing and nothing rides it (wiki/frontiermode/architecture/
- * boss.md § NoRiding; FRO_246). The mob-abilities Trinket subscribes it itself, before the kind's own abilities.
+ * boss.md § NoRiding). The mob-abilities Trinket subscribes it itself, before the kind's own abilities.
  *
  * <p>At attach it separates the boss from any vehicle or rider: vanilla's setup can hand a boss one before the mob has
  * a scope (a Spider can arrive with a Skeleton on its back, and a baby Zombie on a Chicken). After attach it cancels a

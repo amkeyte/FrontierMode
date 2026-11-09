@@ -10,13 +10,9 @@ import java.util.Optional;
 /**
  * Player-scoped bundle hosting {@link BorderPlayerStatusFixture}.
  * <p>
- * FRO_026 rewrite: package paths (predecessor {@code satchel.identity}/{@code satchel.bundle}/
- * {@code satchel.jig.guts}) predate the current {@code satchel.common.*} structure; the dead
- * {@code getOrCreateFacet(Class)} stub is replaced with the modern {@code get(FixtureKey)}
- * pattern {@link com.arryn.frontiermode.boss.common.bundle.BossBundle#boss()} already uses
- * (FRO_050: {@code BordersBundle}'s own {@code borders()} convenience accessor, this comment's
- * original example, is gone -- Border reaches its fixture through {@code BorderAPI}'s facet
- * resolvers exclusively now).
+ * Reaches its fixture through the {@code get(FixtureKey)} pattern
+ * {@link com.arryn.frontiermode.boss.common.bundle.BossBundle#boss()} also uses; Border reaches
+ * its fixtures through {@code BorderAPI}'s facet resolvers exclusively.
  */
 public final class BorderPlayerBundle extends SatchelBundle {
 

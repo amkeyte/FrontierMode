@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Registers {@code /boss debug compass <selector>} -- FRO_118's own command, merged into
- * {@code BossCommands}' existing {@code boss} -> {@code debug} node rather than a new root.
+ * Registers {@code /boss debug compass <selector>} -- merged into {@code BossCommands}'
+ * existing {@code boss} -> {@code debug} node rather than a new root.
  */
 public final class BossTellCommands {
 

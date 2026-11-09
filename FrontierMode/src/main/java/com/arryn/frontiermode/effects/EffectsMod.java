@@ -7,7 +7,7 @@ import com.arryn.satchel.common.util.out.OUT;
  * (Boss, Border, Discovery, future systems) call into via
  * {@link com.arryn.frontiermode.effects.common.EffectsAPI} /
  * {@link com.arryn.frontiermode.effects.client.ClientEffectsAPI} rather than rolling their own.
- * See wiki/frontiermode/architecture/effects.md and FRO_089.
+ * See wiki/frontiermode/architecture/effects.md.
  *
  * <p>Deliberately near-empty: no fixture, no bundle, no {@code JigConfig} -- effect dispatch has
  * no persisted or scope-bound state identified so far. The module-shape convention (packages,

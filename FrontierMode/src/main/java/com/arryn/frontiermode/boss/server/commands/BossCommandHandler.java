@@ -34,12 +34,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Handler logic for {@code /boss}'s six FRO_057 leaves -- Border's registration/handler split,
+ * Handler logic for {@code /boss}'s leaves -- Border's registration/handler split,
  * applied to Boss. Uses Optional/boolean feedback throughout, matching {@code BossFixture}/
- * {@code BossAPI}'s own current idiom (this build does not introduce Border's {@code Result}
- * type onto Boss wholesale -- {@link #transformDefeat} is the one place {@code Result} appears,
- * because it wraps {@link BossAPI#forceDefeat}, which itself wraps a real {@code BorderAPI.grow}
- * call and so returns what that call already produces).
+ * {@code BossAPI}'s own idiom (Border's {@code Result} type is not used on Boss wholesale --
+ * {@link #transformDefeat} is the one place {@code Result} appears, because it wraps
+ * {@link BossAPI#forceDefeat}, which itself wraps a real {@code BorderAPI.grow} call and so
+ * returns what that call already produces).
  */
 public final class BossCommandHandler {
 
@@ -124,7 +124,7 @@ public final class BossCommandHandler {
             return 0;
         }
 
-        // FRO_058: the kind answers empty on a rejected sub-1 layer -- Brigadier's own
+        // the kind answers empty on a rejected sub-1 layer -- Brigadier's own
         // IntegerArgumentType.integer(1) on "layer" already keeps this unreachable from this command, but the
         // kind-level guard applies to every caller. Border Pregeneration: the record starts unpositioned, and
         // this command's whole point is an admin choosing the position directly, so the kind commits `pos`
@@ -168,7 +168,7 @@ public final class BossCommandHandler {
         }
 
         BossRecord record = recordOpt.get();
-        // FRO_087 fix: see addExplicit()'s matching comment above.
+        // see addExplicit()'s matching comment above.
         sp.sendSystemMessage(msg("Created boss record " + record.bossId() + " at your location"));
         return 1;
     }
@@ -200,7 +200,7 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     /**
-     * Pairs a boss onto an existing boss-less path border -- FRO_082 (FRO_063's ruling).
+     * Pairs a boss onto an existing boss-less path border.
      * {@code add} with a border to bind to instead of a raw position: the kind's {@code attachToBorder}
      * creates the Keeper, which sets the new record's {@code borderId} to the selected border, then clears
      * that border from {@code pendingAttach}. See
@@ -318,7 +318,7 @@ public final class BossCommandHandler {
 
         DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
 
-        // FRO_083: an outcome that went through includes a defeat whose cascade was correctly withheld (an
+        // an outcome that went through includes a defeat whose cascade was correctly withheld (an
         // off-path Keeper, or another still alive on the border) -- the kind's message says so, and it is a
         // success, not a command failure.
         if (!outcome.wentThrough()) {
@@ -359,18 +359,17 @@ public final class BossCommandHandler {
         BossRecord record = recordOpt.get();
 
         // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see
-        // BossRecord's own doc) -- supersedes this method's old "copy-once placeholder Y" wording,
-        // since there's no placeholder position to land in anymore, just none yet.
+        // BossRecord's own doc) -- there is no placeholder position to land in, just none yet.
         if (!record.positioned()) {
             ctx.getSource().sendFailure(msg("Boss " + id
                     + " has no position yet -- its home border is still pregenerating."));
             return 0;
         }
 
-        // Spawned or not -- the stored position, deliberately (FRO_057's own wording). Landing
+        // Spawned or not -- the stored position, deliberately. Landing
         // the player inside terrain for a not-yet-materialized-but-positioned boss is expected
         // debug-tool behavior per the wiki page's "escape hatch" framing, not a bug -- position is
-        // already flatness/hazard-scored by this point regardless, so that's now rare in practice.
+        // already flatness/hazard-scored by this point regardless, so that's rare in practice.
         BlockPos pos = record.position();
         sp.teleportTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
 
@@ -382,10 +381,9 @@ public final class BossCommandHandler {
     }
 
     // ------------------------------------------------------------
-    // DEBUG DISTANCE -- not in FRO_057's original six, added mid-playtest to make finding an
-    // unmaterialized (and possibly unloaded) boss practical without teleporting blind. Pairs
-    // with debugGoto the same way "how far" pairs with "go there"; not yet documented on
-    // wiki/frontiermode/architecture/boss-commands.md -- flagged for the Architect to reconcile.
+    // DEBUG DISTANCE -- makes finding an unmaterialized (and possibly unloaded) boss practical
+    // without teleporting blind. Pairs with debugGoto the same way "how far" pairs with "go
+    // there".
     // ------------------------------------------------------------
 
     public static int debugDistance(CommandContext<CommandSourceStack> ctx, UUID id)

@@ -85,9 +85,8 @@ public final class BordersPathFacet {
 
     /**
      * Advance the canonical border progression by one step. Builds and applies the proposal
-     * directly -- FRO_047 folded {@code BorderLogic.getInitial()}/{@code grow()}'s mechanics in
-     * here rather than delegating to a separate logic class, per the eliminated-{@code BorderLogic}
-     * ruling. An empty path takes the bootstrap branch ({@link BorderRules#chooseInitialCenter},
+     * directly, not through a separate logic class. An empty path takes the bootstrap branch
+     * ({@link BorderRules#chooseInitialCenter},
      * layer 1); a non-empty path grows from the tip ({@link BorderRules#chooseNextCenter}, layer
      * {@code previous.layer() + 1}). Either way the radius is
      * {@link BorderRules#radiusForPathPosition} for the new Border's position (the path's size
@@ -143,8 +142,7 @@ public final class BordersPathFacet {
      * not a special or failure case for this overload: it bootstraps exactly like the no-arg
      * form's own empty-path branch, the same mechanism a level's very first border already needs,
      * not a corruption case unique to a caller-supplied center. See Border's wiki "Mutation
-     * surface" section for the full contract (RM_FRO_019 "Karen" is the first consumer, via
-     * {@code BorderAPI.grow(Level, BlockPos)}).
+     * surface" section for the full contract. Reached via {@code BorderAPI.grow(Level, BlockPos)}.
      */
     public Result grow(BlockPos center) {
         Satchel.requireServer();
@@ -264,29 +262,25 @@ public final class BordersPathFacet {
     }
 
     /**
-     * RM_FRO_011 found this as a no-op that still reported success ({@code BorderCommandHandler
-     * .pathFixLayers} unconditionally told the command sender "Reconciled border layers with path
-     * order" even though this method did nothing) -- {@code moveUp}/{@code moveDown} are fully
-     * wired, op-exposed commands that reorder the *path list*, but {@link Border#layer()} is
-     * immutable (only a fresh {@link BorderProposal} can set it), so reordering the path never
-     * touched the layer values {@code DefaultBorderRules.getRelevant()} actually sorts by -- an op
-     * could desync path order from difficulty order and the one command whose job is reconciling
-     * that silently didn't. That gap is what RM_FRO_015 exists to close; below is the real fix.
+     * Reconciles layer values with path order: {@code moveUp}/{@code moveDown} reorder the path
+     * list, but {@link Border#layer()} is immutable (only a fresh {@link BorderProposal} can set
+     * it), so reordering the path never touches the layer values
+     * {@code DefaultBorderRules.getRelevant()} sorts by -- this is the operation that brings the
+     * two back in line.
      *
-     * <p><b>RM_FRO_015, implemented:</b> builds this path's own target layer assignment --
+     * <p>Builds this path's own target layer assignment --
      * {@code target[borderPath.get(i)] = i + 1} for every path member, counting only entries that
      * have a Border (a stale entry takes no position, so the Borders after it match the path once
      * {@code reassignLayers} has removed it) -- and delegates the actual bulk
-     * apply to {@link BordersFixture#reassignLayers(Map)}. This still just sets each path member's
+     * apply to {@link BordersFixture#reassignLayers(Map)}. This just sets each path member's
      * layer to its 1-based path position (layers start at 1), no more and no less -- layer collisions with off-path borders aren't
-     * a concern to route around anymore (see {@code BordersCrudFacet}'s doc: Layer
+     * a concern to route around (see {@code BordersCrudFacet}'s doc: Layer
      * and Path are definitionally unrelated, and duplicate layers resolve fine via
      * {@code getRelevant()}'s own nearest-center tie-break). Full design: Border Path & Layer
      * Reconciliation (architecture wiki).
      *
      * @return the count of borders whose layer actually changed -- {@code 0} is a real, honest
-     * no-op (path and layer order were already consistent), not the previous unconditional
-     * {@code false}.
+     * no-op (path and layer order were already consistent).
      */
     public int fixLayers() {
         Satchel.requireServer();

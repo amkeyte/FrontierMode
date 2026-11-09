@@ -51,8 +51,7 @@ public final class BossAPI {
 
         LevelScope scope = new LevelScope(level);
 
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
+        // Satchel.tryReadyScopeInfo() resolves the scope info and checks it is ready in one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BOSS_JIG, scope);
         if (infoOpt.isEmpty()) {
             OUT.debug("[BossAPI] bosses(): scope not ready -> Optional.empty level="
@@ -71,7 +70,7 @@ public final class BossAPI {
     }
 
     // ---------------------------------------------------------------------
-    // FRO_081: facet resolvers, mirroring BorderAPI.PATH/CRUD/INFO's own shape -- Boss's
+    // facet resolvers, mirroring BorderAPI.PATH/CRUD/INFO's own shape -- Boss's
     // fixture stays reachable directly via bosses(Level) above (see BossFixture's own doc for
     // why, unlike Border's now-private resolveFixture()), but these give callers that only need
     // one specific facet the same resolve-and-map convenience BorderAPI's own callers get.
@@ -86,7 +85,7 @@ public final class BossAPI {
     }
 
     /**
-     * FRO_120 (Cairn): public query surface boss.md's own "Aliveness checking and despawn"
+     * public query surface boss.md's own "Aliveness checking and despawn"
      * section describes but never actually built until now -- gates Cairn's own pulse (alive:
      * point at {@code lastKnownBossPos}; dead: a fresh random sphere point, per cairn.md's "The
      * pulse" section). {@code false} for a record that doesn't exist or isn't resolvable yet, the
@@ -101,8 +100,8 @@ public final class BossAPI {
     }
 
     /**
-     * FRO_118: the live-position resolver shared by the Admin Compass path and (later) Resonance,
-     * and reused as-is by Cairn's own {@code lastKnownBossPos} pulse (FRO_120) -- one resolver, not
+     * the live-position resolver shared by the Admin Compass path and (later) Resonance,
+     * and reused as-is by Cairn's own {@code lastKnownBossPos} pulse -- one resolver, not
      * two, per special-compass.md's "Live position resolution" section. Reads {@code bossId}'s
      * actual materialized mob position via {@code ForgeEgress.getEntity} if the entity is
      * currently loaded, falling back to the record's own (possibly unfinalized) {@link
@@ -165,22 +164,21 @@ public final class BossAPI {
     }
 
     /**
-     * Explicit admin removal (FRO_057's {@code /boss delete}), in the page's order: mark the {@link Boss}
+     * Explicit admin removal ({@code /boss delete}), in the page's order: mark the {@link Boss}
      * retiring and despawn the live entity, then delete the record via {@link BossCrudFacet#remove(UUID)},
      * which announces the removal to the record's kind (the Keeper's marks the removed record's border
      * {@code pendingAttach} if it was still on-path). See
      * wiki/frontiermode/architecture/boss.md#aliveness-and-removal.
      *
-     * <p><b>FRO_061 (project owner ruling):</b> if the removed record was materialized, its live
+     * <p>If the removed record was materialized, its live
      * entity is despawned via {@code Satchel.require().egress().getEntity(...)} -- the same
      * sanctioned live-entity surface {@link #resolveLivePosition} already uses, not a bare
      * fixture-record edit. {@code discard()}, deliberately not {@code kill()}: deletion is an
      * administrative removal ("get rid of this record"), not a "boss died" event, and
      * {@code kill()} would run real death handling and could re-enter {@code BossJigHandlers
      * .onMobDied}'s own defeat-detection listener -- growing a border and queuing a next boss for
-     * an admin cleanup action, which is exactly the cascade this ruling says must not happen. An
-     * unmaterialized record has no entity to despawn and behaves exactly as {@code remove()} did
-     * before this change.
+     * an admin cleanup action, which is exactly the cascade that must not happen. An
+     * unmaterialized record has no entity to despawn and is simply removed.
      *
      * @return true if a record with this id existed and was removed; false otherwise (same
      *         contract as {@link BossFixture#remove(UUID)}/{@link BossCrudFacet#remove(UUID)}).
@@ -203,7 +201,7 @@ public final class BossAPI {
         // discard as a loss.
         roster(level).flatMap(roster -> roster.boss(bossId)).ifPresent(Boss::retire);
 
-        // FRO_061: despawn the live entity, silently -- see this method's own doc for why
+        // despawn the live entity, silently -- see this method's own doc for why
         // discard() (not kill()) is the deliberate choice.
         recordOpt
                 .filter(BossRecord::materialized)
@@ -257,7 +255,7 @@ public final class BossAPI {
                     + " -- cannot force-defeat.");
         }
 
-        // FRO_058: markDefeated() guards against an already-defeated record itself, returning false rather than
+        // markDefeated() guards against an already-defeated record itself, returning false rather than
         // mutating -- without this check, forcing a defeat a second time against the same dead boss re-ran the
         // whole cascade with no real defeat behind it (boss.md's "Mutation validation boundary").
         if (!fixture.CRUD.markDefeated(bossId)) {
@@ -281,7 +279,7 @@ public final class BossAPI {
                     });
         }
 
-        // FRO_108: the defeat mark itself is a real mutation worth protecting even when the kind's cascade then
+        // the defeat mark itself is a real mutation worth protecting even when the kind's cascade then
         // withholds everything -- see boss.md's "Cascade durability".
         roster(level).ifPresent(BossRoster::scheduleFlush);
 

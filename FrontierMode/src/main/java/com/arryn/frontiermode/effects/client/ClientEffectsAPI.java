@@ -17,14 +17,13 @@ import java.util.UUID;
  * already has synced (a stable id and the world's own {@code GameTime}), with no packet involved.
  * Valid only when an effect's occurrence can be expressed as a pure function of already-synced
  * inputs -- see wiki/frontiermode/architecture/effects.md#two-dispatch-paths-chosen-per-effect
- * and FRO_089. Built on {@link SimParity} (SAT_047): {@link SimParity#isCheckpoint} gates which
+ * Built on {@link SimParity}: {@link SimParity#isCheckpoint} gates which
  * ticks are even eligible, {@link SimParity#parityRoll} decides fire/no-fire on those ticks --
  * both sides reading the same shared {@code GameTime} counter is what makes two independent
  * clients (or a client and the server, if the server ever wants to run the identical check for
  * its own reasons) agree by construction rather than by broadcast.
  *
- * <p>Not wired to a real consumer yet as of FRO_089's initial build. Built for real now,
- * rather than left as a stub, so the shape doesn't need to be re-derived later.
+ * <p>Built for real rather than left as a stub, so the shape doesn't need to be re-derived later.
  *
  * <p>A sound or particle gated on server-only state (attunement, team membership, anything a
  * client isn't told) can't be derived client-side at all -- that case always belongs on

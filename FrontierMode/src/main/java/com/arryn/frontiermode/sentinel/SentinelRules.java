@@ -9,15 +9,14 @@ import net.minecraft.world.entity.player.Player;
 
 /**
  * The Sentinels' numbers and behaviours (wiki/frontiermode/architecture/sentinels.md): placement, the per-level cap,
- * heal, kill, alert and release, size, adds and the trail. They sat on the boss rules classes until node F
- * (FRO_289) and moved here unchanged with the module (node G, FRO_292); the conversion decision that reads them is
- * {@link SentinelConversion}. A Tunable's key includes its class, so these keys are {@code SentinelRules:<name>}
- * and did not change with the package. The numbers are Tunable-backed, constructed inside their own accessor
+ * heal, kill, alert and release, size, adds and the trail. The conversion decision that reads them is
+ * {@link SentinelConversion}. A Tunable's key includes its class, so these keys are {@code SentinelRules:<name>}.
+ * The numbers are Tunable-backed, constructed inside their own accessor
  * methods rather than cached as fields.
  */
 public final class SentinelRules {
 
-    // FRO_197: HurtByTargetGoal's own alert conditions -- vanilla's combat rules, no sight test.
+    // HurtByTargetGoal's own alert conditions -- vanilla's combat rules, no sight test.
     private static final TargetingConditions SENTINEL_ALERT_TARGETING =
             TargetingConditions.forCombat().ignoreLineOfSight().ignoreInvisibilityTesting();
 
@@ -25,7 +24,7 @@ public final class SentinelRules {
     }
 
     /**
-     * RM_FRO_029 (Gloria): probability coefficient for the Sentinels placement roll -- applied as
+     * probability coefficient for the Sentinels placement roll -- applied as
      * {@code placementIntensity x sentinelPlacementCoefficient()} against a [0,1) uniform draw.
      */
     public static double sentinelPlacementCoefficient() {
@@ -36,19 +35,18 @@ public final class SentinelRules {
     }
 
     /**
-     * RM_FRO_029 (Gloria), revised 2026-09-07 after playtest: the {@code "placement"} roll divides its normalized
+     * The {@code "placement"} roll divides its normalized
      * distance by {@code border.radius() * sentinelPlacementRadiusFraction()}, a smaller reference circle concentric
      * with the border, so the ramp from "certain" to "never" is actually noticeable as a tell while a player closes in.
      */
     public static double sentinelPlacementRadiusFraction() {
-        // 2026-09-07 playtest, revised twice same session: started at the full border radius (read as
-        // "clustered right on the boss, nothing beyond ~30 blocks" on a large border -- the LINEAR
-        // ramp was mathematically correct but imperceptibly thin across the whole disc); briefly tried
-        // FLAT/uniform across the whole border (reverted -- "doesn't act as a tell at all," no gradient
-        // to notice at all). Settled: same LINEAR formula, same direction (climbs toward the boss), but
-        // normalized against half the border's own radius instead of the whole thing -- a real,
-        // noticeable ramp concentrated in a smaller ring around the boss. Safe baseline; playtest
-        // territory, same as sentinelPlacementCoefficient above. [0,1] bound -- a fraction of radius.
+        // Normalized against half the border's own radius, not the whole thing: a full-border-radius
+        // reference reads as "clustered right on the boss, nothing beyond ~30 blocks" on a large
+        // border (the LINEAR ramp is correct but imperceptibly thin across the whole disc), and a
+        // FLAT/uniform one gives no gradient to notice, so it doesn't act as a tell. Same LINEAR
+        // formula, same direction (climbs toward the boss), but a real, noticeable ramp concentrated
+        // in a smaller ring around the boss. Safe baseline; playtest territory, same as
+        // sentinelPlacementCoefficient above. [0,1] bound -- a fraction of radius.
         return new Tunable("sentinelPlacementRadiusFraction", 0f, 1f, 0.5f).floatValue();
     }
 
@@ -97,7 +95,7 @@ public final class SentinelRules {
     }
 
     /**
-     * FRO_197: sentinels defend the boss (sentinels.md § Defending the boss). Horizontal half-width, in blocks, of the
+     * sentinels defend the boss (sentinels.md § Defending the boss). Horizontal half-width, in blocks, of the
      * box around a boss whose sentinels turn on a player who hits it. A flat number, not tied to the placement ring.
      */
     public static int sentinelAlertRadius() {

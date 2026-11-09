@@ -32,10 +32,17 @@ net.minecraft.network.chat.Component  # judgment call: immutable text; a factory
 
 net.minecraft.sounds.SoundEvent  # judgment call: a data-driven id; constants are declared in one place per module
 net.minecraft.sounds.SoundSource  # judgment call: enum of sound categories
+net.minecraft.sounds.SoundEvents  # judgment call: constants for built-in sounds, the same class of entry as SoundEvent above
 net.minecraft.core.particles.ParticleTypes  # judgment call: constants for built-in particles
 net.minecraft.core.particles.ParticleOptions  # a particle's options; constants live with the module's effects
 net.minecraft.world.entity.MobCategory  # judgment call: enum of spawn categories
 net.minecraft.world.level.levelgen.Heightmap  # judgment call: enum naming a heightmap type
+
+
+# ---- Registry constants ----
+
+net.minecraft.world.entity.EntityType  # judgment call: a registry key and its constants; spawning through one is still acting on an entity, so it goes through MobSpawns or the class that owns the job
+net.minecraft.world.level.block.Blocks  # judgment call: constants for built-in blocks; placing one is still a world edit, by the class that owns the job
 
 
 # ---- The handles module logic is typed on (Platform-Bound Code: Common code, side by registration) ----

@@ -127,7 +127,7 @@ public final class FrontierKeys {
                     MobJig.class
             );
 
-    // RM_FRO_030 (Janice), moved by RM_FRO_065 ("Geraldine"): the Tell module's own jig. TELL_JIG is a SERVER-only
+    // RM_FRO_030 (Janice): the Tell module's own jig. TELL_JIG is a SERVER-only
     // LevelJig holding BossTellFixture in TellBundle. See TellJigConfig for the wiring and
     // wiki/frontiermode/architecture/discovery-systems.md#environmental-tells for the design.
 
@@ -209,7 +209,7 @@ public final class FrontierKeys {
             new IngressKey("frontiermode:structure");
 
     // FRO_120 (Cairn, RM_FRO_039 "Helen"): StructureModule's own third home -- not BossBundle,
-    // not BossTellModule's bundle. See BossTellModule.init()-equivalent (StructureModule.init())
+    // not BossTellModule's bundle. See StructureModule.init()
     // for the schema/config wiring and wiki/frontiermode/architecture/cairn.md for the design.
 
     public static final BundleKey<StructureBundle> STRUCTURE_BUNDLE =

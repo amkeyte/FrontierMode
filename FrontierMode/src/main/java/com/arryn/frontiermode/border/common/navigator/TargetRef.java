@@ -19,9 +19,7 @@ import java.util.UUID;
  * <p><b>{@link Structure}'s exact shape is not settled by the architecture page</b> (written
  * there as {@code Structure(...)}) -- represented here as a bare {@link UUID} id to match
  * {@link TargetResolverRegistry}'s stated {@code TargetType -> (UUID -> BlockPos)} shape, the same
- * identifier shape {@link Boss} and {@link Border} already use. Flagged back to the Architect
- * (see FRO_065's log) rather than guessed at further -- not exercised by RM_FRO_026's own done
- * bar, which only requires {@link Boss} to have a real registered resolver.
+ * identifier shape {@link Boss} and {@link Border} already use. Not guessed at further.
  */
 public sealed interface TargetRef
         permits TargetRef.Boss, TargetRef.Border, TargetRef.Structure, TargetRef.RawPos {

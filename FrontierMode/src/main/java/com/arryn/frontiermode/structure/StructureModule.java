@@ -24,7 +24,7 @@ import net.minecraftforge.registries.RegistryObject;
 import java.util.List;
 
 /**
- * Entry point for {@code StructureModule} (FRO_120, RM_FRO_039 "Helen") -- Cairn's own third
+ * Entry point for {@code StructureModule} -- Cairn's own third
  * home, not {@code BossBundle} and not {@code BossTellModule}, per
  * wiki/frontiermode/architecture/cairn.md#module-structuremodule-not-bossbundle-or-bosstellmodule.
  * Reaches {@code BossAPI}/{@code BorderAPI} from outside, the same one-directional relationship
@@ -44,8 +44,7 @@ public final class StructureModule {
 
     // ------------------------------------------------------------
     // Block registration -- Chiseled Smooth Basalt is a new asset, out of scope (cairn.md); the
-    // real block copies vanilla Chiseled Stone Bricks' properties as the stand-in, per FRO_120's
-    // own ticket scope.
+    // real block copies vanilla Chiseled Stone Bricks' properties as the stand-in.
     // ------------------------------------------------------------
 
     public static final DeferredRegister<Block> BLOCKS =
@@ -92,7 +91,7 @@ public final class StructureModule {
         config.bundles().schema(schema);
         // CairnFixture is real, persisted, world-anchored state -- both calls needed explicitly,
         // the same two-call requirement boss.md's own "Module wiring" flags as having been
-        // missed once already (FRO_014).
+        // missed once already.
         config.policies().capabilities(new JigPolicies.Capabilities(true, false, false));
         config.policies().persistence(
                 new JigPolicies.Persistence(

@@ -228,7 +228,7 @@ public final class Boss implements Leaving {
                     + chosen.getX() + ", " + chosen.getY() + ", " + chosen.getZ()
                     + ". Will materialize once that chunk is loaded.");
 
-            // FRO_120 (Cairn): "the moment a qualifying boss's own position commits" is exactly this point.
+            // "the moment a qualifying boss's own position commits" is exactly this point.
             // finalizePosition already committed it, so this re-read reflects the real, final state.
             fixture.CRUD.get(bossId).ifPresent(updated -> BossPositionListeners.fire(level, updated));
             recordOpt = fixture.get(bossId);
@@ -241,7 +241,7 @@ public final class Boss implements Leaving {
         if (!record.positioned() || record.materialized()) {
             return;
         }
-        // FRO_160: a boss returned here by a loss waits out its respawn delay (or stays suspended at the
+        // a boss returned here by a loss waits out its respawn delay (or stays suspended at the
         // repeat-death cap). Polled before the isLoaded check so the delay counts real ticks.
         if (!respawnReady()) {
             return;
@@ -296,7 +296,7 @@ public final class Boss implements Leaving {
         BossFixture fixture = fixtureOpt.get();
         deathHandled = true;
 
-        // FRO_160: vanilla's own kill credit -- the player who last damaged the mob, still set only while
+        // vanilla's own kill credit -- the player who last damaged the mob, still set only while
         // vanilla's 100-tick (5 s) window is open; a tamed pet's hit credits its online owner.
         Player credited = dying.getKillCredit() instanceof Player player ? player : null;
 

@@ -48,7 +48,7 @@ import java.util.UUID;
  *
  * <p>Conversion runs at spawn finalization, before the mob is in the world: it writes the record onto the mob. The
  * mob's join queues it in presence, and this Trinket's tick adopts it. The bodies were {@code BossSentinelsFixture}'s
- * and moved here with node G (FRO_292); the decision itself is {@link SentinelConversion}'s.
+ * and moved here with node G; the decision itself is {@link SentinelConversion}'s.
  */
 final class SentinelPresence implements Ticking {
 
@@ -321,7 +321,7 @@ final class SentinelPresence implements Ticking {
         }
     }
 
-    /** FRO_224: advances a wide Sentinel's path when it stands on its next waypoint; see {@link WidePathing}. */
+    /** Advances a wide Sentinel's path when it stands on its next waypoint; see {@link WidePathing}. */
     private void unstickWideSentinels() {
         for (Mob mob : present.mobs()) {
             WidePathing.advanceIfOnWaypoint(mob);

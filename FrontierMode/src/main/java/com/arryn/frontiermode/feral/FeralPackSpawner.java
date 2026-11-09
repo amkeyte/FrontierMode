@@ -34,7 +34,7 @@ final class FeralPackSpawner {
     private static final int UNDERGROUND_DEPTH = 3;
     private static final int PACK_UNDERGROUND_TRIES = 24;
 
-    // The MobData key that owns a pack member's raised follow range (FRO_219): one modifier per key.
+    // The MobData key that owns a pack member's raised follow range: one modifier per key.
     private static final ResourceLocation PACK_FOLLOW_RANGE_KEY =
             new ResourceLocation("frontiermode", "feral_pack_follow_range");
 
@@ -186,7 +186,7 @@ final class FeralPackSpawner {
      */
     private static void applyPackFollowRange(Mob mob) {
         // A modifier owned by this key, set to a target reach: MobData keeps it across a conversion and
-        // never writes the attribute's base (FRO_219).
+        // never writes the attribute's base.
         MobData.setFollowRange(mob, PACK_FOLLOW_RANGE_KEY, FeralRules.packFollowRange());
     }
 }

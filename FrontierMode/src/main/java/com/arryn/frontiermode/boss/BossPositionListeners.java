@@ -9,7 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 
 /**
- * FRO_120 (Cairn): where a consumer registers to hear "a boss record's position just finalized"
+ * where a consumer registers to hear "a boss record's position just finalized"
  * without {@code Boss} importing that consumer directly -- the same
  * one-directional-dependency discipline {@code MobInterestRegistry} already establishes for a
  * different concern (mob-death interest). Cairn's own record creation is paired with exactly this

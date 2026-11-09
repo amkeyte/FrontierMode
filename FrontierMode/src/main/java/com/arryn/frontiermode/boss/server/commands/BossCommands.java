@@ -21,10 +21,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Brigadier registration for {@code /boss} -- FRO_057's build of RM_FRO_022 ("Joyce"), the six
- * items scoped on that ticket and on FRO_056. Mirrors {@code BorderCommands}' registration/
- * handler split and selector-application shape exactly; the full command-tree design space this
- * build's six items are drawn from (out of scope this pass) is
+ * Brigadier registration for {@code /boss}. Mirrors {@code BorderCommands}' registration/
+ * handler split and selector-application shape exactly; the full command-tree design space is
  * wiki/frontiermode/architecture/boss-commands.md.
  */
 public final class BossCommands {
@@ -154,9 +152,9 @@ public final class BossCommands {
     }
 
     // ------------------------------------------------------------
-    // ATTACH -- FRO_082 (FRO_063's ruling). Nests BorderSelectorArgumentType directly, the same
+    // ATTACH -- nests BorderSelectorArgumentType directly, the same
     // way BorderCommandHandler.pathInsert/pathRemove already do -- see BossCommandHandler.attach
-    // for why this isn't wired through BossSelectorResult's own (still four-mode-only) chain.
+    // for why this isn't wired through BossSelectorResult's own four-mode-only chain.
     // ------------------------------------------------------------
 
     private static ArgumentBuilder<CommandSourceStack, ?> attach() {
@@ -206,7 +204,7 @@ public final class BossCommands {
     // ------------------------------------------------------------
 
     /**
-     * FRO_130 (project owner ask): shortened from {@code /boss transform defeat <selector>} --
+     * shortened from {@code /boss transform defeat <selector>} --
      * pure command-surface rename, no behavior change. Still forces
      * {@code BossCommandHandler::transformDefeat}'s own defeat-detection cascade (border growth,
      * etc.), same as a real in-game defeat. {@code @all} skips bosses already defeated, so
@@ -239,8 +237,7 @@ public final class BossCommands {
                                 ))
                         )
                 )
-                // Added mid-playtest, not in FRO_057's original six -- see BossCommandHandler
-                // .debugDistance's own doc comment.
+                // see BossCommandHandler.debugDistance's own doc comment.
                 .then(Commands.literal("distance")
                         .then(Commands.argument("selector", BossSelectorArgumentType.selector())
                                 .executes(ctx -> applySelector(

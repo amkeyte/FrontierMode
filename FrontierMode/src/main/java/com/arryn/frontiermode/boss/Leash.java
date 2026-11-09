@@ -18,13 +18,13 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 /**
- * A boss chased off its post goes home (border-pregeneration.md § Movement; owner 2026-10-03). Every distance-keyed
+ * A boss chased off its post goes home (border-pregeneration.md § Movement). Every distance-keyed
  * system -- Sentinel curves, Environmental Tells, the compass's pad lock -- measures from the boss's recorded position,
  * so a boss that can be kited far from it pulls them all out of true. Each tick, a boss farther than its radius from its
  * recorded position is teleported back to it.
  *
  * <p>The radius is a setting the kind passes at subscribe (the Keeper passes its own {@code bossLeashRadiusFirst} for
- * path position 1 or below, else {@link #standardRadius()}). The tick also advances a wide boss's path (FRO_224).
+ * path position 1 or below, else {@link #standardRadius()}). The tick also advances a wide boss's path.
  */
 public final class Leash implements Ticking {
 
@@ -52,7 +52,7 @@ public final class Leash implements Ticking {
         if (Satchel.isServer()) {
             leash(mob.level(), mob);
         }
-        // FRO_224: a scaled Keeper's path advances like a Sentinel's.
+        // a scaled Keeper's path advances like a Sentinel's.
         WidePathing.advanceIfOnWaypoint(mob);
     }
 

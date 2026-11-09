@@ -121,15 +121,14 @@ final class CairnPlacer {
     }
 
     /**
-     * Bug fix (playtest): this used to only place the pad's own floor blocks, never clear the
-     * air above them. Every pad cell is built at the <em>center</em> candidate's resolved
-     * ground height, but {@code footprintSuitable}'s own flatness tolerance allows real height
-     * variation across the 3x3 area -- so on uneven terrain, a non-center cell's original,
-     * taller ground can leave solid leftover blocks sitting right above the new pad surface.
-     * That's exactly what a debug-teleported player standing on an edge cell suffocated in.
-     * Matches the precedent {@code BossPlatform.place} (Environmental Tells' own 3x3
-     * platform) already established for the identical reason -- clear air above every cell, not
-     * just the one the pillar sits on.
+     * Places the pad's floor blocks and clears the air above them. Every pad cell is built at the
+     * <em>center</em> candidate's resolved ground height, but {@code footprintSuitable}'s own
+     * flatness tolerance allows real height variation across the 3x3 area -- so on uneven terrain,
+     * a non-center cell's original, taller ground can leave solid leftover blocks sitting right
+     * above the new pad surface, which a debug-teleported player standing on an edge cell would
+     * suffocate in. Matches {@code BossPlatform.place} (Environmental Tells' own 3x3 platform),
+     * which clears air above every cell for the identical reason, not just the one the pillar
+     * sits on.
      */
     private static void buildStructure(Level level, BlockPos ground) {
         int half = PAD_SIZE / 2;

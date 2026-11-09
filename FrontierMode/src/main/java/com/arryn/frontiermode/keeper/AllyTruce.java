@@ -5,7 +5,7 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.trinket.Trinket;
 
 /**
- * Allies never attack a Keeper (wiki/frontiermode/architecture/keeper.md § Allies never attack a Keeper; FRO_215): an
+ * Allies never attack a Keeper (wiki/frontiermode/architecture/keeper.md § Allies never attack a Keeper): an
  * iron golem or a tamed wolf never takes a boss as its target, even when its owner is fighting it. The Keeper kind
  * subscribes it on the server. It hears {@link KeeperTargetChange}, a module event scoped to the Keeper's mob scope,
  * so it is built only when the new target is a boss; cancelling keeps the ally's current target, which covers a golem's

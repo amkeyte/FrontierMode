@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * FRO_081: Boss's record-lifecycle/mutation facet, mirroring {@code BordersCrudFacet}'s shape --
+ * Boss's record-lifecycle/mutation facet, mirroring {@code BordersCrudFacet}'s shape --
  * record creation, single-record lookup, position finalization, materialization, defeat, and
  * removal. A thin pass-through onto {@link BossFixture}'s own methods: unlike
  * {@code BordersFixture} (whose mutating methods are package-private, reached only through its
@@ -62,7 +62,7 @@ public class BossCrudFacet {
     }
 
     /**
-     * FRO_160: see {@link BossFixture#dematerialize(UUID)}.
+     * See {@link BossFixture#dematerialize(UUID)}.
      */
     public boolean dematerialize(UUID bossId) {
         return fixture.dematerialize(bossId);

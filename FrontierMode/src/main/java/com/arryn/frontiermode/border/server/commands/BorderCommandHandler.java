@@ -44,7 +44,7 @@ public final class BorderCommandHandler {
     ) {
         Level level = ctx.getSource().getLevel();
 
-        // FRO_047: BorderAPI.addBorder now returns Result instead of throwing -- same rejection
+        // BorderAPI.addBorder now returns Result instead of throwing -- same rejection
         // (bad radius, negative layer), but read as data instead of an IllegalStateException.
         Result result = BorderAPI.addBorder(level, pos, radius, layer);
         if (!result.isSuccess()) {
@@ -95,7 +95,7 @@ public final class BorderCommandHandler {
             CommandContext<CommandSourceStack> ctx,
             UUID id
     ) {
-        // FRO_047: removeBorder now returns Result instead of boolean -- carries the real reason
+        // removeBorder now returns Result instead of boolean -- carries the real reason
         // (not-ready vs. not-found) instead of a single generic failure message.
         Result result = BorderAPI.removeBorder(ctx.getSource().getLevel(), id);
 
@@ -125,8 +125,8 @@ public final class BorderCommandHandler {
         BorderAPI.border(level, id).ifPresentOrElse(
                 b -> {
                     // LEV is this border's position in the canonical path order, distinct from LAY
-                    // (Border.layer()) -- see RM_FRO_015: the two are definitionally unrelated, so
-                    // both are shown rather than conflating them the way the old "L:" label did.
+                    // (Border.layer()) -- the two are definitionally unrelated, so both are
+                    // shown rather than conflated.
                     int pathIndex = BorderAPI.PATH(level)
                             .map(p -> p.indexOf(id))
                             .orElse(-1);
@@ -161,7 +161,7 @@ public final class BorderCommandHandler {
 
         if (!result.isSuccess()) {
             // See BorderCommandHandler#addExplicit's matching comment -- same rejection path,
-            // same fix (RM_FRO_011 / FRO_023).
+            // same fix.
             ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
@@ -181,26 +181,23 @@ public final class BorderCommandHandler {
 
         Level level = ctx.getSource().getLevel();
 
-        // RM_FRO_015: removed an "if no borders exist, refuse to grow" guard that used to sit
-        // here. It was backwards -- BordersPathFacet.grow() already branches internally on an
-        // empty path and bootstraps for exactly that case, which is precisely how a level's very
-        // first border is supposed to get created. Command and trigger behave the same way; an
+        // No "if no borders exist, refuse to grow" guard here: BordersPathFacet.grow() already
+        // branches internally on an empty path and bootstraps for exactly that case, which is how a
+        // level's very first border gets created. Command and trigger behave the same way; an
         // absent tip isn't special for the explicit-center overload below either (see its own
         // doc).
 
-        // FRO_080: BorderAPI.grow(Level) deprecated, no-implicit-default center required instead
-        // -- see BorderCommands.path()'s new "center" argument and BorderAPI.grow(Level)'s own
-        // doc comment for the one remaining caller that still legitimately needs it.
+        // BorderAPI.grow(Level) is deprecated: this command requires an explicit center (see
+        // BorderCommands.path()'s "center" argument), and BorderAPI.grow(Level)'s own doc comment
+        // names the one caller that still legitimately needs the no-center form.
         Result result = BorderAPI.grow(level, center);
         if (!result.isSuccess()) {
-            // RM_FRO_015: same rejection path/fix as addExplicit()'s matching comment
-            // (RM_FRO_011/FRO_023) -- just never applied here until testing the fixLayers() work
-            // turned up the gap.
+            // same rejection path as addExplicit()'s matching comment
             ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
 
-        // pathGrow() is deliberately Keeper-less (FRO_048): the newly-grown border is announced on Satchel's bus,
+        // pathGrow() is deliberately Keeper-less: the newly-grown border is announced on Satchel's bus,
         // and the Keeper's consumer marks it pending attach, so its reconciliation check reads the gap as a
         // sanctioned wait-state ("awaiting /boss attach"), not a real data bug, until an admin runs /boss attach
         // against it. Border imports neither Boss nor Keeper (border.md § Path grown). Only this command posts
@@ -317,9 +314,8 @@ public final class BorderCommandHandler {
         var level = ctx.getSource().getLevel();
         var path = BorderAPI.PATH(level).orElseThrow();
 
-        // RM_FRO_015: fixLayers() is now the real reorder-to-match-path-order reconciliation --
-        // reports the two real outcomes distinctly instead of the old unconditional "not
-        // implemented yet" placeholder (see Border Path & Layer Reconciliation, "Command-layer
+        // fixLayers() is the real reorder-to-match-path-order reconciliation -- reports the two
+        // real outcomes distinctly (see Border Path & Layer Reconciliation, "Command-layer
         // behavior").
         int changedCount = path.fixLayers();
 
@@ -364,7 +360,7 @@ public final class BorderCommandHandler {
     }
 
     // ------------------------------------------------------------------
-    // DEBUG SICKNESS -- project owner request (2026-09-18). Global debug state (not per-player),
+    // DEBUG SICKNESS -- project owner request. Global debug state (not per-player),
     // same "/boss debug glow" shape -- no retroactive-apply concern here though: unlike glow (a
     // synced entity flag set once), sickness is re-evaluated every refresh interval already, so
     // toggling the switch just changes what the very next refresh does.
@@ -387,7 +383,7 @@ public final class BorderCommandHandler {
     }
 
     // ------------------------------------------------------------------
-    // RM_FRO_037 ("Brenda") test aid: unlike /summon (which loads a raw entity from NBT and never
+    // Test aid: unlike /summon (which loads a raw entity from NBT and never
     // touches Mob#finalizeSpawn at all), this spawns each rabbit with DISPATCHED setup -- the real
     // Forge finalize-spawn event, which SpawnIngress translates into
     // MobSpawnFinalizing, which SpawnCoordinator fans out to SickWildlife

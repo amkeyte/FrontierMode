@@ -5,7 +5,7 @@ import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * FRO_224: a scaled Sentinel or Keeper wider than 0.75 blocks stood still at its first path node,
+ * a scaled Sentinel or Keeper wider than 0.75 blocks stood still at its first path node,
  * forever. {@code PathNavigation#followThePath} (Forge's MC-94054 fix) tests the mob against
  * {@code node + (width + 1) / 2} with a reach of {@code width / 2}, so a mob standing at a block's
  * centre -- where it spawns, and where the path's own move target ({@code node + (int) (width + 1) * 0.5})
