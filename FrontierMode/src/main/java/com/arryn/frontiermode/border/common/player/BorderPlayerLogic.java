@@ -23,7 +23,7 @@ import java.util.OptionalInt;
 final class BorderPlayerLogic {
 
     /**
-     * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): {@code previous} is this player's last
+     * {@code previous} is this player's last
      * accepted {@link BorderPlayerStatus} (or {@code null} on the very first evaluation, e.g.
      * just after login) -- needed only for {@code sicknessSeverity}'s target-and-catch-up climb,
      * which is stateful across ticks unlike every other field this method derives. This keeps
@@ -57,7 +57,7 @@ final class BorderPlayerLogic {
             );
         }
 
-        // RM_FRO_037: Frontier-distance -- a second reduction over this same `borders` list,
+        // Frontier-distance -- a second reduction over this same `borders` list,
         // independent of the containing/relevant resolution below. Every established Border
         // counts here, not just ones the point is inside or on-path -- see
         // wiki/frontiermode/architecture/wilds.md#frontier-is-a-computed-aggregate-not-stored-state.
@@ -73,11 +73,10 @@ final class BorderPlayerLogic {
         double sicknessSeverity = FrontierSicknessLogic.climbSeverity(previousSeverity, target, PlayerRules.SICKNESS_CLIMB_RATE);
 
         // Borders are concentric per layer (DefaultBorderRules' own class doc), so a player deep
-        // inside a fully-grown border stack is inside every layer at once. The original version
-        // of this method picked whichever border's raw distanceToSurface was smallest (most
-        // negative) -- since a bigger radius makes that number MORE negative, that always picked
-        // the OUTERMOST containing border, backwards from what "relevant" means here (confirmed
-        // wrong by real playtest: returned the wrong border, not the lowest layer).
+        // inside a fully-grown border stack is inside every layer at once. Picking whichever
+        // border's raw distanceToSurface is smallest (most negative) would be wrong: a bigger
+        // radius makes that number MORE negative, so it would always pick the OUTERMOST containing
+        // border, backwards from what "relevant" means here.
         //
         // BorderRules.getRelevant(containing, pos) already defines the correct, established
         // semantics for this exact question -- lowest layer wins among borders the position
@@ -85,7 +84,7 @@ final class BorderPlayerLogic {
         // already the single source of truth other facets reference for this ranking, e.g.
         // BordersCrudFacet/BordersPathFacet's own comments). Delegating to it here instead of
         // duplicating the ranking keeps this in sync with that one authoritative implementation
-        // rather than drifting from it again.
+        // rather than drifting from it.
         List<Border> containing = borders.stream()
                 .filter(b -> BorderAPI.MATH.isInside(b, pos))
                 .toList();

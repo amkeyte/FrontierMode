@@ -72,6 +72,8 @@ public abstract class JigConfig<S extends SatchelScope, SRC> {
 
     public abstract JigExecutionConfig execution();
 
+    public abstract JigTrinketsConfig trinkets();
+
     /* =============================================================
      * Preset root (single instance per config)
      * ========================================================== */
@@ -101,5 +103,8 @@ public abstract class JigConfig<S extends SatchelScope, SRC> {
 
         public final JigExecutionConfig.Presets execution =
                 new JigExecutionConfig.Presets();
+
+        public final JigTrinketsConfig.Presets trinkets =
+                new JigTrinketsConfig.Presets();
     }
 }

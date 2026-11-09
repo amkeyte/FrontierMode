@@ -85,7 +85,7 @@ public final class DioriteStrikerItem extends Item {
     }
 
     /** The Wilds: a few grey smoke particles and a fizzle, no color and no count. */
-    private static void sputter(ServerLevel level, double x, double y, double z) {
+    private static void sputter(Level level, double x, double y, double z) {
         EffectsAPI.broadcastParticle(level, ParticleTypes.SMOKE, x, y, z, 6, 0.1, 0.1, 0.1, 0.02);
         EffectsAPI.broadcastSound(level, x, y, z, SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.6F, 1.0F);
     }

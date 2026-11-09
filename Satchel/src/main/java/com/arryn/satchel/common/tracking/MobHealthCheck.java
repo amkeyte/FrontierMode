@@ -4,9 +4,11 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.ingress.Scopes;
+import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
+import com.arryn.satchel.common.trinket.Leaving;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -21,13 +23,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
-import net.minecraft.world.level.Level;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * MobJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
@@ -58,6 +59,11 @@ final class MobHealthCheck {
             );
 
     static void register() {
+        // BOTH is what makes MobJig's CLIENT/BOTH gap provable rather than just declared.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> build());
+    }
+
+    private static MobJigConfig build() {
         var trackerFixture =
                 new JigBundles.FixtureDecl<TrackerFixture>(
                         MOB_TRACKER,
@@ -84,10 +90,6 @@ final class MobHealthCheck {
 
         MobJigConfig config = new MobJigConfig(MOB_JIG);
 
-        // Was SERVER (MobTrackingModule's original call). BOTH is what makes MobJig's CLIENT/BOTH
-        // gap provable rather than just declared.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
-
         // Required for PERSISTENCE below to actually work, not optional -- same gap and same
         // fix as PlayerHealthCheck's own (SAT_063's log has the full story): confirmed live,
         // ScopeEngine_Server.resolveServerLevel() throws AccessFailed when info.referenceLevel()
@@ -111,13 +113,14 @@ final class MobHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        MobInterestRegistry.registerPerLevel(MOB_JIG, SatchelHealth::interestsIn);
+        // Reacts when each side builds the canary's scope, and checks the reason it leaves with.
+        config.trinkets().declare(CanaryMobTrinket.class, CanaryMobTrinket::new);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     private static void onMobScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         Objects.requireNonNull(info, "info");
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
@@ -125,9 +128,15 @@ final class MobHealthCheck {
         }
 
         var jig = info.jigInfo().jig;
-        var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
-        var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
-        tracker.countLoaded();
+
+        // Persistence is a server job, so the tracker has no client form: a client bundle gets its data from a
+        // parcel, and a mob scope is never sent one. The client keeps the Trinket and event checks, which do not
+        // use the bundle. The Unloaded and Tick handlers find no bundle there and skip.
+        if (info.jigInfo().side() == LogicalSide.SERVER) {
+            var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
+            var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
+            tracker.countLoaded();
+        }
 
         MobScope scope = (MobScope) info.scope();
         OUT.debug(
@@ -139,14 +148,15 @@ final class MobHealthCheck {
     }
 
     /**
-     * A {@link MobScope} that reaches teardown with its backing {@link Mob#isRemoved()} still
-     * {@code false} has been torn down for a reason other than the two MobJig's reason-agnostic
-     * contract allows (chunk unload, genuine removal -- both set {@code isRemoved()} true by
-     * construction). That is exactly the shape of the latent client-side bug RM_SAT_022
-     * documents and exists to fix.
+     * A mob scope unloads on its mob's leave event, which can come while {@link Mob#isRemoved()} is
+     * still {@code false}: a chunk's tracking ends before the removal is recorded. So the old rule,
+     * "torn down while the mob is still present", is not a violation any more. The invariant is the
+     * leak: see {@link #onMobScopeTick}. This handler counts the unload, forgets the leak counter, and
+     * logs the reason the scope carried, which is how a real chunk unload's reason (UNLOADED or
+     * UNKNOWN) is found.
      */
     private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
             return;
@@ -154,39 +164,47 @@ final class MobHealthCheck {
 
         var jig = info.jigInfo().jig;
         MobScope scope = (MobScope) info.scope();
-        Mob mob = scope.mob();
         LogicalSide side = Satchel.require().side();
 
         jig.ask(info.scope(), MOB_BUNDLE)
                 .flatMap(b -> b.get(MOB_TRACKER))
                 .ifPresent(TrackerFixture::countUnloaded);
 
-        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side);
+        ABSENT.remove(side + ":" + scope.uuid());
 
-        if (!mob.isRemoved()) {
-            String message = "[SatchelHealth] VIOLATION: MobScope torn down on side=" + side
-                    + " while its backing mob is still present (isRemoved()=false). "
-                    + "mob=" + mob.getType() + " uuid=" + Ids.shortId(scope.uuid())
-                    + " -- this is the RM_SAT_022 latent teardown bug (or a new regression of the "
-                    + "same shape) caught live. See SAT_039 / RM_SAT_022 before treating this as "
-                    + "a surprise.";
-            OUT.error(message);
-            throw new IllegalStateException(message);
-        }
+        OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side
+                + " reason=" + info.leaveReason());
 
         // Checkpoint, not routine noise -- specifically the canary's own teardown, not every
         // ambient mob real gameplay happens to put under tracking (those stay .debug above,
         // same as load -- a busy server can tear down many ordinary tracked mobs per minute).
         if (isCanary(scope)) {
             OUT.info(
-                    "[SatchelHealth] MobJig canary teardown check passed: side=" + side
+                    "[SatchelHealth] MobJig canary unloaded: side=" + side
                             + " uuid=" + Ids.shortId(scope.uuid())
+                            + " reason=" + info.leaveReason()
+                            + " mobRemoved=" + scope.mob().isRemoved()
             );
         }
     }
 
+    /**
+     * Mob scopes the leak check is counting against: {@code side:uuid} to how many checks in a row
+     * found the mob absent from the lookup.
+     */
+    private static final Map<String, Integer> ABSENT = new ConcurrentHashMap<>();
+
+    /** The leak check runs every this many ticks, and a scope is leaked after this many misses. */
+    private static final int LEAK_CHECK_EVERY = 10;
+    private static final int LEAK_MISSES = 3;
+
+    /**
+     * Counts the tick, and runs the leak invariant: a scope alive after its mob has been absent from
+     * the lookup for more than a few ticks. A scope unloads on its mob's leave event or once the mob
+     * is removed, so one still alive while the lookup can no longer find its mob has missed both.
+     */
     private static void onMobScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!MOB_JIG.equals(info.jigInfo().key)) {
             return;
@@ -198,6 +216,54 @@ final class MobHealthCheck {
         jig.ask(info.scope(), MOB_BUNDLE)
                 .flatMap(b -> b.get(MOB_TRACKER))
                 .ifPresent(TrackerFixture::countExternalTick);
+
+        if (info.jigInfo().trinketTick().tickNumber() % LEAK_CHECK_EVERY != 0) {
+            return;
+        }
+
+        LogicalSide side = info.jigInfo().side();
+        String key = side + ":" + scope.uuid();
+        Mob mob = scope.mob();
+        boolean present = info.jigInfo().foundation().egress().getEntity(mob.level(), scope.uuid()).isPresent();
+        if (present) {
+            ABSENT.remove(key);
+            return;
+        }
+
+        int misses = ABSENT.merge(key, 1, Integer::sum);
+        if (misses > LEAK_MISSES) {
+            SatchelHealth.violation("[SatchelHealth] VIOLATION: MobScope leaked on side=" + side
+                    + ": its mob " + mob.getType() + " " + Ids.shortId(scope.uuid()) + " has been absent from "
+                    + "the lookup for " + (misses * LEAK_CHECK_EVERY) + "+ ticks and the scope is still alive "
+                    + "(isRemoved()=" + mob.isRemoved() + "). A scope unloads on its mob's leave event or "
+                    + "once the mob is removed; this one missed both.");
+        }
+    }
+
+    /**
+     * The reset check: when a server starts after another stopped in this JVM, no mob scope and no
+     * interest may have been carried over. Called as the new server is about to start; the foundation
+     * is reset as the previous one stopped.
+     */
+    static void checkNothingCarriedOver() {
+        Satchel.foundationFor(LogicalSide.SERVER).ifPresent(foundation -> {
+            int scopes = 0;
+            int interests = 0;
+            for (var ji : foundation.jigInfos()) {
+                if (ji.jig instanceof MobJig mobJig) {
+                    scopes += ji.scopeInfos().size();
+                    interests += mobJig.interestCount();
+                }
+            }
+            if (scopes != 0 || interests != 0) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: a new server is starting with " + scopes
+                        + " mob scope(s) and " + interests + " interest entr(ies) carried over from the last one."
+                        + " The foundation resets every jig as a server stops.");
+                return;
+            }
+            OUT.info("[SatchelHealth] Reset check passed: no mob scope or interest was carried over into the "
+                    + "new server");
+        });
     }
 
     // =================================================================
@@ -217,91 +283,17 @@ final class MobHealthCheck {
     }
 
     /**
-     * Ensures a live canary mob exists under {@code MOB_JIG}, so its CLIENT/BOTH poll path has
-     * a guaranteed-present subject to exercise continuously rather than depending on real
-     * gameplay putting a mob under tracking.
-     *
-     * <p>
-     * Piggybacks on {@link LevelHealthCheck}'s own {@code LEVEL_JIG} tick, not {@code MOB_JIG}'s
-     * -- {@code MOB_JIG} has zero scopes whenever no canary currently exists, so it can never
-     * wake itself up to spawn one, while {@code LEVEL_JIG} always has a scope for every loaded
-     * level, giving this a reliable clock to ride. Subscribed alongside {@link
-     * LevelHealthCheck}'s own handlers on the shared event bus (see {@link
-     * LevelHealthCheck#register()}), so this guards against {@code LEVEL_JIG}, not {@code
-     * MOB_JIG} -- the usual jig-key guard, just checking a different jig than the rest of this
-     * file's handlers do.
-     *
-     * <p>
-     * Once spawned, the canary needs no further scanning/rediscovery logic of its own:
-     * registering its UUID via {@link SatchelHealth#watch} feeds {@code MOB_JIG}'s own
-     * interest-driven poll ({@code MobInterestRegistry}), which already resolves interested
-     * UUIDs through {@code ForgeEgress} on both sides independently -- that poll, not anything
-     * specific to this method, is what actually proves the CLIENT/BOTH path.
+     * Spawns a synthetic mob (a bat) at the Overworld's shared spawn, persistent so it survives a
+     * chunk's unloading. The canary and the interest probe use it. Wiring the canary to the mob jig
+     * is {@link CanaryHealthCheck}: the server's Trinket on the level jig keeps one alive, registers
+     * interest and writes its UUID to a synced fixture, and each side mirrors that into its own mob
+     * jig.
      */
-    static void maintainCanary(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
-
-        if (!LevelHealthCheck.LEVEL_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
-
-        if (!(info.scope() instanceof LevelScope levelScope)) {
-            return;
-        }
-
-        if (!(levelScope.level() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-
-        // Pinned to the Overworld -- the only dimension guaranteed to have a keep-loaded spawn
-        // region with nobody in it. A canary spawned in the Nether/End (no player, no force-load
-        // ticket) can go chunk-unresolvable between MobJig.reconcile() polls without ever being
-        // isRemoved(), which reads as a false teardown violation rather than an unsuitable spawn
-        // site. SatchelHealth as a whole assumes Overworld context for now; per-dimension coverage
-        // is a future refactor, not attempted here. Checked before the throttle below so a
-        // non-Overworld tick doesn't consume the throttle window.
-        if (!serverLevel.dimension().equals(Level.OVERWORLD)) {
-            return;
-        }
-
-        HealthState state = SatchelHealth.state();
-
-        if (!state.canaryCheck.allow()) {
-            return;
-        }
-
-        UUID existing = state.canaryUuid;
-        if (existing != null
-                && Satchel.require().egress().getEntity(serverLevel, existing).isPresent()) {
-            return;
-        }
-
-        Mob canary = spawnCanary(serverLevel);
-        if (canary == null) {
-            return;
-        }
-
-        UUID canaryUuid = canary.getUUID();
-        state.canaryUuid = canaryUuid;
-        SatchelHealth.watch(serverLevel, canaryUuid);
-        MobScope.getFor(canary);
-
-        OUT.info(
-                "[SatchelHealth] Canary spawned: " + canary.getType()
-                        + " uuid=" + Ids.shortId(canaryUuid)
-                        + " dim=" + serverLevel.dimension().location()
-        );
-    }
-
-    private static Mob spawnCanary(ServerLevel level) {
-        Mob mob = canaryEntityType().create(level);
+    static Mob spawnSyntheticMob(ServerLevel level) {
+        Mob mob = createSyntheticMob(level);
         if (mob == null) {
             return null;
         }
-
-        BlockPos pos = level.getSharedSpawnPos();
-        mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0.0F, 0.0F);
-        mob.setPersistenceRequired();
 
         if (!level.addFreshEntity(mob)) {
             return null;
@@ -311,14 +303,110 @@ final class MobHealthCheck {
     }
 
     /**
+     * A synthetic mob placed at the Overworld's shared spawn but not added to the level, for a probe
+     * that needs to control the join ({@link MobJoinHealthCheck}).
+     */
+    static Mob createSyntheticMob(ServerLevel level) {
+        Mob mob = canaryEntityType().create(level);
+        if (mob == null) {
+            return null;
+        }
+
+        BlockPos pos = level.getSharedSpawnPos();
+        mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 0.0F, 0.0F);
+        mob.setPersistenceRequired();
+        return mob;
+    }
+
+    /**
      * Deliberately a method, not a {@code static final} field -- this is the actual fix for
      * SAT_050's {@code NoSuchFieldError: BAT} crash. A method body isn't evaluated until called;
-     * {@link EntityType#BAT} is only ever touched from inside {@link #spawnCanary}'s own call to
-     * this method, itself only reached once {@link #maintainCanary} has already decided a
+     * {@link EntityType#BAT} is only ever touched from inside {@link #spawnSyntheticMob}'s own call to
+     * this method, itself only reached once the canary's Trinket has already decided a
      * canary needs spawning -- never at class-load time, regardless of whether any static
      * member of this class has been touched.
      */
     private static EntityType<Bat> canaryEntityType() {
         return EntityType.BAT;
+    }
+
+    /**
+     * On the health mob jig, on both sides, for every mob scope under it (the jig also receives mobs
+     * other modules introduce). For the canary it confirms the Trinket machinery reaches a mob scope:
+     * it attaches when the side builds the scope, and, as a {@link Leaving} Trinket, it hears the
+     * reason the scope unloads for, which must be the one the {@code ScopeInfo} carries.
+     */
+    public static final class CanaryMobTrinket implements Leaving {
+
+        @Override
+        public void onAttach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
+            MobScope scope = (MobScope) info.scope();
+            if (!isCanary(scope)) return;
+            OUT.info("[SatchelHealth] Canary scoped on the " + info.jigInfo().side() + " side: uuid="
+                    + Ids.shortId(scope.uuid()) + " phase=" + info.phase());
+
+            // The scope-bound consumer of the canary's scoped module event (SAT_113).
+            CanaryEventHealthCheck.listen(info);
+
+            // One scope at a time per side: a second built during an unload attaches before the first
+            // has detached.
+            if (!SatchelHealth.state().canaryScopes(info.jigInfo().side()).add(scope.uuid())) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: a second scope for the canary "
+                        + Ids.shortId(scope.uuid()) + " attached on the " + info.jigInfo().side()
+                        + " side before the first had detached");
+            }
+        }
+
+        @Override
+        public void onLeave(ScopeInfo scopeInfo, LeaveReason reason) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
+            if (reason != info.leaveReason()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: a Leaving Trinket was told " + reason
+                        + " but the scope's ScopeInfo carries " + info.leaveReason());
+            }
+            MobScope scope = (MobScope) info.scope();
+            if (!isCanary(scope)) return;
+            OUT.info("[SatchelHealth] Canary leaving on the " + info.jigInfo().side() + " side: uuid="
+                    + Ids.shortId(scope.uuid()) + " reason=" + reason);
+            checkNoSecondScope(info, "onLeave");
+        }
+
+        @Override
+        public void onDetach(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
+            MobScope scope = (MobScope) info.scope();
+            if (isCanary(scope)) checkNoSecondScope(info, "onDetach");
+
+            // Removed whatever the canary is by now, so a canary that was replaced leaves nothing behind.
+            SatchelHealth.existing().ifPresent(state ->
+                    state.canaryScopes(info.jigInfo().side()).remove(scope.uuid()));
+        }
+
+        /**
+         * From inside the canary's own unload its mob is still in the level and still of interest, so a
+         * request for its scope would build a second one, unless the jig holds that back until the unload
+         * has finished (and for the whole of a reset). A lookup by UUID, by mob and through the module
+         * event resolver must all answer empty.
+         */
+        private static void checkNoSecondScope(ScopeInfoImpl info, String call) {
+            MobScope scope = (MobScope) info.scope();
+            Mob mob = scope.mob();
+            MobJig jig = (MobJig) info.jigInfo().jig;
+            String where = call + " of the canary on the " + info.jigInfo().side() + " side";
+
+            if (jig.scopeFor(scope.uuid()).isPresent()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: scopeFor answered during " + where);
+            }
+            if (jig.infoFor(mob).isPresent()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: infoFor(Mob) answered during " + where);
+            }
+            if (Scopes.of(MOB_JIG, mob).isPresent()) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob unload: Scopes.of answered during " + where);
+            }
+            SatchelHealth.logOnce("mobunload:" + info.jigInfo().side() + ":" + call,
+                    "[SatchelHealth] Mob unload probe: during " + where + " scopeFor, infoFor(Mob) and Scopes.of "
+                            + "all answered empty, so no second scope was built");
+        }
     }
 }

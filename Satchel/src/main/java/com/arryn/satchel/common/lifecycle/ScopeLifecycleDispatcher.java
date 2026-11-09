@@ -2,6 +2,7 @@ package com.arryn.satchel.common.lifecycle;
 
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.Objects;
 
@@ -19,7 +20,7 @@ import java.util.Objects;
  * <p>
  * It only:
  * <ul>
- *   <li>Transitions {@link ScopeInfo} phase</li>
+ *   <li>Transitions {@link ScopeInfoImpl} phase</li>
  *   <li>Emits corresponding {@link ScopeEvent}s</li>
  * </ul>
  */
@@ -42,17 +43,17 @@ public final class ScopeLifecycleDispatcher {
      * Must only be called after readiness has been accepted
      * by the jig's coupler.
      */
-    public void signalScopeLoaded(ScopeInfo info) {
+    public void signalScopeLoaded(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
 
-        if (info.phase() != ScopeInfo.Phase.NEW) {
+        if (info.phase() != ScopeInfoImpl.Phase.NEW) {
             throw new IllegalStateException(
                     "Scope already loaded or unloading: " +
                             info.scope().debugName()
             );
         }
 
-        info.setPhase(ScopeInfo.Phase.LOADED);
+        info.setPhase(ScopeInfoImpl.Phase.LOADED);
         emitLoaded(info);
     }
 
@@ -63,10 +64,10 @@ public final class ScopeLifecycleDispatcher {
      * Caller is responsible for ensuring execution work
      * has already been performed.
      */
-    public void signalScopeTick(ScopeInfo info) {
+    public void signalScopeTick(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
 
-        if (info.phase() != ScopeInfo.Phase.LOADED) {
+        if (info.phase() != ScopeInfoImpl.Phase.LOADED) {
             return; // not tickable
         }
 
@@ -76,16 +77,16 @@ public final class ScopeLifecycleDispatcher {
     /**
      * Begin unloading a scopeInfo for a specific jig.
      */
-    public void signalScopeUnloaded(ScopeInfo info) {
+    public void signalScopeUnloaded(ScopeInfoImpl info) {
         Objects.requireNonNull(info, "info");
 
-        if (info.phase() != ScopeInfo.Phase.LOADED) {
+        if (info.phase() != ScopeInfoImpl.Phase.LOADED) {
             return;
         }
 
-        info.setPhase(ScopeInfo.Phase.UNLOADING);
+        info.setPhase(ScopeInfoImpl.Phase.UNLOADING);
         emitUnloaded(info);
-        info.setPhase(ScopeInfo.Phase.UNLOADED);
+        info.setPhase(ScopeInfoImpl.Phase.UNLOADED);
         var ji =  info.jigInfo();
         if (ji==null) throw new IllegalStateException("how!!?!?");
         ji.removeScope(info.scope());

@@ -1,0 +1,10 @@
+# Classes with a direct Forge listener that do not carry @PlatformBound yet (FRO_267)
+#
+# The platform check (PlatformBoundCheckTest) fails for any class with a direct listener and no
+# @PlatformBound(reason = "..."), except the files listed here. This is a baseline that may only shrink:
+# a new unmarked listener fails the test, and a file that gains its marker must be removed from this list
+# (the test fails while a listed file is clean). It is empty: the marker sweep (FRO_283) marked the direct-listener
+# classes it found, and boss node C (FRO_282) ended the last two.
+#
+# One source file per line, relative to src/main/java. Blank lines and lines that start with "#" are ignored.
+

@@ -5,8 +5,8 @@ import java.util.Objects;
 /**
  * Outcome of a Border mutation. {@link BordersCrudFacet#applyProposal(BorderProposal)} and every
  * {@code BorderAPI} operation built on it return this instead of throwing or returning
- * {@code Optional.empty()} -- see the Border wiki page's "Mutation surface" section (FRO_046's
- * ruling, built by FRO_047). Modeled on {@code BorderSelectorResult}'s established shape in this
+ * {@code Optional.empty()} -- see the Border wiki page's "Mutation surface" section. Modeled
+ * on {@code BorderSelectorResult}'s established shape in this
  * codebase: static factories, final fields, tagged by an enum.
  */
 public final class Result {

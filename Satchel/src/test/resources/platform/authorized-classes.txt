@@ -1,0 +1,57 @@
+# Authorized platform classes
+#
+# An import of a class listed here needs no @PlatformBound marker. Each is stable across versions, carries no
+# per-instance game state, is a leaf (it reaches into no Satchel state and no other module), and a port fixes a
+# use of it mechanically. Being listed exempts the import from the marker; it does not exempt the use from the
+# conventions that govern it.
+#
+# One class per line: the fully qualified name, then "  # " and why it passes. Blank lines and lines that start
+# with "#" are ignored. The criteria and how an entry is added are on the Platform-Bound Code page. The code
+# conventions point here instead of repeating the list, so the two cannot drift.
+#
+# "judgment call" marks an entry that passes the tests with a caveat. Revisit it at a port, not before.
+
+
+# ---- Value types: immutable, leaves ----
+
+net.minecraft.core.BlockPos  # immutable block position
+net.minecraft.world.level.ChunkPos  # immutable chunk position
+net.minecraft.world.phys.Vec3  # immutable vector
+net.minecraft.world.phys.AABB  # immutable box
+net.minecraft.util.RandomSource  # the random source every call site takes; no world state
+net.minecraft.world.entity.EquipmentSlot  # enum of slots
+
+
+# ---- Identity and text ----
+
+net.minecraft.resources.ResourceLocation  # judgment call: ids are everywhere and a constructor change is a mechanical replace
+net.minecraft.network.chat.Component  # judgment call: immutable text; a factory change is a mechanical replace
+
+
+# ---- Sound, particle and category constants ----
+
+net.minecraft.sounds.SoundEvent  # judgment call: a data-driven id; constants are declared in one place per module
+net.minecraft.sounds.SoundSource  # judgment call: enum of sound categories
+net.minecraft.sounds.SoundEvents  # judgment call: constants for built-in sounds, the same class of entry as SoundEvent above
+net.minecraft.core.particles.ParticleTypes  # judgment call: constants for built-in particles
+net.minecraft.core.particles.ParticleOptions  # a particle's options; constants live with the module's effects
+net.minecraft.world.entity.MobCategory  # judgment call: enum of spawn categories
+net.minecraft.world.level.levelgen.Heightmap  # judgment call: enum naming a heightmap type
+
+
+# ---- Registry constants ----
+
+net.minecraft.world.entity.EntityType  # judgment call: a registry key and its constants; spawning through one is still acting on an entity, so it goes through MobSpawns or the class that owns the job
+net.minecraft.world.level.block.Blocks  # judgment call: constants for built-in blocks; placing one is still a world edit, by the class that owns the job
+
+
+# ---- The handles module logic is typed on (Platform-Bound Code: Common code, side by registration) ----
+
+net.minecraft.world.level.Level  # common to both sides; logic is typed on Level, never on a server or client level
+net.minecraft.world.entity.player.Player  # common to both sides; logic is typed on Player
+
+
+# ---- Plain base classes (Code Conventions: the Free tier) ----
+
+net.minecraft.world.item.Item  # judgment call: plain subclasses with no per-stack data only; stack data goes through StackData
+net.minecraft.world.level.block.Block  # judgment call: plain subclasses with no block entity only

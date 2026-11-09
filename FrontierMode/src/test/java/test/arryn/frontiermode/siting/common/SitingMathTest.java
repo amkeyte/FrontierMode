@@ -76,4 +76,27 @@ class SitingMathTest {
         SitingMath.Requirements lax = new SitingMath.Requirements(0, 1.0, 0);
         assertTrue(SitingMath.judge(new SitingMath.Reading(0, 1.0, 0, true), lax).passes());
     }
+
+    @Test
+    void untouched_ground_pays_nothing() {
+        assertEquals(0.0, SitingMath.usedGroundPenalty(0, 12000, 0.5), 1e-9);
+    }
+
+    @Test
+    void a_chunk_halfway_to_full_pays_half_the_maximum() {
+        // Fractional on purpose: an integer division would give 0 here and 1 only from full ticks on.
+        assertEquals(0.25, SitingMath.usedGroundPenalty(6000, 12000, 0.5), 1e-9);
+    }
+
+    @Test
+    void a_chunk_at_or_past_full_pays_the_maximum_and_no_more() {
+        assertEquals(0.5, SitingMath.usedGroundPenalty(12000, 12000, 0.5), 1e-9);
+        assertEquals(0.5, SitingMath.usedGroundPenalty(3_600_000L, 12000, 0.5), 1e-9);
+        assertEquals(0.9, SitingMath.usedGroundPenalty(Long.MAX_VALUE, 1, 0.9), 1e-9);
+    }
+
+    @Test
+    void a_maximum_of_zero_turns_the_rule_off() {
+        assertEquals(0.0, SitingMath.usedGroundPenalty(12000, 12000, 0.0), 1e-9);
+    }
 }

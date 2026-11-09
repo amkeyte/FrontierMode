@@ -1,8 +1,8 @@
 package com.arryn.satchel.common.net;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import net.minecraft.resources.ResourceLocation;
@@ -71,7 +71,7 @@ public final class SatchelNetwork {
 // Future scope types may require different PacketDistributors.
 
     public static void send(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             Object packet
     ) {
         Satchel.requireServer();
@@ -112,7 +112,7 @@ public final class SatchelNetwork {
      * exactly one connection, not everyone in some dimension.
      */
     public static void sendToPlayer(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             Object packet
     ) {
         Satchel.requireServer();
@@ -152,6 +152,29 @@ public final class SatchelNetwork {
         CHANNEL.send(
                 PacketDistributor.PLAYER.with(() -> player),
                 new S2cWorldIdentityToken(token)
+        );
+    }
+
+    /**
+     * A level scope's bundle to one player who has just joined its audience (SAT_144): at login, on a
+     * dimension change, on a respawn. {@link #send(ScopeInfo, Object)} reaches everyone in the dimension;
+     * this reaches only {@code player}, so a second player joining does not resend to the first. The same
+     * silent no-op as the others for a jig that does not allow networking.
+     */
+    public static void sendToPlayer(
+            ServerPlayer player,
+            ScopeInfoImpl info,
+            Object packet
+    ) {
+        Satchel.requireServer();
+
+        if (!info.policies().capabilities().allowsNetworking()) {
+            return;
+        }
+
+        CHANNEL.send(
+                PacketDistributor.PLAYER.with(() -> player),
+                packet
         );
     }
 

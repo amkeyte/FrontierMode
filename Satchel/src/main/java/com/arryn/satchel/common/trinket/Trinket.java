@@ -8,21 +8,14 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
  * is persisted state inside a bundle.
  *
  * <p>
- * A module declares a Trinket (type and factory) beside its bundle schema on its jig config
- * ({@code JigBundlesConfig#trinket}); Satchel constructs every declared Trinket when the scope loads
+ * A module declares a Trinket (type, factory and {@code order}) in its jig config's Trinkets lens
+ * ({@code JigTrinketsConfig#declare}), apart from its bundle schema; Satchel constructs every declared Trinket when the scope loads
  * and drops it when the scope unloads, so module code never attaches one. Module code reaches one
  * through {@code Satchel.trinket(jigKey, scope, Type)}, usually behind its own resolver.
  *
  * <p>
  * Anything beyond this base is an opt-in <i>ability</i> interface ({@link Ticking}), added only when
  * a consumer needs it.
- *
- * <p>
- * <b>Rules for Trinket code.</b> Write it as common code typed on {@code Level} and {@link
- * ScopeInfo}: no server types and no casts, side-specific work behind {@code level.isClientSide()}.
- * Vanilla API calls are allowed; Forge-specific APIs (events, capabilities, registries) are not --
- * those stay in Satchel's platform layer. A Trinket that throws crashes, uncaught, like a fixture's
- * tick.
  *
  * <p>
  * <b>Unstable:</b> this API may change until a FrontierMode consumer has exercised it.
@@ -42,6 +35,21 @@ public interface Trinket {
      * its bundle dirty and is saved by the engine's terminal flush. No teardown reason is given.
      */
     default void onDetach(ScopeInfo info) {
+    }
+
+    /**
+     * Whether this Trinket is trustworthy to use yet, the Trinket counterpart of {@code
+     * SatchelFixture#isReady()}. Until it returns true the coupler skips the Trinket's tick and
+     * answers its lookup ({@code Satchel.trinket}) empty. Existence is still guaranteed: Satchel has
+     * constructed and attached it. Only participation is gated.
+     *
+     * <p>
+     * A fixture's {@code isReady()} is a flag its lifecycle flips; a Trinket's is a predicate over
+     * its scope, because a Trinket carries no lifecycle state of its own. Called every tick for a
+     * {@link Ticking} Trinket and on every lookup, so keep it cheap. The default is true.
+     */
+    default boolean isReady(ScopeInfo info) {
+        return true;
     }
 
     /**

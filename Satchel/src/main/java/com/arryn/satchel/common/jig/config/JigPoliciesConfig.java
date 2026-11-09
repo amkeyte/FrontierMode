@@ -59,9 +59,30 @@ public abstract class JigPoliciesConfig {
         return presets().capabilities;
     }
 
+    /**
+     * Mob jigs only: how many mobs the jig may hold interest in at once. Exceeding it crashes in a
+     * development run and warns in release, naming the jig and a few UUIDs. It is the diagnostic for
+     * a module that forgets {@code lostInterest}. Default {@value #DEFAULT_MAX_INTEREST}.
+     */
+    public int maxInterest() {
+        return presets().maxInterest;
+    }
+
+    /** The default of {@link #maxInterest()}. */
+    public static final int DEFAULT_MAX_INTEREST = 500;
+
     /* =============================================================
      * Mutators (fluent)
      * ========================================================== */
+
+    /**
+     * Sets this mob jig's interest cap; see {@link #maxInterest()}.
+     */
+    public JigPoliciesConfig maxInterest(int max) {
+        if (max < 1) throw new IllegalArgumentException("maxInterest must be at least 1, got " + max);
+        presets().maxInterest = max;
+        return this;
+    }
 
     public JigPoliciesConfig enabled(boolean enabled) {
         presets().enabled = enabled;
@@ -156,5 +177,10 @@ public abstract class JigPoliciesConfig {
          * Declared capabilities (clock, networking, persistence, etc.).
          */
         public JigPolicies.Capabilities capabilities;
+
+        /**
+         * Mob jigs only: the interest cap.
+         */
+        public int maxInterest = DEFAULT_MAX_INTEREST;
     }
 }

@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
 /**
- * Outcome of a {@link BossSpawnFacet#forceMaterialize} call -- distinguishable cases so
+ * Outcome of a {@code BossAPI.forceMaterialize} call -- distinguishable cases so
  * {@code /boss mob spawn}'s chat feedback can give a specific reason in each situation.
  */
 public enum MaterializeOutcome {
@@ -12,6 +12,8 @@ public enum MaterializeOutcome {
     /** The boss is alive out in the world, so it was teleported back to its spot instead. */
     TELEPORTED_HOME,
     NO_RECORD,
+    /** The record is defeated, and a defeated boss is done: nothing was changed. A new boss is a new record. */
+    DEFEATED,
     /** The home Border is still pregenerating, so the record has no spot yet. */
     NOT_POSITIONED,
     /** The spot was reached but the entity couldn't be created or added. */

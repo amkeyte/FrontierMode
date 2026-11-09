@@ -1,7 +1,9 @@
 package com.arryn.satchel;
 
 import com.arryn.satchel.common.config.SatchelConfig;
+import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.net.SatchelNetwork;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.MobDataStore;
@@ -19,6 +21,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
+@PlatformBound(reason = "registration")
 @Mod(SatchelMod.MODID)
 public class SatchelMod {
     public static final String MODID = "satchel_ecosystem";
@@ -70,14 +73,15 @@ public class SatchelMod {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            // SAT_039/SAT_040/SAT_060 -- SatchelHealth is the single registration point for
-            // every jig kind's health check: MobJig, LevelJig (both sideApplicability BOTH), and
-            // PlayerJig (stays SERVER -- PlayerScope has no client-side existence to widen
-            // into). Calling this (when SatchelConfig.HEALTH_ENABLED allows it) is what makes
-            // all three exist as installed jigs at all -- without it the classes compile but
-            // nothing ever reaches Satchel.registerJigConfig(...). See SatchelHealth's own class
-            // doc for the full mechanism, and for why the MobJig half is expected to crash
-            // loudly on a real connected client until RM_SAT_022 ("Roger") lands.
+            // The level and player host jigs, which modules contribute Trinkets to. Registered
+            // first so they come first in the jig walk.
+            HostJigs.register();
+
+            // SatchelHealth is the single registration point for every jig kind's health check
+            // (MobJig, LevelJig and PlayerJig, each registered BOTH) and for its probes. Calling
+            // this (when SatchelConfig.HEALTH_ENABLED allows it) is what makes them exist as
+            // installed jigs at all -- without it the classes compile but nothing ever reaches
+            // Satchel.registerJig(...). See SatchelHealth's own class doc for the full mechanism.
             SatchelHealth.init();
 
             // SAT_093: Tunables load once per game, here -- before any world exists, so a Tunable

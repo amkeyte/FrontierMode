@@ -1,7 +1,9 @@
 package com.arryn.frontiermode.difficulty;
 
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.difficulty.server.rules.DifficultyRules;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.IronGolem;
@@ -12,6 +14,8 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.monster.piglin.Piglin;
+
+import java.util.OptionalInt;
 
 /**
  * The difficulty module's public surface (difficulty.md § Module shape): what Boss calls to put a
@@ -61,16 +65,40 @@ public final class DifficultyAPI {
 
     /**
      * Puts a Feral mob -- fresh in the Wilds, where there is no Relevant Border and so no ordinary rung --
-     * on the {@code feral} rung with Feral's own multipliers (FRO_219). Feral sits off the stat ladder's
-     * formula, but its numbers live in the same {@code frontiermode:ladder} MobData namespace so the one
-     * damage handler scales its hits and the first rung to reach a mob still wins. {@code false} if a
-     * rung already had it.
+     * on the {@code feral} rung (difficulty.md § The stat ladder): {@code 1 + growth x (n - 1)} with
+     * {@code n} the path tip's position, the same lookup the Nether uses ({@link #pathTipPosition}). Where
+     * the mob stands does not matter. The numbers live in the {@code frontiermode:ladder} MobData
+     * namespace, so the one damage handler scales its hits and the first rung to reach a mob still wins.
+     * {@code n} is recorded as the rung's step, so the Info report shows the level. The outcome says why
+     * nothing was written: {@link RungOutcome#ALREADY_RUNG} when a rung already had the mob, or
+     * {@link RungOutcome#NO_PATH_TIP} when there is no path tip yet, in which case the mob stays vanilla.
      */
-    public static boolean applyFeralRung(Mob mob, double healthMultiplier, double damageMultiplier) {
-        return Ladder.apply(mob, Ladder.RUNG_FERAL, 0, healthMultiplier, damageMultiplier);
+    public static RungOutcome applyFeralRung(Mob mob) {
+        OptionalInt tip = pathTipPosition(mob.getServer());
+        if (tip.isEmpty() || tip.getAsInt() < 1) {
+            return RungOutcome.NO_PATH_TIP;
+        }
+        int n = tip.getAsInt();
+        DifficultyRules rules = DifficultyRules.ACTIVE;
+        boolean applied = Ladder.apply(mob, Ladder.RUNG_FERAL, n,
+                LadderMath.multiplier(rules.feralHealthGrowth(), n),
+                LadderMath.multiplier(rules.feralDamageGrowth(), n));
+        return applied ? RungOutcome.APPLIED : RungOutcome.ALREADY_RUNG;
     }
 
-    /** The mob's place on the stat ladder as one Inspect Stick line (level, rung, multipliers), if it has one. */
+    /**
+     * The Overworld path tip's 1-based position, "how far the player has come" -- the {@code n} the
+     * Nether's ordinary rung and the {@code feral} rung share. The Overworld has the only path, so this
+     * is the world's tip, not a per-player value. Empty with no path or before the Overworld's Border
+     * facet is ready.
+     */
+    public static OptionalInt pathTipPosition(MinecraftServer server) {
+        return BorderAPI.PATH(server.overworld())
+                .map(path -> OptionalInt.of(path.size()))
+                .orElseGet(OptionalInt::empty);
+    }
+
+    /** The mob's place on the stat ladder as one Info report line (level, rung, multipliers), if it has one. */
     public static java.util.Optional<String> describe(Mob mob) {
         return Ladder.describe(mob);
     }
@@ -98,7 +126,7 @@ public final class DifficultyAPI {
     }
 
     /**
-     * Puts {@code mob} on the Sentinel rung (difficulty.md § One formula, three rungs):
+     * Puts {@code mob} on the Sentinel rung (difficulty.md § One formula, a rung for each kind of mob):
      * {@code n} is its Keeper's path position, and the growth is the ordinary growth plus a Sentinel
      * share rising with {@code difficultyIntensity}, 1 beside the boss. Called before the mob joins
      * the level, so the ordinary rung never touches it. {@code false} if a rung already had it.

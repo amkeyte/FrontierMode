@@ -1,19 +1,24 @@
 package com.arryn.frontiermode.structure;
 
 import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.structure.common.CairnFixture;
+import com.arryn.frontiermode.structure.common.CairnRecord;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
- * What the Cairn's pulse looks and sounds like, once {@code StructureModule} has resolved where it
- * points. See cairn.md's "The pulse" and the Cairn design page.
+ * What the Cairn's pulse looks and sounds like, and where it points. See cairn.md's "The pulse" and
+ * the Cairn design page.
  *
  * <p>One stream of dust leaves the cap straight up, then bends in a single smooth arc -- a
  * quadratic curve, like a fountain -- into the bearing, with no kink at the top. The launch height
@@ -21,15 +26,74 @@ import java.util.List;
  * direction and those two independent rolls shape the stream; the raw target coordinate, and how
  * far away it is, never reach the client, and the curve's shape never depends on that distance.
  */
-final class CairnPulse {
+public final class CairnPulse {
+
+    private static final int DEAD_SPHERE_RADIUS = 100;
 
     private static final RandomSource RNG = RandomSource.create();
 
     private CairnPulse() {
     }
 
+    /**
+     * The pulse -- right-click and redstone both call this identical handler
+     * ({@code CairnCapBlock.use}/{@code neighborChanged}). Resolves where the pulse points, then fires it.
+     */
+    public static void triggerPulse(Level level, BlockPos capPos) {
+        if (level.isClientSide) {
+            return;
+        }
+
+        Optional<CairnFixture> fixtureOpt = StructureAPI.cairnFixture(level);
+        if (fixtureOpt.isEmpty()) {
+            return;
+        }
+        CairnFixture fixture = fixtureOpt.get();
+
+        BlockPos anchorPos = capPos.below(CairnPlacer.PILLAR_HEIGHT);
+        Optional<CairnRecord> recordOpt = fixture.getByAnchor(anchorPos);
+        if (recordOpt.isEmpty()) {
+            return;
+        }
+        CairnRecord cairn = recordOpt.get();
+        UUID bossId = cairn.bossId();
+
+        BlockPos target;
+        if (BossAPI.isBossAlive(level, bossId)) {
+            // "Just points to what it knows" -- overwrite this Cairn's cache on a successful live read,
+            // leave it untouched (and still use it) on failure. No fallback chain beyond this.
+            Optional<BlockPos> liveOpt = BossAPI.resolveLivePosition(level, bossId);
+            if (liveOpt.isPresent()) {
+                fixture.updateLastKnownBossPos(cairn.cairnId(), liveOpt.get());
+                target = liveOpt.get();
+            } else {
+                target = cairn.lastKnownBossPos();
+            }
+        } else {
+            // Dead path touches no boss state at all -- re-rolled every trigger, never cached.
+            target = randomPointInSphere(CairnPlacer.RNG, anchorPos, DEAD_SPHERE_RADIUS);
+        }
+
+        fire(level, capPos, target);
+    }
+
+    /** Uniform random point within a sphere of {@code radius} centered on {@code center}. */
+    @SuppressWarnings("SameParameterValue")
+    static BlockPos randomPointInSphere(RandomSource rng, BlockPos center, int radius) {
+        double u = rng.nextDouble();
+        double r = radius * Math.cbrt(u);
+        double theta = rng.nextDouble() * 2.0 * Math.PI;
+        double phi = Math.acos(2.0 * rng.nextDouble() - 1.0);
+
+        double x = r * Math.sin(phi) * Math.cos(theta);
+        double y = r * Math.sin(phi) * Math.sin(theta);
+        double z = r * Math.cos(phi);
+
+        return center.offset((int) Math.round(x), (int) Math.round(y), (int) Math.round(z));
+    }
+
     /** Fires the pulse from {@code capPos} toward {@code target}'s bearing: the ping, then the stream. */
-    static void fire(ServerLevel level, BlockPos capPos, BlockPos target) {
+    static void fire(Level level, BlockPos capPos, BlockPos target) {
         Vec3 start = new Vec3(capPos.getX() + 0.5, capPos.getY() + 1.0, capPos.getZ() + 0.5);
 
         EffectsAPI.broadcastSound(level, start.x, start.y, start.z, FrontierMode.CAIRN_PING.get(),

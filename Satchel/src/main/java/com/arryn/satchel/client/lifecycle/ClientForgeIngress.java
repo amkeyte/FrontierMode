@@ -1,19 +1,24 @@
 package com.arryn.satchel.client.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.client.jig.guts.ClientFoundationBooter;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
+import com.arryn.satchel.common.net.ParcelInbox;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.Mob;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;
@@ -33,6 +38,7 @@ import java.util.UUID;
         value = Dist.CLIENT
 )
 
+@PlatformBound(reason = "Satchel's client-side Forge ingress: the one path in from the game")
 public final class ClientForgeIngress {
 
     private static final ClientFoundationBooter BOOTER =
@@ -99,6 +105,25 @@ public final class ClientForgeIngress {
 
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
+        // Every jig resets as the client leaves its world (SAT_122), ahead of the token clear below,
+        // so a mob scope's Unloaded handlers still run in a ready foundation and nothing this world
+        // held reaches the next one.
+        BOOTER.bindFoundation();
+        Satchel.foundationFor(LogicalSide.CLIENT).ifPresent(foundation -> {
+            foundation.reset();
+
+            // Forge posts LevelEvent.Unload for the client's level only after this event, when the token
+            // below is already cleared: no level scope can be found then, and each would outlive its
+            // world. The level unloads here instead, in a ready foundation and after the mobs, as on a
+            // server stop. onLevelUnload then finds nothing.
+            ClientLevel level = Minecraft.getInstance().level;
+            if (level != null) foundation.tryRemoveSource(level);
+        });
+
+        // A parcel the client never drained must not reach a later world: a rejoined save has the same scope
+        // ids, and a player scope's id is the same in every world.
+        ParcelInbox.clear();
+
         // Session-scoped by design (see WorldIdentityContext's class docs) -- clear so a later
         // connection, to this server or a different one, never starts with a stale token left
         // over from before.
@@ -141,6 +166,24 @@ public final class ClientForgeIngress {
         BOOTER.bindFoundation();
 
         Satchel.require().tryRemoveSource(player);
+    }
+
+    /* =============================================================
+     * Mob scope teardown (SAT_123)
+     * ========================================================== */
+
+    /**
+     * Unloads a mob's scope the moment the mob leaves the client's level, whether it died or walked
+     * out of tracking range (which arrives as a discard): the same event-driven teardown the server
+     * has. The interest, if any, stays. At LOW priority, after other listeners have seen the event.
+     */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onMobLeaveScopes(EntityLeaveLevelEvent e) {
+        if (!e.getLevel().isClientSide()) return;
+        if (!(e.getEntity() instanceof Mob mob)) return;
+        if (!Satchel.isReady()) return;
+
+        Satchel.require().mobLeft(mob);
     }
 
     /* =============================================================

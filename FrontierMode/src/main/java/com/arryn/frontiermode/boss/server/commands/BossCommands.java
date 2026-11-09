@@ -15,16 +15,14 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Brigadier registration for {@code /boss} -- FRO_057's build of RM_FRO_022 ("Joyce"), the six
- * items scoped on that ticket and on FRO_056. Mirrors {@code BorderCommands}' registration/
- * handler split and selector-application shape exactly; the full command-tree design space this
- * build's six items are drawn from (out of scope this pass) is
+ * Brigadier registration for {@code /boss}. Mirrors {@code BorderCommands}' registration/
+ * handler split and selector-application shape exactly; the full command-tree design space is
  * wiki/frontiermode/architecture/boss-commands.md.
  */
 public final class BossCommands {
@@ -55,36 +53,53 @@ public final class BossCommands {
             BossSelectorResult selector,
             BossOperator op
     ) throws CommandSyntaxException {
+        return applySelector(ctx, selector, op, false);
+    }
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-
-        List<BossRecord> bosses;
-        try {
-            bosses = BossSelector.resolve(selector, sp);
-        } catch (CommandSyntaxException e) {
-            throw e;
-        } catch (Exception e) {
-            ctx.getSource().sendFailure(Component.literal("[Boss] Selector resolution failed."));
-            return 0;
-        }
-
-        if (bosses.isEmpty()) {
-            ctx.getSource().sendFailure(Component.literal("[Boss] No bosses matched selector."));
-            return 0;
-        }
+    /**
+     * {@code livingOnly} drops already-defeated bosses from an {@code @all} match, for an operator
+     * that has nothing to do to them. A boss named by an index is never dropped: asking for a
+     * defeated one by name still gets the operator's own answer.
+     */
+    private static int applySelector(
+            CommandContext<CommandSourceStack> ctx,
+            BossSelectorResult selector,
+            BossOperator op,
+            boolean livingOnly
+    ) throws CommandSyntaxException {
 
         int count = 0;
-        for (BossRecord b : bosses) {
-            try {
-                count += op.run(ctx, b.bossId());
-            } catch (Exception e) {
-                ctx.getSource().sendFailure(
-                        Component.literal("[Boss] Operation failed for boss " + b.bossId())
-                );
-            }
+        for (BossRecord b : selected(ctx, selector, livingOnly)) {
+            count += op.run(ctx, b.bossId());
         }
 
         return count;
+    }
+
+    /**
+     * The bosses {@code selector} matches, in order; empty after telling the sender that none matched. Shared by
+     * {@code applySelector}, which acts on each in turn, and {@code info}, which reports on all of them together.
+     */
+    private static List<BossRecord> selected(
+            CommandContext<CommandSourceStack> ctx,
+            BossSelectorResult selector,
+            boolean livingOnly
+    ) throws CommandSyntaxException {
+
+        Player sp = ctx.getSource().getPlayerOrException();
+
+        List<BossRecord> bosses = BossSelector.resolve(selector, sp);
+
+        boolean filterToLiving = livingOnly && selector.mode == BossSelectorResult.Mode.ALL;
+        if (filterToLiving) {
+            bosses = bosses.stream().filter(BossRecord::alive).toList();
+        }
+
+        if (bosses.isEmpty()) {
+            ctx.getSource().sendFailure(Component.literal(
+                    filterToLiving ? "[Boss] No living bosses matched selector." : "[Boss] No bosses matched selector."));
+        }
+        return bosses;
     }
 
     @FunctionalInterface
@@ -98,16 +113,17 @@ public final class BossCommands {
 
     private static ArgumentBuilder<CommandSourceStack, ?> info() {
         return Commands.literal("info")
-                .executes(ctx ->
-                        applySelector(ctx, BossSelectorResult.all(), BossCommandHandler::info)
-                )
+                .executes(ctx -> infoSelected(ctx, BossSelectorResult.all()))
                 .then(Commands.argument("selector", BossSelectorArgumentType.selector())
-                        .executes(ctx -> applySelector(
-                                ctx,
-                                BossSelectorArgumentType.getSelector(ctx, "selector"),
-                                BossCommandHandler::info
-                        ))
+                        .executes(ctx -> infoSelected(ctx, BossSelectorArgumentType.getSelector(ctx, "selector")))
                 );
+    }
+
+    // One report for every selected boss, not one per boss: the subjects go in a single InfoRequest.
+    private static int infoSelected(CommandContext<CommandSourceStack> ctx, BossSelectorResult selector)
+            throws CommandSyntaxException {
+        List<BossRecord> bosses = selected(ctx, selector, false);
+        return bosses.isEmpty() ? 0 : BossCommandHandler.info(ctx, bosses);
     }
 
     // ------------------------------------------------------------
@@ -136,9 +152,9 @@ public final class BossCommands {
     }
 
     // ------------------------------------------------------------
-    // ATTACH -- FRO_082 (FRO_063's ruling). Nests BorderSelectorArgumentType directly, the same
+    // ATTACH -- nests BorderSelectorArgumentType directly, the same
     // way BorderCommandHandler.pathInsert/pathRemove already do -- see BossCommandHandler.attach
-    // for why this isn't wired through BossSelectorResult's own (still four-mode-only) chain.
+    // for why this isn't wired through BossSelectorResult's own four-mode-only chain.
     // ------------------------------------------------------------
 
     private static ArgumentBuilder<CommandSourceStack, ?> attach() {
@@ -188,10 +204,11 @@ public final class BossCommands {
     // ------------------------------------------------------------
 
     /**
-     * FRO_130 (project owner ask): shortened from {@code /boss transform defeat <selector>} --
+     * shortened from {@code /boss transform defeat <selector>} --
      * pure command-surface rename, no behavior change. Still forces
      * {@code BossCommandHandler::transformDefeat}'s own defeat-detection cascade (border growth,
-     * etc.), same as a real in-game defeat.
+     * etc.), same as a real in-game defeat. {@code @all} skips bosses already defeated, so
+     * repeating it to walk the path forward defeats only the Keeper standing at the tip.
      */
     private static ArgumentBuilder<CommandSourceStack, ?> defeat() {
         return Commands.literal("defeat")
@@ -199,7 +216,8 @@ public final class BossCommands {
                         .executes(ctx -> applySelector(
                                 ctx,
                                 BossSelectorArgumentType.getSelector(ctx, "selector"),
-                                BossCommandHandler::transformDefeat
+                                BossCommandHandler::transformDefeat,
+                                true
                         ))
                 );
     }
@@ -219,8 +237,7 @@ public final class BossCommands {
                                 ))
                         )
                 )
-                // Added mid-playtest, not in FRO_057's original six -- see BossCommandHandler
-                // .debugDistance's own doc comment.
+                // see BossCommandHandler.debugDistance's own doc comment.
                 .then(Commands.literal("distance")
                         .then(Commands.argument("selector", BossSelectorArgumentType.selector())
                                 .executes(ctx -> applySelector(

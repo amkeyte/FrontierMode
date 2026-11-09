@@ -8,10 +8,10 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.entity.player.Player;
 
 /**
  * {@code /admin}: hands the caller an admin tool. Each is a plain vanilla stick carrying an
@@ -36,7 +36,7 @@ public final class AdminCommands {
 
     private static int giveStick(CommandContext<CommandSourceStack> ctx, Enchantment enchantment, String name)
             throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        Player player = ctx.getSource().getPlayerOrException();
 
         ItemStack stick = new ItemStack(Items.STICK);
         StackData.enchant(stick, enchantment, 1);

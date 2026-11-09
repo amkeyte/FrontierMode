@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.MobDataStore;
@@ -26,6 +27,7 @@ import net.minecraftforge.fml.common.Mod;
         modid = SatchelMod.MODID,
         bus = Mod.EventBusSubscriber.Bus.FORGE
 )
+@PlatformBound(reason = "Satchel's MobData capability ingress")
 public final class ServerMobDataIngress {
 
     private ServerMobDataIngress() {}

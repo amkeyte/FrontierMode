@@ -1,21 +1,19 @@
 package com.arryn.frontiermode.bosstell.common.items;
 
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
-import com.arryn.frontiermode.bosstell.common.CompassPlayerFixture;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
-import com.arryn.frontiermode.boss.common.BossPlatform;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
-import com.arryn.frontiermode.boss.server.rules.DefaultBossRules;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.keeper.KeeperAPI;
+import com.arryn.frontiermode.keeper.KeeperBodies;
+import com.arryn.frontiermode.keeper.KeeperSetup;
+import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -35,8 +33,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The compass {@code Item} class, shared by the Admin Compass (FRO_118) and the Amethyst
- * Compass tier ladder (FRO_121) -- one {@code RegistryObject<Item>}, distinguished per-stack by
+ * The compass {@code Item} class, shared by the Admin Compass and the Amethyst
+ * Compass tier ladder -- one {@code RegistryObject<Item>}, distinguished per-stack by
  * {@link CompassAttunement}'s NBT discriminator, per
  * wiki/frontiermode/architecture/special-compass.md#one-shared-core-several-independent-ways-to-set-the-same-lock.
  *
@@ -50,7 +48,7 @@ import java.util.UUID;
  * {@code LodestoneTracked = false} for exactly this reason.
  *
  * <p><b>Refresh model, per special-compass.md's "Intuition and Resonance" section:</b> one
- * throttled tick ({@link #refreshOrRelock}, called from {@code CompassPlayerFixture}) does two
+ * throttled tick ({@link #refreshOrRelock}, called from {@code CompassRefresh}) does two
  * jobs at once -- ordinary live-position refresh for whichever case is currently live (the
  * admin path and Resonance), and re-lock detection for Intuition/Resonance (comparing the
  * stack's actual current enchant level against {@link CompassAttunement#lockedEnchantLevel} --
@@ -60,7 +58,7 @@ import java.util.UUID;
 public class AmethystCompassItem extends CompassItem {
 
     /**
-     * FRO_121: shared by Intuition and Resonance, restricting both to this item class only --
+     * shared by Intuition and Resonance, restricting both to this item class only --
      * not compasses generically, not any other item, per special-compass.md's "Intuition and
      * Resonance" section.
      */
@@ -68,15 +66,13 @@ public class AmethystCompassItem extends CompassItem {
             EnchantmentCategory.create("amethyst_compass", item -> item instanceof AmethystCompassItem);
 
     /**
-     * FRO_121 playtest: Intuition didn't show up at the enchanting table for the compass at
-     * all. Root cause, checked against the real sources -- {@code EnchantmentMenu.slotsChanged}
-     * gates the whole item slot on {@code ItemStack.isEnchantable()}, which calls
-     * {@code Item.isEnchantable(ItemStack)}; the default there is
-     * {@code getMaxStackSize()==1 && isDamageable()}, and this item is neither (no durability
-     * ever set) -- so the table rejected it before even reaching {@link #ENCHANT_CATEGORY}'s own
-     * check. This is the exact same problem vanilla's own {@code BookItem} has (also not
-     * damageable) and fixes the same way: drop the damageable requirement entirely. The anvil's
-     * own book-combine path was never affected by this -- it checks {@code
+     * The enchanting table gates the whole item slot on {@code ItemStack.isEnchantable()} (via
+     * {@code EnchantmentMenu.slotsChanged}), which calls {@code Item.isEnchantable(ItemStack)};
+     * the default there is {@code getMaxStackSize()==1 && isDamageable()}, and this item is neither
+     * (no durability ever set), so the table would reject it before reaching
+     * {@link #ENCHANT_CATEGORY}'s own check. This overrides it the same way vanilla's own
+     * {@code BookItem} does (also not damageable): the damageable requirement is dropped
+     * entirely. The anvil's own book-combine path is unaffected -- it checks {@code
      * EnchantmentCategory.canEnchant} directly, independent of {@code isEnchantable()}.
      */
     @Override
@@ -85,13 +81,11 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * Playtest: "Limited Enchantability" at the table, even with lapis present. Traced the real
-     * math (`EnchantmentHelper.selectEnchantment`): the roll's bonus term is
-     * {@code 1 + rng.nextInt(getEnchantmentValue()/4 + 1) * 2}, so the earlier value of 1
-     * (copied from {@code BookItem}, matching its own default) makes {@code nextInt(1)} always
-     * return 0 -- a flat, RNG-proof {@code +1} bonus, never more. Raised to 10 (a diamond-tool-
-     * tier value) so it actually contributes a real, variable bonus (roughly +1 to +5) instead
-     * of being functionally inert. This alone won't guarantee reaching Intuition's own cost
+     * The roll's bonus term in `EnchantmentHelper.selectEnchantment` is
+     * {@code 1 + rng.nextInt(getEnchantmentValue()/4 + 1) * 2}, so a value of 1 (as {@code BookItem}'s
+     * default) makes {@code nextInt(1)} always return 0 -- a flat, RNG-proof {@code +1} bonus, never
+     * more. 10 (a diamond-tool-tier value) gives a real, variable bonus (roughly +1 to +5)
+     * instead of being functionally inert. This alone won't guarantee reaching Intuition's own cost
      * floor (15, copied from vanilla's Lure) on a table with few or no bookshelves, though --
      * the base roll before any bonus caps around 8 at zero bookshelf power, the same real
      * constraint vanilla's own Lure has on an unshelved table.
@@ -146,10 +140,10 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * FRO_121: the real per-tick entry point for a non-admin stack -- called from
-     * {@code CompassPlayerFixture}. See class doc for the two-job shape.
+     * the real per-tick entry point for a non-admin stack -- called from
+     * {@code CompassRefresh}. See class doc for the two-job shape.
      */
-    public static void refreshOrRelock(ItemStack stack, ServerLevel level, ServerPlayer holder) {
+    public static void refreshOrRelock(ItemStack stack, Level level, Player holder) {
         if (CompassAttunement.isAdmin(stack)) {
             refreshTarget(stack, level);
             return;
@@ -162,14 +156,12 @@ public class AmethystCompassItem extends CompassItem {
         // Mutually exclusive by checkCompatibility(); Resonance wins if somehow both are present.
         int currentCode = resonanceLevel > 0 ? RESONANCE_CODE : intuitionLevel;
 
-        // Bug fix (playtest): a completely fresh, never-attuned compass enchanted directly with
-        // Intuition/Resonance used to fall through this whole method untouched, since the old
-        // guard here was `!isAttuned() -> return` -- checked before ever looking at the enchant
-        // level. That's wrong: each tier (bedrock pad, Intuition, Resonance) is its own
-        // independent way to set the lock, per special-compass.md's "One shared core" table --
-        // enchanting a fresh compass must be sufficient on its own, not conditional on some
-        // other path having attuned it first. Only truly skip when there's neither a real
-        // enchant *nor* any prior attunement (e.g. a bedrock-pad lock with no enchant) to act on.
+        // A completely fresh, never-attuned compass enchanted directly with Intuition/Resonance
+        // must still be acted on: each tier (bedrock pad, Intuition, Resonance) is its own
+        // independent way to set the lock, per special-compass.md's "One shared core" table, so
+        // enchanting a fresh compass is sufficient on its own, not conditional on some other path
+        // having attuned it first. Only skip when there's neither a real enchant *nor* any prior
+        // attunement (e.g. a bedrock-pad lock with no enchant) to act on.
         if (currentCode == 0 && !CompassAttunement.isAttuned(stack)) {
             return;
         }
@@ -228,11 +220,11 @@ public class AmethystCompassItem extends CompassItem {
 
     /**
      * The actual re-lock, triggered by {@link #refreshOrRelock} finding a mismatch. Resolves
-     * the current Path Tip's boss identity ({@link BossAPI#pathTipBossId}) exactly once, per
+     * the current Path Tip's boss identity ({@link KeeperAPI#pathTipBossId}) exactly once, per
      * special-compass.md's own wording -- from there, Intuition freezes a ring-jitter point and
      * Resonance stays live on that boss UUID.
      */
-    private static void relock(ItemStack stack, ServerLevel level, ServerPlayer holder, int newCode) {
+    private static void relock(ItemStack stack, Level level, Player holder, int newCode) {
         if (newCode == 0) {
             // Enchant removed (or never applied, and this isn't a bedrock-pad lock either) --
             // nothing to lock onto. Leave whatever the stack already carries untouched; only
@@ -241,7 +233,7 @@ public class AmethystCompassItem extends CompassItem {
             return;
         }
 
-        Optional<UUID> bossIdOpt = BossAPI.pathTipBossId(level);
+        Optional<UUID> bossIdOpt = KeeperAPI.pathTipBossId(level);
         if (bossIdOpt.isEmpty()) {
             return; // Nothing to lock onto yet -- try again next throttled tick.
         }
@@ -274,7 +266,7 @@ public class AmethystCompassItem extends CompassItem {
      * Two jobs, branched by variant. Admin: no-op ({@code InteractionResult.PASS}) -- vanilla's
      * own right-click-a-Lodestone behavior would otherwise let a player overwrite the admin
      * attunement with an ordinary Lodestone lock (not specified on special-compass.md, a build
-     * decision). Amethyst (non-admin): FRO_121's bedrock-pad detection (Tier 1) -- per
+     * decision). Amethyst (non-admin): bedrock-pad detection (Tier 1) -- per
      * special-compass.md's own "no new index needed" ruling, resolves whether the clicked block
      * belongs to some boss's own Environmental-Tells platform (the 3x3 bedrock area at
      * {@code boss.position().below()}, per discovery-systems.md) by comparing the clicked
@@ -303,35 +295,38 @@ public class AmethystCompassItem extends CompassItem {
             return InteractionResult.PASS;
         }
 
+        // A boss whose entry has no Keeper record yet is not whole, so it has no platform to match.
         Optional<BossRecord> recordOpt = BossAPI.bosses(level).flatMap(fixture ->
-                fixture.all().stream()
-                        .filter(record -> record.positioned() && matchesPlatform(record.position(), clicked,
-                                BossPlatform.halfWidth(fixture.RULES.keeperScale(record))))
-                        .findFirst());
+                KeeperAPI.keepers(level).flatMap(keepers -> fixture.all().stream()
+                        .filter(record -> record.positioned() && keepers.get(record.bossId())
+                                .map(keeper -> matchesPlatform(record.position(), clicked,
+                                        BossPlatform.halfWidth(KeeperBodies.keeperScale(keeper))))
+                                .orElse(false))
+                        .findFirst()));
         if (recordOpt.isEmpty()) {
             return InteractionResult.PASS;
         }
 
         Optional<BlockPos> posOpt = BossAPI.resolveLivePosition(level, recordOpt.get().bossId());
-        if (posOpt.isEmpty()) {
+        Optional<Integer> bossLevelOpt = bossLevel(level, recordOpt.get().bossId());
+        if (posOpt.isEmpty() || bossLevelOpt.isEmpty()) {
             return InteractionResult.PASS;
         }
 
-        CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID(),
-                BossAPI.pathPositionOf(recordOpt.get()));
+        CompassAttunement.setFrozen(stack, posOpt.get(), player.getUUID(), bossLevelOpt.get());
         writeLodestoneFields(stack, level, posOpt.get());
         return InteractionResult.CONSUME;
     }
 
     /** The player-facing level of {@code bossId}'s record, for the tooltip; empty if it has none. */
     private static Optional<Integer> bossLevel(Level level, UUID bossId) {
-        return BossAPI.bosses(level).flatMap(fixture -> fixture.get(bossId))
-                .map(BossAPI::pathPositionOf);
+        return KeeperAPI.keepers(level).flatMap(keepers -> keepers.get(bossId))
+                .map(KeeperAPI::pathPositionOf);
     }
 
     /**
      * Is {@code clicked} inside the square bedrock cell centered at {@code bossPos.below()}?
-     * {@code halfWidth} is 1 for the base 3x3 and grows with the boss's size (FRO_148) -- see
+     * {@code halfWidth} is 1 for the base 3x3 and grows with the boss's size -- see
      * {@code BossPlatform.halfWidth}.
      */
     private static boolean matchesPlatform(BlockPos bossPos, BlockPos clicked, int halfWidth) {
@@ -342,7 +337,7 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * Bug fix: {@code CompassItem.getDescriptionId(ItemStack)} overrides the display name to
+     * {@code CompassItem.getDescriptionId(ItemStack)} overrides the display name to
      * vanilla's own {@code "item.minecraft.lodestone_compass"} whenever
      * {@code isLodestoneCompass(stack)} is true -- which is always true here, since this item
      * always writes the identical {@code LodestonePos}/{@code LodestoneDimension} fields.
@@ -355,8 +350,8 @@ public class AmethystCompassItem extends CompassItem {
     }
 
     /**
-     * {@code Amethyst Keeper, level N}, the same on both compasses (special-compass.md § Tooltip;
-     * FRO_225 dropped the boss id). Runs on the client, where boss records don't exist, so it reads
+     * {@code Amethyst Keeper, level N}, the same on both compasses (special-compass.md § Tooltip),
+     * with no boss id. Runs on the client, where boss records don't exist, so it reads
      * only what attunement wrote onto the stack. No line for an unattuned compass.
      */
     @Override
@@ -364,6 +359,6 @@ public class AmethystCompassItem extends CompassItem {
         super.appendHoverText(stack, level, tooltip, flag);
 
         CompassAttunement.bossLevel(stack).ifPresent(bossLevel ->
-                tooltip.add(Component.literal(DefaultBossRules.BOSS_NAME + ", level " + bossLevel)));
+                tooltip.add(Component.literal(KeeperSetup.BOSS_NAME + ", level " + bossLevel)));
     }
 }

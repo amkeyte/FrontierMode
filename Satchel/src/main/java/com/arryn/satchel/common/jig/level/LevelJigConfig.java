@@ -15,6 +15,7 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
     private final Bundles bundles = new Bundles();
     private final Policies policies = new Policies();
     private final Execution execution = new Execution();
+    private final Trinkets trinkets = new Trinkets();
 
     public LevelJigConfig(JigKey<? extends SatchelJig<LevelScope>> key) {
         super(key);
@@ -32,7 +33,7 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
         p.binding.couplerClass = LevelScopeCoupler.class; // REQUIRED – must be set by author
         p.binding.scopeType = LevelScope.class;
         p.binding.sourceType = Level.class;
-        p.binding.sideApplicability = JigPolicies.SideApplicability.SERVER;
+        // sideApplicability intentionally left unset: the registration supplies it.
         p.binding.scopeResolver = LevelResolver::resolveScope;
         p.binding.uuidDeterminer = LevelResolver::determineUUID;
         // A LevelScope already holds its own Level directly (see LevelScope.level()) -- no
@@ -46,8 +47,6 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
         // Execution
         // -------------------------------------------------
         p.execution.lifecycle = LevelJigLifecycle.VALUE;
-        p.execution.executionPriority = JigPolicies.ExecutionPriority.NORMAL;
-        p.execution.tickOrder = JigPolicies.TickOrder.UNORDERED;
 
         // -------------------------------------------------
         // Policies
@@ -87,6 +86,11 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
         return execution;
     }
 
+    @Override
+    public JigTrinketsConfig trinkets() {
+        return trinkets;
+    }
+
     private final class Binding
             extends JigBindingConfig<LevelScope, Level> {
 
@@ -120,6 +124,15 @@ public class LevelJigConfig extends JigConfig<LevelScope, Level> {
         @Override
         protected Presets presets() {
             return LevelJigConfig.this.presets().execution;
+        }
+    }
+
+    private final class Trinkets
+            extends JigTrinketsConfig {
+
+        @Override
+        protected Presets presets() {
+            return LevelJigConfig.this.presets().trinkets;
         }
     }
 

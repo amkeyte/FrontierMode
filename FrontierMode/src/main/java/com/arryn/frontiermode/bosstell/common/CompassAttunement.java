@@ -24,7 +24,7 @@ import java.util.UUID;
  * reference at all -- the bedrock pad and Intuition). Exactly one is set at a time; setting one
  * clears the other, since a stack is never both.
  *
- * <p>{@link #lockedEnchantLevel}/{@link #setLockedEnchantLevel} back FRO_121's detection
+ * <p>{@link #lockedEnchantLevel}/{@link #setLockedEnchantLevel} back the detection
  * mechanism (special-compass.md's "Intuition and Resonance" section): no dedicated "just
  * enchanted" hook exists, so the item's own throttled refresh compares the stack's actual
  * current enchant level against this stored value -- a mismatch is the trigger to re-roll/
@@ -65,7 +65,7 @@ public final class CompassAttunement {
     }
 
     /**
-     * FRO_121: sets (or replaces) this stack's attunement to a frozen raw position -- the
+     * sets (or replaces) this stack's attunement to a frozen raw position -- the
      * bedrock pad (Tier 1) and Intuition (Tiers 2-4) both resolve to a stored coordinate once
      * and never touch a boss reference again afterward, per special-compass.md's "One shared
      * core" table. Never {@code admin} -- the Admin Compass is always the live case.

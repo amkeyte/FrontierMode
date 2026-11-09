@@ -21,14 +21,6 @@ public abstract class JigExecutionConfig {
         return presets().lifecycle;
     }
 
-    public JigPolicies.ExecutionPriority priority() {
-        return presets().executionPriority;
-    }
-
-    public JigPolicies.TickOrder tickOrder() {
-        return presets().tickOrder;
-    }
-
     public EventHandlers eventHandlers() {
         return presets().eventHandlers;
     }
@@ -39,18 +31,6 @@ public abstract class JigExecutionConfig {
 
     public JigExecutionConfig lifecycle(JigPolicies.Lifecycle lifecycle) {
         presets().lifecycle = lifecycle;
-        return this;
-    }
-
-    public JigExecutionConfig executionPriority(
-            JigPolicies.ExecutionPriority priority
-    ) {
-        presets().executionPriority = priority;
-        return this;
-    }
-
-    public JigExecutionConfig tickOrder(JigPolicies.TickOrder order) {
-        presets().tickOrder = order;
         return this;
     }
 
@@ -96,16 +76,6 @@ public abstract class JigExecutionConfig {
          * Declares which lifecycle phases this jig participates in.
          */
         public JigPolicies.Lifecycle lifecycle;
-
-        /**
-         * Execution priority relative to other jigs.
-         */
-        public JigPolicies.ExecutionPriority executionPriority;
-
-        /**
-         * Tick ordering constraints.
-         */
-        public JigPolicies.TickOrder tickOrder;
 
         /**
          * Finalized lifecycle handlers (optional).

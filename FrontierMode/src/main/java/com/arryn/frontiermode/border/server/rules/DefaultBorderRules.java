@@ -49,16 +49,14 @@ public final class DefaultBorderRules implements BorderRules {
             "Mistbound",
             "Blackgate"
     );
-    // Pregeneration throttle budget (wiki/frontiermode/architecture/border-pregeneration.md,
-    // FRO_092) -- safe baseline, replace later, same category as the growth-wave Tunables. Two
-    // playtest data points so far, both against a real 1009-chunk (radius 18) disk: 1 tick/16
-    // chunks -> "Can't keep up, 45 ticks behind"; 1 tick/8 chunks -> barely better, "41 ticks
-    // behind" despite half the batch size. That non-improvement is the tell: at interval=1 every
-    // tick was forcing fresh, far-out chunk generation back-to-back for 100+ consecutive ticks
-    // with zero gap to recover in between, so the problem is sustained load, not a per-batch
-    // spike -- trimming batch size alone doesn't fix that while it still fires every tick. These
-    // values widen the interval too, so there's real breathing room between batches, not just a
-    // smaller one.
+    // Pregeneration throttle budget (wiki/frontiermode/architecture/border-pregeneration.md) --
+    // safe baseline, replace later, same category as the growth-wave Tunables. A real 1009-chunk
+    // (radius 18) disk can't be kept up with at 1 tick/16 chunks or 1 tick/8 chunks: at
+    // interval=1 every tick forces fresh, far-out chunk generation back-to-back for 100+
+    // consecutive ticks with zero gap to recover in between, so the problem is sustained load,
+    // not a per-batch spike -- trimming batch size alone doesn't fix that while it still fires
+    // every tick. These values widen the interval too, so there's real breathing room between
+    // batches, not just a smaller one.
     private static final int PREGEN_CHUNKS_PER_BATCH = 2;
     private static final long PREGEN_THROTTLE_INTERVAL_TICKS = 4L;
 
@@ -98,15 +96,15 @@ public final class DefaultBorderRules implements BorderRules {
     }
 
     /**
-     * Growth in waves (border.md § Radius: growth in waves; FRO_190). {@code radius(p) = round(base x
+     * Growth in waves (border.md § Radius: growth in waves). {@code radius(p) = round(base x
      * factor(0) x ... x factor(p-1))}, computed from the base every time so rounding never
      * accumulates and an edit to one Border's radius never shifts the ones after it.
      *
      * <p>Each wave is a half-cosine sweep of {@code borderWaveLength} steps, from
      * {@code 1 + borderWaveAmplitude} down to exactly 1.0 (a flat step, which still recenters), then
      * the next wave opens wide again. Defaults (5, 0.5, 5) give factors 1.5, 1.43, 1.25, 1.07, 1.0 and
-     * radii 8, 11, 13, 14, 14, 22, 31, 38, 41, 41, 62 for positions 1-11 (owner 2026-10-03: a much smaller
-     * start; the base was 20, radii 30, 43, 54, ... ). The base is the Tunable {@code borderBaseRadius}: a
+     * radii 8, 11, 13, 14, 14, 22, 31, 38, 41, 41, 62 for positions 1-11. The base is the Tunable
+     * {@code borderBaseRadius}: a
      * row already in a config CSV wins over this default.
      */
     @Override

@@ -1,82 +1,60 @@
 package com.arryn.frontiermode.admin.client;
 
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
+import com.arryn.frontiermode.admin.common.DebugViewTick;
+import com.arryn.frontiermode.admin.common.Role;
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.boss.SentinelMarkers;
+import com.arryn.frontiermode.sentinel.SentinelMarkers;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.monster.Slime;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.scores.Team;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * The debug view: one toggle, like F3, that shows everything a playtester wants to see -- a coloured
- * marker above bosses, sentinels and Ferals ({@link AdminViewMarkers}), the name tag on bosses and
- * Ferals, and the border rings.
+ * marker above bosses, sentinels and Ferals ({@link AdminViewMarkers}), the name tag on bosses, and
+ * the border rings.
  * Entirely client-side and per player: nothing is sent, the server never sets the flags, and normal
- * play always shows none of it. {@code /admin debug view <true|false>}, default off, not persisted.
+ * play always shows none of it. {@code /admin debug view <true|false>}, operators only, default off, not persisted.
  *
  * <p>The client already knows which mobs to mark: bosses and sentinels through the synced
- * {@link BossMarkers}/{@link SentinelMarkers}, Ferals through their synced {@code feral} team. While
- * on, each tick this rebuilds the set of marked mobs and their roles (which {@link AdminViewMarkers}
- * draws) and sets name-tag visibility on each boss's and Feral's local copy -- re-applied each tick in
- * case the server resends it. Turning it off puts back what it touched.
+ * {@link BossMarkers}/{@link SentinelMarkers}, Ferals by position ({@link #isFeral}). While
+ * on, each tick {@link #mark} rebuilds the set of marked mobs and their roles (which
+ * {@link AdminViewMarkers} draws) and sets name-tag visibility on each boss's local copy -- re-applied
+ * each tick in case the server resends it. The tick and all of that state belong to {@code DebugViewTick}, a
+ * Trinket on the client player host, which puts back what it touched when the view goes off. That includes the
+ * on/off flag, so the view ends with the player's scope: a quit, a new world and a join to a server each start
+ * with it off, and a change of dimension keeps it. This class keeps no state.
  *
  * <p>No glow: vanilla's outline draws only from a server-synced entity flag that client code can't
  * set ({@code Entity#setGlowingTag} on the client writes the flag's own current value back), so the
  * marker replaces it. See FRO_202.
  *
- * <p>Registered on the client command dispatcher, the same shape {@code /border debug rings} used:
+ * <p>Registered on the client command dispatcher:
  * Forge's client and server command graphs are separate, so this runs locally regardless of the
- * server's own {@code /admin} tree. Client-only ({@code Dist.CLIENT}).
+ * server's own {@code /admin} tree, and only for an operator (permission level 2), as that tree is. Client-only
+ * ({@code Dist.CLIENT}).
  */
+@PlatformBound(reason = "commands")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, value = Dist.CLIENT)
 public final class AdminViewClient {
-
-    private static boolean enabled;
-
-    /** What a marked mob is there for, and its marker colour (ARGB, fully opaque). */
-    public enum Role {
-        BOSS(0xFFFFAA00, true),
-        SENTINEL(0xFFFF55FF, false),
-        FERAL(0xFF55FF55, true);
-
-        private final int color;
-        private final boolean tagged;
-
-        Role(int color, boolean tagged) {
-            this.color = color;
-            this.tagged = tagged;
-        }
-
-        public int color() {
-            return color;
-        }
-
-        /** Whether this role also shows its name tag in the view (a sentinel carries none). */
-        public boolean tagged() {
-            return tagged;
-        }
-    }
-
-    // Entities this view has shown a name tag on, weakly held, so turning it off can put them back.
-    private static final Set<Entity> TOUCHED = Collections.newSetFromMap(new WeakHashMap<>());
-
-    // This tick's marked mobs and their roles, weakly held; rebuilt every tick while on.
-    private static final Map<Mob, Role> MARKED = new WeakHashMap<>();
 
     private AdminViewClient() {
     }
@@ -85,12 +63,24 @@ public final class AdminViewClient {
     public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
         event.getDispatcher().register(
                 Commands.literal("admin")
+                        // The source carries the player's own synced permission level, so this is the same
+                        // operator gate the server's /admin tree has.
+                        .requires(src -> src.hasPermission(2))
                         .then(Commands.literal("debug")
                                 .then(Commands.literal("view")
                                         .then(Commands.argument("visible", BoolArgumentType.bool())
                                                 .executes(ctx -> {
                                                     boolean value = BoolArgumentType.getBool(ctx, "visible");
-                                                    setEnabled(value);
+                                                    Player player = Minecraft.getInstance().player;
+                                                    Optional<DebugViewTick> view = player == null
+                                                            ? Optional.empty() : DebugViewTick.of(player);
+                                                    if (view.isEmpty()) {
+                                                        ctx.getSource().sendFailure(Component.literal(
+                                                                "[Admin][Debug] The view is not ready yet: the"
+                                                                        + " player's scope is not up. Try again in a moment."));
+                                                        return 0;
+                                                    }
+                                                    view.get().set(value);
                                                     ctx.getSource().sendSuccess(
                                                             () -> Component.literal("[Admin][Debug] View: "
                                                                     + (value ? "ON" : "OFF")),
@@ -103,29 +93,33 @@ public final class AdminViewClient {
         );
     }
 
-    private static void setEnabled(boolean value) {
-        enabled = value;
-        WorldBordersRenderer.setVisible(value);
-        if (!value) {
-            for (Entity entity : TOUCHED) {
-                entity.setCustomNameVisible(false);
-            }
-            TOUCHED.clear();
-            MARKED.clear();
-        }
+    /**
+     * Whether the view is on for the local player: what the border rings follow, through the supplier
+     * {@code AdminViewStartup} registers once at startup. False while Satchel or the player's scope isn't ready.
+     */
+    static boolean viewOn() {
+        Player player = Minecraft.getInstance().player;
+        return player != null && DebugViewTick.of(player).map(DebugViewTick::isOn).orElse(false);
     }
 
-    /** The mobs to mark this frame and their roles; empty while the view is off. */
+    /** The mobs to mark this frame and their roles; empty while the view is off or the player's scope isn't ready. */
     static Map<Mob, Role> marked() {
-        return Collections.unmodifiableMap(MARKED);
+        Player player = Minecraft.getInstance().player;
+        if (player == null) {
+            return Map.of();
+        }
+        return DebugViewTick.of(player).map(DebugViewTick::marked).orElse(Map.of());
     }
 
-    /** Called every client tick from {@code AdminViewHandlers}; a no-op while the view is off. */
-    public static void tick(Level level) {
-        if (!enabled || !(level instanceof ClientLevel clientLevel)) {
+    /**
+     * Rebuilds {@code marked} for this tick and records in {@code touched} each entity it set a name tag
+     * visible on. Called every client tick by {@code DebugViewTick} while the view is on.
+     */
+    public static void mark(Level level, Map<Mob, Role> marked, Set<Entity> touched) {
+        if (!(level instanceof ClientLevel clientLevel)) {
             return;
         }
-        MARKED.clear();
+        marked.clear();
         for (Entity entity : clientLevel.entitiesForRendering()) {
             if (!(entity instanceof Mob mob)) {
                 continue;
@@ -134,10 +128,10 @@ public final class AdminViewClient {
             if (role == null) {
                 continue;
             }
-            MARKED.put(mob, role);
+            marked.put(mob, role);
             if (role.tagged()) {
                 mob.setCustomNameVisible(true);
-                TOUCHED.add(mob);
+                touched.add(mob);
             }
         }
     }
@@ -153,8 +147,15 @@ public final class AdminViewClient {
         return isFeral(mob) ? Role.FERAL : null;
     }
 
+    /**
+     * Feral by position: the client holds no Feral record (MobData is server-only). Every real hostile past the
+     * Frontier is Feral, so a {@code MONSTER}-category mob other than a Slime, standing where
+     * {@code BorderAPI.frontierDistanceAt} is positive (the client computes it from the Borders fixture it
+     * already holds for the rings), is marked. Exact except at the edges; the Inspect Stick shows the record.
+     */
     private static boolean isFeral(Mob mob) {
-        Team team = mob.getTeam();
-        return team != null && "feral".equals(team.getName());
+        return mob.getType().getCategory() == MobCategory.MONSTER
+                && !(mob instanceof Slime)
+                && BorderAPI.frontierDistanceAt(mob.level(), mob.blockPosition()) > 0;
     }
 }

@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.boss.server.commands;
 
 /**
- * Parsed representation of a boss selector -- FRO_057's four modes, sized down from the full
+ * Parsed representation of a boss selector -- four modes, a subset of the full
  * design space on wiki/frontiermode/architecture/boss-commands.md's "Selector scheme" (no
- * {@code @id}/{@code @name}/{@code @border} this pass; mirrors
+ * {@code @id}/{@code @name}/{@code @border}; mirrors
  * {@code BorderSelectorResult}'s shape).
  */
 public final class BossSelectorResult {

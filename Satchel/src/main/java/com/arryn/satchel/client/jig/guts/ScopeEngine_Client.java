@@ -6,10 +6,7 @@ import com.arryn.satchel.common.bundle.LifecycleState;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.guts.ScopeEngine;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.guts.SatchelException;
-import com.arryn.satchel.common.jig.guts.SatchelScope;
+import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.net.ParcelInbox;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
@@ -32,7 +29,16 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     private boolean schemaFrozen = false;
 
-    private Map<BundleKey<?>, SatchelBundle> bundlesFor(ScopeInfo info) {
+    /** First unclaimed-parcel sweep, in pulses after a scope's first pulse: 10 seconds at 20 ticks a second. */
+    private static final int UNCLAIMED_FIRST_SWEEP = 20 * 10;
+
+    /** Pulses between unclaimed-parcel sweeps after the first: 5 minutes. */
+    private static final int UNCLAIMED_SWEEP_EVERY = 20 * 60 * 5;
+
+    /** Pulses this engine has run for each scope, the clock the unclaimed-parcel sweep reads. Dropped at unload. */
+    private final Map<UUID, Integer> pulsesSinceLoad = new HashMap<>();
+
+    private Map<BundleKey<?>, SatchelBundle> bundlesFor(ScopeInfoImpl info) {
         return active.computeIfAbsent(info.scopeId(), id -> new HashMap<>());
     }
 
@@ -103,7 +109,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <B extends SatchelBundle> Optional<B> ask(ScopeInfo info, BundleKey<B> key) {
+    public <B extends SatchelBundle> Optional<B> ask(ScopeInfoImpl info, BundleKey<B> key) {
         if (info == null || key == null) return Optional.empty();
 
         Map<BundleKey<?>, SatchelBundle> map = active.get(info.scopeId());
@@ -114,7 +120,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends SatchelBundle> T get(ScopeInfo info, BundleKey<T> key) {
+    public <T extends SatchelBundle> T get(ScopeInfoImpl info, BundleKey<T> key) {
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(key, "key");
 
@@ -142,7 +148,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public <T extends SatchelBundle> T create(ScopeInfo info, BundleKey<T> key) {
+    public <T extends SatchelBundle> T create(ScopeInfoImpl info, BundleKey<T> key) {
         Satchel.requireClient();
         Objects.requireNonNull(info, "info");
         Objects.requireNonNull(key, "key");
@@ -203,11 +209,13 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public void onExecutionPulse(ScopeInfo info) {
+    public void onExecutionPulse(ScopeInfoImpl info) {
         Satchel.requireClient();
         if (info == null) return;
 
         applyIncomingParcels(info);
+        // Before the empty-map return below: an engine with no bundles at all is the case it exists for.
+        sweepUnclaimedParcels(info);
 
         Map<BundleKey<?>, SatchelBundle> map = active.get(info.scopeId());
         if (map == null || map.isEmpty()) return;
@@ -226,7 +234,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
         }
     }
 
-    private void applyIncomingParcels(ScopeInfo info) {
+    private void applyIncomingParcels(ScopeInfoImpl info) {
         Map<BundleKey<?>, SatchelBundle> map = active.get(info.scopeId());
         if (map == null || map.isEmpty()) {
             return; // IMPORTANT: don't drain yet
@@ -278,6 +286,38 @@ public final class ScopeEngine_Client implements ScopeEngine {
         }
     }
 
+    /**
+     * Warns about a parcel that arrived for a bundle no one on this side has created. A client bundle exists only
+     * after a {@code getOrCreate}, and {@link #applyIncomingParcels} drains only the bundles this engine holds, so
+     * such a parcel waits in {@link ParcelInbox} and nothing else reports it (FRO_295 finding 2: a roster waited
+     * on a bundle that only the roster's own tick would have created). The inertness check cannot see it, because
+     * it counts only bundles that exist.
+     *
+     * <p>Sweeps this jig's declared bundles that the scope has not created: once {@link #UNCLAIMED_FIRST_SWEEP}
+     * pulses after the scope's first pulse, then every {@link #UNCLAIMED_SWEEP_EVERY}. Each sweep warns once for
+     * each bundle whose parcel is still waiting, so a bundle that is only opened late stays quiet once it is
+     * created and a stuck one repeats rarely enough to read as a fault, not noise. Diagnostic only, never throws.
+     */
+    private void sweepUnclaimedParcels(ScopeInfoImpl info) {
+        int pulses = pulsesSinceLoad.merge(info.scopeId(), 1, Integer::sum);
+        if (pulses < UNCLAIMED_FIRST_SWEEP
+                || (pulses - UNCLAIMED_FIRST_SWEEP) % UNCLAIMED_SWEEP_EVERY != 0) {
+            return;
+        }
+
+        Map<BundleKey<?>, SatchelBundle> held = active.get(info.scopeId());
+        for (BundleKey<?> key : bundleDecls.keySet()) {
+            if (held != null && held.containsKey(key)) continue;
+            if (!ParcelInbox.holds(info.scopeId(), key.id)) continue;
+
+            OUT.warn("[health-check] A parcel for bundle " + key.name + " is waiting in the client inbox, but "
+                    + info.debugName() + " has no bundle for it, " + pulses + " pulses after its first pulse. "
+                    + "A client bundle is created by its first getOrCreate, and nothing on this side has called "
+                    + "it for " + key.name + ", so the parcel's data is never applied. Rechecked every 5 minutes "
+                    + "while it stays unclaimed. See RM_SAT_013.");
+        }
+    }
+
     private static SatchelBundle findBundleById(Map<BundleKey<?>, SatchelBundle> map, UUID bundleId) {
         for (SatchelBundle b : map.values()) {
             if (b != null && b.key() != null && bundleId.equals(b.key().id)) {
@@ -288,7 +328,7 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public void onJigTick(ScopeInfo info) {
+    public void onJigTick(ScopeInfoImpl info) {
         Satchel.requireClient();
         if (info == null) return;
 
@@ -316,10 +356,11 @@ public final class ScopeEngine_Client implements ScopeEngine {
     }
 
     @Override
-    public void unload(ScopeInfo info) {
+    public void unload(ScopeInfoImpl info) {
         Satchel.requireClient();
         if (info == null) return;
 
+        pulsesSinceLoad.remove(info.scopeId());
         Map<BundleKey<?>, SatchelBundle> map = active.remove(info.scopeId());
         if (map == null || map.isEmpty()) return;
 

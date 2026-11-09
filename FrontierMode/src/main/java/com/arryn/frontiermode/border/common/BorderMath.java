@@ -21,7 +21,7 @@ import java.util.Objects;
  * com.arryn.frontiermode.border.BorderAPI}, the sanctioned facade for everything outside
  * {@code border.common}, lives in a different package ({@code com.arryn.frontiermode.border})
  * and cannot reach a package-private member here, so literal package-privacy was never available.
- * {@code BorderAPI.MATH} (FRO_078) is the sanctioned path for anything outside this package --
+ * {@code BorderAPI.MATH} is the sanctioned path for anything outside this package --
  * enforced by doc-comment discipline, not the compiler, same mitigation {@code BordersFixture}
  * already accepts for the identical structural reason.</b>
  */
@@ -68,12 +68,8 @@ public final class BorderMath {
      * <p>
      * Distance is computed in X/Z space only.
      *
-     * <p>FRO_099 bugfix: this used to compute {@code distanceSqToCenter(border, pos) -
-     * border.radius()} -- subtracting a linear radius from a *squared* center distance, which is
-     * dimensionally wrong (it degenerates to something close to correct only very near the
-     * border's edge, and is badly off everywhere else). Fixed to a real center distance via
-     * {@link BorderMathLogic#distanceToEdge}, the same pure core {@link #distanceOutside} below
-     * now shares.
+     * <p>Computed from a real center distance via {@link BorderMathLogic#distanceToEdge}, the same
+     * pure core {@link #distanceOutside} below shares.
      */
     public static int distanceToSurface(Border border, BlockPos pos) {
         if (border == null || pos == null) {
@@ -87,9 +83,9 @@ public final class BorderMath {
     }
 
     /**
-     * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): disc-edge distance -- {@code 0} when
+     * disc-edge distance -- {@code 0} when
      * {@code p} is inside or on the disc described by {@code center}/{@code radius}, the XZ gap
-     * otherwise. Unlike {@link #distanceToSurface}, this is never negative -- it answers "how far
+     * otherwise, rounded up to a whole block so a point outside the disc never reads 0. Unlike {@link #distanceToSurface}, this is never negative -- it answers "how far
      * *outside* this one border," not "how far from its edge in either direction," which is
      * exactly what a Frontier-distance reduction (a min over every established Border, per
      * wiki/frontiermode/architecture/wilds.md#the-distance-to-frontier-query) needs: a point
@@ -105,7 +101,9 @@ public final class BorderMath {
         }
 
         double centerDistance = BorderMathLogic.distanceTo(p.getX(), p.getZ(), center.getX(), center.getZ());
-        return (int) Math.round(Math.max(0.0, BorderMathLogic.distanceToEdge(centerDistance, radius)));
+        // Rounded up, not to the nearest: the result is 0 only for a point on or inside the disc, as
+        // isInside answers, and any point outside reads at least 1.
+        return (int) Math.ceil(Math.max(0.0, BorderMathLogic.distanceToEdge(centerDistance, radius)));
     }
 
     /** See {@link BorderMathLogic#waveRadius}. */
@@ -121,12 +119,12 @@ public final class BorderMath {
 
     /**
      * Uniform-in-disk XZ sample, centered on {@code center}, radius {@code radius} -- the same
-     * angle/distance shape {@code DefaultBorderRules.chooseNextCenter()} already uses for its own
+     * angle/distance shape {@code DefaultBorderRules.chooseNextCenter()} uses for its own
      * (much smaller, fixed-30-block) offset, generalized to an arbitrary radius and a real
      * uniform-area distribution rather than a fixed-length hop.
      *
      * <p>Y is intentionally left as {@code center}'s own Y (a placeholder -- see {@link Border}'s
-     * XZ-only geometry contract). Callers needing a real ground position (RM_FRO_018's Boss
+     * XZ-only geometry contract). Callers needing a real ground position (the Boss
      * materialization step) resolve Y separately, only once the target chunk is confirmed loaded
      * -- picking a position and resolving its ground height are two different steps for exactly
      * the reason documented on {@code boss.md}'s "Spawn algorithm" section: chunk-loaded state has
@@ -135,8 +133,8 @@ public final class BorderMath {
      *
      * <p>Uses {@code sqrt(rng.nextDouble())} for the radial component so points are uniform across
      * the disk's *area*, not uniform in radius (which would bias samples toward the center) --
-     * standard uniform-disk-sampling shape, not something either existing caller needed before
-     * since {@code chooseNextCenter()}'s own offset is a fixed length, not an area sample.
+     * the standard uniform-disk-sampling shape, since {@code chooseNextCenter()}'s own offset is a
+     * fixed length, not an area sample.
      */
     public static BlockPos randomPointInDisk(RandomSource rng, BlockPos center, int radius) {
         if (center == null) {
@@ -165,10 +163,10 @@ public final class BorderMath {
      * disk. {@code innerRadius == 0} reduces to exactly {@link #randomPointInDisk}'s own
      * distribution (same formula, degenerate inner bound).
      *
-     * <p>Added for Boss placement (FRO_072): {@code center}/{@code outerRadius} here are meant
+     * <p>Added for Boss placement: {@code center}/{@code outerRadius} here are meant
      * to be one and the same border's own center and radius -- both bounds share one circle, so
      * (unlike trying to exclude a *different*, differently-centered border's disk) this is a
-     * real, exact closed-form region. See {@code DefaultBossRules.choosePosition}'s own
+     * real, exact closed-form region. See {@code KeeperPlacement.choosePosition}'s own
      * {@code EDGE_BIAS_INNER_FRACTION} for why: each new border centers on wherever its boss
      * died, so a boss placed near its own border's center barely moves the next border's center
      * either -- biasing placement toward this same border's outer edge is what makes the whole
@@ -203,7 +201,7 @@ public final class BorderMath {
     }
 
     // ------------------------------------------------------------------
-    // RM_FRO_026 ("Dorothy"): Navigator's two point-to-point primitives -- see
+    // Navigator's two point-to-point primitives -- see
     // wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border. Deliberately
     // no player, target-type, or attunement awareness, and deliberately no nearest() companion:
     // "nearest of N candidates" is a one-line min() over a caller-specific pre-filtered candidate
@@ -240,7 +238,7 @@ public final class BorderMath {
     }
 
     // ------------------------------------------------------------------
-    // RM_FRO_027 ("Janet"): BorderCurve evaluation -- see
+    // BorderCurve evaluation -- see
     // wiki/frontiermode/architecture/border-curve.md#evaluation-bordermath-not-a-service-class.
     // BorderCurve is data; the evaluation is pure math living here, same as isInside/
     // randomPointInDisk above. Zero domain knowledge either way -- this doesn't know what a

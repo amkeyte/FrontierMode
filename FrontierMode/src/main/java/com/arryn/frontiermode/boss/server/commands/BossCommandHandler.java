@@ -1,16 +1,20 @@
 package com.arryn.frontiermode.boss.server.commands;
 
 import com.arryn.frontiermode.boss.BossAPI;
-import com.arryn.frontiermode.boss.BossModule;
+import com.arryn.frontiermode.boss.common.DefeatOutcome;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossDisplay;
-import com.arryn.frontiermode.boss.common.fixture.BossTellFixture;
+import com.arryn.frontiermode.boss.common.BossKind;
+import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
+import com.arryn.frontiermode.keeper.KeeperKind;
+import com.arryn.frontiermode.core.InfoPrinter;
+import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.util.Ids;
 
@@ -20,19 +24,22 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Handler logic for {@code /boss}'s six FRO_057 leaves -- Border's registration/handler split,
+ * Handler logic for {@code /boss}'s leaves -- Border's registration/handler split,
  * applied to Boss. Uses Optional/boolean feedback throughout, matching {@code BossFixture}/
- * {@code BossAPI}'s own current idiom (this build does not introduce Border's {@code Result}
- * type onto Boss wholesale -- {@link #transformDefeat} is the one place {@code Result} appears,
- * because it wraps {@link BossAPI#forceDefeat}, which itself wraps a real {@code BorderAPI.grow}
- * call and so returns what that call already produces).
+ * {@code BossAPI}'s own idiom (Border's {@code Result} type is not used on Boss wholesale --
+ * {@link #transformDefeat} is the one place {@code Result} appears, because it wraps
+ * {@link BossAPI#forceDefeat}, which itself wraps a real {@code BorderAPI.grow} call and so
+ * returns what that call already produces).
  */
 public final class BossCommandHandler {
 
@@ -43,32 +50,57 @@ public final class BossCommandHandler {
         return Component.literal("[Boss] " + m);
     }
 
+    // /boss add and /boss attach are the kind's verbs (BossKind.handPlace, BossKind.attachToBorder). Until the node F
+    // rules split they name the Keeper's kind.
+    private static BossKind keeperKind() {
+        return BossKinds.get(KeeperKind.KEY).orElseThrow();
+    }
+
+    // A kind that does not offer a verb answers that it does not apply.
+    private static Component doesNotApply(BossKind kind, String verb) {
+        return msg("/boss " + verb + " does not apply to the " + kind.key() + " kind.");
+    }
+
     // ------------------------------------------------------------
     // INFO
     // ------------------------------------------------------------
 
-    public static int info(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+    /**
+     * {@code /boss info}: for each selected boss, the base header, then what the modules add about it (boss.md §
+     * Commands and the Info report). A boss's subject is its body if it is loaded, otherwise its base record; one
+     * {@link InfoRequest} carries them all, and the shared printer prints each subject's lines together. The header is
+     * added the way the Inspect Stick adds its own, ahead of what the consumers add.
+     */
+    public static int info(CommandContext<CommandSourceStack> ctx, List<BossRecord> bosses) {
+        Level level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
-
         BossFixture fixture = fixtureOpt.get();
-        Optional<BossRecord> recordOpt = fixture.get(id);
-        recordOpt.ifPresentOrElse(
-                r -> {
-                    // Surfaces the bare-position selector's own index (BossFixture.all()'s list
-                    // order) -- otherwise there's no way to target a specific record with
-                    // /boss mob spawn <n> without counting list position by hand.
-                    int idx = fixture.all().indexOf(r);
-                    ctx.getSource().sendSuccess(() -> msg(BossDisplay.fullInfo(r, idx)), false);
-                },
-                () -> ctx.getSource().sendFailure(msg("Boss not found: " + id))
-        );
-        return 1;
+
+        List<Object> subjects = new ArrayList<>();
+        List<String> headers = new ArrayList<>();
+        for (BossRecord record : bosses) {
+            Optional<Entity> body = record.materialized()
+                    ? Satchel.require().egress().getEntity(level, record.bossEntityId())
+                    : Optional.empty();
+            subjects.add(body.isPresent() ? body.get() : record);
+            // Surfaces the bare-position selector's own index (BossFixture.all()'s list order) -- otherwise
+            // there's no way to target a specific record with /boss mob spawn <n> without counting list
+            // position by hand.
+            headers.add("[Boss] " + BossDisplay.header(record, fixture.all().indexOf(record)));
+        }
+
+        InfoRequest request = new InfoRequest(level, subjects);
+        for (int i = 0; i < subjects.size(); i++) {
+            String header = headers.get(i);
+            request.add(subjects.get(i), "boss", () -> header);
+        }
+        InfoPrinter.report(request, line -> ctx.getSource().sendSuccess(() -> Component.literal(line), false));
+        return bosses.size();
     }
 
     // ------------------------------------------------------------
@@ -80,31 +112,32 @@ public final class BossCommandHandler {
             BlockPos pos,
             int layer
     ) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        if (fixtureOpt.isEmpty()) {
+        if (BossAPI.bosses(level).isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
-        BossFixture fixture = fixtureOpt.get();
+        BossKind kind = keeperKind();
+        if (!kind.offersHandPlace()) {
+            ctx.getSource().sendFailure(doesNotApply(kind, "add"));
+            return 0;
+        }
 
-        // FRO_058: create() now returns Optional<BossRecord> (empty on a rejected sub-1
-        // layer) -- Brigadier's own IntegerArgumentType.integer(1) on "layer" already keeps this
-        // unreachable from this command, but the fixture-level guard applies to every caller.
-        // Border Pregeneration: create(layer) always starts the record unpositioned now -- this
-        // command's whole point is an admin choosing the position directly, so it commits `pos`
-        // immediately via finalizePosition() rather than waiting on BorderAPI.isPregenReady() --
-        // same "admin-forced position, unvalidated terrain is expected" precedent debugGoto's own
-        // comment already uses.
-        Optional<BossRecord> recordOpt = fixture.create(layer);
+        // the kind answers empty on a rejected sub-1 layer -- Brigadier's own
+        // IntegerArgumentType.integer(1) on "layer" already keeps this unreachable from this command, but the
+        // kind-level guard applies to every caller. Border Pregeneration: the record starts unpositioned, and
+        // this command's whole point is an admin choosing the position directly, so the kind commits `pos`
+        // immediately rather than waiting on BorderAPI.isPregenReady() -- the same "admin-forced position,
+        // unvalidated terrain is expected" precedent debugGoto's own comment already uses.
+        Optional<BossRecord> recordOpt = kind.handPlace(level, pos, layer);
         if (recordOpt.isEmpty()) {
-            ctx.getSource().sendFailure(msg("Rejected: negative layer " + layer + "."));
+            ctx.getSource().sendFailure(msg("Rejected: no boss record was created for layer " + layer
+                    + " (see server log)."));
             return 0;
         }
 
         BossRecord record = recordOpt.get();
-        fixture.finalizePosition(record.bossId(), pos);
         ctx.getSource().sendSuccess(() -> msg("Created boss record " + record.bossId()), false);
         return 1;
     }
@@ -114,28 +147,28 @@ public final class BossCommandHandler {
             int layer
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(sp.serverLevel());
-        if (fixtureOpt.isEmpty()) {
+        if (BossAPI.bosses(sp.level()).isEmpty()) {
             sp.sendSystemMessage(msg("Boss data not available for this level yet."));
             return 0;
         }
-        BossFixture fixture = fixtureOpt.get();
+        BossKind kind = keeperKind();
+        if (!kind.offersHandPlace()) {
+            sp.sendSystemMessage(doesNotApply(kind, "add"));
+            return 0;
+        }
 
-        // FRO_058: same Optional<BossRecord> contract as addExplicit() above.
-        // Border Pregeneration: same immediate finalizePosition() commit addExplicit() uses --
-        // see that method's own comment.
-        BlockPos pos = sp.blockPosition();
-        Optional<BossRecord> recordOpt = fixture.create(layer);
+        // Same hand placement as addExplicit() -- see its comment.
+        Optional<BossRecord> recordOpt = kind.handPlace(sp.level(), sp.blockPosition(), layer);
         if (recordOpt.isEmpty()) {
-            sp.sendSystemMessage(msg("Rejected: negative layer " + layer + "."));
+            sp.sendSystemMessage(msg("Rejected: no boss record was created for layer " + layer
+                    + " (see server log)."));
             return 0;
         }
 
         BossRecord record = recordOpt.get();
-        fixture.finalizePosition(record.bossId(), pos);
-        // FRO_087 fix: see addExplicit()'s matching comment above.
+        // see addExplicit()'s matching comment above.
         sp.sendSystemMessage(msg("Created boss record " + record.bossId() + " at your location"));
         return 1;
     }
@@ -145,13 +178,12 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     public static int delete(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
-        // FRO_082: routed through BossAPI.removeBoss() rather than calling
-        // BossFixture.remove(id) directly (this method's own pre-FRO_082 shape) -- removeBoss()
-        // wraps the same removal and, on success, adds the pendingAttach step boss.md's
-        // "Despawn and record removal" section describes. BossAPI.bosses(level)'s own
-        // "not available yet" check now lives inside removeBoss() itself.
+        // Routed through BossAPI.removeBoss() rather than calling BossFixture.remove(id) directly --
+        // removeBoss() wraps the same removal, whose kind hook adds the pendingAttach step boss.md's
+        // "Aliveness and removal" section describes. BossAPI.bosses(level)'s own "not available yet"
+        // check lives inside removeBoss() itself.
         boolean removed = BossAPI.removeBoss(level, id);
         if (!removed) {
             ctx.getSource().sendFailure(msg("No boss record to remove: " + id
@@ -168,11 +200,11 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     /**
-     * Pairs a boss onto an existing boss-less path border -- FRO_082 (FRO_063's ruling).
-     * {@code add} with a border to bind to instead of a raw position: creates a boss record via
-     * {@code BossCrudFacet.create(border.layer(), border.id(), pathPosition)}, which sets the new record's
-     * {@code borderId} to the selected border, then clears that border from
-     * {@code pendingAttach}. See wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach.
+     * Pairs a boss onto an existing boss-less path border.
+     * {@code add} with a border to bind to instead of a raw position: the kind's {@code attachToBorder}
+     * creates the Keeper, which sets the new record's {@code borderId} to the selected border, then clears
+     * that border from {@code pendingAttach}. See
+     * wiki/frontiermode/architecture/keeper.md#boss-less-path-layers-and-attach.
      *
      * <p>Nests {@code BorderSelectorArgumentType} the same way {@code BorderCommandHandler
      * .pathInsert}/{@code .pathRemove} already do -- the argument is Border's own selector
@@ -186,37 +218,31 @@ public final class BossCommandHandler {
     public static int attach(CommandContext<CommandSourceStack> ctx, BorderSelectorResult selector)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-        ServerLevel level = ctx.getSource().getLevel();
+        Player sp = ctx.getSource().getPlayerOrException();
+        Level level = ctx.getSource().getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, sp);
 
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        if (fixtureOpt.isEmpty()) {
+        if (BossAPI.bosses(level).isEmpty()) {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
-        BossFixture fixture = fixtureOpt.get();
+        BossKind kind = keeperKind();
+        if (!kind.offersAttach()) {
+            ctx.getSource().sendFailure(doesNotApply(kind, "attach"));
+            return 0;
+        }
 
-        Optional<BossRecord> recordOpt = fixture.CRUD.create(
-                border.layer(), border.id(), BossAPI.pathPositionOf(level, border));
+        // Clearing pendingAttach is a no-op, not an error, if border.id() wasn't actually pending -- attach
+        // doesn't require the target to already be in it (boss.md's own spec places no such restriction on it).
+        // The Tell and Sentinel curves are the downstream modules' answer to the Keeper's KeeperCreated event.
+        Optional<BossRecord> recordOpt = kind.attachToBorder(level, border);
         if (recordOpt.isEmpty()) {
             ctx.getSource().sendFailure(msg("Rejected: could not create a boss record for border "
                     + border.id() + " (a boss needs layer 1 or more -- see server log)."));
             return 0;
         }
         BossRecord record = recordOpt.get();
-
-        // No-op, not an error, if border.id() wasn't actually pending -- attach doesn't require
-        // the target to already be in pendingAttach (boss.md's own spec places no such
-        // restriction on it), just clears it either way.
-        fixture.CRUD.removePendingAttach(border.id());
-
-        // FRO_087 fix: attach() pairs a fresh boss record with a real, already-existing border
-        // -- the same "paired creation" shape the bootstrap/defeat-cascade call sites use -- so
-        // it needs the same tell-curve-plus-record pairing they already do, which this call site
-        // was missing.
-        BossTellFixture.createTellCurveIfAbsent(level, border.id());
 
         ctx.getSource().sendSuccess(
                 () -> msg("Attached boss " + record.bossId() + " to border " + border.id() + "."),
@@ -230,9 +256,9 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     public static int mobSpawn(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
-        MaterializeOutcome outcome = BossModule.forceMaterialize(level, id);
+        MaterializeOutcome outcome = BossAPI.forceMaterialize(level, id);
         return switch (outcome) {
             case SPAWNED -> {
                 ctx.getSource().sendSuccess(() -> msg("Force-spawned boss " + id), false);
@@ -258,6 +284,11 @@ public final class BossCommandHandler {
                         + " (or boss data not available for this level yet)."));
                 yield 0;
             }
+            case DEFEATED -> {
+                ctx.getSource().sendFailure(msg("Boss " + id + " is defeated. /boss mob spawn does not bring a"
+                        + " defeated boss back; /boss add or /boss attach makes a new one."));
+                yield 0;
+            }
             case DECLINED -> {
                 ctx.getSource().sendFailure(msg("Could not spawn boss " + id
                         + " -- the entity could not be created or added at its stored position."
@@ -272,48 +303,33 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     /**
-     * Force-defeats a boss without combat -- the item that actually motivated Joyce. Runs the
-     * same cascade a real death does ({@code markDefeated} -> {@code BorderAPI.grow} ->
-     * {@code BossAPI.createBoss}), via {@link BossAPI#forceDefeat}, rather than a bare flag flip
-     * -- so this reproduces the full "I just killed the boss!" effect (border grows, next boss
-     * queued) on demand.
+     * Force-defeats a boss without combat -- the item that actually motivated Joyce. Runs the same defeat a real
+     * death does, via {@link BossAPI#forceDefeat}, which marks the record defeated and calls the kind's
+     * {@code onDefeat} -- so this reproduces the full "I just killed the boss!" effect (for a Keeper, the border
+     * grows and the next boss is queued) on demand. The boss is named by short id and kind; the kind's message
+     * says the rest (the Keeper says its level).
      */
     public static int transformDefeat(CommandContext<CommandSourceStack> ctx, UUID id) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
-        BossAPI.DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
-        Result result = outcome.borderResult();
+        // Named before the defeat, so every line below says which boss it is about.
+        String fallen = Ids.shortId(id) + BossAPI.bosses(level).flatMap(fixture -> fixture.get(id))
+                .map(record -> " (" + record.kind() + ")").orElse("");
 
-        // FRO_083: growthGated means the defeat itself succeeded (markDefeated already ran) but
-        // the grow/createBoss cascade was correctly withheld -- report it as a success, not a
-        // command failure, even though borderResult() itself is a validationRejected Result (see
-        // DefeatOutcome's own doc for why there's no real grow() outcome to report here).
-        if (outcome.growthGated()) {
-            ctx.getSource().sendSuccess(
-                    () -> msg("Boss " + Ids.shortId(id) + " force-defeated. " + result.message()),
-                    false
-            );
-            return 1;
-        }
+        DefeatOutcome outcome = BossAPI.forceDefeat(level, id);
 
-        if (!result.isSuccess()) {
+        // an outcome that went through includes a defeat whose cascade was correctly withheld (an
+        // off-path Keeper, or another still alive on the border) -- the kind's message says so, and it is a
+        // success, not a command failure.
+        if (!outcome.wentThrough()) {
             ctx.getSource().sendFailure(
-                    msg("Failed to force-defeat boss " + Ids.shortId(id) + ": " + result.message())
+                    msg("Failed to force-defeat boss " + fallen + ": " + outcome.message())
             );
             return 0;
         }
 
-        // FRO_057 playtest bug: result.border().id() is the newly grown BORDER's id, not a
-        // boss id -- reporting it as "next boss X" was actively misleading. outcome.nextBoss()
-        // carries the real BossRecord (or is honestly empty if createBoss itself couldn't
-        // resolve a fixture for it -- see BossAPI.forceDefeat's own warn log for that case).
-        String nextBossText = outcome.nextBoss()
-                .map(r -> Ids.shortId(r.bossId()))
-                .orElse("(none -- see server log)");
-
         ctx.getSource().sendSuccess(
-                () -> msg("Boss " + Ids.shortId(id) + " defeated -- border " + Ids.shortId(result.border().id())
-                        + " grown, next boss " + nextBossText + " queued."),
+                () -> msg("Boss " + fallen + ": " + outcome.message()),
                 false
         );
         return 1;
@@ -326,8 +342,8 @@ public final class BossCommandHandler {
     public static int debugGoto(CommandContext<CommandSourceStack> ctx, UUID id)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-        ServerLevel level = ctx.getSource().getLevel();
+        Player sp = ctx.getSource().getPlayerOrException();
+        Level level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {
@@ -343,18 +359,17 @@ public final class BossCommandHandler {
         BossRecord record = recordOpt.get();
 
         // Border Pregeneration: position is nullable until BOSS_JIG's own tick finalizes it (see
-        // BossRecord's own doc) -- supersedes this method's old "copy-once placeholder Y" wording,
-        // since there's no placeholder position to land in anymore, just none yet.
+        // BossRecord's own doc) -- there is no placeholder position to land in, just none yet.
         if (!record.positioned()) {
             ctx.getSource().sendFailure(msg("Boss " + id
                     + " has no position yet -- its home border is still pregenerating."));
             return 0;
         }
 
-        // Spawned or not -- the stored position, deliberately (FRO_057's own wording). Landing
+        // Spawned or not -- the stored position, deliberately. Landing
         // the player inside terrain for a not-yet-materialized-but-positioned boss is expected
         // debug-tool behavior per the wiki page's "escape hatch" framing, not a bug -- position is
-        // already flatness/hazard-scored by this point regardless, so that's now rare in practice.
+        // already flatness/hazard-scored by this point regardless, so that's rare in practice.
         BlockPos pos = record.position();
         sp.teleportTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
 
@@ -366,17 +381,16 @@ public final class BossCommandHandler {
     }
 
     // ------------------------------------------------------------
-    // DEBUG DISTANCE -- not in FRO_057's original six, added mid-playtest to make finding an
-    // unmaterialized (and possibly unloaded) boss practical without teleporting blind. Pairs
-    // with debugGoto the same way "how far" pairs with "go there"; not yet documented on
-    // wiki/frontiermode/architecture/boss-commands.md -- flagged for the Architect to reconcile.
+    // DEBUG DISTANCE -- makes finding an unmaterialized (and possibly unloaded) boss practical
+    // without teleporting blind. Pairs with debugGoto the same way "how far" pairs with "go
+    // there".
     // ------------------------------------------------------------
 
     public static int debugDistance(CommandContext<CommandSourceStack> ctx, UUID id)
             throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-        ServerLevel level = ctx.getSource().getLevel();
+        Player sp = ctx.getSource().getPlayerOrException();
+        Level level = ctx.getSource().getLevel();
 
         Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
         if (fixtureOpt.isEmpty()) {

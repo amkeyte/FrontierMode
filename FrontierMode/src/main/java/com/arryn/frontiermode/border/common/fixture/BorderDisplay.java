@@ -14,7 +14,7 @@ public final class BorderDisplay {
      * @param pathIndex this border's position in the canonical path order (0-based), or -1 if the
      *                   border is off-path. Rendered as {@code LEV-<pathIndex>}, or {@code LEV--}
      *                   when off-path -- distinct from {@code LAY}, which is {@link Border#layer()}
-     *                   and is, per RM_FRO_015, definitionally unrelated to path position.
+     *                   and is definitionally unrelated to path position.
      */
     public static String fullInfo(Border b, int pathIndex) {
         BlockPos c = b.center();

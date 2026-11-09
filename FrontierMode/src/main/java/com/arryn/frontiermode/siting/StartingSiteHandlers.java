@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.siting;
 
-import com.arryn.satchel.common.lifecycle.CreateWorldSpawnSignal;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -10,10 +9,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 
 /**
- * The starting-site handler (siting.md § When it runs): once, as a brand-new Overworld picks its spawn
- * and before any player exists, run the search, set the world spawn on the level data, and cancel
- * vanilla's own choice. The first Border centers on {@code getSharedSpawnPos()}, so it follows with no
- * change to Border. Existing worlds never see the signal.
+ * The starting-site consumer (siting.md § When it runs): once, as a brand-new Overworld picks its spawn
+ * and before any player exists, run the search, claim the spawn, which also cancels vanilla's own choice,
+ * and place the bonus chest vanilla would have. The first Border centers on {@code getSharedSpawnPos()},
+ * so it follows with no change to Border. Existing worlds never see the event.
+ *
+ * <p>A throw from the search is a programming error and crashes world creation; nothing here catches it.
  */
 final class StartingSiteHandlers {
 
@@ -23,27 +24,18 @@ final class StartingSiteHandlers {
     private StartingSiteHandlers() {
     }
 
-    static void onCreateWorldSpawn(CreateWorldSpawnSignal signal) {
-        if (!(signal.level() instanceof ServerLevel level)) {
+    static void onWorldSpawnChoosing(WorldSpawnChoosing event) {
+        OUT.debug("[Siting] WorldSpawnChoosing reached its consumer");
+        if (!(event.level() instanceof ServerLevel level)) {
             return;
         }
 
-        BlockPos site;
-        try {
-            site = StartingSite.search(level);
-        } catch (RuntimeException e) {
-            // A throw here fails world creation. The search is an improvement on vanilla's spawn, not a
-            // requirement, so on any trouble leave the signal alone and let vanilla choose.
-            OUT.warn("[Siting] starting-site search failed -- leaving vanilla's spawn choice alone: " + e);
-            return;
-        }
-
-        signal.levelData().setSpawn(site, 0.0F);
-        if (signal.bonusChestRequested()) {
-            // Cancelling skips vanilla's bonus chest too, so it is placed here, as vanilla does.
+        BlockPos site = StartingSite.search(level);
+        event.claimSpawn(site);
+        if (event.bonusChestRequested()) {
+            // Claiming skips vanilla's bonus chest too, so it is placed here, as vanilla does.
             placeBonusChest(level, site);
         }
-        signal.cancel();
     }
 
     private static void placeBonusChest(ServerLevel level, BlockPos site) {

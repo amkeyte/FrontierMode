@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.tracking;
 
+import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 
@@ -23,12 +24,20 @@ public final class TrackerFixture extends SatchelFixture {
 
     public void countLoaded() {
         loads++;
-        markDirty();
+        markDirtyOnServer();
     }
 
     public void countUnloaded() {
         unloads++;
-        markDirty();
+        markDirtyOnServer();
+    }
+
+    /**
+     * Only the server's copy is saved and synced. A client bundle is a read-only mirror, and the client
+     * engine warns when one is dirty, so the client keeps counting and marks nothing.
+     */
+    private void markDirtyOnServer() {
+        if (Satchel.isServer()) markDirty();
     }
 
     public void countExternalTick() {

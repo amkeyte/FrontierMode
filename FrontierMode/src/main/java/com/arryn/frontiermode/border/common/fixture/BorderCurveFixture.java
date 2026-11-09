@@ -2,7 +2,6 @@ package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -14,15 +13,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Sibling fixture to {@link BordersFixture} (and {@link NavigatorFixture}) inside
+ * Sibling fixture to {@link BordersFixture} inside
  * {@link com.arryn.frontiermode.border.common.bundle.BordersBundle} -- zero-to-many named
- * intensity curves per border, per RM_FRO_027 ("Janet") /
+ * intensity curves per border, per
  * wiki/frontiermode/architecture/border-curve.md. Registered alongside its siblings in
- * {@code BorderModule.init()}.
+ * {@code BorderJig.build()}.
  *
  * <p>No tick wiring, per that page's own "Data model" section -- these are static descriptors,
- * set once and read on demand, unlike {@link NavigatorFixture}'s periodic recomputation (which
- * this fixture has none of) or {@link BorderPregenFixture}'s throttled tick-driven work.
+ * set once and read on demand, unlike {@link BorderPregenFixture}'s throttled tick-driven work.
  *
  * <p>Deletion cascade lives in {@code BorderAPI.removeBorder} (see that page's "Deletion:
  * explicit, not orphaned" section) -- {@link #removeForBorder(UUID)} is the method it calls,
@@ -57,13 +55,7 @@ public final class BorderCurveFixture extends SatchelFixture {
 
         ListTag list = root.getList(KEY_CURVES, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            // Same discipline BossFixture.loadBosses/BordersFixture.loadBorders follow: one
-            // malformed record shouldn't abort hydration of every other curve on this level.
-            try {
-                curves.add(BorderCurve.load((CompoundTag) t));
-            } catch (RuntimeException e) {
-                OUT.warn("[BorderCurve] Skipping malformed curve record during load: " + e);
-            }
+            curves.add(BorderCurve.load((CompoundTag) t));
         }
     }
 
@@ -110,11 +102,11 @@ public final class BorderCurveFixture extends SatchelFixture {
      * via {@link #forBorder(UUID, String)}), or creates one if absent -- same net effect as
      * {@link #create} on a border with no such curve yet.
      *
-     * <p>Added for exactly the gap {@code create}-if-absent helpers like
-     * {@code BossTellFixture.createTellCurveIfAbsent}/{@code BossSentinelsFixture
+     * <p>Covers exactly the gap {@code create}-if-absent helpers like
+     * {@code BossTellFixture.createTellCurveIfAbsent}/{@code SentinelConversion
      * .ensureSentinelCurves} can't cover on their own: a curve's shape/steepness is "safe
-     * baseline, replace later" tuning territory by design, and this whole cluster is still being
-     * played and adjusted -- a live world that already seeded a curve under the old constants
+     * baseline, replace later" tuning territory by design, and a live world that already
+     * seeded a curve under earlier constants
      * would otherwise be stuck with them until the world resets, since {@code create}-if-absent
      * never touches an existing record. This lets a consumer's own "ensure current shape" helper
      * reconcile forward instead.

@@ -4,8 +4,11 @@ import com.arryn.satchel.common.identity.JigKey;
 
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.TrinketDecl;
+import net.minecraftforge.fml.LogicalSide;
 
+import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -117,18 +120,6 @@ public final class JigConfigValidator {
         if (p.execution.lifecycle == null) {
             throw new IllegalStateException(
                     "Jig " + key + " missing lifecycle policy"
-            );
-        }
-
-        if (p.execution.executionPriority == null) {
-            throw new IllegalStateException(
-                    "Jig " + key + " missing executionPriority"
-            );
-        }
-
-        if (p.execution.tickOrder == null) {
-            throw new IllegalStateException(
-                    "Jig " + key + " missing tickOrder"
             );
         }
     }
@@ -272,13 +263,19 @@ public final class JigConfigValidator {
             JigKey<?> key,
             JigConfig.Presets<?, ?> p
     ) {
-        Set<Class<?>> seen = new HashSet<>();
+        // One declaration per type on each side. Two contributions of the same type that never share
+        // a side (one SERVER, one CLIENT) are not a clash.
+        Map<LogicalSide, Set<Class<?>>> seen = new EnumMap<>(LogicalSide.class);
 
-        for (TrinketDecl<?> decl : p.bundles.trinkets) {
-            if (!seen.add(decl.type())) {
-                throw new IllegalStateException(
-                        "Jig " + key + " declares Trinket " + decl.type().getName() + " twice"
-                );
+        for (TrinketDecl<?> decl : p.trinkets.decls) {
+            for (LogicalSide side : LogicalSide.values()) {
+                if (decl.appliesTo(side)
+                        && !seen.computeIfAbsent(side, s -> new HashSet<>()).add(decl.type())) {
+                    throw new IllegalStateException(
+                            "Jig " + key + " declares Trinket " + decl.type().getName() + " twice"
+                                    + " for side " + side
+                    );
+                }
             }
 
             if (Ticking.class.isAssignableFrom(decl.type())

@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.util;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.SatchelMod;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -38,8 +39,9 @@ import java.util.UUID;
  *
  * <p>
  * Server-side only. A client-side mob has no container: {@link #read} returns an empty compound,
- * and a write throws. Not synced -- anything the client must see goes through a synced fixture.
+ * {@link #has} is {@code false}, and a write throws. Not synced -- anything the client must see goes through a synced fixture.
  */
+@PlatformBound(reason = "Data saved on a mob, through the MobDataStore capability")
 public final class MobData {
 
     /** Satchel's own namespace: the stat changes it has made, for re-application on conversion. */
@@ -59,6 +61,18 @@ public final class MobData {
         Objects.requireNonNull(mob, "mob");
         String key = moduleKey(namespace);
         return MobDataStore.of(mob).map(s -> s.read(key)).orElseGet(CompoundTag::new);
+    }
+
+    /**
+     * Whether {@code mob} carries data under {@code namespace}: {@code !read(mob, namespace).isEmpty()}
+     * without the copy, and without creating anything. {@code false} for a mob with no container (a
+     * client mob, or one that has been removed). Refuses Satchel's own namespace, as {@link MobData#read}
+     * does.
+     */
+    public static boolean has(Mob mob, ResourceLocation namespace) {
+        Objects.requireNonNull(mob, "mob");
+        String key = moduleKey(namespace);
+        return MobDataStore.of(mob).map(s -> s.has(key)).orElse(false);
     }
 
     /** Replaces {@code namespace}'s compound with a copy of {@code compound}; an empty one removes it. */

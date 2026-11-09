@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.structure.common.blocks;
 
-import com.arryn.frontiermode.structure.StructureModule;
+import com.arryn.frontiermode.structure.CairnPulse;
 import com.arryn.frontiermode.structure.client.CairnAmbientClient;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -67,7 +67,7 @@ public class CairnCapBlock extends Block {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }
-        StructureModule.triggerPulse(level, pos);
+        CairnPulse.triggerPulse(level, pos);
         return InteractionResult.CONSUME;
     }
 
@@ -89,7 +89,7 @@ public class CairnCapBlock extends Block {
 
         level.setBlock(pos, state.setValue(POWERED, powered), 2);
         if (powered) {
-            StructureModule.triggerPulse(level, pos);
+            CairnPulse.triggerPulse(level, pos);
         }
     }
 

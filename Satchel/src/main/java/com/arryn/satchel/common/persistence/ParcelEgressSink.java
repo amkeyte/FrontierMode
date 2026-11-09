@@ -2,12 +2,13 @@ package com.arryn.satchel.common.persistence;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.net.SatchelNetwork;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Terminal parcel egress emitter.
@@ -17,11 +18,11 @@ import net.minecraft.nbt.CompoundTag;
  */
 public final class ParcelEgressSink {
 
-    private final ScopeInfo scopeInfo;
+    private final ScopeInfoImpl scopeInfo;
     private final BundleKey<?> key;
 
     private ParcelEgressSink(
-            ScopeInfo scopeInfo,
+            ScopeInfoImpl scopeInfo,
             BundleKey<?> key
     ) {
         this.scopeInfo = scopeInfo;
@@ -32,7 +33,7 @@ public final class ParcelEgressSink {
      * Create an emitter for a specific bundle within a scope.
      */
     public static ParcelEgressSink forBundle(
-            ScopeInfo info,
+            ScopeInfoImpl info,
             BundleKey<?> key
     ) {
         Satchel.requireServer();
@@ -61,5 +62,21 @@ public final class ParcelEgressSink {
         } else {
             SatchelNetwork.send(scopeInfo, parcel);
         }
+    }
+
+    /**
+     * Emits the snapshot to one player only (SAT_144): the arrival push of a level scope's bundle to a
+     * player who has just joined its audience. A player scope's bundle already goes to its one player
+     * through {@link #emit}.
+     */
+    public void emitTo(ServerPlayer player, CompoundTag snapshot) {
+        S2cBundleParcel parcel = new S2cBundleParcel(
+                scopeInfo.scopeId(),
+                key.id,
+                key.name,
+                snapshot
+        );
+
+        SatchelNetwork.sendToPlayer(player, scopeInfo, parcel);
     }
 }

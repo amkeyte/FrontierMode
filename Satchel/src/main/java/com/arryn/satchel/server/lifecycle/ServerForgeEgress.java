@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.jig.guts.ForgeEgress;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -22,6 +23,7 @@ import java.util.UUID;
  * <p>
  * Installed once per server foundation, from {@code ServerFoundationBooter#installFoundation()}.
  */
+@PlatformBound(reason = "Satchel's server-side read seam into the world")
 public final class ServerForgeEgress implements ForgeEgress {
 
     @Override

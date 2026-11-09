@@ -86,7 +86,7 @@ public final class BorderPlayerStatus {
     }
 
     /**
-     * RM_FRO_037: raw distance past the nearest point on the Frontier's boundary -- {@code 0}
+     * raw distance past the nearest point on the Frontier's boundary -- {@code 0}
      * when the player isn't in the Wilds at all. See
      * wiki/frontiermode/architecture/wilds.md#the-distance-to-frontier-query.
      */
@@ -95,7 +95,7 @@ public final class BorderPlayerStatus {
     }
 
     /**
-     * RM_FRO_037: Frontier Sickness's current climbing severity -- see
+     * Frontier Sickness's current climbing severity -- see
      * {@code FrontierSicknessLogic}. Uncapped, per
      * wiki/frontiermode/design/wilds.md#frontier-sickness's "no designed ceiling."
      */

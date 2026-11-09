@@ -9,7 +9,6 @@ import com.arryn.frontiermode.effects.common.EffectsAPI;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -49,18 +48,18 @@ public final class EdgeStone extends ThrowableItemProjectile {
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide || isRemoved() || !(level() instanceof ServerLevel serverLevel)) {
+        if (level().isClientSide || isRemoved()) {
             return;
         }
         boolean outside = BorderAPI.frontierDistanceAt(level(), blockPosition()) > 0;
         if (startedOutside == null) {
             startedOutside = outside;
         } else if (outside != startedOutside) {
-            poof(serverLevel);
+            poof(level());
         }
     }
 
-    private void poof(ServerLevel level) {
+    private void poof(Level level) {
         EffectsAPI.broadcastParticle(level, ParticleTypes.POOF, getX(), getY(), getZ(),
                 DioriteRules.ACTIVE.edgeStonePoofParticles(), 0.2, 0.2, 0.2, 0.02);
         EffectsAPI.broadcastSound(level, getX(), getY(), getZ(),

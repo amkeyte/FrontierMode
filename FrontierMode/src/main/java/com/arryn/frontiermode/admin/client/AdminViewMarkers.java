@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.admin.client;
 
+import com.arryn.frontiermode.admin.common.Role;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -16,7 +17,7 @@ import java.util.Map;
 /**
  * The debug view's marker: a coloured diamond drawn above every mob {@link AdminViewClient} is
  * marking, seen through walls, so a playtester can find a tracked mob and tell what it's there for
- * (FRO_202). Gold for a boss, purple for a sentinel, green for a Feral.
+ *. Gold for a boss, purple for a sentinel, green for a Feral.
  *
  * <p>A font glyph drawn the way vanilla draws a name tag's see-through pass, but fully opaque
  * (vanilla's see-through pass is ~12% alpha, which is what makes distant tags faint). It has a fixed
@@ -37,7 +38,7 @@ public final class AdminViewMarkers {
     }
 
     public static void render(PoseStack pose, Camera camera, float partialTick) {
-        Map<Mob, AdminViewClient.Role> marked = AdminViewClient.marked();
+        Map<Mob, Role> marked = AdminViewClient.marked();
         if (marked.isEmpty()) {
             return;
         }

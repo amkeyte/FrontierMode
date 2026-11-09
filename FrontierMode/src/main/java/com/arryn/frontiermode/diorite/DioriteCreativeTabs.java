@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.diorite;
 
 import com.arryn.frontiermode.FrontierMode;
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -10,6 +11,7 @@ import net.minecraftforge.fml.common.Mod;
  * Registering an item does not put it in any creative tab. Dust and shard go under Ingredients, the
  * Striker under Tools and Utilities beside flint and steel (diorite-tools.md § Module shape).
  */
+@PlatformBound(reason = "registration")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class DioriteCreativeTabs {
 

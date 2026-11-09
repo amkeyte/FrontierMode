@@ -1,26 +1,22 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
+import com.arryn.frontiermode.boss.common.BossCreation;
 import net.minecraft.core.BlockPos;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
- * FRO_081: Boss's record-lifecycle/mutation facet, mirroring {@code BordersCrudFacet}'s shape --
+ * Boss's record-lifecycle/mutation facet, mirroring {@code BordersCrudFacet}'s shape --
  * record creation, single-record lookup, position finalization, materialization, defeat, and
  * removal. A thin pass-through onto {@link BossFixture}'s own methods: unlike
  * {@code BordersFixture} (whose mutating methods are package-private, reached only through its
  * facets), {@link BossFixture}'s methods stay {@code public} -- {@code BossCommandHandler} and
  * {@code BossSelector} already hold direct {@link BossFixture} references from
- * {@code BossAPI.bosses(Level)} pre-dating this refactor, and narrowing that surface is a
- * separate encapsulation ticket (the shape {@code BordersFixture}'s own FRO_047 was), not this
- * one. This facet exists so {@code BossModule}'s own orchestration and {@code BossAPI}'s facade
- * route through one explicit CRUD surface instead of reimplementing/duplicating this logic
- * inline -- each method here forwards straight to the identically-named {@link BossFixture}
- * method, which already guards {@code Satchel#requireServer()} and its own validation/
- * {@code markDirty()} itself.
+ * {@code BossAPI.bosses(Level)}, and narrowing that surface is a separate encapsulation ticket.
+ * Each method here forwards straight to the identically-named {@link BossFixture} method, which
+ * already guards {@code Satchel#requireServer()} and its own validation/{@code markDirty()} itself.
  */
 public class BossCrudFacet {
     private final BossFixture fixture;
@@ -30,18 +26,10 @@ public class BossCrudFacet {
     }
 
     /**
-     * See {@link BossFixture#create(int)}.
+     * See {@link BossFixture#create(String, BossCreation)}.
      */
-    public Optional<BossRecord> create(int layer) {
-        return fixture.create(layer);
-    }
-
-    /**
-     * FRO_082: on-path creation, paired with real border-growth -- see
-     * {@link BossFixture#create(int, UUID, OptionalInt)}.
-     */
-    public Optional<BossRecord> create(int layer, UUID borderId, OptionalInt pathPosition) {
-        return fixture.create(layer, borderId, pathPosition);
+    public Optional<BossRecord> create(String kindKey, BossCreation args) {
+        return fixture.create(kindKey, args);
     }
 
     /**
@@ -62,24 +50,19 @@ public class BossCrudFacet {
         return fixture.finalizePosition(bossId, resolvedPosition);
     }
 
-    /** See {@link BossFixture#setPlatform(UUID, BlockPos)}. */
-    public boolean setPlatform(UUID bossId, BlockPos platformPos) {
-        return fixture.setPlatform(bossId, platformPos);
-    }
-
     /**
-     * See {@link BossFixture#materialize(UUID, UUID)}.
+     * See {@link BossFixture#materialize(UUID, UUID, float)}.
      *
      * <p>[Arryn] examine why the Result value is never used.
      *
      */
     @SuppressWarnings("UnusedReturnValue")
-    public boolean materialize(UUID bossId, UUID entityId) {
-        return fixture.materialize(bossId, entityId);
+    public boolean materialize(UUID bossId, UUID entityId, float scale) {
+        return fixture.materialize(bossId, entityId, scale);
     }
 
     /**
-     * FRO_160: see {@link BossFixture#dematerialize(UUID)}.
+     * See {@link BossFixture#dematerialize(UUID)}.
      */
     public boolean dematerialize(UUID bossId) {
         return fixture.dematerialize(bossId);
@@ -105,24 +88,5 @@ public class BossCrudFacet {
      */
     public List<BossRecord> all() {
         return fixture.all();
-    }
-
-    /**
-     * FRO_082: see {@link BossFixture#addPendingAttach(UUID)}.
-     *
-     * <p>[Arryn] examine why the Result value is never used.
-     */
-    @SuppressWarnings("UnusedReturnValue")
-    public boolean addPendingAttach(UUID borderId) {
-        return fixture.addPendingAttach(borderId);
-    }
-
-    /**
-     * FRO_082: see {@link BossFixture#removePendingAttach(UUID)}.     *
-     * <p>[Arryn] examine why the Result value is never used.
-     */
-    @SuppressWarnings("UnusedReturnValue")
-    public boolean removePendingAttach(UUID borderId) {
-        return fixture.removePendingAttach(borderId);
     }
 }

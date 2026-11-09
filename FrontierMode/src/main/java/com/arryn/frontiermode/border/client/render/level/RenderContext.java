@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.border.client.render.level;
 
+import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
@@ -7,99 +8,72 @@ import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersRevisionMonitor;
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.jig.level.LevelResolver;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
+import com.arryn.satchel.common.trinket.Trinket;
+import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.level.Level;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-class RenderContext {
+/**
+ * The client's draw cache for one level (wiki/frontiermode/architecture/border.md § Trinket ticks): the cached
+ * borders, the path tip and the revision monitor, as instance state of a Trinket on {@code BORDERS_JIG}, so the
+ * state ends with the client's level scope and needs no static map or unload handler. Not {@code Ticking}: the
+ * ring is drawn from Forge's render event, which polls the revision.
+ *
+ * <p>{@code BORDERS_JIG} is {@code BOTH}, so a dedicated server constructs one too, holding nothing and never
+ * asked (the lookup answers empty off the client). It therefore names no type that exists on the client only: not
+ * in a field, a signature or a body. The camera, the buffer source and the {@code Minecraft} read belong to
+ * {@link WorldBordersRenderer}, which asks {@code Minecraft} itself and hands {@link #getInstance} the level. The
+ * class carries no {@code @OnlyIn}, which would crash the dedicated server at first load. It is public only so
+ * {@code BorderJig} can declare it; everything it offers is package-private.
+ */
+public final class RenderContext implements Trinket {
 
-    // ---------------------------------------------------------------------
-    // Cached instances (per level)
-    // ---------------------------------------------------------------------
-
-    private static final Map<LevelScope, RenderContext> CACHE = new HashMap<>();
-    // ---------------------------------------------------------------------
-    // Instance state
-    // ---------------------------------------------------------------------
-    public final LevelScope scope;
-    private final BordersRevisionMonitor revisionMonitor;
+    private LevelScope scope;
+    private final BordersRevisionMonitor revisionMonitor = new BordersRevisionMonitor(20);
     private List<Border> cachedBorders = List.of();
     private Optional<Border> cachedPathTip = Optional.empty();
 
-    private RenderContext(LevelScope scope) {
-        this.scope = scope;
-        this.revisionMonitor = new BordersRevisionMonitor(20);
+    /**
+     * Creates this scope's {@code BordersBundle} at attach, the pattern {@code ScopeInfo.getOrCreate} documents for
+     * a Trinket that needs its bundle then. A client bundle exists only once something creates it, and {@link
+     * #isReady} waits for its first parcel, so without this call nothing would ask for the bundle and the ring would
+     * never draw.
+     */
+    @Override
+    public void onAttach(ScopeInfo info) {
+        OUT.debug("[Border] RenderContext attached");
+        scope = info.scopeAs();
+        info.getOrCreate(FrontierKeys.BORDERS_BUNDLE);
+    }
+
+    /** Ready once the bundle's first parcel has arrived and the borders fixture is. */
+    @Override
+    public boolean isReady(ScopeInfo info) {
+        LevelScope levelScope = info.scopeAs();
+        return BorderAPI.INFO(levelScope.level())
+                .map(BordersInfoFacet::isReady)
+                .orElse(false);
     }
 
     /**
-     * Try to pull an instance of the renderContext if the context is
-     * ready and client side.
-     *
+     * The draw cache of {@code level}, if this is the client and the level's scope and bundle are ready. Satchel
+     * binds a thread to a side only once it has booted, so {@code isReady()} comes before {@code isClient()}, and
+     * the scope is built only once the world-identity token is bound.
      */
-    public static Optional<RenderContext> getInstance() {
-        // Gate: must be valid context and client-side
-        if(isNotClientSide()) return Optional.empty();
-
-        Minecraft mc = Minecraft.getInstance();
-        Level level = mc.level;
-        // This IS reachable, not a "shouldn't happen": ScopeEvent.Tick keeps firing for a client
-        // scope for one or more ticks after the player disconnects -- Minecraft.level/.player are
-        // already null by then (confirmed by GrowthTriggerRenderer.debugFlame()'s own
-        // mc.player == null check a few lines up its call site, which logs and returns instead of
-        // crashing), but nothing has unsubscribed this jig's tick participation yet. Same shape as
-        // isNotClientSide() above: "context not currently available" is a legitimate skip, not an
-        // error. See FRO_016.
-        if (level == null) return Optional.empty();
-
-        // FRO_021: route through LevelResolver instead of constructing LevelScope directly.
-        // RM_SAT_019 made a client-side LevelScope's UUID depend on the world-identity token
-        // (present -> folded in; absent -> dimension-only fallback) -- and this method's result
-        // is used as a long-lived Map key (CACHE below), not a one-off value. Constructing a
-        // LevelScope directly here would mint a dimension-only-UUID key before the token
-        // arrives, then a DIFFERENT token-folded-UUID "key" for the same real level afterward;
-        // since ASatchelScope's equals()/hashCode() delegate to that UUID, CACHE would treat the
-        // two as unrelated keys and silently fork a second RenderContext for one level,
-        // discarding the first's revisionMonitor/cachedBorders state. LevelResolver.resolveScope
-        // returns null during that same pre-token window (see its own RM_SAT_019 block/defer
-        // logic) -- treating that as "not ready yet" here is consistent with this method's
-        // existing FRO_016 handling and Optional<RenderContext> contract, and guarantees this
-        // method never mints a cache key under a UUID that's about to change out from under it.
-        LevelScope scope = LevelResolver.resolveScope(level);
-        if (scope == null) return Optional.empty();
-
-        return Optional.of(CACHE.computeIfAbsent(scope, RenderContext::new));
+    static Optional<RenderContext> getInstance(Level level) {
+        if (!Satchel.isReady() || !Satchel.isClient()) {
+            return Optional.empty();
+        }
+        return Satchel.trinket(FrontierKeys.BORDERS_JIG, new LevelScope(level), RenderContext.class);
     }
 
-    /**
-     * RM_FRO_012: package-visible eviction hook, called from {@code Rendering.onClientUnload}
-     * (subscribed to {@code ScopeEvent.Unloaded} via {@code BorderModule}'s {@code EventHandlers}).
-     * Before this, {@link #CACHE} only ever grew -- {@link #getInstance()}'s {@code computeIfAbsent}
-     * had no corresponding removal anywhere, so every world a client visited in one session left
-     * one {@code RenderContext} (plus the two maps inside its own {@code BordersRevisionMonitor})
-     * parked here for the life of the JVM. {@code ScopeEvent.Unloaded} already fires on both sides
-     * for exactly this purpose (see {@code ScopeLifecycleDispatcher}'s own javadoc: "the final
-     * guaranteed safe access point for the scopeInfo and any data associated with it") -- this was
-     * simply never subscribed to on the client. No Satchel-side change needed: this class is
-     * deliberately not persisted/bundle state (see the Border wiki page), so eviction just drops
-     * the map entry, nothing to flush.
-     */
-    static void evict(LevelScope scope) {
-        CACHE.remove(scope);
-    }
-
-    // FRO_047: three facets instead of one raw BordersFixture -- BordersFixture is no longer
-    // reachable from outside border.common.fixture (see that class's own doc for why the Java
-    // modifier itself can't follow). Each lazy-loads and memoizes independently, same "render
-    // tick fires before Satchel is ready" reasoning the old single fixture() cache had -- retry
-    // while empty, keep once resolved.
+    // The three facets stand in for one raw BordersFixture, which is not reachable from outside
+    // border.common.fixture (see that class's own doc for why the Java modifier itself can't
+    // follow). Each lazy-loads and memoizes independently: retry while empty, keep once resolved.
     private Optional<BordersCrudFacet> crud = Optional.empty();
     private Optional<BordersPathFacet> path = Optional.empty();
     private Optional<BordersInfoFacet> info = Optional.empty();
@@ -125,35 +99,18 @@ class RenderContext {
         return info;
     }
 
-
     // ---------------------------------------------------------------------
     // Accessors (defensive)
     // ---------------------------------------------------------------------
 
-    public Camera camera() {
-        if(isNotClientSide())
-            throw  new IllegalStateException("No access from non client/render thread.");
-        Minecraft mc = Minecraft.getInstance();
-        return mc.gameRenderer.getMainCamera();
-    }
-
-    public MultiBufferSource.BufferSource buffers() {
-        if(isNotClientSide())
-            throw  new IllegalStateException("No access from non client/render thread.");
-
-        Minecraft mc = Minecraft.getInstance();
-        return mc.renderBuffers().bufferSource();
-    }
-
-    //
-    public List<Border> borders() {
+    List<Border> borders() {
         cachedBorders = crud()
                 .map(BordersCrudFacet::all)
                 .orElseGet(List::of);
         return cachedBorders;
     }
 
-    public Optional<Border> pathTip() {
+    Optional<Border> pathTip() {
         cachedPathTip = path()
                 .flatMap(BordersPathFacet::tip);
 
@@ -168,7 +125,7 @@ class RenderContext {
      * @return true if rendering should no-op this frame
      */
     @SuppressWarnings({"inverted", "BooleanMethodIsAlwaysInverted"})
-    public boolean standby() {
+    boolean standby() {
 
         Optional<BordersInfoFacet> infoOpt = info();
 
@@ -194,12 +151,5 @@ class RenderContext {
 
         // Still nothing to draw
         return cachedBorders.isEmpty();
-    }
-
-
-    static Boolean isNotClientSide() {
-        return Satchel.foundation()
-                .filter(f -> f.side().isServer())
-                .isPresent();
     }
 }

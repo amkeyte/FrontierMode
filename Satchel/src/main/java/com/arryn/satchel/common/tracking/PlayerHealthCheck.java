@@ -4,7 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -16,10 +16,8 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * PlayerJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
@@ -50,6 +48,12 @@ final class PlayerHealthCheck {
             );
 
     static void register() {
+        // BOTH is what makes the client-side PlayerJig path provable rather than just declared, the same
+        // reasoning MobHealthCheck and LevelHealthCheck give for their own BOTH.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> build());
+    }
+
+    private static PlayerJigConfig build() {
         var trackerFixture =
                 new JigBundles.FixtureDecl<TrackerFixture>(
                         PLAYER_TRACKER,
@@ -75,12 +79,6 @@ final class PlayerHealthCheck {
                         .build();
 
         PlayerJigConfig config = new PlayerJigConfig(PLAYER_JIG);
-
-        // Was SERVER (PlayerJigConfig's own default, left untouched until SAT_063 built real
-        // client-side PlayerJig existence). BOTH is what makes that path provable rather than
-        // just declared -- same reasoning MobHealthCheck/LevelHealthCheck already give for their
-        // own BOTH widening.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
 
         // Required for PERSISTENCE below to actually work, not optional -- ScopeEngine_Server
         // .resolveServerLevel() throws AccessFailed if info.referenceLevel() is null, and
@@ -112,11 +110,11 @@ final class PlayerHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     private static void onPlayerScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         Objects.requireNonNull(info, "info");
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
@@ -178,7 +176,7 @@ final class PlayerHealthCheck {
      * reason as the level check.
      */
     private static void onPlayerScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
             return;
@@ -225,8 +223,8 @@ final class PlayerHealthCheck {
                             + "only ever follow a real PlayerLoggedOutEvent (see "
                             + "ServerForgeIngress#onPlayerScopeUnload) -- something called "
                             + "tryRemoveSource for a player who never actually logged out.";
-                    OUT.error(message);
-                    throw new IllegalStateException(message);
+                    SatchelHealth.violation(message);
+                    return;
                 }
 
                 // Checkpoint, not routine noise -- fires once per logout, not per tick/per load.
@@ -238,7 +236,7 @@ final class PlayerHealthCheck {
     }
 
     private static void onPlayerScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!PLAYER_JIG.equals(info.jigInfo().key)) {
             return;

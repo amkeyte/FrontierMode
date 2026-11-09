@@ -4,7 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -48,6 +48,13 @@ final class LevelHealthCheck {
             );
 
     static void register() {
+        // BOTH lets a server/client pair running only Satchel (no FrontierMode, no Border) still prove
+        // LevelJig's client-side lifecycle path works, rather than depending on Border to be the
+        // only thing that has ever exercised it.
+        Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> build());
+    }
+
+    private static LevelJigConfig build() {
         var trackerFixture =
                 new JigBundles.FixtureDecl<TrackerFixture>(
                         LEVEL_TRACKER,
@@ -62,26 +69,27 @@ final class LevelHealthCheck {
                         List.of(trackerFixture)
                 );
 
+        // Two bundles, because they need different things: the tracker persists and syncs; the
+        // canary's UUID is synced and never saved, so no stale UUID survives a restart.
         JigBundles.Schema<LevelScope> bundles =
-                new JigBundles.Schema<>(List.of(trackingBundle));
+                new JigBundles.Schema<>(List.of(trackingBundle, CanaryHealthCheck.bundleDecl()));
 
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(ScopeEvent.Loaded.class, LevelHealthCheck::onLevelScopeLoaded)
-                        .on(ScopeEvent.Unloaded.class, LevelHealthCheck::onLevelScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, LevelHealthCheck::onLevelScopeTick)
-                        // MobJig's canary (SAT_060) piggybacks on this jig's own reliable tick --
-                        // see MobHealthCheck.maintainCanary's own doc for why.
-                        .on(ScopeEvent.Tick.class, MobHealthCheck::maintainCanary)
+                        .listenFor(ScopeEvent.Loaded.class, LevelHealthCheck::onLevelScopeLoaded)
+                        .listenFor(ScopeEvent.Unloaded.class, LevelHealthCheck::onLevelScopeUnloaded)
+                        .listenFor(ScopeEvent.Tick.class, LevelHealthCheck::onLevelScopeTick)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(LEVEL_JIG);
 
-        // Was SERVER (TrackingModule's original call, LevelJigConfig's own default). BOTH lets a
-        // server/client pair running only Satchel (no FrontierMode, no Border) still prove
-        // LevelJig's client-side lifecycle path works, rather than depending on Border to be the
-        // only thing that's ever exercised it.
-        config.binding().sideApplicability(JigPolicies.SideApplicability.BOTH);
+        // MobJig's canary rides this jig, which has a scope for every loaded level on both sides: on the
+        // server it spawns the canary and registers interest, on both sides it mirrors the synced
+        // fixture into that side's mob jig.
+        config.trinkets().declare(CanaryHealthCheck.CanaryTrinket.class, CanaryHealthCheck.CanaryTrinket::new);
+
+        // Notices a client whose synced canary data never arrives or is dropped on apply (SAT_126).
+        config.trinkets().declare(ClientSyncHealthCheck.SyncProbe.class, ClientSyncHealthCheck.SyncProbe::new);
 
         config.bundles().schema(bundles);
 
@@ -99,11 +107,11 @@ final class LevelHealthCheck {
                 .lifecycle(JigPolicies.Lifecycle.defaults().withTick(true).withExecutionPulse(true))
                 .eventHandlers(eventHandlers);
 
-        Satchel.registerJigConfig(config);
+        return config;
     }
 
     private static void onLevelScopeLoaded(ScopeEvent.Loaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
         Objects.requireNonNull(info, "info");
 
         // Shared-bus caveat, same reasoning every tracking module's handlers already carry.
@@ -143,7 +151,7 @@ final class LevelHealthCheck {
      * firing wrongly -- correct behavior, not a gap.
      */
     private static void onLevelScopeUnloaded(ScopeEvent.Unloaded event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!LEVEL_JIG.equals(info.jigInfo().key)) {
             return;
@@ -175,8 +183,8 @@ final class LevelHealthCheck {
                             + "LevelEvent.Unload for this exact level (see "
                             + "ServerForgeIngress#onLevelUnload) -- something called "
                             + "tryRemoveSource for a level that never actually unloaded.";
-                    OUT.error(message);
-                    throw new IllegalStateException(message);
+                    SatchelHealth.violation(message);
+                    return;
                 }
 
                 // Checkpoint, not routine noise -- fires once per level unload (in practice,
@@ -190,7 +198,7 @@ final class LevelHealthCheck {
     }
 
     private static void onLevelScopeTick(ScopeEvent.Tick event) {
-        ScopeInfo info = event.info();
+        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
 
         if (!LEVEL_JIG.equals(info.jigInfo().key)) {
             return;

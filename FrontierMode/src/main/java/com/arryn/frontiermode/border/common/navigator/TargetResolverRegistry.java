@@ -7,12 +7,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * {@code TargetType -> (UUID -> BlockPos)} resolver registry, per
- * wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border -- mirrors
- * Satchel's {@code MobInterestRegistry} registration shape: whichever module owns a target type
- * registers its own resolver at init time (e.g. {@code BossModule.init()} registering
- * {@link TargetType#BOSS}), and {@code NavigatorFixture} looks it up by tag without ever
- * importing that module's types. Border hosts this registry without needing to know what any
- * given {@link TargetType} means.
+ * wiki/frontiermode/architecture/discovery-systems.md#navigation-lives-in-border: whichever module owns a
+ * target type registers its own resolver at init time (the Keeper's {@code init()} registers
+ * {@link TargetType#BOSS}), and {@code BorderAPI.resolveTarget} looks it up by tag without ever importing
+ * that module's types. Border hosts this registry without needing to know what any given
+ * {@link TargetType} means. A static map filled once at init; moving it to the bus, like the other
+ * registries, is a later option.
  */
 public final class TargetResolverRegistry {
 

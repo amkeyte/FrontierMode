@@ -32,16 +32,16 @@ public final class BordersInfoFacet {
     }
 
     /**
-     * RM_FRO_018: whether this level's path has ever had a border appended to it, ever. See
+     * whether this level's path has ever had a border appended to it, ever. See
      * {@code BordersFixture}'s {@code KEY_SEEDED} field doc and Border's "Known gaps" wiki
-     * section -- {@code BorderModule}'s own bootstrap hook reads this, not {@code PATH.isEmpty()}.
+     * section -- {@code KeeperJigHandlers}'s bootstrap hook reads this, not {@code PATH.isEmpty()}.
      */
     public boolean seeded() {
         return setting.seeded();
     }
 
     /**
-     * FRO_047: exposes {@code SatchelFixture.isReady()} without leaking the fixture itself --
+     * exposes {@code SatchelFixture.isReady()} without leaking the fixture itself --
      * {@code RenderContext.standby()} needs this specifically (a fixture can be resolved via
      * {@code BorderAPI}'s facet resolvers -- scope known, world-identity token bound -- while
      * still mid-hydration, a narrower and later readiness state than what those resolvers already

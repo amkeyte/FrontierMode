@@ -1,22 +1,24 @@
 package com.arryn.frontiermode.border.server.commands;
 
-import com.arryn.frontiermode.spawn.MobSpawns;
+import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.BorderModule;
+import com.arryn.frontiermode.border.server.player.SicknessSwitch;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
-import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.border.server.BorderPathGrown;
+import com.arryn.satchel.Satchel;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.UUID;
 
@@ -30,6 +32,13 @@ public final class BorderCommandHandler {
         return Component.literal("[Border] " + m);
     }
 
+    /** The answer for a command reached before this level's Border facet is ready. */
+    private static int notReady(CommandSourceStack source) {
+        source.sendFailure(msg("Border data is not available yet: this level's Border scope is not ready."
+                + " Try again in a moment."));
+        return 0;
+    }
+
     // ------------------------------------------------------------
     // ADD
     // ------------------------------------------------------------
@@ -40,9 +49,9 @@ public final class BorderCommandHandler {
             int radius,
             int layer
     ) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
-        // FRO_047: BorderAPI.addBorder now returns Result instead of throwing -- same rejection
+        // BorderAPI.addBorder now returns Result instead of throwing -- same rejection
         // (bad radius, negative layer), but read as data instead of an IllegalStateException.
         Result result = BorderAPI.addBorder(level, pos, radius, layer);
         if (!result.isSuccess()) {
@@ -64,10 +73,10 @@ public final class BorderCommandHandler {
             int layer
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
         Result result = BorderAPI.addBorder(
-                sp.serverLevel(),
+                sp.level(),
                 sp.blockPosition(),
                 radius,
                 layer
@@ -93,7 +102,7 @@ public final class BorderCommandHandler {
             CommandContext<CommandSourceStack> ctx,
             UUID id
     ) {
-        // FRO_047: removeBorder now returns Result instead of boolean -- carries the real reason
+        // removeBorder now returns Result instead of boolean -- carries the real reason
         // (not-ready vs. not-found) instead of a single generic failure message.
         Result result = BorderAPI.removeBorder(ctx.getSource().getLevel(), id);
 
@@ -118,13 +127,13 @@ public final class BorderCommandHandler {
             UUID id
     ) {
 
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         BorderAPI.border(level, id).ifPresentOrElse(
                 b -> {
                     // LEV is this border's position in the canonical path order, distinct from LAY
-                    // (Border.layer()) -- see RM_FRO_015: the two are definitionally unrelated, so
-                    // both are shown rather than conflating them the way the old "L:" label did.
+                    // (Border.layer()) -- the two are definitionally unrelated, so both are
+                    // shown rather than conflated.
                     int pathIndex = BorderAPI.PATH(level)
                             .map(p -> p.indexOf(id))
                             .orElse(-1);
@@ -159,7 +168,7 @@ public final class BorderCommandHandler {
 
         if (!result.isSuccess()) {
             // See BorderCommandHandler#addExplicit's matching comment -- same rejection path,
-            // same fix (RM_FRO_011 / FRO_023).
+            // same fix.
             ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
@@ -177,44 +186,30 @@ public final class BorderCommandHandler {
 
     public static int pathGrow(CommandContext<CommandSourceStack> ctx, BlockPos center) {
 
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
-        // RM_FRO_015: removed an "if no borders exist, refuse to grow" guard that used to sit
-        // here. It was backwards -- BordersPathFacet.grow() already branches internally on an
-        // empty path and bootstraps for exactly that case, which is precisely how a level's very
-        // first border is supposed to get created. Command and trigger behave the same way; an
+        // No "if no borders exist, refuse to grow" guard here: BordersPathFacet.grow() already
+        // branches internally on an empty path and bootstraps for exactly that case, which is how a
+        // level's very first border gets created. Command and trigger behave the same way; an
         // absent tip isn't special for the explicit-center overload below either (see its own
         // doc).
 
-        // FRO_080: BorderAPI.grow(Level) deprecated, no-implicit-default center required instead
-        // -- see BorderCommands.path()'s new "center" argument and BorderAPI.grow(Level)'s own
-        // doc comment for the one remaining caller that still legitimately needs it.
+        // BorderAPI.grow(Level) is deprecated: this command requires an explicit center (see
+        // BorderCommands.path()'s "center" argument), and BorderAPI.grow(Level)'s own doc comment
+        // names the one caller that still legitimately needs the no-center form.
         Result result = BorderAPI.grow(level, center);
         if (!result.isSuccess()) {
-            // RM_FRO_015: same rejection path/fix as addExplicit()'s matching comment
-            // (RM_FRO_011/FRO_023) -- just never applied here until testing the fixLayers() work
-            // turned up the gap.
+            // same rejection path as addExplicit()'s matching comment
             ctx.getSource().sendFailure(msg("Rejected: " + result.message()));
             return 0;
         }
 
-        // FRO_082 (FRO_063's ruling, boss.md's "Boss-less path layers and attach" section):
-        // pathGrow() is deliberately boss-less (FRO_048) -- the newly-grown border's id is
-        // marked pendingAttach so BossModule's own reconciliation check reads this as a
-        // sanctioned wait-state ("awaiting /boss attach"), not a real data bug, until an admin
-        // runs /boss attach against it. Same "whoever calls a border-creating operation also
-        // calls into the sibling module's own API right after" shape every other paired call
-        // site in this codebase uses -- but note this is the reverse direction from every other
-        // instance of that shape: those all live on Boss's own side calling into BorderAPI
-        // (Boss depends on Border, never the reverse -- see BossModule's class doc and FRO_075).
-        // This one call, explicitly named by both FRO_082's ticket text and boss.md's own ruling,
-        // is the one place Border imports Boss (BossAPI) -- a deliberate, ticket-mandated
-        // exception to that stated direction, not an oversight; flagged here and in FRO_082's own
-        // ticket log for whoever revisits this boundary later. A missing BossAPI.CRUD(level)
-        // here (Boss's own data not resolvable yet) is a silent no-op, same "standby, don't
-        // crash" discipline every other BossAPI resolution failure in this codebase already
-        // follows -- the grow itself already succeeded and is not rolled back for it.
-        BossAPI.CRUD(level).ifPresent(crud -> crud.addPendingAttach(result.border().id()));
+        // pathGrow() is deliberately Keeper-less: the newly-grown border is announced on Satchel's bus,
+        // and the Keeper's consumer marks it pending attach, so its reconciliation check reads the gap as a
+        // sanctioned wait-state ("awaiting /boss attach"), not a real data bug, until an admin runs /boss attach
+        // against it. Border imports neither Boss nor Keeper (border.md § Path grown). Only this command posts
+        // the event, not BorderAPI.grow, which the Keeper's own defeat cascade calls too.
+        Satchel.require().eventBus().post(new BorderPathGrown(level, result.border()));
 
         ctx.getSource().sendSuccess(
                 () -> msg("Advanced border progression"),
@@ -235,21 +230,19 @@ public final class BorderCommandHandler {
         var level = source.getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, player);
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
 
-        // FRO_103 item 3: BordersPathFacet.insert() throws IllegalArgumentException/
-        // IllegalStateException for real, sensible validation failures (border not owned by this
-        // level, border already on the path) -- previously uncaught here, so either failure
-        // surfaced as a raw, unfriendly command error instead of a clear rejection message.
-        // index=path.size() itself was never actually the risk this call site's own old comment
-        // worried about -- List#add(index, element) is well-defined for index == size() (the
-        // append case), not an out-of-bounds crash.
-        try {
-            path.insert(path.size(), border);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            source.sendFailure(msg("Cannot insert border into path: " + e.getMessage()));
+        // A border already on the path is the admin's mistake, so it is checked and refused here;
+        // insert() throws for it.
+        if (path.contains(border)) {
+            source.sendFailure(msg("Cannot insert border into path: it is already on the path."));
             return 0;
         }
+        path.insert(path.size(), border);
 
         source.sendSuccess(
                 () -> msg("Inserted border into path."),
@@ -269,7 +262,11 @@ public final class BorderCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, player);
 
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
 
         boolean removed = path.remove(border);
 
@@ -295,8 +292,16 @@ public final class BorderCommandHandler {
         var level = source.getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, player);
-        var path = BorderAPI.PATH(level).orElseThrow();
-        path.moveUp(border);
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
+        Result result = path.moveUp(border);
+        if (!result.isSuccess()) {
+            source.sendFailure(msg("Rejected: " + result.message()));
+            return 0;
+        }
 
         source.sendSuccess(
                 () -> msg("Moved border up in path."),
@@ -316,8 +321,16 @@ public final class BorderCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, player);
 
-        var path = BorderAPI.PATH(level).orElseThrow();
-        path.moveDown(border);
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
+        Result result = path.moveDown(border);
+        if (!result.isSuccess()) {
+            source.sendFailure(msg("Rejected: " + result.message()));
+            return 0;
+        }
 
         source.sendSuccess(
                 () -> msg("Moved border down in path."),
@@ -330,11 +343,14 @@ public final class BorderCommandHandler {
             CommandContext<CommandSourceStack> ctx
     ) {
         var level = ctx.getSource().getLevel();
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(ctx.getSource());
+        }
+        var path = pathOpt.get();
 
-        // RM_FRO_015: fixLayers() is now the real reorder-to-match-path-order reconciliation --
-        // reports the two real outcomes distinctly instead of the old unconditional "not
-        // implemented yet" placeholder (see Border Path & Layer Reconciliation, "Command-layer
+        // fixLayers() is the real reorder-to-match-path-order reconciliation -- reports the two
+        // real outcomes distinctly (see Border Path & Layer Reconciliation, "Command-layer
         // behavior").
         int changedCount = path.fixLayers();
 
@@ -354,7 +370,7 @@ public final class BorderCommandHandler {
     }
 
     public static int debug(CommandContext<CommandSourceStack> ctx) {
-        ServerLevel level = ctx.getSource().getLevel();
+        Level level = ctx.getSource().getLevel();
 
         var opt = BorderAPI.CRUD(level);
 
@@ -379,13 +395,17 @@ public final class BorderCommandHandler {
     }
 
     // ------------------------------------------------------------------
-    // DEBUG SICKNESS -- project owner request (2026-09-18). Global debug state (not per-player),
+    // DEBUG SICKNESS -- project owner request. Global debug state (not per-player),
     // same "/boss debug glow" shape -- no retroactive-apply concern here though: unlike glow (a
     // synced entity flag set once), sickness is re-evaluated every refresh interval already, so
-    // toggling BorderModule.sicknessEnabled just changes what the very next refresh does.
+    // toggling the switch just changes what the very next refresh does.
     // ------------------------------------------------------------------
     public static int setSicknessEnabled(CommandContext<CommandSourceStack> ctx, boolean value) {
-        BorderModule.setSicknessEnabled(value);
+        if (!SicknessSwitch.set(ctx.getSource().getServer(), value)) {
+            ctx.getSource().sendFailure(msg("[Border][Debug] The sickness switch is not available yet: the"
+                    + " Overworld's Border scope is not ready. Try again in a moment."));
+            return 0;
+        }
 
         ctx.getSource().sendSuccess(
                 () -> msg("[Border][Debug] Frontier Sickness " + (value ? "enabled" : "disabled")
@@ -398,17 +418,17 @@ public final class BorderCommandHandler {
     }
 
     // ------------------------------------------------------------------
-    // RM_FRO_037 ("Brenda") test aid: unlike /summon (which loads a raw entity from NBT and never
+    // Test aid: unlike /summon (which loads a raw entity from NBT and never
     // touches Mob#finalizeSpawn at all), this spawns each rabbit with DISPATCHED setup -- the real
-    // Forge finalize-spawn event, which Satchel's ServerSpawnIngress wraps into
-    // MobSpawnFinalizeSignal, which BossJigHandlers.onMobSpawnFinalize fans out to BorderModule
-    // (Sick Wildlife's density hook) and BossModule. A deterministic way to exercise that hook on
+    // Forge finalize-spawn event, which SpawnIngress translates into
+    // MobSpawnFinalizing, which SpawnCoordinator fans out to SickWildlife
+    // (Sick Wildlife's density hook) and the other modules. A deterministic way to exercise that hook on
     // demand instead of waiting on natural spawn RNG.
     // ------------------------------------------------------------------
     private static final RandomSource DEBUG_RNG = RandomSource.create();
 
     public static int spawnTestAnimals(CommandContext<CommandSourceStack> ctx, int count) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        Player player = ctx.getSource().getPlayerOrException();
         ServerLevel level = ctx.getSource().getLevel();
 
         int spawned = 0;

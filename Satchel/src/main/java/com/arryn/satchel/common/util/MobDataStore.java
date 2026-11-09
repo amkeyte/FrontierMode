@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.util;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.SatchelMod;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -34,6 +35,7 @@ import java.util.Optional;
  * are invalid; doing it this way means {@code reviveCaps()} really brings the data back, which is
  * what copying data off a mob that conversion has just discarded relies on.
  */
+@PlatformBound(reason = "The container behind MobData: a Forge capability on the mob")
 public final class MobDataStore {
 
     public static final ResourceLocation ID = new ResourceLocation(SatchelMod.MODID, "mob_data");
@@ -69,8 +71,13 @@ public final class MobDataStore {
      * Data, for MobData
      * ========================================================== */
 
+    /**
+     * Whether {@code key} holds a non-empty compound, so that {@code has(key)} is {@code
+     * !read(key).isEmpty()}. Looked at in place: nothing is copied or created. An empty compound that
+     * saved data carries under the key counts as absent, as {@link #write} would have removed it.
+     */
     boolean has(String key) {
-        return data.contains(key, Tag.TAG_COMPOUND);
+        return data.contains(key, Tag.TAG_COMPOUND) && !data.getCompound(key).isEmpty();
     }
 
     CompoundTag read(String key) {

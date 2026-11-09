@@ -16,9 +16,8 @@ import java.util.UUID;
  * registry as {@code TargetType -> (UUID -> BlockPos)}, with no {@code Level} in the signature.
  * Every registry-backed target this codebase actually has (bosses, borders) is stored in a
  * level-scoped fixture ({@code BossFixture}, {@code BordersFixture} are both {@code LevelScope}-
- * hosted, same as {@code NavigatorFixture} itself) -- there is no cross-level UUID space to
- * resolve against without knowing which level's fixture to ask. Flagged back to the Architect
- * (see FRO_065's log) rather than guessed at silently.
+ * hosted) -- there is no cross-level UUID space to
+ * resolve against without knowing which level's fixture to ask.
  *
  * <p>Returns {@code Optional.empty()} for "not resolvable right now" (e.g. no record for this id
  * in this level) -- a normal, expected outcome, not an error, same idiom {@code BorderAPI}/

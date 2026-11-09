@@ -14,7 +14,7 @@ public final class BordersRulesFacet {
     }
 
     /**
-     * FRO_047: inlined from the deleted {@code BorderLogic.containing(List<Border>, BlockPos)} --
+     * inlined from the deleted {@code BorderLogic.containing(List<Border>, BlockPos)} --
      * that method's only caller already always passed {@code setting.all()}, so the ownership
      * check it did (redundant against this fixture's own borders) is dropped along with it.
      */

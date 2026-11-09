@@ -10,19 +10,19 @@ import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 
 /**
- * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1 / FRO_099): Sick Wildlife's cosmetic tell --
+ * Sick Wildlife's cosmetic tell --
  * poison-colored particles and periodic hurt sounds on already-present passive mobs found in the
  * Wilds, per wiki/frontiermode/design/wilds.md#sensory-design's "Sick wildlife" bullet.
  * Cosmetic only: nothing here damages or despawns a mob (per that page, they're only "defeated"
@@ -32,15 +32,13 @@ import java.util.List;
  *
  * <p>Gates per ANIMAL, not per player: each nearby {@link Animal}'s own position is checked
  * against every {@code Border} (same {@code BorderAPI.MATH.distanceOutside} reduction
- * {@code BorderModule.onMobSpawnFinalize} and {@code BorderPlayerLogic} already use) -- an
- * earlier version of this fixture gated the whole pass on the PLAYER's own
- * {@code BorderPlayerStatusFixture} reading instead, which was wrong: a player standing just
- * inside the boundary could stand right next to animals well out in the Wilds and never see
+ * {@code SickWildlife.onMobSpawnFinalize} and {@code BorderPlayerLogic} already use). Gating on
+ * the PLAYER's own {@code BorderPlayerStatusFixture} reading would be wrong: a player standing
+ * just inside the boundary could stand right next to animals well out in the Wilds and never see
  * a single tell, and conversely a player deep outside would roll effects on animals that were
- * themselves still technically inside. Confirmed by playtest (2026-09-08) once the underlying
- * SAT_049 dispatch bug was fixed -- see BorderModule.onPlayerScopeTick's own doc for that
- * history. No dependency on {@link BorderPlayerBundle}/{@link BorderPlayerStatusFixture} at all
- * anymore -- only the player's position (to center the search) and each animal's own position.
+ * themselves still technically inside. No dependency on {@link BorderPlayerBundle}/
+ * {@link BorderPlayerStatusFixture} -- only the player's position (to center the search) and each
+ * animal's own position.
  *
  * <p>Sibling fixture to {@link BorderPlayerStatusFixture} inside {@link BorderPlayerBundle}
  * (shares the bundle for lifecycle/dispatch convenience only, not for its data), mirroring
@@ -51,16 +49,16 @@ import java.util.List;
  * Boss/border-owner to key off -- see
  * wiki/frontiermode/architecture/wilds.md#where-this-lives.
  * Zero persisted state -- no {@code registerCustom(...)} call -- for the same reason
- * {@code BossSentinelsFixture} has none: nothing here needs to survive a restart.
+ * {@code SentinelFixture} has none: nothing here needs to survive a restart.
  *
- * <p>Density scaling (mobs spawning more densely with distance, per FRO_098) is a separate
- * concern handled at spawn time by {@code BorderModule.onMobSpawnFinalize}, not here -- this
+ * <p>Density scaling (mobs spawning more densely with distance) is a separate
+ * concern handled at spawn time by {@code SickWildlife.onMobSpawnFinalize}, not here -- this
  * fixture only ever affects mobs that already exist.
  */
 public final class WildsTellFixture extends SatchelFixture {
 
     // Shared RNG -- same static-field, not-persisted shape BossTellFixture.RNG/
-    // BossSentinelsFixture.RNG already use.
+    // SentinelConversion.RNG already use.
     private static final RandomSource RNG = RandomSource.create();
 
     // Non-persisted tell-pass cadence counter, per-player (this fixture instance is itself
@@ -79,13 +77,12 @@ public final class WildsTellFixture extends SatchelFixture {
         tickCounter = 0;
 
         PlayerScope playerScope = (PlayerScope) scope();
-        ServerPlayer player = (ServerPlayer) playerScope.player();
-        ServerLevel level = player.serverLevel();
+        Player player = playerScope.player();
+        Level level = player.level();
 
-        // RM_FRO_037 fix (2026-09-08, per project owner playtest): gate PER ANIMAL against its
-        // own position, not the player's -- see this class's own doc for why the player-gated
-        // version was wrong. Same distanceOutside-over-borders reduction
-        // BorderModule.onMobSpawnFinalize already uses for the density hook.
+        // Gate PER ANIMAL against its own position, not the player's -- see this class's own doc
+        // for why. Same distanceOutside-over-borders reduction SickWildlife.onMobSpawnFinalize
+        // already uses for the density hook.
         List<Border> borders = BorderAPI.CRUD(level).map(BordersCrudFacet::all).orElseGet(List::of);
         if (borders.isEmpty()) {
             return;

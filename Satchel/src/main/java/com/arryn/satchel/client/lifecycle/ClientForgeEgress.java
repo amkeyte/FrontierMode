@@ -1,5 +1,6 @@
 package com.arryn.satchel.client.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.jig.guts.ForgeEgress;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -29,6 +30,7 @@ import java.util.UUID;
  * <p>
  * Installed once per client foundation, from {@code ClientFoundationBooter#installFoundation()}.
  */
+@PlatformBound(reason = "Satchel's client-side read seam into the world")
 public final class ClientForgeEgress implements ForgeEgress {
 
     @Override

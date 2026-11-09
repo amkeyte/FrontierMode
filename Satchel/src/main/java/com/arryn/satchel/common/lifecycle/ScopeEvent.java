@@ -2,6 +2,7 @@ package com.arryn.satchel.common.lifecycle;
 
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 
 import java.util.Objects;
 
@@ -10,7 +11,7 @@ import java.util.Objects;
  *
  * <p>
  * All {@link ScopeEvent}s are emitted by the {@link ScopeLifecycleDispatcher}
- * after authoritative lifecycle state has been updated in {@link ScopeInfo}.
+ * after authoritative lifecycle state has been updated in {@link ScopeInfoImpl}.
  *
  * <p>
  * If a ScopeEvent is delivered:
@@ -53,7 +54,7 @@ public abstract sealed class ScopeEvent
      * Identity comparison -- {@link JigKey} instances are registered singletons.
      */
     public final boolean isJig(JigKey<?> key) {
-        return key == info().jigInfo().key;
+        return key == info().jigKey();
     }
 
     /* =============================================================
@@ -62,7 +63,7 @@ public abstract sealed class ScopeEvent
 
     /**
      * Emitted exactly once when a scopeInfo is recognized by Satchel
-     * and enters the {@link ScopeInfo.Phase#LOADED} phase.
+     * and enters the {@link ScopeInfoImpl.Phase#LOADED} phase.
      *
      * <p>
      * This event does NOT imply persistence, readiness, or execution

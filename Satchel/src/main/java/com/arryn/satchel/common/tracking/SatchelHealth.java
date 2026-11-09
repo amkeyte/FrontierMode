@@ -55,8 +55,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * load/tick/unload path is genuinely exercised -- an exception anywhere in it still crashes loudly
  * -- just not this specific violation check.
  *
- * <p><b>Crash is unconditional whenever this module is enabled at all</b> -- see {@link
- * SatchelConfig#HEALTH_ENABLED} (SAT_060) for the real switch: {@code false} means {@link
+ * <p><b>A violation is logged and the run carries on</b> ({@link #violation}): SatchelHealth is the
+ * exception to Satchel's crash policy, so one run can show several errors, and it finds and reports
+ * them itself with no code inside Satchel. An exception Satchel throws through a probe is not a
+ * violation and still crashes. The switch is {@link
+ * SatchelConfig#HEALTH_ENABLED} (SAT_060): {@code false} means {@link
  * #init()} registers none of the three jig configs, so no tracker bundle, no violation check,
  * and no synthetic exercise of any kind runs at all. Intended for a release/production profile,
  * or whenever this module's synthetic activity is unwanted -- there is no finer-grained
@@ -80,7 +83,7 @@ public final class SatchelHealth {
     /**
      * The state of the world the calling thread's side is in, if it has any yet.
      */
-    private static Optional<HealthState> existing() {
+    static Optional<HealthState> existing() {
         return WorldIdentityContext.current().map(STATES::get);
     }
 
@@ -102,6 +105,11 @@ public final class SatchelHealth {
      */
     public static void onServerAboutToStart() {
         STATES.clear();
+        RealEventTally.reset();
+
+        // If an earlier server ran and stopped in this JVM, nothing of its mob scopes or interest may
+        // have carried over.
+        MobHealthCheck.checkNothingCarriedOver();
     }
 
     /**
@@ -110,48 +118,59 @@ public final class SatchelHealth {
      */
     public static void onServerStopped() {
         STATES.clear();
+        RealEventTally.reset();
     }
 
-    // =================================================================
-    // Manual interest -- the surface MobTrackCommands uses, and the supplier MobJig's health
-    // registration answers its per-level question from.
-    // =================================================================
-
     /**
-     * Registers manual interest in {@code uuid} within {@code level}.
+     * True the first time {@code key} is offered in this world, on either side: an integrated server's
+     * client and server share one world identity, so a key that is per side names the side.
      */
-    public static void watch(Level level, UUID uuid) {
-        state().interests.computeIfAbsent(level, l -> ConcurrentHashMap.newKeySet()).add(uuid);
-    }
-
-    public static void unwatch(Level level, UUID uuid) {
-        existing().ifPresent(state -> {
-            Set<UUID> set = state.interests.get(level);
-            if (set != null) {
-                set.remove(uuid);
-            }
-        });
-    }
-
-    public static Map<Level, Set<UUID>> currentInterests() {
-        return existing().<Map<Level, Set<UUID>>>map(state -> new HashMap<>(state.interests))
-                .orElse(Map.of());
+    static boolean firstTime(String key) {
+        return state().logged.add(key);
     }
 
     /**
-     * This world's canary, once it has spawned one.
+     * Logs {@code message} at INFO once per world for {@code key}: the one line a probe prints per
+     * side. Include the side in the key.
+     */
+    static void logOnce(String key, String message) {
+        if (firstTime(key)) OUT.info(message);
+    }
+
+    // =================================================================
+    // The health mob jig -- what /satchel mobtrack drives
+    // =================================================================
+
+    /**
+     * The key of SatchelHealth's mob jig, for the command surface.
+     */
+    public static com.arryn.satchel.common.identity.JigKey<com.arryn.satchel.common.jig.mob.MobJig> mobJigKey() {
+        return MobHealthCheck.MOB_JIG;
+    }
+
+    // =================================================================
+    // The canary
+    // =================================================================
+
+    /**
+     * This side's canary, once it has one: the server's is the mob it spawned, a client's is the one
+     * the synced canary fixture names.
      */
     static Optional<UUID> canaryUuid() {
         return existing().map(state -> state.canaryUuid);
     }
 
+    // =================================================================
+    // Violations -- logged at ERROR and the run carries on, in every run.
+    // =================================================================
+
     /**
-     * The per-level interest answer: a live view of the watched set, empty for a level nothing is
-     * watched in. Runs on every mob death and every mob leaving a level (see {@code
-     * MobInterestPerLevel}), so it is two lookups and no copying.
+     * Reports a broken invariant: logs {@code message} at ERROR and returns. The run goes on, so one run
+     * can show several violations (grep for {@code VIOLATION}). A probe that cannot continue after one
+     * ends its own run.
      */
-    static Set<UUID> interestsIn(Level level) {
-        return existing().map(state -> state.interests.get(level)).orElse(Set.of());
+    static void violation(String message) {
+        OUT.error(message);
     }
 
     // =================================================================
@@ -170,9 +189,21 @@ public final class SatchelHealth {
         );
 
         MobHealthCheck.register();
+        MobJoinHealthCheck.register();
+        MobDataHealthCheck.register();
         LevelHealthCheck.register();
         PlayerHealthCheck.register();
         TrinketHealthCheck.register();
+        HostHealthCheck.register();
+        HostOrderHealthCheck.register();
+        PlayerLifeHealthCheck.register();
+        RegistrationHealthCheck.register();
+        ModuleEventHealthCheck.register();
+        ResultHealthCheck.register();
+        HotEventHealthCheck.register();
+        CanaryEventHealthCheck.register();
+        RealEventHealthCheck.register();
+        InterestHealthCheck.register();
     }
 
     // =================================================================

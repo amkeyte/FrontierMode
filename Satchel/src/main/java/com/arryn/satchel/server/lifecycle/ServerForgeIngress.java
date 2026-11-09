@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.lifecycle;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
@@ -51,6 +52,7 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;
@@ -91,6 +93,7 @@ import java.util.UUID;
         modid = SatchelMod.MODID,
         bus = Mod.EventBusSubscriber.Bus.FORGE
 )
+@PlatformBound(reason = "Satchel's server-side Forge ingress: the one path in from the game")
 public final class ServerForgeIngress {
 
     private static final ServerFoundationBooter BOOTER =
@@ -141,6 +144,13 @@ public final class ServerForgeIngress {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent e) {
         TunableManager.save();
+
+        // Every jig resets as the server begins to stop, while its levels and storage are still up, so
+        // a mob scope's Unloaded handlers and terminal flush run against a live world and nothing a
+        // stopped world held reaches the next integrated session (SAT_122). Before this, a stopped
+        // server left its mob scopes in the jig, because the poll that would clear them had stopped.
+        BOOTER.bindFoundation();
+        Satchel.foundationFor(LogicalSide.SERVER).ifPresent(LogicalFoundation::reset);
     }
 
     /* =============================================================
@@ -272,12 +282,14 @@ public final class ServerForgeIngress {
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer player)) return;
         syncWorldIdentityToken(player);
+        pushLevelBundles(player);
     }
 
     @SubscribeEvent
     public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer player)) return;
         syncWorldIdentityToken(player);
+        pushLevelBundles(player);
     }
 
     /**
@@ -289,10 +301,24 @@ public final class ServerForgeIngress {
      */
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
-        if (!(e.getEntity() instanceof ServerPlayer)) return;
+        if (!(e.getEntity() instanceof ServerPlayer player)) return;
         if (!Satchel.isReady()) return;
 
         Satchel.require().eventBus().post(new PlayerRespawnSignal(e));
+
+        // A respawn fires no dimension-change event, and the event does not say where the player was, so
+        // every respawn is pushed: a duplicate of an earlier send is harmless.
+        pushLevelBundles(player);
+    }
+
+    /**
+     * SAT_144, the arrival push: the player has joined a level's audience, so they get that level's
+     * networked bundles now and do not wait for the timer. To that player only.
+     */
+    private static void pushLevelBundles(ServerPlayer player) {
+        if (!Satchel.isReady()) return;
+
+        Satchel.require().pushLevelBundlesTo(player);
     }
 
     /**
@@ -357,7 +383,9 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         UUID uuid = e.getEntity().getUUID();
-        if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)) return;
+        // Interest is either form: the old registry, or an entry in a mob jig's own list.
+        if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)
+                && !Satchel.require().anyMobInterest(uuid)) return;
 
         OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
         Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
@@ -387,17 +415,35 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         UUID uuid = entity.getUUID();
-        if (!MobInterestRegistry.isAnyInterested(e.getLevel(), uuid)) return;
+        if (!MobInterestRegistry.isAnyInterested(e.getLevel(), uuid)
+                && !Satchel.require().anyMobInterest(uuid)) return;
 
         Entity.RemovalReason reason = entity.getRemovalReason();
         if (reason == null) {
-            OUT.warn("[MobRemoved] interested mob " + Ids.shortId(uuid)
+            // Expected: a chunk unload, and the chunks demoted while a server stops, leave with no reason.
+            OUT.debug("[MobRemoved] interested mob " + Ids.shortId(uuid)
                     + " left its level with no removal reason -- not posting.");
             return;
         }
 
         OUT.debug("[MobRemoved] posting for " + Ids.shortId(uuid) + " reason=" + reason);
         Satchel.require().eventBus().post(new MobRemoved(e.getLevel(), uuid, entity, reason));
+    }
+
+    /**
+     * Unloads a mob's scope the moment the mob leaves its level (SAT_123): whatever the reason, a
+     * kill, a chunk unload, a level change, and with the interest left as it is. Replaces the
+     * teardown half of the old reconcile poll. A separate handler from {@link #onEntityLeaveLevel}
+     * and at LOW priority, so the {@link MobRemoved} signal posts first and its consumers still find
+     * the scope they were tracking, as they did when teardown trailed by a poll cycle.
+     */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onMobLeaveScopes(EntityLeaveLevelEvent e) {
+        if (e.getLevel().isClientSide()) return;
+        if (!(e.getEntity() instanceof Mob mob)) return;
+        if (!Satchel.isReady()) return;
+
+        Satchel.require().mobLeft(mob);
     }
 
     /* =============================================================

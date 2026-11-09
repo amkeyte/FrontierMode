@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.bosstell;
 
-import com.arryn.frontiermode.FrontierMode;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.VillagerProfession;
@@ -10,24 +9,24 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.trading.MerchantOffer;
-import net.minecraftforge.event.village.VillagerTradesEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+import java.util.Map;
+
 /**
- * FRO_121: injects Resonance into the Librarian's enchanted-book trade pool, per
+ * injects Resonance into the Librarian's enchanted-book trade pool, per
  * special-compass.md's "Registration" section -- not part of vanilla's default pool for a
  * modded enchantment, so this has to be added explicitly rather than relying on
  * {@code Enchantment.isTradeable()} (vanilla's own generic "pick any tradeable enchant"
  * listing, {@code VillagerTrades.EnchantBookForEmeralds}, is package-private and unusable from
  * mod code anyway -- checked against the real 1.20.1-47.4.10 sources). A Nether fortress chest
- * source is a planned later addition on top, not part of this ticket.
+ * source is a planned later addition on top.
  *
  * <p>{@code VillagerTradesEvent} fires once per registered profession, on the Forge (not mod)
- * event bus, common-side (not client-only) -- trades are server-authoritative state.
+ * event bus, common-side (not client-only) -- trades are server-authoritative state. This class
+ * names no Forge type: {@link PreLevelListeners} hears the event and hands over its two parts.
  */
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID)
 public final class ResonanceTrade {
 
     private ResonanceTrade() {
@@ -43,12 +42,15 @@ public final class ResonanceTrade {
     private static final int VILLAGER_XP = 15;
     private static final float PRICE_MULTIPLIER = 0.2F;
 
-    @SubscribeEvent
-    public static void onVillagerTrades(VillagerTradesEvent event) {
-        if (event.getType() != VillagerProfession.LIBRARIAN) {
+    /**
+     * Adds the Resonance listing to the Librarian's trades, keyed by Librarian level; any other
+     * profession is left alone.
+     */
+    static void addTo(VillagerProfession profession, Map<Integer, List<VillagerTrades.ItemListing>> trades) {
+        if (profession != VillagerProfession.LIBRARIAN) {
             return;
         }
-        event.getTrades().get(LIBRARIAN_LEVEL).add(new ResonanceListing());
+        trades.get(LIBRARIAN_LEVEL).add(new ResonanceListing());
     }
 
     private static final class ResonanceListing implements VillagerTrades.ItemListing {

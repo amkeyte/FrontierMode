@@ -9,14 +9,14 @@ import com.arryn.satchel.common.jig.config.*;
  * CompiledJigConfig}.
  *
  * <p>
- * {@link JigInfo}, {@link ScopeInfo}, {@link ScopeEngine}, {@link ScopeCoupler}, and {@link
+ * {@link JigInfo}, {@link ScopeInfoImpl}, {@link ScopeEngine}, {@link ScopeCoupler}, and {@link
  * SatchelJig} all implement or extend this -- every runtime object in the jig machinery
  * that needs to read a jig's own compiled config reaches it through these same four
  * accessors rather than each type inventing its own.
  *
  * <p>
  * {@code installJigConfig} is not itself guaranteed to be called exactly once. {@link
- * JigInfo}, {@link ScopeInfo}, and {@code ASatchelJig} each receive their own dedicated
+ * JigInfo}, {@link ScopeInfoImpl}, and {@code ASatchelJig} each receive their own dedicated
  * instance and are installed into once in practice, but nothing here enforces that -- none
  * of the current implementers reject a second call. {@code ScopeEngine_Server}/{@code
  * ScopeEngine_Client} are the sharp exception: one shared per-side engine singleton has
@@ -24,7 +24,7 @@ import com.arryn.satchel.common.jig.config.*;
  * overwriting the engine's own fields rather than accumulating -- so those fields on the
  * engine itself only ever reflect whichever jig installed last (see SAT_023). A caller
  * reading a specific jig's config off a shared implementer like the engine must read it
- * from the {@link ScopeInfo}/{@link JigInfo} passed in, never off {@code this}.
+ * from the {@link ScopeInfoImpl}/{@link JigInfo} passed in, never off {@code this}.
  */
 public interface IJigConfigurable {
 

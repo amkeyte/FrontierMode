@@ -12,14 +12,14 @@ import java.util.UUID;
  * - is not persisted or synced
  * - is produced only by BorderPlayerLogic
  * <p>
- * {@code relevantLayer} and {@code nearestLayer} were split from a single overloaded
+ * {@code relevantLayer} and {@code nearestLayer} are deliberately separate, not one overloaded
  * {@code layer} field (Border Vocabulary Conformance Checklist item 2.4): {@code
  * relevantLayer} is populated only when {@code insideNearest} is true (a real Relevance
  * resolution, per Border Vocabulary); {@code nearestLayer} is always populated and is the
  * nearest-surface fallback border's layer, which is *not* a Relevance result and must not be
  * treated as one.
  *
- * <p>RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): {@code frontierDistance} and
+ * <p>{@code frontierDistance} and
  * {@code sicknessSeverity} are a second, independent reduction over the same {@code borders}
  * list this eval already walks -- see
  * wiki/frontiermode/architecture/wilds.md#where-this-lives for why this is a second

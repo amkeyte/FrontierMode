@@ -62,6 +62,14 @@ public final class LogicalSideContext {
     }
 
     /**
+     * The currently bound logical side, or null if none is: {@link #current()} without the
+     * allocation, for the guard that runs on every Forge event.
+     */
+    public static LogicalSide peek() {
+        return SIDE.get();
+    }
+
+    /**
      * @return the currently bound logical side
      * @throws IllegalStateException if no side is bound
      */

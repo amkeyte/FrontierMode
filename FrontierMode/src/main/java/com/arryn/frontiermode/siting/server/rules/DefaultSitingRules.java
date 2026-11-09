@@ -1,14 +1,16 @@
 package com.arryn.frontiermode.siting.server.rules;
 
+import com.arryn.frontiermode.siting.common.SitingMath;
 import com.arryn.satchel.common.tunable.Tunable;
+import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * Safe-baseline siting numbers (siting.md). The terrain checks are moved here unchanged in behavior from
- * {@code DefaultBossRules}; the Tunables are constructed fresh at each read.
+ * Safe-baseline siting numbers (siting.md): the terrain checks, the used-ground penalty on
+ * {@code hazardScore}, and the Tunables, which are constructed fresh at each read.
  */
 public final class DefaultSitingRules implements SitingRules {
 
@@ -23,6 +25,10 @@ public final class DefaultSitingRules implements SitingRules {
     // Footprint mode's flatness floor: where to draw a boolean pass/fail line on the continuous
     // flatness score is this implementation's call, same as every other threshold here.
     private static final double FOOTPRINT_MIN_FLATNESS = 0.5;
+
+    // Whether the first above-zero used-ground penalty has been logged. The one rules instance
+    // (SitingRules.ACTIVE) lives for the JVM, so this logs once per launch, not once per world.
+    private boolean usedGroundLogged;
 
     @Override
     public double flatnessScore(Level level, BlockPos candidate) {
@@ -48,25 +54,51 @@ public final class DefaultSitingRules implements SitingRules {
 
     @Override
     public double hazardScore(Level level, BlockPos candidate) {
-        // 1.0 (worst, disqualifying) for any of three real hazards --
-        //   - the resolved position itself sits in a fluid (open water/lava);
-        //   - the column bottoms out at/near the world floor (a genuine "nothing found" void
-        //     column reads back at the heightmap's own floor sentinel);
-        //   - the block directly underfoot isn't actually solid. A ravine or cave mouth
-        //     breaching the surface can pull MOTION_BLOCKING_NO_LEAVES's own result down into
-        //     open space well above the world floor, which the two checks above can't see.
-        // 0.0 otherwise. Not a locked algorithm.
-        if (!level.getBlockState(candidate).getFluidState().isEmpty()) {
+        // 1.0 (worst, disqualifying) for a disqualifying hazard, otherwise the used-ground penalty,
+        // which the Tunable ranges keep below 1. Not a locked algorithm.
+        if (disqualified(level, candidate)) {
             return 1.0;
+        }
+        return usedGroundPenalty(level, candidate);
+    }
+
+    /**
+     * Whether the column has any of three real hazards --
+     *   - the resolved position itself sits in a fluid (open water/lava);
+     *   - the column bottoms out at/near the world floor (a genuine "nothing found" void
+     *     column reads back at the heightmap's own floor sentinel);
+     *   - the block directly underfoot isn't actually solid. A ravine or cave mouth
+     *     breaching the surface can pull MOTION_BLOCKING_NO_LEAVES's own result down into
+     *     open space well above the world floor, which the two checks above can't see.
+     * The footprint check asks this directly, so it never pays for the used-ground penalty.
+     */
+    private boolean disqualified(Level level, BlockPos candidate) {
+        if (!level.getBlockState(candidate).getFluidState().isEmpty()) {
+            return true;
         }
         if (candidate.getY() <= level.getMinBuildHeight() + 1) {
-            return 1.0;
+            return true;
         }
         BlockPos below = candidate.below();
-        if (!level.getBlockState(below).isFaceSturdy(level, below, Direction.UP)) {
-            return 1.0;
+        return !level.getBlockState(below).isFaceSturdy(level, below, Direction.UP);
+    }
+
+    /** The penalty for the chunk's inhabited time (siting.md § Used ground ranks lower); 0 with the rule off. */
+    private double usedGroundPenalty(Level level, BlockPos candidate) {
+        double maxPenalty = sitingUsedGroundMaxPenalty();
+        if (maxPenalty <= 0.0) {
+            return 0.0;
         }
-        return 0.0;
+        long inhabitedTime = level.getChunkAt(candidate).getInhabitedTime();
+        int fullTicks = sitingUsedGroundFullTicks();
+        double penalty = SitingMath.usedGroundPenalty(inhabitedTime, fullTicks, maxPenalty);
+        if (penalty > 0.0 && !usedGroundLogged) {
+            usedGroundLogged = true;
+            OUT.debug("[Siting] hazardScore(): used-ground penalty above 0 for the first time, " + inhabitedTime
+                    + " inhabited ticks at " + candidate.getX() + ", " + candidate.getZ() + " scores " + penalty
+                    + " (full at " + fullTicks + " ticks, max " + maxPenalty + ")");
+        }
+        return penalty;
     }
 
     @Override
@@ -77,7 +109,7 @@ public final class DefaultSitingRules implements SitingRules {
                 BlockPos column = center.offset(dx, 0, dz);
                 BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, column);
 
-                if (hazardScore(level, ground) >= 1.0) {
+                if (disqualified(level, ground)) {
                     return false;
                 }
                 if (flatnessScore(level, ground) < FOOTPRINT_MIN_FLATNESS) {
@@ -131,5 +163,15 @@ public final class DefaultSitingRules implements SitingRules {
     @Override
     public int startingSiteMaxFullChecks() {
         return new Tunable("startingSiteMaxFullChecks", 1, 200, 24).intValue();
+    }
+
+    @Override
+    public int sitingUsedGroundFullTicks() {
+        return new Tunable("sitingUsedGroundFullTicks", 1, 3600000, 12000).intValue();
+    }
+
+    @Override
+    public double sitingUsedGroundMaxPenalty() {
+        return new Tunable("sitingUsedGroundMaxPenalty", 0f, 0.9f, 0.5f).floatValue();
     }
 }

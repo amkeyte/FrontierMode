@@ -13,6 +13,9 @@ import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersRulesFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.border.common.navigator.TargetRef;
+import com.arryn.frontiermode.border.common.navigator.TargetResolverRegistry;
+import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
@@ -30,6 +33,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.Map;
@@ -77,12 +81,8 @@ public final class BorderAPI {
 
     /**
      * Internal helper backing {@link #resolveFixture(Level)}/{@link #resolveBordersBundle(Level)}
-     * below. FRO_079 removed this method's old public counterpart (it bypassed the
-     * {@code isReady()} standby gate for the since-deprecated {@code /border debug create}
-     * command, its one external caller) -- demoted to private rather than deleted outright,
-     * since {@code resolveFixture}/{@code resolveBordersBundle} both still call it internally
-     * (an earlier pass here deleted it entirely by mistake, missing these two unqualified
-     * in-class call sites; a dotted-call grep alone doesn't catch those).
+     * below. Private: it does not check {@code isReady()}, so only the resolvers in this class,
+     * which gate on it themselves, call it.
      */
     private static LevelJig levelJig() {
         return (LevelJig)
@@ -90,7 +90,7 @@ public final class BorderAPI {
     }
 
     /**
-     * RM_FRO_006: the {@code PlayerJig} analogue of {@link #levelJig()} above -- backs
+     * the {@code PlayerJig} analogue of {@link #levelJig()} above -- backs
      * {@link #playerStatus(ServerPlayer)}/{@link #getRelevant(ServerPlayer)} below.
      */
     public static PlayerJig playerJig() {
@@ -100,28 +100,22 @@ public final class BorderAPI {
 
     /**
      * Internal helper backing {@link #resolveFixture(Level)}/{@link #resolveBordersBundle(Level)}
-     * below -- constructs a fresh {@link LevelScope} for {@code level}. FRO_079 demoted this
-     * method's old public counterpart to private for the same reason as {@link #levelJig()}
-     * above -- dead as public surface once {@code BorderCommandHandler.debugCreate} was removed,
-     * but still needed internally.
+     * below -- constructs a fresh {@link LevelScope} for {@code level}. Private for the same
+     * reason as {@link #levelJig()} above: it does not check {@code isReady()}.
      */
     private static LevelScope scope(Level level) {
         return new LevelScope(level);
     }
 
     // Edge-triggered "not ready" logging for resolveFixture() below -- same shape
-    // BossInfoFacet.lastReportedMismatch (FRO_081; formerly BossModule
-    // .LAST_RECONCILIATION_MISMATCH) already uses. RenderContext's own lazy-
+    // BossInfoFacet.lastReportedMismatch already uses. RenderContext's own lazy-
     // resolve-and-cache accessors (crud()/path()/info()) call straight back into this method
     // every single render frame for as long as it keeps returning empty, so logging every
-    // attempt at DEBUG level was spamming dozens of identical lines per second during the (now
-    // survivable, see the Satchel fix on tryScopeInfo) pre-ready window on world join. Tracks
-    // whether the last attempt for this level was "not ready" so this only logs on the
-    // true -> false -> true transition, not every retry. FRO_150: collapsed from three
-    // distinguished reasons (Satchel not ready / scope not yet known / scope not ready) down to
-    // one, since Satchel.tryReadyScopeInfo() -- the shared helper this method now uses -- doesn't
-    // surface which of the three actually applied; only the anti-spam dedup was load-bearing, not
-    // the specific reason text.
+    // attempt at DEBUG level would spam dozens of identical lines per second during the
+    // pre-ready window on world join. Tracks whether the last attempt for this level was
+    // "not ready" so this only logs on the true -> false -> true transition, not every retry.
+    // One message covers every not-ready cause (Satchel not ready, scope not yet known, scope
+    // not ready): the dedup is what matters, not the reason text.
     private static final Map<Level, Boolean> LAST_ATTEMPT_NOT_READY = new ConcurrentHashMap<>();
 
     private static void logNotReadyOnce(Level level) {
@@ -133,19 +127,16 @@ public final class BorderAPI {
     }
 
     /**
-     * FRO_047: resolves this level's {@link BordersFixture} -- kept private, replacing the old
-     * public {@code borders(Level)}/{@code borders(LevelScope)} surface. {@link #PATH}/
+     * resolves this level's {@link BordersFixture} -- kept private. {@link #PATH}/
      * {@link #CRUD}/{@link #RULES}/{@link #INFO} below are the only way outside code reaches into
-     * it now; the fixture type itself never crosses this method's boundary as a return value.
-     * Same "standby, don't crash" contract {@code borders(Level)} always had -- falls through to
+     * it; the fixture type itself never crosses this method's boundary as a return value.
+     * Same "standby, don't crash" contract -- falls through to
      * {@code Optional.empty()} rather than throwing whenever Satchel or this scope isn't ready.
      */
     private static Optional<BordersFixture> resolveFixture(Level level) {
-        // isReady() gate stays ahead of scope construction: scope(level) constructs a LevelScope
+        // The isReady() gate comes before scope construction: scope(level) constructs a LevelScope
         // directly (not through LevelResolver), and LevelScope throws SatchelException.NotReady
-        // rather than falling back if the world-identity token isn't bound yet -- see the
-        // isReady()/NotReady redesign this predates (FRO_021 originally fixed this window with
-        // tryScopeInfo alone, before LevelScope's own fallback was removed).
+        // rather than falling back if the world-identity token isn't bound yet.
         if (!Satchel.isReady()) {
             logNotReadyOnce(level);
             return Optional.empty();
@@ -153,8 +144,7 @@ public final class BorderAPI {
 
         LevelScope scope = scope(level);
 
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
+        // Satchel.tryReadyScopeInfo() resolves the scope info and checks it is ready in one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDERS_JIG, scope);
 
         if (infoOpt.isEmpty()) {
@@ -194,11 +184,11 @@ public final class BorderAPI {
     }
 
     /**
-     * RM_FRO_027 ("Janet") / RM_FRO_028 ("Diane"): resolves this level's {@code BordersBundle}
-     * itself, for the sibling fixtures ({@link BorderCurveFixture}, {@code BorderPregenFixture})
-     * that aren't part of {@link BordersFixture}'s own four-facet split -- same "standby, don't
-     * crash" body as {@link #resolveFixture(Level)}, just stopping one level higher (the bundle,
-     * not a specific fixture inside it).
+     * resolves this level's {@code BordersBundle} itself, for the sibling fixtures
+     * ({@link BorderCurveFixture}, {@code BorderPregenFixture}) that aren't part of
+     * {@link BordersFixture}'s own four-facet split -- same "standby, don't crash" body as
+     * {@link #resolveFixture(Level)}, just stopping one level higher (the bundle, not a
+     * specific fixture inside it).
      */
     private static Optional<BordersBundle> resolveBordersBundle(Level level) {
         // isReady() gate stays ahead of scope construction -- see resolveFixture()'s own comment
@@ -209,8 +199,7 @@ public final class BorderAPI {
 
         LevelScope scope = scope(level);
 
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
+        // Satchel.tryReadyScopeInfo() resolves the scope info and checks it is ready in one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDERS_JIG, scope);
         if (infoOpt.isEmpty()) {
             return Optional.empty();
@@ -225,7 +214,7 @@ public final class BorderAPI {
     }
 
         /**
-     * RM_FRO_028 ("Diane"): kept private, deliberately -- {@link #isPregenReady(Level, UUID)} and
+     * kept private, deliberately -- {@link #isPregenReady(Level, UUID)} and
      * {@link #startPregeneration(Level, UUID)} below are the only sanctioned way any cross-module
      * reader (Boss's own tick code) reaches this fixture, per
      * wiki/frontiermode/architecture/border-pregeneration.md's "BorderAPI's new query surface"
@@ -258,7 +247,7 @@ public final class BorderAPI {
     }
 
     /**
-     * RM_FRO_027 ("Janet"): unlike {@link #PATH}/{@link #CRUD}/{@link #RULES}/{@link #INFO}
+     * unlike {@link #PATH}/{@link #CRUD}/{@link #RULES}/{@link #INFO}
      * above (each a facet carved out of {@link BordersFixture} itself), {@link BorderCurveFixture}
      * is a whole separate sibling fixture in the same bundle -- resolved via
      * {@link #resolveBordersBundle(Level)} rather than {@link #resolveFixture(Level)}.
@@ -276,7 +265,7 @@ public final class BorderAPI {
     }
 
     /**
-     * RM_FRO_027 ("Janet"): the reverse lookup per
+     * the reverse lookup per
      * wiki/frontiermode/architecture/border-curve.md#query-surface -- resolves a held
      * {@link BorderCurve} record back to the border geometry (center, radius) it applies to.
      * Implemented here rather than on {@link BorderCurveFixture} itself, composing
@@ -289,7 +278,7 @@ public final class BorderAPI {
     }
 
     /**
-     * FRO_047: throws {@code SatchelException.ScopeNotReady} when the level's Border facet isn't
+     * throws {@code SatchelException.ScopeNotReady} when the level's Border facet isn't
      * resolvable yet -- same shape this method always had, just resolved via {@link #RULES}
      * instead of the raw fixture. Not-ready is only ever a routine, expected state for callers
      * reachable from a render/tick loop before something else is confirmed ready ({@link
@@ -314,9 +303,9 @@ public final class BorderAPI {
 
 
     /**
-     * RM_FRO_006: resolves {@code player}'s live {@link BorderPlayerStatus} snapshot -- the
-     * per-player, {@code PlayerJig}-scoped derived-evaluation state ({@code BorderModule.init()}'s
-     * {@code onPlayerScopeTick} handler keeps this current every tick). Follows the same
+     * resolves {@code player}'s live {@link BorderPlayerStatus} snapshot -- the
+     * per-player, {@code PlayerJig}-scoped derived-evaluation state ({@code BorderPlayerTick}
+     * keeps this current every tick). Follows the same
      * "standby, don't crash" discipline as {@link #resolveFixture(Level)}: not ready yet (Satchel
      * not booted, scope not yet known, scope known but not ready) all fall through to
      * {@code Optional.empty()} rather than throwing, since callers like
@@ -324,15 +313,14 @@ public final class BorderAPI {
      * player who hasn't ticked even once yet (e.g. mid-login) is a real, expected transient state,
      * not an error.
      */
-    public static Optional<BorderPlayerStatus> playerStatus(ServerPlayer player) {
+    public static Optional<BorderPlayerStatus> playerStatus(Player player) {
         if (!Satchel.isReady()) {
             return Optional.empty();
         }
 
         PlayerScope scope = new PlayerScope(player);
 
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
+        // Satchel.tryReadyScopeInfo() resolves the scope info and checks it is ready in one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
 
         if (infoOpt.isEmpty()) {
@@ -357,7 +345,7 @@ public final class BorderAPI {
     }
 
     /**
-     * FRO_133 (playtest root cause, 2026-09-22): resets {@code player}'s own Frontier Sickness
+     * resets {@code player}'s own Frontier Sickness
      * severity climb back to 0 -- see {@link BorderPlayerStatusFixture#resetSicknessSeverity}'s
      * own doc for why this is the real fix (death/respawn otherwise leave that stateful climb
      * untouched, so it just keeps decaying from wherever it was at death, re-triggering the
@@ -365,34 +353,25 @@ public final class BorderAPI {
      * {@link #playerStatus(ServerPlayer)}, just reaching the mutable fixture instead of its
      * read-only snapshot.
      *
-     * <p>Best-effort, not exception-propagating like {@code playerStatus} above -- this runs from
-     * a respawn event handler, which must not fail the player's actual respawn over a transient
-     * Satchel resolution hiccup; a skipped reset here just means severity decays on its own
-     * slightly slower than a fully-clean reset would, not a broken respawn.
+     * <p>Does nothing while Satchel or the player's scope is not ready.
      */
-    public static void resetSicknessSeverity(ServerPlayer player) {
+    public static void resetSicknessSeverity(Player player) {
         if (!Satchel.isReady()) {
             return;
         }
 
         PlayerScope scope = new PlayerScope(player);
 
-        // FRO_150: Satchel.tryReadyScopeInfo() collapses the tryScopeInfo()/info.isReady() two
-        // steps this used to hand-write into one call.
+        // Satchel.tryReadyScopeInfo() resolves the scope info and checks it is ready in one call.
         var infoOpt = Satchel.tryReadyScopeInfo(FrontierKeys.BORDER_PLAYER_JIG, scope);
 
         if (infoOpt.isEmpty()) {
             return;
         }
 
-        try {
-            playerJig().getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE)
-                    .status()
-                    .ifPresent(BorderPlayerStatusFixture::resetSicknessSeverity);
-        } catch (RuntimeException e) {
-            OUT.warn("[Border] resetSicknessSeverity(): failed for player "
-                    + player.getGameProfile().getName() + ": " + e);
-        }
+        playerJig().getOrCreate(scope, FrontierKeys.BORDER_PLAYER_BUNDLE)
+                .status()
+                .ifPresent(BorderPlayerStatusFixture::resetSicknessSeverity);
     }
 
     /**
@@ -404,21 +383,21 @@ public final class BorderAPI {
      * entering one) -- {@code nearestBorderId} is null in that case per
      * {@code BorderPlayerLogic.evaluate}'s own no-borders branch.
      */
-    public static Optional<Border> getRelevant(ServerPlayer player) {
+    public static Optional<Border> getRelevant(Player player) {
         return playerStatus(player)
                 .map(BorderPlayerStatus::nearestBorderId)
-                .flatMap(id -> border(player.serverLevel(), id));
+                .flatMap(id -> border(player.level(), id));
     }
 
     /**
-     * RM_FRO_038 ("Martha," Feral): raw distance past the nearest point on the Frontier's
+     * raw distance past the nearest point on the Frontier's
      * boundary at an arbitrary position -- {@code min} over every {@link Border} in this level's
      * list of {@link MATH#distanceOutside(BlockPos, BlockPos, int)}, per
      * wiki/frontiermode/architecture/wilds.md#the-distance-to-frontier-query. {@code 0} means
      * {@code pos} isn't in the Wilds at all (inside or on at least one Border), matching
      * {@code distanceOutside}'s own zero-inside convention. Not resolvable yet, or no Borders
      * established, both degrade to {@code 0} rather than throwing -- same "standby, don't crash"
-     * discipline as every other query on this class. {@code BorderModule.onMobSpawnFinalize} used
+     * discipline as every other query on this class. {@code SickWildlife.onMobSpawnFinalize} used
      * to compute this inline per spawn (Sick Wildlife's own density hook); this is that same
      * reduction, promoted to a real accessor so Feral's own consumer isn't a second copy of it.
      */
@@ -431,7 +410,7 @@ public final class BorderAPI {
     }
 
     /**
-     * RM_FRO_028 ("Diane"): {@code false} whenever the fixture itself isn't resolvable yet
+     * {@code false} whenever the fixture itself isn't resolvable yet
      * <em>or</em> {@code borderId}'s own job hasn't completed (or was never started) -- both
      * collapse to the same boolean here, matching {@code BorderPregenFixture.isReadyFor}'s own
      * contract. Boss's position-finalization tick (see boss.md's "Three questions" section)
@@ -445,22 +424,20 @@ public final class BorderAPI {
     }
 
     // ---------------------------------------------------------------------
-    // Mutations -- every operation that can fail returns a Result (FRO_047 / FRO_046's ruling)
+    // Mutations -- every operation that can fail returns a Result
     // ---------------------------------------------------------------------
 
     /**
      * Thin wrapper over {@link BordersPathFacet#grow()} -- not-ready degrades to
-     * {@link Result#notReady} instead of the old {@code orElseThrow(ScopeNotReady)}.
+     * {@link Result#notReady}.
      *
-     * @deprecated FRO_080 (per project owner): standardize on the explicit-center
-     * {@link #grow(Level, BlockPos)} overload instead -- this no-center form defers to
+     * @deprecated use the explicit-center {@link #grow(Level, BlockPos)} overload instead --
+     * this no-center form defers to
      * {@link com.arryn.frontiermode.border.server.rules.BorderRules#chooseNextCenter}/
-     * {@code chooseInitialCenter} with no way for a caller to override it. Not removed: 
-     * {@code BossModule.onBordersScopeLoaded}'s level-bootstrap listener (FRO_075) is a real,
+     * {@code chooseInitialCenter} with no way for a caller to override it. Not removed:
+     * {@code KeeperJigHandlers.onBordersScopeLoaded}'s level-bootstrap listener is a real,
      * legitimate remaining caller -- a fresh level's very first border genuinely has no natural
-     * center to supply, which is exactly the case this overload exists for. New callers should
-     * use {@link #grow(Level, BlockPos)}; {@code /border path grow} was migrated to it (FRO_080)
-     * and now requires an explicit {@code center} argument, no implicit default.
+     * center to supply, which is exactly the case this overload exists for.
      */
     @Deprecated
     public static Result grow(Level level) {
@@ -475,8 +452,8 @@ public final class BorderAPI {
     /**
      * Overload of {@link #grow(Level)} taking an explicit center -- mirrors
      * {@link BordersPathFacet#grow(BlockPos)} one layer up, same not-ready degrade as the no-arg
-     * form. RM_FRO_019 ("Karen")'s defeat handler is the first consumer, growing a border
-     * centered on the death location.
+     * form. {@code KeeperKind}'s defeat handler uses it to grow a border centered on the death
+     * location.
      */
     public static Result grow(Level level, BlockPos center) {
         return PATH(level)
@@ -534,7 +511,7 @@ public final class BorderAPI {
 
         var proposal = crud.getProposal();
 
-        // RM_FRO_011: proposal.insert(border) seeds center/radius from the existing border first
+        // proposal.insert(border) seeds center/radius from the existing border first
         // -- a null newCenter/newRadius means "leave that seeded value alone," not "pass null
         // through."
         proposal.insert(existing.get());
@@ -549,9 +526,9 @@ public final class BorderAPI {
     }
 
     /**
-     * FRO_047: returns {@link Result} instead of {@code boolean} -- looks the border up first so
-     * a successful removal can still hand the caller the {@link Border} that was removed, same
-     * "Border on success" shape every other mutating operation here follows.
+     * returns a {@link Result} -- looks the border up first so a successful removal can still
+     * hand the caller the {@link Border} that was removed, same "Border on success" shape every
+     * other mutating operation here follows.
      */
     public static Result removeBorder(Level level, UUID id) {
         Optional<BordersCrudFacet> crudOpt = CRUD(level);
@@ -576,7 +553,7 @@ public final class BorderAPI {
             return Result.notFound("No such border: " + id);
         }
 
-        // RM_FRO_027 ("Janet"): "explicit, not orphaned" -- deleting a Border explicitly deletes
+        // "explicit, not orphaned" -- deleting a Border explicitly deletes
         // its BorderCurve records too, per border-curve.md's "Deletion" section. A missing
         // CURVE fixture (not ready yet) is not itself a reason to fail a border deletion that
         // already succeeded above -- best-effort cleanup, logged rather than escalated.
@@ -591,13 +568,12 @@ public final class BorderAPI {
     }
 
     /**
-     * RM_FRO_028 ("Diane"): starts {@code borderId}'s pregeneration job -- an explicit call,
+     * starts {@code borderId}'s pregeneration job -- an explicit call,
      * never automatic on border creation, per border-pregeneration.md's own "Starting a border's
      * pregeneration is an explicit call" section. The direct call, paired with whatever code just
      * created the border and its matching boss record -- see that page's own framing, and
-     * {@code BossModule.onBordersScopeLoaded} (FRO_075)/{@code BossModule.onLivingDeath}/
-     * {@code BossAPI.forceDefeat} for the three call sites that make it a third call alongside
-     * those two.
+     * {@code KeeperJigHandlers.onBordersScopeLoaded}/{@code KeeperKind.onDefeat} for the call sites that
+     * make it a third call alongside those two.
      *
      * <p>Idempotent: a border that already has a job (in progress or complete) still returns
      * {@link Result#success(Border)} -- "ensure this border's pregeneration has been triggered"
@@ -626,7 +602,7 @@ public final class BorderAPI {
     }
 
     // ---------------------------------------------------------------------
-    // Math -- FRO_078: BorderMath's own operations, routed through BorderAPI's surface so every
+    // Math -- BorderMath's own operations, routed through BorderAPI's surface so every
     // cross-module touch point into Border -- stateful or not -- goes through the one facade
     // consistently, rather than "state goes through BorderAPI, math doesn't." Namespaced under
     // MATH (BorderAPI.MATH.isInside(...), etc.) rather than flat static methods directly on
@@ -659,8 +635,8 @@ public final class BorderAPI {
         }
 
         /**
-         * RM_FRO_037 ("Brenda," Frontier Sickness epoch 1): {@link BorderMath#distanceOutside}
-         * mirrored per the FRO_078 facade convention -- every cross-module touch point into
+         * {@link BorderMath#distanceOutside}
+         * mirrored per the facade convention -- every cross-module touch point into
          * Border, stateful or not, goes through this one surface.
          */
         public static int distanceOutside(BlockPos p, BlockPos center, int radius) {
@@ -676,10 +652,9 @@ public final class BorderAPI {
         }
 
         /**
-         * RM_FRO_018/FRO_072: area-uniform sample in the annulus {@code [innerRadius,
-         * outerRadius]} around {@code center} -- {@code DefaultBossRules.choosePosition}'s own
-         * edge-biased boss placement is the first real cross-module consumer this wrapper was
-         * added for.
+         * area-uniform sample in the annulus {@code [innerRadius, outerRadius]} around
+         * {@code center} -- {@code KeeperPlacement.choosePosition}'s edge-biased boss placement
+         * uses it.
          */
         public static BlockPos randomPointInAnnulus(RandomSource rng, BlockPos center, int innerRadius, int outerRadius) {
             return BorderMath.randomPointInAnnulus(rng, center, innerRadius, outerRadius);
@@ -700,5 +675,31 @@ public final class BorderAPI {
         public static double intensityAt(Border border, BorderCurve descriptor, BlockPos point) {
             return BorderMath.intensityAt(border, descriptor, point);
         }
+    }
+
+    /**
+     * Resolves {@code ref} to a live position in {@code level} (border.md, Navigator). A {@link TargetRef.RawPos}
+     * answers itself; any other reference goes to the {@link TargetResolverRegistry} resolver of its type, which
+     * the module that owns the type registered at init. Empty means "not resolvable now": nothing registered for
+     * the type yet, or the resolver has no record for the id in this level. A normal outcome, not an error.
+     */
+    public static Optional<BlockPos> resolveTarget(Level level, TargetRef ref) {
+        if (ref instanceof TargetRef.RawPos raw) {
+            return Optional.of(raw.pos());
+        }
+        if (ref instanceof TargetRef.Boss boss) {
+            return resolveByType(TargetType.BOSS, level, boss.bossId());
+        }
+        if (ref instanceof TargetRef.Border border) {
+            return resolveByType(TargetType.BORDER, level, border.borderId());
+        }
+        if (ref instanceof TargetRef.Structure structure) {
+            return resolveByType(TargetType.STRUCTURE, level, structure.structureId());
+        }
+        throw new IllegalStateException("Unhandled TargetRef variant: " + ref);
+    }
+
+    private static Optional<BlockPos> resolveByType(TargetType type, Level level, UUID id) {
+        return TargetResolverRegistry.get(type).flatMap(resolver -> resolver.resolve(level, id));
     }
 }

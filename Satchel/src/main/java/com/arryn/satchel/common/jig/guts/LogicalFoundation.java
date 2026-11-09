@@ -5,12 +5,22 @@ import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.lifecycle.*;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
+import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
+import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.jig.mob.MobJig;
+import com.arryn.satchel.common.trinket.TrinketDecl;
+import com.arryn.satchel.common.trinket.TrinketTick;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class LogicalFoundation {
 
@@ -24,6 +34,14 @@ public final class LogicalFoundation {
         this.side = Objects.requireNonNull(side, "side");
     }
 
+    /**
+     * The side this foundation serves.
+     *
+     * @deprecated Discouraged, and probably going to be removed: it hands Forge's {@code LogicalSide} to module
+     *             code. A thread asks which side it is on with {@code Satchel.isClient()} and {@code
+     *             Satchel.isServer()}.
+     */
+    @Deprecated
     public LogicalSide side() {
         return side;
     }
@@ -68,9 +86,11 @@ public final class LogicalFoundation {
                     cfg,
                     booter().engine());
 
-            var info = new JigInfo(key,jig,coupler);
+            var info = new JigInfo(key, jig, coupler, orderedJigInfos.size(), this);
             info.installJigConfig(cfg);
-            jigInfos.putIfAbsent(key,info);
+            if (jigInfos.putIfAbsent(key, info) == null) {
+                orderedJigInfos.add(info);
+            }
 
             EventHandlers handlers = cfg.execution().eventHandlers();
             if (handlers != null) {
@@ -82,6 +102,93 @@ public final class LogicalFoundation {
 
         OUT.debug("Installed " + configs.size() +
                 " jig configs for side " + side);
+        logJigOrder();
+        logTrinketOrder();
+    }
+
+    /**
+     * Prints the order the declared Trinkets will tick in, once per foundation after its configs
+     * install: by {@code order}, then jig registration index, then declaration index. A scope's
+     * creation sequence, the next key, exists only once scopes do; it orders the same Trinket across
+     * scopes of one jig.
+     */
+    private void logTrinketOrder() {
+        record Declared(TrinketTick.Key key, JigKey<?> jig, String type, String owner) {}
+
+        List<Declared> declared = new ArrayList<>();
+        for (JigInfo ji : orderedJigInfos) {
+            int declIndex = 0;
+            for (TrinketDecl<?> decl : ji.trinketDecls()) {
+                if (!decl.appliesTo(side)) continue;
+                declared.add(new Declared(
+                        new TrinketTick.Key(decl.order(), ji.registrationIndex(), 0L, declIndex++, 0L),
+                        ji.key,
+                        decl.type().getSimpleName(),
+                        decl.owner()));
+            }
+        }
+        if (declared.isEmpty()) return;
+
+        declared.sort(Comparator.comparing(Declared::key));
+        StringBuilder sb = new StringBuilder("Trinket order for side ").append(side).append(':');
+        for (Declared d : declared) {
+            sb.append("\n  order ").append(d.key().order())
+                    .append(" | jig ").append(d.key().jigIndex()).append(' ').append(d.jig())
+                    .append(" | ").append(d.type());
+            if (d.owner() != null) sb.append(" | from ").append(d.owner());
+        }
+        OUT.info(sb.toString());
+    }
+
+    /**
+     * A mob left its level: every mob jig unloads its scope for it (and builds-then-unloads one for
+     * an admitted mob that had none), so its {@code Unloaded} handlers and {@code Leaving} Trinkets
+     * run with a reason. Called from Satchel's ingress for {@code EntityLeaveLevelEvent}, on the
+     * thread bound to this foundation.
+     */
+    public void mobLeft(Mob mob) {
+        for (JigInfo ji : orderedJigInfos) {
+            if (ji.jig instanceof MobJig mobJig) {
+                mobJig.onMobLeft(ji, mob);
+            }
+        }
+    }
+
+    /**
+     * Whether any mob jig on this side holds interest in {@code uuid} in its own list.
+     */
+    public boolean anyMobInterest(UUID uuid) {
+        return MobJig.anyInterested(this, uuid);
+    }
+
+    /**
+     * Resets every jig, in registration order: called when a server stops or a client logs out, so
+     * nothing a stopped world left in a jig reaches the next one.
+     */
+    public void reset() {
+        for (JigInfo ji : orderedJigInfos) {
+            ji.jig.reset(ji);
+        }
+    }
+
+    /**
+     * Builds and installs the ingress configs registered for this foundation's side, each with this
+     * foundation as its own. Called once by the booter, after {@link #installConfigs}.
+     */
+    public void installIngress() {
+        IngressRegistry.installFor(this);
+    }
+
+    /**
+     * Prints the order the pulse walks jigs in, once per foundation after its configs install. The
+     * walk is registration order, so the same mod set prints the same list on every run.
+     */
+    private void logJigOrder() {
+        StringBuilder sb = new StringBuilder("Jig order for side ").append(side).append(':');
+        for (JigInfo ji : orderedJigInfos) {
+            sb.append("\n  ").append(ji.registrationIndex()).append(". ").append(ji.key);
+        }
+        OUT.info(sb.toString());
     }
 
     /**
@@ -119,20 +226,63 @@ public final class LogicalFoundation {
      * ========================================================== */
 
 
-    /** Single source of truth for all jig-owned runtime state */
+    /** Single source of truth for all jig-owned runtime state, for lookup by key */
     private final Map<JigKey<?>, JigInfo> jigInfos =
             new ConcurrentHashMap<>();
 
-    public Collection<JigKey<?>> registeredJigs() {
-        return jigInfos.keySet();
+    /**
+     * The same {@link JigInfo}s in registration order. Appended to only while configs install, so
+     * the pulse and the commands iterate it without a map's arbitrary order.
+     */
+    private final List<JigInfo> orderedJigInfos = new CopyOnWriteArrayList<>();
+
+    /** Per-foundation counter behind {@link ScopeInfoImpl#creationSequence()}. */
+    private final AtomicLong scopeSequence = new AtomicLong();
+
+    long nextScopeSequence() {
+        return scopeSequence.getAndIncrement();
     }
 
-    public Collection<JigInfo> jigInfos() {
-        return jigInfos.values();
+    /** The global, sorted list of every ready scope's ticking Trinkets. */
+    private final TrinketTick trinketTick = new TrinketTick();
+
+    public TrinketTick trinketTick() {
+        return trinketTick;
+    }
+
+    public Collection<JigKey<?>> registeredJigs() {
+        return orderedJigInfos.stream().<JigKey<?>>map(ji -> ji.key).toList();
+    }
+
+    /**
+     * Every installed jig, in registration order.
+     */
+    public List<JigInfo> jigInfos() {
+        return Collections.unmodifiableList(orderedJigInfos);
     }
 
     public Optional<JigInfo> askJigInfo(JigKey<?> key) {
         return Optional.ofNullable(jigInfos.get(key));
+    }
+
+    /**
+     * SAT_144, the arrival push: sends {@code player} the networked bundles of every ready level scope
+     * in the level they are now in, and no one else. Called when the player joins that audience: at
+     * login, on a dimension change and on a respawn. A duplicate of an earlier send is harmless, since
+     * every parcel is the bundle's whole state.
+     */
+    public void pushLevelBundlesTo(ServerPlayer player) {
+        Objects.requireNonNull(player, "player");
+        Level level = player.level();
+
+        for (JigInfo ji : orderedJigInfos) {
+            for (ScopeInfoImpl info : ji.scopeInfos()) {
+                if (!(info.scope() instanceof LevelScope levelScope) || levelScope.level() != level) continue;
+                if (!info.isReady()) continue;
+
+                ji.coupler().pushTo(info, player);
+            }
+        }
     }
 
     public JigInfo requireJigInfo(JigKey<?> key) {
@@ -153,7 +303,9 @@ public final class LogicalFoundation {
 
         boolean matched = false;
 
-        for (JigInfo ji : jigInfos.values()) {
+        // Registration order, so one source's scopes get creation sequences in the same order on
+        // every run.
+        for (JigInfo ji : orderedJigInfos) {
 
             Optional<SatchelScope> opt = ji.resolveScope(source);
             if (opt.isEmpty()) continue;
@@ -182,12 +334,12 @@ public final class LogicalFoundation {
     public void tryRemoveSource(Object source) {
         Objects.requireNonNull(source, "source");
 
-        for (JigInfo ji : jigInfos.values()) {
+        for (JigInfo ji : orderedJigInfos) {
 
             Optional<SatchelScope> opt = ji.resolveScope(source);
             if (opt.isEmpty()) continue;
 
-            ScopeInfo info = ji.scopeInfo(opt.get()).orElse(null);
+            ScopeInfoImpl info = ji.scopeInfo(opt.get()).orElse(null);
             if (info == null) continue;
 
             ji.jig.onUnload(info);
@@ -197,7 +349,7 @@ public final class LogicalFoundation {
      * Scope access helpers
      * ========================================================== */
 
-    public ScopeInfo requireScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
+    public ScopeInfoImpl requireScopeInfo(JigKey<?> jigKey, SatchelScope scope) {
         JigInfo ji = requireJigInfo(jigKey);
 
         JigKey.validateTypes(jigKey, ji.jig);
@@ -237,7 +389,7 @@ public final class LogicalFoundation {
 
         JigKey.validateTypes(jigKey, ji.jig);
 
-        return ji.scopeInfo(scope);
+        return ji.scopeInfo(scope).map(info -> info);
     }
 
     /* =============================================================

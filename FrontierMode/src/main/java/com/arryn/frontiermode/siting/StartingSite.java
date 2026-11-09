@@ -16,6 +16,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.core.Holder;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -181,7 +182,7 @@ final class StartingSite {
      * generation. More than half of the nine in ocean, river or beach and the candidate is skipped; this
      * is what keeps a water-heavy seed affordable.
      */
-    private static boolean mostlyWater(ServerLevel level, BlockPos center, int radius) {
+    private static boolean mostlyWater(Level level, BlockPos center, int radius) {
         int wet = 0;
         int y = level.getSeaLevel();
         if (isWaterBiome(level.getBiome(new BlockPos(center.getX(), y, center.getZ())))) {
@@ -209,7 +210,7 @@ final class StartingSite {
      * columns, columns with natural stone close to the surface, and whether one of 20 points in the disc's
      * outer share is a hazard-free spot for the first Keeper.
      */
-    private static Measured read(ServerLevel level, BlockPos center, int radius, SitingRules rules) {
+    private static Measured read(Level level, BlockPos center, int radius, SitingRules rules) {
         long generateStart = System.nanoTime();
         int minChunkX = (center.getX() - radius) >> 4;
         int maxChunkX = (center.getX() + radius) >> 4;
@@ -267,7 +268,7 @@ final class StartingSite {
     }
 
     /** At least one of 20 points in the disc's outer share scores a hazard below 1, as a Keeper's home does. */
-    private static boolean hasKeeperSpot(ServerLevel level, BlockPos center, int radius) {
+    private static boolean hasKeeperSpot(Level level, BlockPos center, int radius) {
         RandomSource rng = level.getRandom();
         int inner = Math.min(radius, (int) Math.round(radius * KEEPER_INNER_FRACTION));
         for (int i = 0; i < KEEPER_SAMPLES; i++) {

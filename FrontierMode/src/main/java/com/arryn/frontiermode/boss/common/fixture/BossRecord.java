@@ -4,81 +4,56 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 
 import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
- * Immutable materialized boss record -- {@link BossFixture}'s sole durable source of truth for
- * boss identity. Not keyed by, and holding no live reference to, any {@code Border} at all: see
- * wiki/frontiermode/architecture/boss.md's "Data model" section for why this decoupling is
- * deliberate. {@code layer} is a plain copy of the originating {@code Border.layer()} taken once
- * at creation, never re-read afterward.
+ * Immutable base boss record -- {@link BossFixture}'s sole durable source of truth for boss identity
+ * (wiki/frontiermode/architecture/boss.md § The base record). Every boss has one. A kind that needs more keeps
+ * a record of its own, in its own module and bundle, under the same {@code bossId}; nothing here names a
+ * Border, a layer or a path position.
  *
- * <p><b>{@code position} is nullable</b> -- null until finalized, per
- * wiki/frontiermode/architecture/border-pregeneration.md#what-this-changes-in-boss, which
- * supersedes this class's earlier claim that position is picked once, immediately, at
- * creation. A record starts as {@code {position: null, layer, bossEntityId: null, alive: true}}
- * and stays that way until {@code BOSS_JIG}'s own tick finalizes a real position once
- * {@code BorderAPI.isPregenReady()} passes for its home border -- see {@code boss.md}'s "Three
- * questions, three different mechanisms" section. Once finalized, {@code position} is already
- * validated, real terrain (flatness/hazard-scored) -- no further Y-resolution ever happens after
- * that point.
- *
- * <p>{@code bossEntityId} is nullable -- null until an entity has actually been placed in the
- * world for this record. {@code alive} is false once defeated (RM_FRO_019's own concern; this
- * node never sets it false).
- *
- * <p><b>{@code borderId} (FRO_082, boss-commands.md's "Selector scheme" ruling):</b>
- * {@code Optional.empty()} for a hand-placed off-path boss ({@code /boss add}) -- the exact case
- * {@code BossFixture}'s Border-decoupling above was protecting, still fully served. Set once at
- * creation, never re-read from any live {@code Border} afterward (same "copy it once" discipline
- * {@code layer} already uses), for anything paired with real border-growth: the bootstrap grow
- * ({@code BossModule.onBordersScopeLoaded}), the defeat-triggered grow
- * ({@code BossModule.onLivingDeath} / {@code BossAPI.forceDefeat}), and {@code /boss attach}. See
- * wiki/frontiermode/architecture/boss.md#boss-less-path-layers-and-attach.
+ * <p><b>{@code position} is nullable</b>: unset until the kind says it is final. <b>{@code bossEntityId} is
+ * nullable</b>: unset until the mob is placed, and again after a non-player death. {@code alive} is false once
+ * defeated. {@code scale} is the body size multiplier, 1.0 until the kind sets it at materialize; the server's
+ * hitbox and the client's hitbox and render both read it.
  */
 public final class BossRecord {
 
     private final UUID bossId;
-    private final BlockPos position;
-    private final int layer;
-    private final OptionalInt pathPosition;
-    private final String body;
-    private final UUID bossEntityId;
+    private final String kind;
+    private final BlockPos position; // nullable until finalized
+    private final UUID bossEntityId; // nullable until materialized
     private final boolean alive;
-    private final Optional<UUID> borderId;
-    private final BlockPos platformPos; // nullable until the spawn platform is built
+    private final float scale;
 
     public BossRecord(
             UUID bossId,
+            String kind,
             BlockPos position,
-            int layer,
-            OptionalInt pathPosition,
-            String body,
             UUID bossEntityId,
             boolean alive,
-            Optional<UUID> borderId,
-            BlockPos platformPos
+            float scale
     ) {
         this.bossId = Objects.requireNonNull(bossId, "bossId");
+        this.kind = Objects.requireNonNull(kind, "kind");
         this.position = position; // nullable -- see this class's own doc
-        this.layer = layer;
-        this.pathPosition = Objects.requireNonNull(pathPosition, "pathPosition");
-        this.body = Objects.requireNonNull(body, "body");
         this.bossEntityId = bossEntityId; // nullable
         this.alive = alive;
-        this.borderId = Objects.requireNonNull(borderId, "borderId");
-        this.platformPos = platformPos; // nullable -- see platformBuilt()
+        this.scale = scale;
     }
 
     public UUID bossId() {
         return bossId;
     }
-    public String displayBossId()
-    {
+
+    public String displayBossId() {
         String bStr = bossId.toString();
-        return bStr.substring(bStr.length()-8);
+        return bStr.substring(bStr.length() - 8);
+    }
+
+    /** The key of the {@code BossKind} that owns this boss. */
+    public String kind() {
+        return kind;
     }
 
     /**
@@ -86,29 +61,6 @@ public final class BossRecord {
      */
     public BlockPos position() {
         return position;
-    }
-
-    public int layer() {
-        return layer;
-    }
-
-    /**
-     * The home Border's 1-based position on the path, copied once at creation (the Keeper's
-     * progression number -- what players are told is its "level"); empty for a boss with no path
-     * position (hand-placed, or attached to an off-path Border). Read through
-     * {@code BossAPI.pathPositionOf}, which falls back to {@link #layer()} when this is empty.
-     */
-    public OptionalInt pathPosition() {
-        return pathPosition;
-    }
-
-    /**
-     * The boss's body, by name from the {@code keeper-bodies} table: the authored body for its path
-     * position through 20, a rolled one past it. Fixed at creation, so a respawned boss keeps it.
-     * Empty only on a record saved before this field existed.
-     */
-    public String body() {
-        return body;
     }
 
     public UUID bossEntityId() {
@@ -119,31 +71,9 @@ public final class BossRecord {
         return alive;
     }
 
-    /**
-     * Empty for a hand-placed off-path boss ({@code /boss add}); set once at creation for
-     * anything paired with real border-growth. See this class's own doc.
-     */
-    public Optional<UUID> borderId() {
-        return borderId;
-    }
-
-    /**
-     * The base of the boss's bedrock spawn platform (one below its standing position); nullable --
-     * null until the platform is built. Check {@link #platformBuilt()} first.
-     */
-    public BlockPos platformPos() {
-        return platformPos;
-    }
-
-    /** True once the spawn platform has been built for this record. Built once, never re-carved. */
-    public boolean platformBuilt() {
-        return platformPos != null;
-    }
-
-    /** Returns a copy of this record with {@code platformPos} set: the platform is in place. */
-    public BossRecord withPlatform(BlockPos pos) {
-        return new BossRecord(bossId, position, layer, pathPosition, body, bossEntityId, alive, borderId,
-                Objects.requireNonNull(pos, "pos"));
+    /** The body size multiplier: 1.0 until the kind sets it at {@link #materializedAt}. */
+    public float scale() {
+        return scale;
     }
 
     public boolean positioned() {
@@ -155,83 +85,64 @@ public final class BossRecord {
     }
 
     /**
-     * Returns a copy of this record with {@code position} set to {@code resolvedPosition} --
-     * Border Pregeneration's "finalizing position" step (see this class's own doc). Rejects
-     * being called on an already-positioned record via the caller's own guard
-     * ({@code BossFixture.finalizePosition}), not here -- this method just performs the copy.
+     * Returns a copy of this record with {@code position} set to {@code resolvedPosition}, the step that
+     * commits a position. The caller ({@code BossFixture.finalizePosition}) rejects a record that already has
+     * one; this method just performs the copy.
      */
     public BossRecord finalizedAt(BlockPos resolvedPosition) {
         return new BossRecord(
                 bossId,
+                kind,
                 Objects.requireNonNull(resolvedPosition, "resolvedPosition"),
-                layer,
-                pathPosition,
-                body,
                 bossEntityId,
                 alive,
-                borderId,
-                platformPos
+                scale
         );
     }
 
     /**
-     * Returns a copy of this record with {@code bossEntityId} updated to reflect a
-     * just-completed materialization (the vanilla mob spawned at this record's already-finalized
-     * {@code position}). {@code position} itself never changes here -- Border Pregeneration
-     * moved all position resolution to {@link #finalizedAt}, so materialization has nothing left
-     * to resolve about where the boss stands.
+     * Returns a copy of this record with {@code bossEntityId} and {@code scale} set: the vanilla mob has
+     * spawned at this record's already-finalized {@code position}, at the kind's body size.
      */
-    public BossRecord materializedAt(UUID entityId) {
+    public BossRecord materializedAt(UUID entityId, float scale) {
         return new BossRecord(
                 bossId,
+                kind,
                 position,
-                layer,
-                pathPosition,
-                body,
                 Objects.requireNonNull(entityId, "entityId"),
                 alive,
-                borderId,
-                platformPos
+                scale
         );
     }
 
     /**
-     * FRO_160: returns a copy of this record with {@code bossEntityId} cleared -- the inverse of
-     * {@link #materializedAt}, for a non-player death that sends the boss back to
-     * unmaterialized. {@code alive}, {@code position}, {@code layer}, and {@code borderId} are
-     * unchanged.
+     * Returns a copy of this record with {@code bossEntityId} cleared, the inverse of {@link #materializedAt}
+     * for a non-player death that sends the boss back to unmaterialized. {@code alive}, {@code position} and
+     * {@code scale} are unchanged.
      */
     public BossRecord dematerialized() {
         return new BossRecord(
                 bossId,
+                kind,
                 position,
-                layer,
-                pathPosition,
-                body,
                 null,
                 alive,
-                borderId,
-                platformPos
+                scale
         );
     }
 
     /**
-     * Returns a copy of this record with {@code alive} set to {@code false} -- the defeat
-     * transition RM_FRO_019 ("Karen")'s own handler drives, addressed by this record's own
-     * {@code bossId} rather than any {@code Border} reference. Position/layer/entity id are
-     * unchanged; only the alive flag flips.
+     * Returns a copy of this record with {@code alive} set to {@code false}, the defeat transition. Everything
+     * else is unchanged.
      */
     public BossRecord defeated() {
         return new BossRecord(
                 bossId,
+                kind,
                 position,
-                layer,
-                pathPosition,
-                body,
                 bossEntityId,
                 false,
-                borderId,
-                platformPos
+                scale
         );
     }
 
@@ -250,31 +161,19 @@ public final class BossRecord {
     static CompoundTag save(BossRecord r) {
         CompoundTag tag = new CompoundTag();
         tag.putUUID("bossId", r.bossId);
+        tag.putString("kind", r.kind);
         tag.putBoolean("hasPosition", r.position != null);
         if (r.position != null) {
             tag.putInt("x", r.position.getX());
             tag.putInt("y", r.position.getY());
             tag.putInt("z", r.position.getZ());
         }
-        tag.putInt("layer", r.layer);
-        tag.putBoolean("hasPathPosition", r.pathPosition.isPresent());
-        r.pathPosition.ifPresent(p -> tag.putInt("pathPosition", p));
-        tag.putString("body", r.body);
         tag.putBoolean("hasEntity", r.bossEntityId != null);
         if (r.bossEntityId != null) {
             tag.putUUID("bossEntityId", r.bossEntityId);
         }
         tag.putBoolean("alive", r.alive);
-        // FRO_082: borderId, same nullable-UUID persistence shape bossEntityId already uses above
-        // (a "has" boolean plus the UUID itself, only written when present).
-        tag.putBoolean("hasBorderId", r.borderId.isPresent());
-        r.borderId.ifPresent(id -> tag.putUUID("borderId", id));
-        tag.putBoolean("hasPlatform", r.platformPos != null);
-        if (r.platformPos != null) {
-            tag.putInt("platformX", r.platformPos.getX());
-            tag.putInt("platformY", r.platformPos.getY());
-            tag.putInt("platformZ", r.platformPos.getZ());
-        }
+        tag.putFloat("scale", r.scale);
         return tag;
     }
 
@@ -283,25 +182,13 @@ public final class BossRecord {
                 ? new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"))
                 : null;
         UUID entityId = tag.getBoolean("hasEntity") ? tag.getUUID("bossEntityId") : null;
-        // FRO_082: absent on a record saved before this field existed -- getBoolean() on a
-        // missing key returns false, the correct "no borderId" default for pre-existing data.
-        Optional<UUID> borderId = tag.getBoolean("hasBorderId")
-                ? Optional.of(tag.getUUID("borderId"))
-                : Optional.empty();
         return new BossRecord(
                 tag.getUUID("bossId"),
+                tag.getString("kind"),
                 position,
-                tag.getInt("layer"),
-                // Absent on a record saved before this field existed: no path position, so
-                // BossAPI.pathPositionOf falls back to layer.
-                tag.getBoolean("hasPathPosition") ? OptionalInt.of(tag.getInt("pathPosition")) : OptionalInt.empty(),
-                tag.getString("body"), // "" on a record saved before this field existed
                 entityId,
                 tag.getBoolean("alive"),
-                borderId,
-                tag.getBoolean("hasPlatform")
-                        ? new BlockPos(tag.getInt("platformX"), tag.getInt("platformY"), tag.getInt("platformZ"))
-                        : null
+                tag.getFloat("scale")
         );
     }
 }

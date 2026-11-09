@@ -3,10 +3,14 @@ package com.arryn.frontiermode.border.client.render.level;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 public final class WorldBordersRenderer {
 
@@ -15,22 +19,13 @@ public final class WorldBordersRenderer {
     /** Total radial thickness = 0.3m */
     private static final float RING_HALF_THICKNESS = 0.15f;
 
-    // Project-owner request (2026-09-08): a debug toggle for the rendered rings themselves,
-    // separate from RenderContext.standby()'s own "nothing to draw yet" gate above -- this one is
-    // a deliberate player choice, not a data-readiness check. Driven by a client-only command
-    // (Rendering.onRegisterClientCommands registers "/border debug rings <true|false>") since
-    // visibility of a purely client-side render pass has no server-side meaning at all -- nothing
-    // here needs a network packet. Defaulted to visible (true) when the toggle was first added;
-    // project owner request (2026-09-20) flipped the default to off -- rings are debug visual
-    // clutter for ordinary play, opt-in via the same command rather than opt-out.
-    private static boolean visible = false;
+    // Whether the rings draw is the debug view's call (admin-tools.md, Debug view): a deliberate player choice,
+    // not a data-readiness check, which is RenderContext.standby()'s. Border never imports Admin, so the admin
+    // client registers this supplier once at startup (AdminViewStartup). Until then, and by default, nothing draws.
+    private static BooleanSupplier visibleWhen = () -> false;
 
-    public static void setVisible(boolean value) {
-        visible = value;
-    }
-
-    public static boolean isVisible() {
-        return visible;
+    public static void setVisibleWhen(BooleanSupplier supplier) {
+        visibleWhen = Objects.requireNonNull(supplier, "supplier");
     }
 
 
@@ -40,18 +35,23 @@ public final class WorldBordersRenderer {
     // ---------------------------------------------------------------------
 
     public void render(PoseStack poseStack) {
-        if (!visible) return;
+        if (!visibleWhen.getAsBoolean()) return;
 
-        RenderContext ctx = RenderContext.getInstance()
+        // The client-only reads are here, not in RenderContext, which a dedicated server constructs too.
+        // The level is null after a disconnect, while Minecraft's fields are already cleared.
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+
+        RenderContext ctx = RenderContext.getInstance(mc.level)
                 .filter(rc -> !rc.standby())
                 .orElse(null);
 
         if (ctx == null) return;
 
-        var camera = ctx.camera();
+        var camera = mc.gameRenderer.getMainCamera();
         var camPos = camera.getPosition();
         var borders = ctx.borders();
-        var buffers = ctx.buffers();
+        var buffers = mc.renderBuffers().bufferSource();
 
         poseStack.pushPose();
         try {
@@ -62,11 +62,7 @@ public final class WorldBordersRenderer {
             }
 
             // CRITICAL: flush buffered geometry so later passes (including particles) render correctly
-            // RenderContext.buffers() appears to be a BufferSource in your apidump.
-            // If your ctx.buffers() returns MultiBufferSource.BufferSource, this exists:
-            //if (buffers instanceof MultiBufferSource.BufferSource bs) {
             buffers.endBatch();
-            //}
         } finally {
             // CRITICAL: restore pose stack for subsequent render stages
             poseStack.popPose();
@@ -91,12 +87,8 @@ public final class WorldBordersRenderer {
         float radius = border.radius();
         Vector3f color = RingColorPalette.get(border.layer());
 
-        // Was a hardcoded RING_Y = 100.0f, completely ignoring the border's own center height --
-        // rendered fine (no crash, no error), just wherever Y 100 happened to land relative to
-        // real terrain, which could easily be underground or otherwise depth-occluded depending
-        // on the world. GrowthTriggerRenderer's particle ritual site never had this problem
-        // because it explicitly looks up ground height; this one just needed the border's own
-        // center().getY() instead of a magic constant. See FRO_019.
+        // The ring's height is the border's own center().getY(), not a fixed constant: a fixed Y
+        // would land arbitrarily relative to real terrain, possibly underground or depth-occluded.
         double cx = border.center().getX();
         double cy = border.center().getY();
         double cz = border.center().getZ();

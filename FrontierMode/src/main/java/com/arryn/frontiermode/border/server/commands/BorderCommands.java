@@ -12,7 +12,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.UUID;
@@ -75,26 +75,15 @@ public final class BorderCommands {
             BorderOperator op
     ) throws CommandSyntaxException {
 
-        ServerPlayer sp = ctx.getSource().getPlayerOrException();
+        Player sp = ctx.getSource().getPlayerOrException();
 
-        List<Border> borders;
-        try {
-            borders = BorderSelector.resolve(selector, sp);
-        } catch (CommandSyntaxException e) {
-            throw e;
-        } catch (Exception e) {
-            ctx.getSource().sendFailure(
-                    Component.literal("[Border] Selector resolution failed.")
-            );
-            return 0;
-        }
+        List<Border> borders = BorderSelector.resolve(selector, sp);
 
         if (borders.isEmpty()) {
-            // RM_FRO_006 landed: @relevant now resolves against a real per-player
-            // BorderPlayerStatusFixture snapshot (see BorderAPI.getRelevant/BorderSelector
-            // .resolveRelevant), so an empty result here is a real, honest "no relevant border"
-            // outcome (e.g. an empty dimension), same as every other selector mode -- no more
-            // special-cased placeholder message.
+            // @relevant resolves against a real per-player BorderPlayerStatusFixture snapshot (see
+            // BorderAPI.getRelevant/BorderSelector.resolveRelevant), so an empty result here is a real,
+            // honest "no relevant border" outcome (e.g. an empty dimension), same as every other
+            // selector mode.
             ctx.getSource().sendFailure(
                     Component.literal("[Border] No borders matched selector.")
             );
@@ -103,13 +92,7 @@ public final class BorderCommands {
 
         int count = 0;
         for (Border b : borders) {
-            try {
-                count += op.run(ctx, b.id());
-            } catch (Exception e) {
-                ctx.getSource().sendFailure(
-                        Component.literal("[Border] Operation failed for border " + b.id())
-                );
-            }
+            count += op.run(ctx, b.id());
         }
 
         return count;
@@ -182,7 +165,7 @@ public final class BorderCommands {
 
                         .then(Commands.literal("here")
                                 .executes(ctx -> {
-                                    ServerPlayer sp = ctx.getSource().getPlayerOrException();
+                                    Player sp = ctx.getSource().getPlayerOrException();
                                     return applySelector(
                                             ctx,
                                             BorderSelectorArgumentType.getSelector(ctx, "selector"),
@@ -195,7 +178,7 @@ public final class BorderCommands {
                                 })
                                 .then(Commands.argument("radius", IntegerArgumentType.integer(1))
                                         .executes(ctx -> {
-                                            ServerPlayer sp = ctx.getSource().getPlayerOrException();
+                                            Player sp = ctx.getSource().getPlayerOrException();
                                             int r = IntegerArgumentType.getInteger(ctx, "radius");
                                             return applySelector(
                                                     ctx,
@@ -270,7 +253,7 @@ public final class BorderCommands {
                 // path grow
                 // ------------------------------------------------------------
                 .then(Commands.literal("grow")
-                        // FRO_080: no-implicit-default center, per project owner -- caller must
+                        // no-implicit-default center, per project owner -- caller must
                         // always supply one now, same argument shape add()'s "pos" already uses.
                         .then(Commands.argument("center", BlockPosArgument.blockPos())
                                 .executes(ctx -> {
@@ -350,7 +333,7 @@ public final class BorderCommands {
     private static ArgumentBuilder<CommandSourceStack, ?> debug() {
         return Commands.literal("debug")
                 .executes(BorderCommandHandler::debug)
-                // RM_FRO_037 test aid: /border debug spawn-animal [count] -- see
+                // Test aid: /border debug spawn-animal [count] -- see
                 // BorderCommandHandler.spawnTestAnimals's own doc for why this exists alongside
                 // the datapack function's /summon-based approach (this one actually fires
                 // MobSpawnEvent.FinalizeSpawn; /summon never does).
@@ -361,8 +344,8 @@ public final class BorderCommands {
                                         ctx, IntegerArgumentType.getInteger(ctx, "count")))
                         )
                 )
-                // Project owner request (2026-09-18): "/border debug sickness <true|false>" --
-                // toggles whether Frontier Sickness's own debuff (BorderModule.applySicknessEffects)
+                // Project owner request: "/border debug sickness <true|false>" --
+                // toggles whether Frontier Sickness's own debuff (FrontierSickness.onTick)
                 // applies at all. Same simple global-flag shape as Boss's own "/boss debug glow".
                 .then(Commands.literal("sickness")
                         .then(Commands.argument("value", BoolArgumentType.bool())
