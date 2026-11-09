@@ -102,7 +102,7 @@ public final class KeeperFixture extends SatchelFixture {
     @Override
     public void onLoaded() {
         super.onLoaded();
-        OUT.info("            Keepers loaded: " + records.size());
+        OUT.info("[Keeper] onLoaded(): Keepers loaded: " + records.size());
     }
 
     // ------------------------------------------------------------------

@@ -17,7 +17,7 @@ public final class DifficultyModule {
     }
 
     public static void init() {
-        OUT.info("FrontierMode - Difficulty Module Initiating.");
+        OUT.info("[Difficulty] init(): Module initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> DifficultyIngress.build());
     }
 }

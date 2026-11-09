@@ -155,7 +155,7 @@ public final class FrontierMode {
         // Register server-side events (@SubscribeEvent methods)
         MinecraftForge.EVENT_BUS.register(this);
 
-        OUT.info("FrontierMode: Module initialization started.");
+        OUT.info("[FrontierMode] FrontierMode(): Module initialization started.");
 
         // silence vanilla's per-death log line for our own named mobs (Feral, Boss).
         LogFilters.install();

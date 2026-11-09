@@ -32,6 +32,13 @@ public final class BorderCommandHandler {
         return Component.literal("[Border] " + m);
     }
 
+    /** The answer for a command reached before this level's Border facet is ready. */
+    private static int notReady(CommandSourceStack source) {
+        source.sendFailure(msg("Border data is not available yet: this level's Border scope is not ready."
+                + " Try again in a moment."));
+        return 0;
+    }
+
     // ------------------------------------------------------------
     // ADD
     // ------------------------------------------------------------
@@ -223,7 +230,11 @@ public final class BorderCommandHandler {
         var level = source.getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, player);
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
 
         // A border already on the path is the admin's mistake, so it is checked and refused here;
         // insert() throws for it.
@@ -251,7 +262,11 @@ public final class BorderCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, player);
 
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
 
         boolean removed = path.remove(border);
 
@@ -277,7 +292,11 @@ public final class BorderCommandHandler {
         var level = source.getLevel();
 
         Border border = BorderSelector.resolveSingle(selector, player);
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
         path.moveUp(border);
 
         source.sendSuccess(
@@ -298,7 +317,11 @@ public final class BorderCommandHandler {
 
         Border border = BorderSelector.resolveSingle(selector, player);
 
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(source);
+        }
+        var path = pathOpt.get();
         path.moveDown(border);
 
         source.sendSuccess(
@@ -312,7 +335,11 @@ public final class BorderCommandHandler {
             CommandContext<CommandSourceStack> ctx
     ) {
         var level = ctx.getSource().getLevel();
-        var path = BorderAPI.PATH(level).orElseThrow();
+        var pathOpt = BorderAPI.PATH(level);
+        if (pathOpt.isEmpty()) {
+            return notReady(ctx.getSource());
+        }
+        var path = pathOpt.get();
 
         // fixLayers() is the real reorder-to-match-path-order reconciliation -- reports the two
         // real outcomes distinctly (see Border Path & Layer Reconciliation, "Command-layer

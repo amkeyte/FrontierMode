@@ -23,7 +23,10 @@ import net.minecraftforge.fml.common.Mod;
         modid = FrontierMode.MODID,
         value = Dist.CLIENT
 )
-public class Rendering {
+public final class Rendering {
+
+    private Rendering() {
+    }
 
     // Built on first use, not in a static initializer: WorldBordersRenderer names client-only types
     // (MultiBufferSource), and a dedicated server must never load it. onRenderLevel runs only on the client

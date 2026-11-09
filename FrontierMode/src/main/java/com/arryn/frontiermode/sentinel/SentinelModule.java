@@ -23,7 +23,7 @@ public final class SentinelModule {
     }
 
     public static void init() {
-        OUT.info("FrontierMode - Sentinel Module Initiating.");
+        OUT.info("[Sentinel] init(): Module initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SentinelIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> SentinelJigConfig.build());
         EntityScales.register(new SentinelScaleSource());

@@ -17,7 +17,7 @@ public final class BorderModule {
     }
 
     public static void init() {
-        OUT.info("FrontierMode - Border Module Initiating.");
+        OUT.info("[Border] init(): Module initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BorderIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> BorderJig.build());
         Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> BorderPlayerJig.build());

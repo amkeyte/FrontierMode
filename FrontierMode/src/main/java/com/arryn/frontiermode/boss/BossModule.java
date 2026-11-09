@@ -26,7 +26,7 @@ public final class BossModule {
     }
 
     public static void init() {
-        OUT.info("FrontierMode - Boss Module Initiating.");
+        OUT.info("[Boss] init(): Module initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> BossJigConfig.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> BossMobJigConfig.build());

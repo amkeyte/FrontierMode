@@ -22,7 +22,7 @@ public final class KeeperModule {
     }
 
     public static void init() {
-        OUT.info("FrontierMode - Keeper Module Initiating.");
+        OUT.info("[Keeper] init(): Module initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> KeeperIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> KeeperJigConfig.build());
         BossKinds.register(new KeeperKind());

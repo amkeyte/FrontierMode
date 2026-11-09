@@ -90,7 +90,7 @@ public final class BossFixture extends SatchelFixture {
     @Override
     public void onLoaded() {
         super.onLoaded();
-        OUT.info("            Bosses loaded: " + bosses.size());
+        OUT.info("[Boss] onLoaded(): Bosses loaded: " + bosses.size());
     }
 
     // ------------------------------------------------------------------

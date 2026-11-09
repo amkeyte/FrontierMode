@@ -65,7 +65,7 @@ public final class BossTellModule {
             ENCHANTMENTS.register("resonance", ResonanceEnchantment::new);
 
     public static void init() {
-        OUT.info("FrontierMode - BossTellModule Initiating.");
+        OUT.info("[BossTell] init(): Module initiating.");
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossTellIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> TellJigConfig.build());
         Satchel.contributePlayerTrinket("frontiermode:bosstell", JigPolicies.SideApplicability.SERVER, Order.NORMAL,

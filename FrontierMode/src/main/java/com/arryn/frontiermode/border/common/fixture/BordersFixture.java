@@ -157,7 +157,7 @@ public final class BordersFixture
                 + ", tip=" + (borderPath.isEmpty() ? "none" : borderPath.get(borderPath.size() - 1));
         if (!pathSummary.equals(lastLoggedPathSummary)) {
             lastLoggedPathSummary = pathSummary;
-            OUT.info("            [FRO_055] borderPath after load: " + pathSummary);
+            OUT.info("[Border] loadBorders(): borderPath after load: " + pathSummary);
         }
     }
 
@@ -189,7 +189,7 @@ public final class BordersFixture
     public void onLoaded() {
         super.onLoaded();
 
-        OUT.info("            Borders loaded: " + borders.size());
+        OUT.info("[Border] onLoaded(): Borders loaded: " + borders.size());
     }
 
 

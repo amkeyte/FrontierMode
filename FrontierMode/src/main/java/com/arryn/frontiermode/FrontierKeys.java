@@ -28,6 +28,10 @@ import com.arryn.satchel.common.jig.player.PlayerJig;
 
 public final class FrontierKeys {
 
+    // RM_FRO_003 (Barbara): the Border module's own jig -- BordersFixture in BordersBundle on
+    // BORDERS_JIG, a LevelJig. See BorderJig.build() for the schema wiring and
+    // wiki/frontiermode/architecture/border.md for the design.
+
     public static final BundleKey<BordersBundle> BORDERS_BUNDLE =
             new BundleKey<>(
                     "frontiermode:borders_bundle",
@@ -267,6 +271,10 @@ public final class FrontierKeys {
 
     public static final IngressKey CORE_INGRESS =
             new IngressKey("frontiermode:core");
+
+    // FRO_260: names the Border ingress, which carries the Info report's InfoRequest consumer and Forge's
+    // player respawn, translated into SicknessRespawn. Wired in BorderIngress.build(), registered from
+    // BorderModule.init().
 
     public static final IngressKey BORDER_INGRESS =
             new IngressKey("frontiermode:border");

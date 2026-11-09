@@ -23,6 +23,6 @@ public final class EffectsMod {
     }
 
     public static void init() {
-        OUT.info("FrontierMode - Effects Module Initiating.");
+        OUT.info("[Effects] init(): Module initiating.");
     }
 }
