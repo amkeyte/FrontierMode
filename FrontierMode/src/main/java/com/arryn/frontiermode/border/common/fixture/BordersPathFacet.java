@@ -229,36 +229,46 @@ public final class BordersPathFacet {
 // Ordered path mutation
 // ------------------------------------------------------------
 
-    public void moveDown(Border border) {
+    /**
+     * Moves {@code border} one place toward the start of the path. {@link Result.FailureKind#NOT_FOUND} if it is
+     * not on the path, {@link Result.FailureKind#VALIDATION_REJECTED} if it is already first.
+     */
+    public Result moveDown(Border border) {
         Satchel.requireServer();
 
         int idx = fixture.borderPath.indexOf(border.id());
         if (idx < 0) {
-            throw new IllegalStateException("Border is not present in the path.");
+            return Result.notFound("Border is not present in the path.");
         }
         if (idx == 0) {
-            throw new IllegalStateException("Border is already at the start of the path.");
+            return Result.validationRejected("Border is already at the start of the path.");
         }
 
         fixture.borderPath.remove(idx);
         fixture.borderPath.add(idx - 1, border.id());
         fixture.markPathDirty();
+        return Result.success(border);
     }
 
-    public void moveUp(Border border) {
+    /**
+     * Moves {@code border} one place toward the end of the path. {@link Result.FailureKind#NOT_FOUND} if it is
+     * not on the path, {@link Result.FailureKind#VALIDATION_REJECTED} if it is already last.
+     */
+    public Result moveUp(Border border) {
         Satchel.requireServer();
 
         int idx = fixture.borderPath.indexOf(border.id());
         if (idx < 0) {
-            throw new IllegalStateException("Border is not present in the path.");
+            return Result.notFound("Border is not present in the path.");
         }
         if (idx == fixture.borderPath.size() - 1) {
-            throw new IllegalStateException("Border is already at the end of the path.");
+            return Result.validationRejected("Border is already at the end of the path.");
         }
 
         fixture.borderPath.remove(idx);
         fixture.borderPath.add(idx + 1, border.id());
         fixture.markPathDirty();
+        return Result.success(border);
     }
 
     /**

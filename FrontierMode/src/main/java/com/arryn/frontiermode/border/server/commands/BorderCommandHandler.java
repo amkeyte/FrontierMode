@@ -297,7 +297,11 @@ public final class BorderCommandHandler {
             return notReady(source);
         }
         var path = pathOpt.get();
-        path.moveUp(border);
+        Result result = path.moveUp(border);
+        if (!result.isSuccess()) {
+            source.sendFailure(msg("Rejected: " + result.message()));
+            return 0;
+        }
 
         source.sendSuccess(
                 () -> msg("Moved border up in path."),
@@ -322,7 +326,11 @@ public final class BorderCommandHandler {
             return notReady(source);
         }
         var path = pathOpt.get();
-        path.moveDown(border);
+        Result result = path.moveDown(border);
+        if (!result.isSuccess()) {
+            source.sendFailure(msg("Rejected: " + result.message()));
+            return 0;
+        }
 
         source.sendSuccess(
                 () -> msg("Moved border down in path."),
