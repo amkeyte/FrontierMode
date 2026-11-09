@@ -16,8 +16,9 @@ import org.jetbrains.annotations.NotNull;
  * weapon carries it, per the project owner's own "kill anything" framing, not just one admin
  * item.
  *
- * <p>Treasure-only and {@code VERY_RARE} -- never offered at an enchant table or from any
- * vanilla trade/loot pool; the only sanctioned path onto a stack is
+ * <p>Treasure-only, not discoverable, not tradeable and {@code VERY_RARE} -- never offered at an
+ * enchant table, found as loot or sold by a villager (vanilla's librarian offers every enchantment whose
+ * {@code isTradeable()} is true, treasure-only ones included); the only sanctioned path onto a stack is
  * {@code /admin deathstick}'s direct construction.
  */
 public class DeathTouchEnchantment extends Enchantment {
@@ -34,6 +35,11 @@ public class DeathTouchEnchantment extends Enchantment {
 
     @Override
     public boolean isDiscoverable() {
+        return false;
+    }
+
+    @Override
+    public boolean isTradeable() {
         return false;
     }
 

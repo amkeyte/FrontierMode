@@ -10,10 +10,10 @@ import org.jetbrains.annotations.NotNull;
  * holder is told what the target is (see {@code AdminToolHandlers#onPlayerAttack}, the actual
  * mechanism; enchant classes get no combat hook from Forge). See wiki admin-tools.md.
  *
- * <p>Treasure-only and not discoverable -- never offered at a table, found as loot, or traded; the
- * only sanctioned path onto a stack is {@code /admin inspectstick}. Declares itself incompatible with
- * {@link DeathTouchEnchantment}: vanilla checks compatibility from both sides, so a stick is one tool
- * or the other.
+ * <p>Treasure-only, not discoverable and not tradeable -- never offered at a table, found as loot, or
+ * sold by a villager; the only sanctioned path onto a stack is {@code /admin inspectstick}. Declares
+ * itself incompatible with {@link DeathTouchEnchantment}: vanilla checks compatibility from both sides,
+ * so a stick is one tool or the other.
  */
 public class InspectEnchantment extends Enchantment {
 
@@ -29,6 +29,11 @@ public class InspectEnchantment extends Enchantment {
 
     @Override
     public boolean isDiscoverable() {
+        return false;
+    }
+
+    @Override
+    public boolean isTradeable() {
         return false;
     }
 

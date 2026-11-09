@@ -22,7 +22,8 @@ import java.util.WeakHashMap;
  * mobs it has shown a name tag on, and this tick's marked mobs with a role each, so it ends with the client's player
  * scope: a quit, a new world and a join to a server each start with the view off, and a change of dimension or a
  * respawn keeps it. Each client tick, while the view is on, it rebuilds the map of marked mobs; turning the view off
- * is noticed on the next tick, which puts back the name tags it touched and clears the map.
+ * is noticed on the next tick, which puts back the name tags it touched and clears the map. A player who no longer
+ * has permission level 2 has it turned off the same way.
  *
  * <p>Its own class names only common types, and calls {@link AdminViewClient}'s static methods from its
  * method bodies: a contribution names its class at mod init on every side, and a dedicated server must never
@@ -83,6 +84,12 @@ public final class DebugViewTick implements Ticking {
             return;
         }
         PlayerScope scope = info.scopeAs();
-        AdminViewClient.mark(scope.player().level(), marked, touched);
+        Player player = scope.player();
+        if (!player.hasPermissions(2)) {
+            on = false;
+            OUT.debug("[Admin] onTickAfter(): view turned off, the player no longer has permission level 2");
+            return;
+        }
+        AdminViewClient.mark(player.level(), marked, touched);
     }
 }

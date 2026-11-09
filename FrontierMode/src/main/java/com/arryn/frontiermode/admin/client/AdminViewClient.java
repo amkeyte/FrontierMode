@@ -32,7 +32,7 @@ import java.util.Set;
  * marker above bosses, sentinels and Ferals ({@link AdminViewMarkers}), the name tag on bosses, and
  * the border rings.
  * Entirely client-side and per player: nothing is sent, the server never sets the flags, and normal
- * play always shows none of it. {@code /admin debug view <true|false>}, default off, not persisted.
+ * play always shows none of it. {@code /admin debug view <true|false>}, operators only, default off, not persisted.
  *
  * <p>The client already knows which mobs to mark: bosses and sentinels through the synced
  * {@link BossMarkers}/{@link SentinelMarkers}, Ferals by position ({@link #isFeral}). While
@@ -49,7 +49,8 @@ import java.util.Set;
  *
  * <p>Registered on the client command dispatcher:
  * Forge's client and server command graphs are separate, so this runs locally regardless of the
- * server's own {@code /admin} tree. Client-only ({@code Dist.CLIENT}).
+ * server's own {@code /admin} tree, and only for an operator (permission level 2), as that tree is. Client-only
+ * ({@code Dist.CLIENT}).
  */
 @PlatformBound(reason = "commands")
 @Mod.EventBusSubscriber(modid = FrontierMode.MODID, value = Dist.CLIENT)
@@ -62,6 +63,9 @@ public final class AdminViewClient {
     public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
         event.getDispatcher().register(
                 Commands.literal("admin")
+                        // The source carries the player's own synced permission level, so this is the same
+                        // operator gate the server's /admin tree has.
+                        .requires(src -> src.hasPermission(2))
                         .then(Commands.literal("debug")
                                 .then(Commands.literal("view")
                                         .then(Commands.argument("visible", BoolArgumentType.bool())
