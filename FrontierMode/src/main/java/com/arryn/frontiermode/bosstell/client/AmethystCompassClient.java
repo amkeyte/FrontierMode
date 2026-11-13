@@ -68,12 +68,13 @@ public final class AmethystCompassClient {
      * pickup is a separate, legitimate acquisition path for an admin/debug tool -- same
      * category as vanilla's own command-block or spawn-egg items, which have no recipe either
      * but are still grabbable from creative. Placed in Tools and Utilities, matching where
-     * vanilla's own {@code Compass} lives.
+     * vanilla's own {@code Compass} lives. The Amethyst Eye sits beside it.
      */
     @SubscribeEvent
     public static void onBuildCreativeModeTabContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
             event.accept(BossTellModule.AMETHYST_COMPASS);
+            event.accept(BossTellModule.AMETHYST_EYE);
         }
     }
 }

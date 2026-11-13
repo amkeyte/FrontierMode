@@ -11,6 +11,7 @@ import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnPlacement;
 import com.arryn.frontiermode.structure.common.CairnRecord;
+import com.arryn.frontiermode.structure.common.CairnRules;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;

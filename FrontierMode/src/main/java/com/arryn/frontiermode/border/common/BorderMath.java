@@ -119,7 +119,7 @@ public final class BorderMath {
 
     /**
      * Uniform-in-disk XZ sample, centered on {@code center}, radius {@code radius} -- the same
-     * angle/distance shape {@code DefaultBorderRules.chooseNextCenter()} uses for its own
+     * angle/distance shape {@code BorderRules.chooseNextCenter()} uses for its own
      * (much smaller, fixed-30-block) offset, generalized to an arbitrary radius and a real
      * uniform-area distribution rather than a fixed-length hop.
      *

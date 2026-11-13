@@ -242,6 +242,17 @@ tasks.named('processTestResources') { dependsOn syncPlatformCheck }
 // A missing property will result in an error. Properties are expanded using ${} Groovy notation.
 // When "copyIdeResources" is enabled, this will also run before the game launches in IDE environments.
 // See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
+// Satchel interop line: while the version is 0.x.y, x is Satchel's interop version and any module sharing
+// that x works with it. satchel_min_version is the floor (raise it only when FrontierMode needs something
+// newer in Satchel); the ceiling is derived, the first release of the next line. It ends in -alpha because a
+// prerelease sorts below its release, so an exclusive ceiling of 0.3.0 would still admit 0.3.0-alpha.
+// At 1.0 the line becomes the first number, so this stops the build until the rule is revisited.
+def satchelFloor = satchel_min_version.tokenize('-')[0].tokenize('.')
+if (satchelFloor[0] != '0') {
+    throw new GradleException("satchel_min_version ${satchel_min_version} is past 0.x: update the interop-line rule in build.gradle (see the versioning page).")
+}
+def satchelMaxVersion = "0.${satchelFloor[1].toInteger() + 1}.0-alpha"
+
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version   : minecraft_version, minecraft_version_range: minecraft_version_range,
@@ -249,7 +260,7 @@ tasks.named('processResources', ProcessResources).configure {
             loader_version_range: loader_version_range,
             mod_id              : mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
             mod_authors         : mod_authors, mod_description: mod_description,
-            satchel_min_version : satchel_min_version,
+            satchel_min_version : satchel_min_version, satchel_max_version: satchelMaxVersion,
     ]
     inputs.properties replaceProperties
 

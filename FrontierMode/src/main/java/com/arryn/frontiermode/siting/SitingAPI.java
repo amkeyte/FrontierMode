@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.siting;
 
 import com.arryn.frontiermode.siting.common.SitingMath;
-import com.arryn.frontiermode.siting.server.rules.SitingRules;
+import com.arryn.frontiermode.siting.common.SitingRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
@@ -22,17 +22,17 @@ public final class SitingAPI {
 
     /** 0 (steepest) to 1 (flat) for {@code ground}'s immediate footprint. */
     public static double flatnessScore(Level level, BlockPos ground) {
-        return SitingRules.ACTIVE.flatnessScore(level, ground);
+        return SitingRules.flatnessScore(level, ground);
     }
 
     /** 0 (safe) to 1 (worst, disqualifying) for {@code ground}. */
     public static double hazardScore(Level level, BlockPos ground) {
-        return SitingRules.ACTIVE.hazardScore(level, ground);
+        return SitingRules.hazardScore(level, ground);
     }
 
     /** Footprint mode: pass/fail over a {@code size x size} area, with {@code clearance} blocks of air above. */
     public static boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
-        return SitingRules.ACTIVE.footprintSuitable(level, center, size, clearance);
+        return SitingRules.footprintSuitable(level, center, size, clearance);
     }
 
     /** Eight points per ring at {@code step}, {@code 2 x step}, ... out to {@code limit}, nearest ring first. */

@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.border.common.BorderRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
@@ -65,8 +65,8 @@ public final class BorderProposal {
     private void applyGeometryDefaults() {
         //Level scope = ((LevelScope) fixture.scope()).level();
         Level level = fixture.resolveLevel();
-        this.center = BorderRules.ACTIVE.chooseInitialCenter(level);
-        this.radius = BorderRules.ACTIVE.radiusForPathPosition(level, 1);
+        this.center = BorderRules.chooseInitialCenter(level);
+        this.radius = BorderRules.radiusForPathPosition(level, 1);
     }
 
     private void applyTopologyDefaults() {

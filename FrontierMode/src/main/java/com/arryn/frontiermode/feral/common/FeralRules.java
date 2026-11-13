@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.feral.server.rules;
+package com.arryn.frontiermode.feral.common;
 
 import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.out.OUT;

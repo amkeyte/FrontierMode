@@ -3,9 +3,7 @@ package com.arryn.frontiermode.difficulty;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.satchel.common.ingress.IngressConfig;
-import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Wolf;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -13,6 +11,7 @@ import net.minecraftforge.event.entity.living.AnimalTameEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * The holder class for the difficulty module's ingress: the three module events that carry the stat ladder
@@ -29,7 +28,7 @@ final class DifficultyIngress {
     static IngressConfig build() {
         IngressConfig ingress = new IngressConfig(FrontierKeys.DIFFICULTY_INGRESS);
         ingress.translate(EntityJoinLevelEvent.class, DifficultyIngress::freshMob, MobJoining::new);
-        ingress.translate(LivingHurtEvent.class, DifficultyIngress::ladderRecord, LadderHit::new);
+        ingress.translate(LivingHurtEvent.class, DifficultyIngress::damageMultiplier, LadderHit::new);
         ingress.translate(AnimalTameEvent.class, DifficultyIngress::wolf, WolfTaming::new);
         ingress.listenForAll(MobJoining.class, DifficultyHandlers::onMobJoining);
         ingress.listenForAll(LadderHit.class, DifficultyHandlers::onLadderHit);
@@ -52,12 +51,12 @@ final class DifficultyIngress {
 
     /**
      * The filter for a hit, which fires for every hit in the game: only one whose attacker carries a ladder
-     * damage multiplier gets an event built. The attacker's record is read here because the consumer needs
-     * the multiplier itself, so a presence-only test would read the compound twice.
+     * damage multiplier gets an event built. The multiplier is read here, by {@code Ladder}, because the
+     * consumer needs the value itself, so a presence-only test would read the attacker's record twice.
      */
-    private static Optional<CompoundTag> ladderRecord(LivingHurtEvent event) {
-        CompoundTag ladder = MobData.readAttacker(event.getSource(), Ladder.NAMESPACE);
-        return Ladder.hasDamageMultiplier(ladder) ? Optional.of(ladder) : Optional.empty();
+    private static Optional<Double> damageMultiplier(LivingHurtEvent event) {
+        OptionalDouble multiplier = Ladder.damageMultiplierOf(event.getSource());
+        return multiplier.isPresent() ? Optional.of(multiplier.getAsDouble()) : Optional.empty();
     }
 
     /** Only a wolf is tamed into an ally; every other animal is dropped. */

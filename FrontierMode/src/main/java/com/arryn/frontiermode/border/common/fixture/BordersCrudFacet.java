@@ -2,8 +2,8 @@ package com.arryn.frontiermode.border.common.fixture;
 
 
 import com.arryn.frontiermode.border.common.BorderConstants;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.satchel.Satchel;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -53,7 +53,7 @@ public class BordersCrudFacet {
     /**
      * Real validation logic. Layer collisions are not rejected: Layer and Path are
      * definitionally unrelated (see Border Vocabulary's own "Layer" section, "only
-     * coincidentally tied to Path"), and {@code DefaultBorderRules.getRelevant()} already fully
+     * coincidentally tied to Path"), and {@code BorderRules.getRelevant()} already fully
      * resolves a same-layer overlap by nearest center (see that method, and Border
      * Vocabulary's Relevance section: "lowest Layer wins, tie-broken by nearest center"). Two
      * borders sharing a layer, even two that geometrically overlap, resolve deterministically
@@ -160,7 +160,7 @@ public class BordersCrudFacet {
      * fixture-blind by design -- see {@code BorderRules}'s own interface doc).
      */
     public String getDefaultDisplayName() {
-        List<String> names = new ArrayList<>(BorderRules.ACTIVE.borderNames());
+        List<String> names = new ArrayList<>(BorderRules.borderNames());
         if (names.isEmpty()) {
             return "unknown";
         }

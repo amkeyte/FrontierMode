@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.siting;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.siting.common.SitingMath;
-import com.arryn.frontiermode.siting.server.rules.SitingRules;
+import com.arryn.frontiermode.siting.common.SitingRules;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.PlayerRespawnLogic;
@@ -40,14 +40,13 @@ final class StartingSite {
 
     /** The chosen spawn for a brand-new world. Never null: vanilla's own spawn is the last resort. */
     static BlockPos search(ServerLevel level) {
-        SitingRules rules = SitingRules.ACTIVE;
         long started = System.nanoTime();
 
         BlockPos vanilla = vanillaSpawn(level);
-        int radius = BorderRules.ACTIVE.radiusForPathPosition(level, 1);
+        int radius = BorderRules.radiusForPathPosition(level, 1);
         SitingMath.Requirements need = new SitingMath.Requirements(
-                rules.startingSiteMinLogs(), rules.startingSiteMaxWater(), rules.startingSiteMinStoneColumns());
-        int maxChecks = rules.startingSiteMaxFullChecks();
+                SitingRules.startingSiteMinLogs(), SitingRules.startingSiteMaxWater(), SitingRules.startingSiteMinStoneColumns());
+        int maxChecks = SitingRules.startingSiteMaxFullChecks();
 
         BlockPos best = null;
         double bestScore = Double.NEGATIVE_INFINITY;
@@ -56,7 +55,7 @@ final class StartingSite {
 
         List<BlockPos> candidates = new ArrayList<>();
         candidates.add(vanilla);
-        candidates.addAll(SitingAPI.ringCandidates(vanilla, rules.startingSiteRingStep(), rules.startingSiteSearchLimit()));
+        candidates.addAll(SitingAPI.ringCandidates(vanilla, SitingRules.startingSiteRingStep(), SitingRules.startingSiteSearchLimit()));
 
         OUT.info("[Siting] starting-site search begins: vanilla spawn " + vanilla.getX() + ", " + vanilla.getY()
                 + ", " + vanilla.getZ() + " (" + (System.nanoTime() - started) / 1_000_000L + " ms to find it); "
@@ -82,7 +81,7 @@ final class StartingSite {
                 continue;
             }
             checks++;
-            Measured measured = read(level, spot, radius, rules);
+            Measured measured = read(level, spot, radius);
             SitingMath.Verdict verdict = SitingMath.judge(measured.reading(), need);
             SitingMath.Reading r = measured.reading();
             OUT.info("[Siting]   #" + i + " " + describe(spot) + " full check " + checks + "/" + maxChecks + ": "
@@ -210,7 +209,7 @@ final class StartingSite {
      * columns, columns with natural stone close to the surface, and whether one of 20 points in the disc's
      * outer share is a hazard-free spot for the first Keeper.
      */
-    private static Measured read(Level level, BlockPos center, int radius, SitingRules rules) {
+    private static Measured read(Level level, BlockPos center, int radius) {
         long generateStart = System.nanoTime();
         int minChunkX = (center.getX() - radius) >> 4;
         int maxChunkX = (center.getX() + radius) >> 4;
@@ -224,8 +223,8 @@ final class StartingSite {
         long generateMs = millisSince(generateStart);
         long scanStart = System.nanoTime();
 
-        int logDepth = rules.startingSiteLogDepth();
-        int stoneDepth = rules.startingSiteStoneDepth();
+        int logDepth = SitingRules.startingSiteLogDepth();
+        int stoneDepth = SitingRules.startingSiteStoneDepth();
         int logs = 0;
         int waterColumns = 0;
         int stoneColumns = 0;

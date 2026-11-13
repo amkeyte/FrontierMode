@@ -1,7 +1,5 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import net.minecraft.nbt.CompoundTag;
-
 import java.util.Objects;
 import java.util.UUID;
 
@@ -61,21 +59,5 @@ public final class BorderPregenRecord {
     @Override
     public int hashCode() {
         return borderId.hashCode();
-    }
-
-    static CompoundTag save(BorderPregenRecord r) {
-        CompoundTag tag = new CompoundTag();
-        tag.putUUID("borderId", r.borderId);
-        tag.putBoolean("complete", r.complete);
-        tag.putInt("cursor", r.cursor);
-        return tag;
-    }
-
-    static BorderPregenRecord load(CompoundTag tag) {
-        return new BorderPregenRecord(
-                tag.getUUID("borderId"),
-                tag.getBoolean("complete"),
-                tag.getInt("cursor")
-        );
     }
 }

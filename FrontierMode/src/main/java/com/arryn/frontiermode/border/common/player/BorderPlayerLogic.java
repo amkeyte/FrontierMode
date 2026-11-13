@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.border.common.player;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.FrontierSicknessLogic;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
 import net.minecraft.core.BlockPos;
 
@@ -72,7 +72,7 @@ final class BorderPlayerLogic {
         double target = FrontierSicknessLogic.severityTarget(frontierDistance, PlayerRules.SICKNESS_TARGET_SCALE);
         double sicknessSeverity = FrontierSicknessLogic.climbSeverity(previousSeverity, target, PlayerRules.SICKNESS_CLIMB_RATE);
 
-        // Borders are concentric per layer (DefaultBorderRules' own class doc), so a player deep
+        // Borders are concentric per layer (BorderRules' own class doc), so a player deep
         // inside a fully-grown border stack is inside every layer at once. Picking whichever
         // border's raw distanceToSurface is smallest (most negative) would be wrong: a bigger
         // radius makes that number MORE negative, so it would always pick the OUTERMOST containing
@@ -80,7 +80,7 @@ final class BorderPlayerLogic {
         //
         // BorderRules.getRelevant(containing, pos) already defines the correct, established
         // semantics for this exact question -- lowest layer wins among borders the position
-        // is actually inside, ties broken by nearest center (see DefaultBorderRules.getRelevant,
+        // is actually inside, ties broken by nearest center (see BorderRules.getRelevant,
         // already the single source of truth other facets reference for this ranking, e.g.
         // BordersCrudFacet/BordersPathFacet's own comments). Delegating to it here instead of
         // duplicating the ranking keeps this in sync with that one authoritative implementation
@@ -89,7 +89,7 @@ final class BorderPlayerLogic {
                 .filter(b -> BorderAPI.MATH.isInside(b, pos))
                 .toList();
 
-        Border relevant = BorderRules.ACTIVE.getRelevant(containing, pos);
+        Border relevant = BorderRules.getRelevant(containing, pos);
 
         if (relevant != null) {
             // The Relevant border is also the nearest border in this branch (it's a member of

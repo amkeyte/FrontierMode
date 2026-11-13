@@ -70,21 +70,55 @@ public final class BossFixture extends SatchelFixture {
 
         ListTag list = new ListTag();
         for (BossRecord record : bosses) {
-            list.add(BossRecord.save(record));
+            list.add(saveBoss(record));
         }
         root.put(KEY_BOSSES, list);
     }
 
     private void loadBosses(CompoundTag root) {
+        bosses.clear();
         if (!root.contains(KEY_BOSSES, Tag.TAG_LIST)) {
             return;
         }
-        bosses.clear();
 
         ListTag list = root.getList(KEY_BOSSES, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            bosses.add(BossRecord.load((CompoundTag) t));
+            bosses.add(loadBoss((CompoundTag) t));
         }
+    }
+
+    private static CompoundTag saveBoss(BossRecord r) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("bossId", r.bossId());
+        tag.putString("kind", r.kind());
+        tag.putBoolean("hasPosition", r.position() != null);
+        if (r.position() != null) {
+            tag.putInt("x", r.position().getX());
+            tag.putInt("y", r.position().getY());
+            tag.putInt("z", r.position().getZ());
+        }
+        tag.putBoolean("hasEntity", r.bossEntityId() != null);
+        if (r.bossEntityId() != null) {
+            tag.putUUID("bossEntityId", r.bossEntityId());
+        }
+        tag.putBoolean("alive", r.alive());
+        tag.putFloat("scale", r.scale());
+        return tag;
+    }
+
+    private static BossRecord loadBoss(CompoundTag tag) {
+        BlockPos position = tag.getBoolean("hasPosition")
+                ? new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"))
+                : null;
+        UUID entityId = tag.getBoolean("hasEntity") ? tag.getUUID("bossEntityId") : null;
+        return new BossRecord(
+                tag.getUUID("bossId"),
+                tag.getString("kind"),
+                position,
+                entityId,
+                tag.getBoolean("alive"),
+                tag.getFloat("scale")
+        );
     }
 
     @Override

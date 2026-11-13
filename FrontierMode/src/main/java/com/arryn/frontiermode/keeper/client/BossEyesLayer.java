@@ -23,8 +23,15 @@ import net.minecraft.world.entity.LivingEntity;
  * Keeper kind" (via {@link BossMarkers}) -- not the vanilla {@code Glowing} tag or a
  * scoreboard team (boss.md's "Client-side visual marker"). Plain vanilla mobs of the same type, and another
  * kind's bosses, are untouched.
+ *
+ * <p>The eyes show how hurt the Keeper is (keeper.md § Client-side eyes and flash): the brightness scales with the
+ * body's health over its maximum, both of which the client already holds, down to {@link #BRIGHTNESS_FLOOR} so a
+ * hurt Keeper stays findable.
  */
 public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
+
+    // How bright the eyes are at no health: they never go fully dark. Set by eye.
+    private static final float BRIGHTNESS_FLOOR = 0.25F;
 
     private final RenderType renderType;
 
@@ -41,6 +48,9 @@ public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T
             return;
         }
         VertexConsumer vc = buffer.getBuffer(renderType);
-        getParentModel().renderToBuffer(pose, vc, 15728640, OverlayTexture.NO_OVERLAY, 1.0F, 1.0F, 1.0F, 1.0F);
+        float fraction = Math.max(0.0F, Math.min(1.0F, entity.getHealth() / entity.getMaxHealth()));
+        float brightness = BRIGHTNESS_FLOOR + (1.0F - BRIGHTNESS_FLOOR) * fraction;
+        getParentModel().renderToBuffer(pose, vc, 15728640, OverlayTexture.NO_OVERLAY,
+                brightness, brightness, brightness, 1.0F);
     }
 }

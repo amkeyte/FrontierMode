@@ -11,6 +11,7 @@ import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.core.WidePathing;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.sentinel.common.SentinelRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;

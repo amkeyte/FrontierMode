@@ -1,7 +1,5 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import net.minecraft.nbt.CompoundTag;
-
 import java.util.Objects;
 import java.util.UUID;
 
@@ -74,25 +72,5 @@ public final class BorderCurve {
     @Override
     public int hashCode() {
         return id.hashCode();
-    }
-
-    static CompoundTag save(BorderCurve c) {
-        CompoundTag tag = new CompoundTag();
-        tag.putUUID("id", c.id);
-        tag.putUUID("borderId", c.borderId);
-        tag.putString("purpose", c.purpose);
-        tag.putString("shape", c.shape.name());
-        tag.putDouble("steepness", c.steepness);
-        return tag;
-    }
-
-    static BorderCurve load(CompoundTag tag) {
-        return new BorderCurve(
-                tag.getUUID("id"),
-                tag.getUUID("borderId"),
-                tag.getString("purpose"),
-                Shape.valueOf(tag.getString("shape")),
-                tag.getDouble("steepness")
-        );
     }
 }

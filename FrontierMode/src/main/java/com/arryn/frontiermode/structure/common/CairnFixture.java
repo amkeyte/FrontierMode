@@ -113,20 +113,46 @@ public final class CairnFixture extends SatchelFixture {
 
         ListTag list = new ListTag();
         for (CairnRecord record : cairns) {
-            list.add(CairnRecord.save(record));
+            list.add(saveCairn(record));
         }
         root.put(KEY_CAIRNS, list);
     }
 
     private void loadCairns(CompoundTag root) {
+        cairns.clear();
         if (!root.contains(KEY_CAIRNS, Tag.TAG_LIST)) {
             return;
         }
-        cairns.clear();
 
         ListTag list = root.getList(KEY_CAIRNS, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            cairns.add(CairnRecord.load((CompoundTag) t));
+            cairns.add(loadCairn((CompoundTag) t));
         }
+    }
+
+    private static CompoundTag saveCairn(CairnRecord r) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("cairnId", r.cairnId());
+        tag.putUUID("bossId", r.bossId());
+        tag.putBoolean("hasAnchor", r.anchorPos() != null);
+        if (r.anchorPos() != null) {
+            tag.putInt("ax", r.anchorPos().getX());
+            tag.putInt("ay", r.anchorPos().getY());
+            tag.putInt("az", r.anchorPos().getZ());
+        }
+        tag.putInt("lx", r.lastKnownBossPos().getX());
+        tag.putInt("ly", r.lastKnownBossPos().getY());
+        tag.putInt("lz", r.lastKnownBossPos().getZ());
+        return tag;
+    }
+
+    private static CairnRecord loadCairn(CompoundTag tag) {
+        UUID bossId = tag.getUUID("bossId");
+        UUID cairnId = tag.getUUID("cairnId");
+        BlockPos anchor = tag.getBoolean("hasAnchor")
+                ? new BlockPos(tag.getInt("ax"), tag.getInt("ay"), tag.getInt("az"))
+                : null;
+        BlockPos lastKnown = new BlockPos(tag.getInt("lx"), tag.getInt("ly"), tag.getInt("lz"));
+        return new CairnRecord(cairnId, bossId, anchor, lastKnown);
     }
 }

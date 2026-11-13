@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -90,34 +89,5 @@ public final class Border {
     @Override
     public int hashCode() {
         return id.hashCode();
-    }
-
-    static CompoundTag save(Border b) {
-        CompoundTag tag = new CompoundTag();
-        tag.putUUID("id", b.id);
-        tag.putInt("x", b.center.getX());
-        tag.putInt("y", b.center.getY());
-        tag.putInt("z", b.center.getZ());
-        tag.putInt("radius", b.radius);
-        tag.putInt("layer", b.layerIndex);
-
-        //[Arryn] possibly change displayName default to something useful "Unknown" or something.
-        if (b.displayName != null) {
-            tag.putString("displayName", b.displayName);
-        }        return tag;
-    }
-
-    static Border load(CompoundTag tag) {
-        return new Border(
-                tag.getUUID("id"),
-                tag.getString("displayName"),
-                new BlockPos(
-                        tag.getInt("x"),
-                        tag.getInt("y"),
-                        tag.getInt("z")
-                ),
-                tag.getInt("radius"),
-                tag.getInt("layer")
-        );
     }
 }

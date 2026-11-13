@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -156,39 +155,5 @@ public final class BossRecord {
     @Override
     public int hashCode() {
         return bossId.hashCode();
-    }
-
-    static CompoundTag save(BossRecord r) {
-        CompoundTag tag = new CompoundTag();
-        tag.putUUID("bossId", r.bossId);
-        tag.putString("kind", r.kind);
-        tag.putBoolean("hasPosition", r.position != null);
-        if (r.position != null) {
-            tag.putInt("x", r.position.getX());
-            tag.putInt("y", r.position.getY());
-            tag.putInt("z", r.position.getZ());
-        }
-        tag.putBoolean("hasEntity", r.bossEntityId != null);
-        if (r.bossEntityId != null) {
-            tag.putUUID("bossEntityId", r.bossEntityId);
-        }
-        tag.putBoolean("alive", r.alive);
-        tag.putFloat("scale", r.scale);
-        return tag;
-    }
-
-    static BossRecord load(CompoundTag tag) {
-        BlockPos position = tag.getBoolean("hasPosition")
-                ? new BlockPos(tag.getInt("x"), tag.getInt("y"), tag.getInt("z"))
-                : null;
-        UUID entityId = tag.getBoolean("hasEntity") ? tag.getUUID("bossEntityId") : null;
-        return new BossRecord(
-                tag.getUUID("bossId"),
-                tag.getString("kind"),
-                position,
-                entityId,
-                tag.getBoolean("alive"),
-                tag.getFloat("scale")
-        );
     }
 }

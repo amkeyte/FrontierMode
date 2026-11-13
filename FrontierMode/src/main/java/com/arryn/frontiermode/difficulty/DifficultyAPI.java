@@ -1,8 +1,8 @@
 package com.arryn.frontiermode.difficulty;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.difficulty.common.DifficultyRules;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
-import com.arryn.frontiermode.difficulty.server.rules.DifficultyRules;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
@@ -79,10 +79,9 @@ public final class DifficultyAPI {
             return RungOutcome.NO_PATH_TIP;
         }
         int n = tip.getAsInt();
-        DifficultyRules rules = DifficultyRules.ACTIVE;
         boolean applied = Ladder.apply(mob, Ladder.RUNG_FERAL, n,
-                LadderMath.multiplier(rules.feralHealthGrowth(), n),
-                LadderMath.multiplier(rules.feralDamageGrowth(), n));
+                LadderMath.multiplier(DifficultyRules.feralHealthGrowth(), n),
+                LadderMath.multiplier(DifficultyRules.feralDamageGrowth(), n));
         return applied ? RungOutcome.APPLIED : RungOutcome.ALREADY_RUNG;
     }
 
@@ -105,14 +104,12 @@ public final class DifficultyAPI {
 
     /** The Keeper's health growth: the ordinary growth plus the Keeper's (boss.md § Keeper stats). */
     public static double keeperHealthGrowthTotal() {
-        DifficultyRules rules = DifficultyRules.ACTIVE;
-        return rules.ordinaryHealthGrowth() + rules.keeperHealthGrowth();
+        return DifficultyRules.ordinaryHealthGrowth() + DifficultyRules.keeperHealthGrowth();
     }
 
     /** The Keeper's damage growth: the ordinary growth plus the Keeper's. */
     public static double keeperDamageGrowthTotal() {
-        DifficultyRules rules = DifficultyRules.ACTIVE;
-        return rules.ordinaryDamageGrowth() + rules.keeperDamageGrowth();
+        return DifficultyRules.ordinaryDamageGrowth() + DifficultyRules.keeperDamageGrowth();
     }
 
     /**
@@ -132,11 +129,10 @@ public final class DifficultyAPI {
      * the level, so the ordinary rung never touches it. {@code false} if a rung already had it.
      */
     public static boolean applySentinelRung(Mob mob, int keeperPathPosition, double difficultyIntensity) {
-        DifficultyRules rules = DifficultyRules.ACTIVE;
-        double healthGrowth = LadderMath.sentinelGrowth(rules.ordinaryHealthGrowth(),
-                rules.sentinelHealthGrowthFar(), rules.sentinelHealthGrowthNear(), difficultyIntensity);
-        double damageGrowth = LadderMath.sentinelGrowth(rules.ordinaryDamageGrowth(),
-                rules.sentinelDamageGrowthFar(), rules.sentinelDamageGrowthNear(), difficultyIntensity);
+        double healthGrowth = LadderMath.sentinelGrowth(DifficultyRules.ordinaryHealthGrowth(),
+                DifficultyRules.sentinelHealthGrowthFar(), DifficultyRules.sentinelHealthGrowthNear(), difficultyIntensity);
+        double damageGrowth = LadderMath.sentinelGrowth(DifficultyRules.ordinaryDamageGrowth(),
+                DifficultyRules.sentinelDamageGrowthFar(), DifficultyRules.sentinelDamageGrowthNear(), difficultyIntensity);
         return Ladder.apply(mob, Ladder.RUNG_SENTINEL, keeperPathPosition,
                 LadderMath.multiplier(healthGrowth, keeperPathPosition),
                 LadderMath.multiplier(damageGrowth, keeperPathPosition));

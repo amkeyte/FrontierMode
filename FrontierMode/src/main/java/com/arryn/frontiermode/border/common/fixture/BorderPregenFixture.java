@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.BorderPregenLogic;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -51,10 +51,10 @@ public final class BorderPregenFixture extends SatchelFixture {
 
     private static final String KEY_JOBS = "pregenJobs";
 
-    // Exact throttle budget lives on BorderRules/DefaultBorderRules (pregenChunksPerBatch() /
+    // Exact throttle budget lives on BorderRules (pregenChunksPerBatch() /
     // pregenThrottleIntervalTicks()) as a Lead Dev-tunable coefficient, per
     // wiki/frontiermode/architecture/border-pregeneration.md's "Open questions" -- not
-    // a hardcoded constant here. See DefaultBorderRules for the current values and the playtest
+    // a hardcoded constant here. See BorderRules for the current values and the playtest
     // notes behind them.
 
     // Liveness check: fires every STALL_CHECK_INTERVAL_TICKS and crashes if an
@@ -66,7 +66,7 @@ public final class BorderPregenFixture extends SatchelFixture {
     private static final long STALL_CHECK_INTERVAL_TICKS = 200L;
 
     // A grown border's disk is concentric with its predecessor's -- same center, bigger radius
-    // (see BordersPathFacet.grow()/DefaultBorderRules' "reuses the previous center" comment) --
+    // (see BordersPathFacet.grow()/BorderRules' "reuses the previous center" comment) --
     // so a large inner prefix of a new layer's offset list was very likely already forced to
     // FULL by the previous layer's own completed job. runBatch() prechecks each offset with a
     // non-forcing getChunk(status, false) status lookup before paying for real generation; an
@@ -79,7 +79,7 @@ public final class BorderPregenFixture extends SatchelFixture {
 
     private final List<BorderPregenRecord> jobs = new ArrayList<>();
     private final TickThrottler throttler =
-            new TickThrottler(BorderRules.ACTIVE.pregenThrottleIntervalTicks(), new SchedulerClock.AutoClock());
+            new TickThrottler(BorderRules.pregenThrottleIntervalTicks(), new SchedulerClock.AutoClock());
 
     private final TickThrottler stallCheckThrottler =
             new TickThrottler(STALL_CHECK_INTERVAL_TICKS, new SchedulerClock.AutoClock());
@@ -103,21 +103,37 @@ public final class BorderPregenFixture extends SatchelFixture {
 
         ListTag list = new ListTag();
         for (BorderPregenRecord record : jobs) {
-            list.add(BorderPregenRecord.save(record));
+            list.add(saveJob(record));
         }
         root.put(KEY_JOBS, list);
     }
 
     private void loadJobs(CompoundTag root) {
+        jobs.clear();
         if (!root.contains(KEY_JOBS, Tag.TAG_LIST)) {
             return;
         }
-        jobs.clear();
 
         ListTag list = root.getList(KEY_JOBS, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            jobs.add(BorderPregenRecord.load((CompoundTag) t));
+            jobs.add(loadJob((CompoundTag) t));
         }
+    }
+
+    private static CompoundTag saveJob(BorderPregenRecord r) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("borderId", r.borderId());
+        tag.putBoolean("complete", r.complete());
+        tag.putInt("cursor", r.cursor());
+        return tag;
+    }
+
+    private static BorderPregenRecord loadJob(CompoundTag tag) {
+        return new BorderPregenRecord(
+                tag.getUUID("borderId"),
+                tag.getBoolean("complete"),
+                tag.getInt("cursor")
+        );
     }
 
     // ------------------------------------------------------------------
@@ -298,7 +314,7 @@ public final class BorderPregenFixture extends SatchelFixture {
         // at either way (the MAX_OFFSETS_SCANNED_PER_BATCH safety valve above). Cursor still
         // just indexes the same deterministic offset list either way -- resumability is
         // unaffected by how many of a given batch turned out to be skips.
-        int chunksPerBatch = BorderRules.ACTIVE.pregenChunksPerBatch();
+        int chunksPerBatch = BorderRules.pregenChunksPerBatch();
         int generated = 0;
         int scanned = 0;
         int i = record.cursor();

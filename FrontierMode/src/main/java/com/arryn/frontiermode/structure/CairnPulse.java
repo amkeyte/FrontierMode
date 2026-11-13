@@ -5,6 +5,7 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import com.arryn.frontiermode.structure.common.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnRecord;
+import com.arryn.frontiermode.structure.common.CairnRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;

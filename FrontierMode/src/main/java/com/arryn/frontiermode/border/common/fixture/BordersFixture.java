@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
@@ -108,7 +109,7 @@ public final class BordersFixture
 
         ListTag list = new ListTag();
         for (Border border : borders) {
-            list.add(Border.save(border));
+            list.add(saveBorder(border));
         }
         root.put(KEY_BORDERS, list);
 
@@ -121,26 +122,23 @@ public final class BordersFixture
     }
 
     private void loadBorders(CompoundTag root) {
-
-        if (!root.contains(KEY_BORDERS, Tag.TAG_LIST)) {
-            return;
-        }
+        // Both lists are cleared first, whether or not the blob carries their keys: this callback runs
+        // again on every client refresh with no lifecycle transition between, so a load replaces what is
+        // here. Appending onto the old path would re-append the server's complete path on top of what is
+        // already here, duplicating every prior entry instead of replacing them. Anything sensitive to
+        // path order/contents/size (moveUp/moveDown, indexOf, insert's duplicate-id guard, fixLayers)
+        // would see corrupted, duplicate-laden state.
         borders.clear();
+        borderPath.clear();
 
-        ListTag list = root.getList(KEY_BORDERS, Tag.TAG_COMPOUND);
-        for (Tag t : list) {
-            borders.add(Border.load((CompoundTag) t));
+        if (root.contains(KEY_BORDERS, Tag.TAG_LIST)) {
+            ListTag list = root.getList(KEY_BORDERS, Tag.TAG_COMPOUND);
+            for (Tag t : list) {
+                borders.add(loadBorder((CompoundTag) t));
+            }
         }
-
 
         // border path
-        // Cleared first, like borders.clear() above: this callback runs again on every client
-        // refresh with no lifecycle transition between, and appending onto the old list would
-        // re-append the server's complete path on top of what is already here, duplicating every
-        // prior entry instead of replacing them. Anything sensitive to path order/contents/size
-        // (moveUp/moveDown, indexOf, insert's duplicate-id guard, fixLayers) would see corrupted,
-        // duplicate-laden state.
-        borderPath.clear();
         if (root.contains(KEY_BORDER_PATH, Tag.TAG_LIST)) {
             ListTag pathTag = root.getList(KEY_BORDER_PATH, Tag.TAG_INT_ARRAY);
             for (Tag tag : pathTag) {
@@ -159,6 +157,36 @@ public final class BordersFixture
             lastLoggedPathSummary = pathSummary;
             OUT.info("[Border] loadBorders(): borderPath after load: " + pathSummary);
         }
+    }
+
+    private static CompoundTag saveBorder(Border b) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("id", b.id());
+        tag.putInt("x", b.center().getX());
+        tag.putInt("y", b.center().getY());
+        tag.putInt("z", b.center().getZ());
+        tag.putInt("radius", b.radius());
+        tag.putInt("layer", b.layer());
+
+        //[Arryn] possibly change displayName default to something useful "Unknown" or something.
+        if (b.displayName() != null) {
+            tag.putString("displayName", b.displayName());
+        }
+        return tag;
+    }
+
+    private static Border loadBorder(CompoundTag tag) {
+        return new Border(
+                tag.getUUID("id"),
+                tag.getString("displayName"),
+                new BlockPos(
+                        tag.getInt("x"),
+                        tag.getInt("y"),
+                        tag.getInt("z")
+                ),
+                tag.getInt("radius"),
+                tag.getInt("layer")
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -268,7 +296,7 @@ public final class BordersFixture
      * {@code target[borderPath.get(i)] = i}).
      *
      * <p>Off-path borders are not bumped out of the way: Layer and Path are definitionally
-     * unrelated, and {@code DefaultBorderRules.getRelevant()} resolves a same-layer overlap by
+     * unrelated, and {@code BorderRules.getRelevant()} resolves a same-layer overlap by
      * nearest center (see {@code BordersCrudFacet}'s own doc for the full reasoning), so a path
      * member's layer is simply set to its path index without checking what any off-path border
      * holds -- duplicate layers are legitimate, not a collision to avoid.

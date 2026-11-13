@@ -12,6 +12,7 @@ import com.arryn.frontiermode.boss.CreditTally;
 import com.arryn.frontiermode.boss.HealthBar;
 import com.arryn.frontiermode.boss.Leash;
 import com.arryn.frontiermode.boss.Persistent;
+import com.arryn.frontiermode.boss.Recovery;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
 import com.arryn.frontiermode.boss.common.BossKind;
@@ -287,8 +288,8 @@ public final class KeeperKind implements BossKind {
 
     /**
      * The Keeper's mob-side abilities (keeper.md § Abilities). The hitbox follows the record's scale on both sides; the
-     * rest are the server's: the damage tally, the leash (the first Keeper has its own, shorter radius), the health bar
-     * for a milestone Keeper, the Sentinels' defense, and the three rules that keep a live Keeper what it is (it never
+     * rest are the server's: the damage tally, the leash (the first Keeper has its own, shorter radius), recovery (a
+     * hurt Keeper heals like the Wither), the health bar for a milestone Keeper, the Sentinels' defense, and the three rules that keep a live Keeper what it is (it never
      * converts, takes no fire damage, and is left alone by allies).
      */
     @Override
@@ -304,6 +305,7 @@ public final class KeeperKind implements BossKind {
         host.subscribe(new CreditTally(boss));
         double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? leashRadiusFirst() : Leash.standardRadius();
         host.subscribe(new Leash(boss, radius));
+        host.subscribe(new Recovery(boss, recoverySeconds()));
         if (KeeperAPI.isMilestone(keeper)) {
             host.subscribe(new HealthBar(boss, KeeperSetup.BOSS_NAME));
         }
@@ -311,6 +313,12 @@ public final class KeeperKind implements BossKind {
         host.subscribe(new NoConvert());
         host.subscribe(new FireAndSunProof());
         host.subscribe(new AllyTruce());
+    }
+
+    // Seconds a Keeper takes to recover from empty to full health: the Wither's own ratio, which heals 1 health a
+    // second on a maximum of 300 (boss.md § The Recovery ability).
+    private static int recoverySeconds() {
+        return new Tunable("keeperRecoverySeconds", 30, 3600, 300).intValue();
     }
 
     // The level 1 Keeper's own, shorter leash: a Rabbit is fast and small, and the first Border is radius 8, so the

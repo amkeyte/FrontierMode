@@ -1,11 +1,13 @@
 {
   "item.frontiermode.amethyst_compass": "Amethyst Compass",
+  "item.frontiermode.amethyst_eye": "Amethyst Eye",
   "item.frontiermode.sun_ward": "Sun Ward",
   "item.frontiermode.diorite_dust": "Diorite Dust",
   "item.frontiermode.diorite_shard": "Diorite Shard",
   "item.frontiermode.diorite_striker": "Diorite Striker",
   "item.frontiermode.edge_stone": "Edge Stone",
   "entity.frontiermode.edge_stone": "Edge Stone",
+  "entity.frontiermode.amethyst_eye": "Amethyst Eye",
   "enchantment.frontiermode.intuition": "Intuition",
   "enchantment.frontiermode.resonance": "Resonance",
   "enchantment.frontiermode.death_touch": "Death Touch",

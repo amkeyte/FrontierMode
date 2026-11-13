@@ -1,16 +1,22 @@
 package com.arryn.frontiermode.difficulty;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Mob;
+
+import java.util.OptionalDouble;
 
 /**
  * The ladder's data on a mob: the {@code frontiermode:ladder} MobData namespace, holding the rung and
  * the two multipliers (difficulty.md § Where the multipliers live). Module code touches a mob's
- * stats only through {@link MobData}; nothing here reads or writes a raw attribute.
+ * stats only through {@link MobData}; nothing here reads or writes a raw attribute. This class is the one place
+ * the namespace's tag is touched: what leaves it is a rung, a step, a multiplier or a line of text, never the tag.
  */
+@PlatformBound(reason = "mob data namespace")
 final class Ladder {
 
     static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "ladder");
@@ -79,12 +85,15 @@ final class Ladder {
         return MobData.read(mob, NAMESPACE).getString(KEY_RUNG);
     }
 
-    static boolean hasDamageMultiplier(CompoundTag ladderData) {
-        return ladderData.contains(KEY_DAMAGE, Tag.TAG_DOUBLE);
-    }
-
-    /** The damage multiplier in {@code ladderData}; check {@link #hasDamageMultiplier} first. */
-    static double damageMultiplier(CompoundTag ladderData) {
-        return ladderData.getDouble(KEY_DAMAGE);
+    /**
+     * The damage multiplier of whatever dealt {@code source}'s damage, read from its ladder record
+     * ({@link MobData#readAttacker}); empty when the record holds none, which is every hit that did not come
+     * from something a rung has reached.
+     */
+    static OptionalDouble damageMultiplierOf(DamageSource source) {
+        CompoundTag ladder = MobData.readAttacker(source, NAMESPACE);
+        return ladder.contains(KEY_DAMAGE, Tag.TAG_DOUBLE)
+                ? OptionalDouble.of(ladder.getDouble(KEY_DAMAGE))
+                : OptionalDouble.empty();
     }
 }

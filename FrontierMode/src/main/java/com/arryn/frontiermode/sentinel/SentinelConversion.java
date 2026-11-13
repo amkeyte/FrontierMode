@@ -14,6 +14,7 @@ import com.arryn.frontiermode.keeper.KeeperItems;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.sentinel.common.SentinelRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;

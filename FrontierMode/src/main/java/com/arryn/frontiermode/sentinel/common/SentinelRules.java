@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.sentinel;
+package com.arryn.frontiermode.sentinel.common;
 
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.tunable.Tunable;

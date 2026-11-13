@@ -4,7 +4,7 @@ import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.diorite.DioriteEntities;
 import com.arryn.frontiermode.diorite.DioriteItems;
-import com.arryn.frontiermode.diorite.server.rules.DioriteRules;
+import com.arryn.frontiermode.diorite.common.DioriteRules;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
@@ -61,7 +61,7 @@ public final class EdgeStone extends ThrowableItemProjectile {
 
     private void poof(Level level) {
         EffectsAPI.broadcastParticle(level, ParticleTypes.POOF, getX(), getY(), getZ(),
-                DioriteRules.ACTIVE.edgeStonePoofParticles(), 0.2, 0.2, 0.2, 0.02);
+                DioriteRules.edgeStonePoofParticles(), 0.2, 0.2, 0.2, 0.02);
         EffectsAPI.broadcastSound(level, getX(), getY(), getZ(),
                 FrontierMode.EDGE_STONE.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
         discard();

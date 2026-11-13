@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.common.fixture;
 
-import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.satchel.Satchel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -111,11 +111,11 @@ public final class BordersPathFacet {
         Optional<Border> tipOpt = tip();
         if (tipOpt.isPresent()) {
             Border previous = tipOpt.get();
-            prop.center(BorderRules.ACTIVE.chooseNextCenter(level, previous))
+            prop.center(BorderRules.chooseNextCenter(level, previous))
                     .radius(nextRadius(level))
                     .layerIndex(previous.layer() + 1);
         } else {
-            prop.center(BorderRules.ACTIVE.chooseInitialCenter(level))
+            prop.center(BorderRules.chooseInitialCenter(level))
                     .radius(nextRadius(level))
                     .layerIndex(1);
         }
@@ -177,7 +177,7 @@ public final class BordersPathFacet {
 
     /** The radius of the Border {@code grow} is about to append: path position is size + 1. */
     private int nextRadius(Level level) {
-        return BorderRules.ACTIVE.radiusForPathPosition(level, size() + 1);
+        return BorderRules.radiusForPathPosition(level, size() + 1);
     }
 
     public int insertAll(int index, Collection<Border> borders) {
@@ -275,7 +275,7 @@ public final class BordersPathFacet {
      * Reconciles layer values with path order: {@code moveUp}/{@code moveDown} reorder the path
      * list, but {@link Border#layer()} is immutable (only a fresh {@link BorderProposal} can set
      * it), so reordering the path never touches the layer values
-     * {@code DefaultBorderRules.getRelevant()} sorts by -- this is the operation that brings the
+     * {@code BorderRules.getRelevant()} sorts by -- this is the operation that brings the
      * two back in line.
      *
      * <p>Builds this path's own target layer assignment --

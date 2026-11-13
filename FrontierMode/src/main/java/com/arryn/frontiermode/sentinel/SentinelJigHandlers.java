@@ -2,6 +2,7 @@ package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.sentinel.common.SentinelRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.LivingConversionSignal;

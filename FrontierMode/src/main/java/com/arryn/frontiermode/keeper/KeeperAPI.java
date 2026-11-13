@@ -2,9 +2,9 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
@@ -17,6 +17,7 @@ import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
@@ -89,8 +90,7 @@ public final class KeeperAPI {
         if (record.pathPosition().isEmpty()) {
             return false;
         }
-        BorderRules rules = BorderRules.ACTIVE;
-        return rules.waveStep(record.pathPosition().getAsInt()) == rules.borderWaveLength();
+        return BorderRules.waveStep(record.pathPosition().getAsInt()) == BorderRules.borderWaveLength();
     }
 
     /**
@@ -117,6 +117,22 @@ public final class KeeperAPI {
                 .map(KeeperRecord::bossId)
                 .filter(id -> bosses.get(id).map(BossRecord::alive).orElse(false))
                 .findFirst();
+    }
+
+    /**
+     * The home position of the living Keeper at the level's path tip: the pad an Amethyst Eye flies toward
+     * (amethyst-eye.md § The target). It is {@link #pathTipBossId}'s boss and that boss's base
+     * {@code BossRecord.position()}, never the live body's, so a Keeper that has wandered, or whose chunk is not
+     * loaded, does not change the answer. Empty when there is no living tip Keeper yet, when its position is still
+     * pending, or when the level has no path or is not the Keeper's.
+     */
+    public static Optional<BlockPos> pathTipPad(Level level) {
+        Optional<UUID> bossId = pathTipBossId(level);
+        Optional<BossFixture> bossesOpt = BossAPI.bosses(level);
+        if (bossId.isEmpty() || bossesOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        return bossesOpt.get().get(bossId.get()).filter(BossRecord::positioned).map(BossRecord::position);
     }
 
     /**

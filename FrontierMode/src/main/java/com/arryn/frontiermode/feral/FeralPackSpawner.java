@@ -1,8 +1,8 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.feral.server.rules.FeralRules;
 import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;

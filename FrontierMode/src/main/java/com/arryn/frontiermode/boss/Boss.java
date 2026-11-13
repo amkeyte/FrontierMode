@@ -48,8 +48,10 @@ public final class Boss implements Leaving {
     // Set when the mob's scope attaches this Boss to the mob-abilities host, cleared when it detaches.
     private Mob mob;
 
-    // Health players' own hits have removed from this boss's body (boss.md § Player credit and non-player
-    // death). Survives a chunk unload, resets when a new body materializes, and starts over on a restart.
+    // The working copy of the pooled damage tally (boss.md § What counts as a defeat): health players' own hits
+    // have removed from this boss's body, less what has healed back. The durable copy is saved with the body
+    // (BossData), written whenever this changes and read back when the body attaches; a new body starts it at
+    // zero, and it reads as zero while the body is unloaded.
     private double playerDamage;
 
     // Whether the death event for the current body has been settled, so a Leaving(KILLED) that follows it
@@ -109,11 +111,26 @@ public final class Boss implements Leaving {
     /** Adds health a player's own hit actually removed (after armor, capped at what the boss had left). */
     public void addPlayerDamage(float healthRemoved) {
         playerDamage += healthRemoved;
+        saveTally();
     }
 
-    /** Total health players' own damage has removed from this boss's current body so far. */
+    /** Takes back health the body recovered, so damage it has since healed does not count. Never below zero. */
+    public void removePlayerDamage(double healthRecovered) {
+        playerDamage = Math.max(0.0, playerDamage - healthRecovered);
+        saveTally();
+    }
+
+    /**
+     * Total health players' own damage has removed from this boss's current body so far, less what has healed
+     * back. Zero while the body is unloaded, until it attaches.
+     */
     public double playerDamage() {
         return playerDamage;
+    }
+
+    // Mirrors the working copy to the body, which saves it. No body attached means nothing to mirror to.
+    private void saveTally() {
+        mob().ifPresent(body -> BossData.writePlayerDamage(body, playerDamage));
     }
 
     /** Marks the boss as being removed by the project, ahead of discarding its body. */
@@ -359,6 +376,8 @@ public final class Boss implements Leaving {
     public void onAttach(ScopeInfo info) {
         MobScope scope = info.scopeAs();
         mob = scope.mob();
+        // The tally saved with the body, so a chunk unload, a quit and a restart keep it.
+        playerDamage = BossData.playerDamage(mob);
 
         // A defeated record whose body loads (a forced defeat while it was unloaded) leaves in a puff; the
         // record keeps naming the dead body, and the roster stops holding interest in it.
@@ -376,6 +395,8 @@ public final class Boss implements Leaving {
         // A respawned body may have attached this Boss to its own scope before the old scope detaches.
         if (mob == ((MobScope) info.scope()).mob()) {
             mob = null;
+            // The durable copy stays with the body; this one reads as zero until a body attaches.
+            playerDamage = 0.0;
         }
     }
 

@@ -1,11 +1,11 @@
 package com.arryn.frontiermode.diorite.common.items;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.diorite.common.DioriteRules;
 import com.arryn.frontiermode.diorite.common.StrikerMath;
-import com.arryn.frontiermode.diorite.server.rules.DioriteRules;
 import com.arryn.frontiermode.effects.common.EffectsAPI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -57,7 +57,6 @@ public final class DioriteStrikerItem extends Item {
 
         ItemStack stack = context.getItemInHand();
         Direction face = context.getClickedFace();
-        DioriteRules rules = DioriteRules.ACTIVE;
         // The struck face's center, nudged just off the surface so sparks start outside the block.
         double x = pos.getX() + 0.5 + face.getStepX() * 0.51;
         double y = pos.getY() + 0.5 + face.getStepY() * 0.51;
@@ -66,19 +65,19 @@ public final class DioriteStrikerItem extends Item {
         if (level.dimension() != Level.OVERWORLD) {
             // No source entity: vanilla's explosion skips its own source when gathering what to hurt,
             // so naming the player as the source would spare them.
-            serverLevel.explode(null, x, y, z, rules.strikerBlastPower(), Level.ExplosionInteraction.NONE);
-            stack.hurtAndBreak(rules.strikerBlastDurability(), player, p -> p.broadcastBreakEvent(context.getHand()));
+            serverLevel.explode(null, x, y, z, DioriteRules.strikerBlastPower(), Level.ExplosionInteraction.NONE);
+            stack.hurtAndBreak(DioriteRules.strikerBlastDurability(), player, p -> p.broadcastBreakEvent(context.getHand()));
             return InteractionResult.sidedSuccess(false);
         }
 
         Optional<List<Border>> containing = BorderAPI.RULES(serverLevel).map(r -> r.containing(pos));
         Border relevant = containing.isEmpty() || containing.get().isEmpty()
                 ? null
-                : BorderRules.ACTIVE.getRelevant(containing.get(), pos);
+                : BorderRules.getRelevant(containing.get(), pos);
         if (relevant == null) {
             sputter(serverLevel, x, y, z);
         } else {
-            spark(serverLevel, rules, relevant, face, x, y, z);
+            spark(serverLevel, relevant, face, x, y, z);
         }
         stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(context.getHand()));
         return InteractionResult.sidedSuccess(false);
@@ -98,21 +97,20 @@ public final class DioriteStrikerItem extends Item {
      * the same places every time. An off-path Relevant Border gives color only, a few sparks on the
      * same circle.
      */
-    private static void spark(ServerLevel level, DioriteRules rules, Border relevant, Direction face,
+    private static void spark(ServerLevel level, Border relevant, Direction face,
                               double x, double y, double z) {
-        BorderRules borderRules = BorderRules.ACTIVE;
         Optional<BordersPathFacet> path = BorderAPI.PATH(level);
 
-        int difficulty = borderRules.layerToDifficulty(relevant.layer());
+        int difficulty = BorderRules.layerToDifficulty(relevant.layer());
         int tipDifficulty = path.flatMap(BordersPathFacet::tip)
-                .map(tip -> borderRules.layerToDifficulty(tip.layer()))
+                .map(tip -> BorderRules.layerToDifficulty(tip.layer()))
                 .orElse(1);
         float[] rgb = StrikerMath.color(StrikerMath.heat(difficulty, tipDifficulty));
 
         int pathIndex = path.map(p -> p.indexOf(relevant.id())).orElse(-1);
-        int count = pathIndex >= 0 ? borderRules.waveStep(pathIndex + 1) : rules.strikerColorOnlySparks();
+        int count = pathIndex >= 0 ? BorderRules.waveStep(pathIndex + 1) : DioriteRules.strikerColorOnlySparks();
 
-        DustParticleOptions dust = new DustParticleOptions(new Vector3f(rgb[0], rgb[1], rgb[2]), rules.strikerSparkSize());
+        DustParticleOptions dust = new DustParticleOptions(new Vector3f(rgb[0], rgb[1], rgb[2]), DioriteRules.strikerSparkSize());
         // The face's own axes: the normal, "top" (world up on a wall, north on a floor or ceiling) and the
         // viewer's right as seen from outside the face (top x normal).
         double nx = face.getStepX();
@@ -124,8 +122,8 @@ public final class DioriteStrikerItem extends Item {
         double rx = uy * nz - uz * ny;
         double ry = uz * nx - ux * nz;
         double rz = ux * ny - uy * nx;
-        double radius = rules.strikerCircleRadius();
-        int delay = rules.strikerSparkDelayTicks();
+        double radius = DioriteRules.strikerCircleRadius();
+        int delay = DioriteRules.strikerSparkDelayTicks();
         MinecraftServer server = level.getServer();
         // The sparks stay evenly spaced, so the count still reads, but the whole ring starts at a random
         // angle each strike, so they don't land in the same places every time. They fire clockwise.

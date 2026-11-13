@@ -42,21 +42,41 @@ public final class BorderCurveFixture extends SatchelFixture {
 
         ListTag list = new ListTag();
         for (BorderCurve curve : curves) {
-            list.add(BorderCurve.save(curve));
+            list.add(saveCurve(curve));
         }
         root.put(KEY_CURVES, list);
     }
 
     private void loadCurves(CompoundTag root) {
+        curves.clear();
         if (!root.contains(KEY_CURVES, Tag.TAG_LIST)) {
             return;
         }
-        curves.clear();
 
         ListTag list = root.getList(KEY_CURVES, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            curves.add(BorderCurve.load((CompoundTag) t));
+            curves.add(loadCurve((CompoundTag) t));
         }
+    }
+
+    private static CompoundTag saveCurve(BorderCurve c) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("id", c.id());
+        tag.putUUID("borderId", c.borderId());
+        tag.putString("purpose", c.purpose());
+        tag.putString("shape", c.shape().name());
+        tag.putDouble("steepness", c.steepness());
+        return tag;
+    }
+
+    private static BorderCurve loadCurve(CompoundTag tag) {
+        return new BorderCurve(
+                tag.getUUID("id"),
+                tag.getUUID("borderId"),
+                tag.getString("purpose"),
+                Shape.valueOf(tag.getString("shape")),
+                tag.getDouble("steepness")
+        );
     }
 
     // ------------------------------------------------------------------

@@ -2,7 +2,9 @@ package com.arryn.frontiermode.bosstell;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.bosstell.common.CompassRefresh;
+import com.arryn.frontiermode.bosstell.common.entities.AmethystEye;
 import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
+import com.arryn.frontiermode.bosstell.common.items.AmethystEyeItem;
 import com.arryn.frontiermode.bosstell.common.enchantments.IntuitionEnchantment;
 import com.arryn.frontiermode.bosstell.common.enchantments.ResonanceEnchantment;
 import com.arryn.frontiermode.bosstell.server.commands.BossTellCommands;
@@ -10,6 +12,8 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.registries.DeferredRegister;
@@ -24,15 +28,15 @@ import net.minecraftforge.registries.RegistryObject;
  * -- not folded into either, since the compass has no {@code BossBundle}-hosted fixture to reach
  * and isn't a Border-core concept (see that page's own reasoning).
  *
- * <p>Item/enchantment registration deliberately lives here, not on {@code FrontierMode.java}'s
+ * <p>Item, entity-type and enchantment registration deliberately lives here, not on {@code FrontierMode.java}'s
  * shared {@code ARGUMENT_TYPES}/{@code SOUND_EVENTS} pattern -- project owner's call, per
  * special-compass.md's "Registration" section: this item belongs to the module, not the mod's
- * general cross-cutting infrastructure. {@link #ITEMS} still has to be registered onto the mod
- * event bus from {@code FrontierMode}'s constructor (Forge's {@code DeferredRegister} needs the
- * bus instance only available there), the one piece of wiring that can't live entirely inside
- * this class.
+ * general cross-cutting infrastructure. {@link #ITEMS} and {@link #ENTITY_TYPES} still have to be
+ * registered onto the mod event bus from {@code FrontierMode}'s constructor (Forge's
+ * {@code DeferredRegister} needs the bus instance only available there), the one piece of wiring
+ * that can't live entirely inside this class.
  *
- * <p>The module is a root: item and enchantment registration, the ingress and the Trinket
+ * <p>The module is a root: item, entity-type and enchantment registration, the ingress and the Trinket
  * ({@link BossTellIngress}, {@code CompassRefresh}) and command registration. It registers no jig.
  */
 public final class BossTellModule {
@@ -50,6 +54,23 @@ public final class BossTellModule {
     public static final RegistryObject<net.minecraft.world.item.Item> AMETHYST_COMPASS =
             ITEMS.register("amethyst_compass",
                     () -> new AmethystCompassItem(new net.minecraft.world.item.Item.Properties()));
+
+    /** The Amethyst Eye (amethyst-eye.md): a thrown, used-up Keeper finder, a stack of 64. */
+    public static final RegistryObject<net.minecraft.world.item.Item> AMETHYST_EYE =
+            ITEMS.register("amethyst_eye",
+                    () -> new AmethystEyeItem(new net.minecraft.world.item.Item.Properties()));
+
+    public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
+            DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, FrontierMode.MODID);
+
+    /** The thrown Amethyst Eye, sized and tracked as vanilla's own Eye of Ender is. */
+    public static final RegistryObject<EntityType<AmethystEye>> AMETHYST_EYE_ENTITY =
+            ENTITY_TYPES.register("amethyst_eye",
+                    () -> EntityType.Builder.<AmethystEye>of(AmethystEye::new, MobCategory.MISC)
+                            .sized(0.25F, 0.25F)
+                            .clientTrackingRange(4)
+                            .updateInterval(4)
+                            .build("amethyst_eye"));
 
     // same reasoning as ITEMS above -- confirmed against real Forge 1.20.1-47.4.10
     // sources that ForgeRegistries.ENCHANTMENTS is a plain IForgeRegistry<Enchantment>, no

@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.structure.common;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -72,34 +71,5 @@ public final class CairnRecord {
     @Override
     public int hashCode() {
         return cairnId.hashCode();
-    }
-
-    static CompoundTag save(CairnRecord r) {
-        CompoundTag tag = new CompoundTag();
-        tag.putUUID("cairnId", r.cairnId);
-        tag.putUUID("bossId", r.bossId);
-        tag.putBoolean("hasAnchor", r.anchorPos != null);
-        if (r.anchorPos != null) {
-            tag.putInt("ax", r.anchorPos.getX());
-            tag.putInt("ay", r.anchorPos.getY());
-            tag.putInt("az", r.anchorPos.getZ());
-        }
-        tag.putInt("lx", r.lastKnownBossPos.getX());
-        tag.putInt("ly", r.lastKnownBossPos.getY());
-        tag.putInt("lz", r.lastKnownBossPos.getZ());
-        return tag;
-    }
-
-    static CairnRecord load(CompoundTag tag) {
-        UUID bossId = tag.getUUID("bossId");
-        // A record saved before a boss could have several Cairns has no id of its own: it was its
-        // boss's only Cairn, so the boss id stands in -- stable across loads, and never equal to a
-        // freshly minted random id.
-        UUID cairnId = tag.hasUUID("cairnId") ? tag.getUUID("cairnId") : bossId;
-        BlockPos anchor = tag.getBoolean("hasAnchor")
-                ? new BlockPos(tag.getInt("ax"), tag.getInt("ay"), tag.getInt("az"))
-                : null;
-        BlockPos lastKnown = new BlockPos(tag.getInt("lx"), tag.getInt("ly"), tag.getInt("lz"));
-        return new CairnRecord(cairnId, bossId, anchor, lastKnown);
     }
 }

@@ -12,14 +12,23 @@ Worlds are not guaranteed to carry over between versions. If an update misbehave
 
 ## FrontierMode
 
-### 0.2.0
+### 0.2.0 Structural Update
+- Refactor for Satchel 0.2.0 and support for upcoming mod loader and Minecraft porting.
+ -- Trinket support all modules
+ -- Formalized Module events
+ -- Transferred various sync onto MobData and StackData
+ -- Improved Mob Interest handling
+ -- Implemented improved client/server protections
+ -- Hardened against silent errors
 
-- Feral mobs now scale with your progress rather than with how far you travel.
-- Spawn balance adjustments.
-- Keeper fixes, and the defeat announcement now names the Keeper's level.
-- Fixed the Frontier edge reading as inside for a thin strip just outside a Border.
-- Admin tool fixes.
-- Worlds from earlier versions will crash when loaded; start a new world.
+- Gameplay adjustments
+ -- Feral mobs now scale with your progress rather than with how far you travel.
+ -- Spawn balance adjustments.
+ -- Keeper fixes, and the defeat announcement now names the Keeper's level.
+ -- Fixed the Frontier edge reading as inside for a thin strip just outside a Border.
+ -- Admin tool fixes.
+
+Worlds from earlier versions will crash when loaded; start a new world.
 
 ### 0.1.5
 

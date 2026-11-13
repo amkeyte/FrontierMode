@@ -11,7 +11,7 @@ import java.util.UUID;
  * {@code relevantLayer}/{@code nearestLayer} were split from a single overloaded {@code
  * layer} field (Border Vocabulary Conformance Checklist item 2.4) -- see {@link
  * BorderPlayerEval}'s own doc comment for the full reasoning. {@code relevantLayer} is the one
- * safe to feed into {@code BorderRules.ACTIVE.layerToDifficulty(...)} for an ambient-difficulty
+ * safe to feed into {@code BorderRules.layerToDifficulty(...)} for an ambient-difficulty
  * reading; {@code nearestLayer} is not a Relevance result and should not be used for that.
  */
 public final class BorderPlayerStatus {

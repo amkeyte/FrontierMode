@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.border.server.rules;
+package com.arryn.frontiermode.border.common;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.BorderConstants;
@@ -14,18 +14,22 @@ import java.util.List;
 import java.util.OptionalInt;
 
 /**
- * Default, opinionated implementation of {@link BorderRules}.
+ * How frontier borders are created and how subsequent borders in the "path" are chosen, and Border's balance
+ * numbers. Rules propose values only:
+ * - they do NOT create or mutate borders
+ * - they do NOT access fixtures or bundles
+ * - they do NOT enforce authority
  * <p>
- * This implementation is intentionally simple:
+ * Returned values are treated as proposals and may be rejected or modified by the authoritative facet.
+ * <p>
+ * The numbers are an intentionally simple safe baseline:
  * - The initial border is centered at the level spawn position.
  * - Radius is a function of path position alone, growing in waves -- see
- * {@link #radiusForPathPosition}.
+ * {@link BorderRules#radiusForPathPosition}.
  * <p>
- * This is meant as a safe baseline and can be replaced by more
- * sophisticated rule sets later.
+ * Tunable-backed numbers are constructed fresh at each read.
  */
-
-public final class DefaultBorderRules implements BorderRules {
+public final class BorderRules {
 
     public static final List<String> DEFAULT_BORDER_NAMES = List.of(
             "Ashring",
@@ -60,29 +64,27 @@ public final class DefaultBorderRules implements BorderRules {
     private static final int PREGEN_CHUNKS_PER_BATCH = 2;
     private static final long PREGEN_THROTTLE_INTERVAL_TICKS = 4L;
 
+    // The random direction chooseNextCenter picks.
+    private static final RandomSource RNG = RandomSource.create();
+
+    private BorderRules() {
+    }
+
     /**
-     * future use
+     * Choose the center position for the very first border in a level.
      */
-    private final RandomSource rng;
-
-    public DefaultBorderRules() {
-        this(RandomSource.create());
-    }
-
-    public DefaultBorderRules(RandomSource rng) {
-        this.rng = rng;
-    }
-
-    @Override
-    public BlockPos chooseInitialCenter(Level level) {
+    public static BlockPos chooseInitialCenter(Level level) {
         // Use the shared spawn position as a sensible default.
         return level.getSharedSpawnPos();
     }
 
-    @Override
-    public BlockPos chooseNextCenter(Level level, Border previous) {
+    /**
+     * Choose the center position for the next border in the path, based
+     * on the previously active border.
+     */
+    public static BlockPos chooseNextCenter(Level level, Border previous) {
         // Move 30 blocks in a random horizontal direction (XZ only)
-        double angle = rng.nextDouble() * Math.PI * 2.0;
+        double angle = RNG.nextDouble() * Math.PI * 2.0;
 
         int dx = (int) Math.round(Math.cos(angle) * 30);
         int dz = (int) Math.round(Math.sin(angle) * 30);
@@ -96,7 +98,11 @@ public final class DefaultBorderRules implements BorderRules {
     }
 
     /**
-     * Growth in waves (border.md § Radius: growth in waves). {@code radius(p) = round(base x
+     * The radius of the Border at 1-based position {@code pathPosition} on the path (the first
+     * Border is 1). A function of path position alone, never of layer or of a previous Border's
+     * radius -- see border.md § Radius: growth in waves.
+     *
+     * <p>Growth in waves (border.md § Radius: growth in waves). {@code radius(p) = round(base x
      * factor(0) x ... x factor(p-1))}, computed from the base every time so rounding never
      * accumulates and an edit to one Border's radius never shifts the ones after it.
      *
@@ -107,8 +113,7 @@ public final class DefaultBorderRules implements BorderRules {
      * {@code borderBaseRadius}: a
      * row already in a config CSV wins over this default.
      */
-    @Override
-    public int radiusForPathPosition(Level level, int pathPosition) {
+    public static int radiusForPathPosition(Level level, int pathPosition) {
         int base = new Tunable("borderBaseRadius", 1, 1000, 5).intValue();
         float amplitude = new Tunable("borderWaveAmplitude", 0f, 2f, 0.5f).floatValue();
         int waveLength = borderWaveLength();
@@ -117,18 +122,21 @@ public final class DefaultBorderRules implements BorderRules {
         return (int) Math.max(BorderConstants.MIN_RADIUS, Math.min(radius, Integer.MAX_VALUE));
     }
 
-    @Override
-    public int borderWaveLength() {
+    /** Border's growth-wave length (border.md § Radius: growth in waves). */
+    public static int borderWaveLength() {
         return new Tunable("borderWaveLength", 2, 20, 5).intValue();
     }
 
-    @Override
-    public int waveStep(int pathPosition) {
+    /**
+     * A path position's step within its growth wave, 1 to {@link BorderRules#borderWaveLength()}; the last step
+     * is the wave's flat Border. The one place "where in the wave" is computed -- Boss's milestone
+     * test and the Diorite Striker read it (border.md § Radius: growth in waves).
+     */
+    public static int waveStep(int pathPosition) {
         return BorderMathLogic.waveStep(pathPosition, borderWaveLength());
     }
 
-    @Override
-    public Border getRelevant(List<Border> containing, BlockPos pos) {
+    public static Border getRelevant(List<Border> containing, BlockPos pos) {
 
         if (containing.isEmpty()) {
             return null;
@@ -155,26 +163,40 @@ public final class DefaultBorderRules implements BorderRules {
         return best;
     }
 
-    @Override
-    public List<String> borderNames() {
+    @SuppressWarnings("SameReturnValue")
+    public static List<String> borderNames() {
         return DEFAULT_BORDER_NAMES;
     }
 
 
     // ------------------------------------------------------------------
-    // Difficulty
+    // Difficulty (Border Vocabulary: Layer is one input to Difficulty, not
+    // the definition of it -- see wiki frontiermode/architecture/difficulty.md).
+    // Kept in this class rather than a separate DifficultyRules sibling:
+    // one rules helper per module, per project owner's call.
     // ------------------------------------------------------------------
 
-    @Override
-    public int layerToDifficulty(int layer) {
+    /**
+     * Converts a Border's Layer into a difficulty rating. The one shared formula both
+     * ambient (via {@link BorderRules#ambientDifficultyAt}) and boss difficulty are meant to go through --
+     * safe-baseline placeholder for now, not a locked curve.
+     */
+    public static int layerToDifficulty(int layer) {
         // Safe baseline: identity. Layer and Difficulty are vocabulary-distinct even though this
         // placeholder happens to make them numerically equal -- replace once there's a real curve
         // to tune against (Game Designer/playtest territory).
         return layer;
     }
 
-    @Override
-    public OptionalInt ambientDifficultyAt(List<Border> containing, BlockPos pos) {
+    /**
+     * Ambient difficulty at a point: resolves Relevance via {@link BorderRules#getRelevant} and, if a
+     * Relevant border exists, feeds its layer through {@link BorderRules#layerToDifficulty}. Empty when
+     * nothing is Relevant at this point -- mirrors {@link BorderRules#getRelevant}'s own null-for-nothing-
+     * contains-this-point contract. Deliberately does not accept a raw layer: composing
+     * getRelevant()+layerToDifficulty() is the whole point of this method existing, so callers
+     * don't reimplement or skip the Relevance step themselves.
+     */
+    public static OptionalInt ambientDifficultyAt(List<Border> containing, BlockPos pos) {
         Border relevant = getRelevant(containing, pos);
         if (relevant == null) {
             return OptionalInt.empty();
@@ -183,19 +205,26 @@ public final class DefaultBorderRules implements BorderRules {
     }
 
     // ------------------------------------------------------------------
-    // Border Pregeneration
+    // Border Pregeneration (wiki/frontiermode/architecture/border-pregeneration.md).
+    // Tuning numbers only, not architecture decisions -- same "safe baseline, replace later"
+    // category as the growth-wave Tunables. Kept in this class rather than a separate
+    // PregenRules sibling, matching this class's one-rules-helper-per-module
+    // precedent (see the Difficulty section above for the same reasoning).
     // ------------------------------------------------------------------
 
-    @Override
-    public int pregenChunksPerBatch() {
+    /**
+     * Real chunk-generation calls allowed per throttled batch, feeding
+     * {@code BorderPregenFixture}'s pacing {@code TickThrottler}.
+     */
+    public static int pregenChunksPerBatch() {
         return PREGEN_CHUNKS_PER_BATCH;
     }
 
-    @Override
-    public long pregenThrottleIntervalTicks() {
+    /**
+     * Minimum ticks between allowed pregeneration batches -- the interval
+     * {@code BorderPregenFixture}'s pacing {@code TickThrottler} is built with.
+     */
+    public static long pregenThrottleIntervalTicks() {
         return PREGEN_THROTTLE_INTERVAL_TICKS;
     }
 }
-
-
-

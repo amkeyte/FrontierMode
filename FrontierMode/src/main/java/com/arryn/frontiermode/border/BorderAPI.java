@@ -433,7 +433,7 @@ public final class BorderAPI {
      *
      * @deprecated use the explicit-center {@link #grow(Level, BlockPos)} overload instead --
      * this no-center form defers to
-     * {@link com.arryn.frontiermode.border.server.rules.BorderRules#chooseNextCenter}/
+     * {@link com.arryn.frontiermode.border.common.BorderRules#chooseNextCenter}/
      * {@code chooseInitialCenter} with no way for a caller to override it. Not removed:
      * {@code KeeperJigHandlers.onBordersScopeLoaded}'s level-bootstrap listener is a real,
      * legitimate remaining caller -- a fresh level's very first border genuinely has no natural

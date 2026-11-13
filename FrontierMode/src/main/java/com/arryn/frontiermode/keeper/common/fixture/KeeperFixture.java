@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -58,21 +59,52 @@ public final class KeeperFixture extends SatchelFixture {
 
         ListTag list = new ListTag();
         for (KeeperRecord record : records) {
-            list.add(KeeperRecord.save(record));
+            list.add(saveKeeper(record));
         }
         root.put(KEY_KEEPERS, list);
     }
 
     private void loadRecords(CompoundTag root) {
+        records.clear();
         if (!root.contains(KEY_KEEPERS, Tag.TAG_LIST)) {
             return;
         }
-        records.clear();
 
         ListTag list = root.getList(KEY_KEEPERS, Tag.TAG_COMPOUND);
         for (Tag t : list) {
-            records.add(KeeperRecord.load((CompoundTag) t));
+            records.add(loadKeeper((CompoundTag) t));
         }
+    }
+
+    private static CompoundTag saveKeeper(KeeperRecord r) {
+        CompoundTag tag = new CompoundTag();
+        tag.putUUID("bossId", r.bossId());
+        tag.putInt("layer", r.layer());
+        tag.putBoolean("hasPathPosition", r.pathPosition().isPresent());
+        r.pathPosition().ifPresent(p -> tag.putInt("pathPosition", p));
+        tag.putString("body", r.body());
+        tag.putBoolean("hasBorderId", r.borderId().isPresent());
+        r.borderId().ifPresent(id -> tag.putUUID("borderId", id));
+        tag.putBoolean("hasPlatform", r.platformPos() != null);
+        if (r.platformPos() != null) {
+            tag.putInt("platformX", r.platformPos().getX());
+            tag.putInt("platformY", r.platformPos().getY());
+            tag.putInt("platformZ", r.platformPos().getZ());
+        }
+        return tag;
+    }
+
+    private static KeeperRecord loadKeeper(CompoundTag tag) {
+        return new KeeperRecord(
+                tag.getUUID("bossId"),
+                tag.getInt("layer"),
+                tag.getBoolean("hasPathPosition") ? OptionalInt.of(tag.getInt("pathPosition")) : OptionalInt.empty(),
+                tag.getString("body"),
+                tag.getBoolean("hasBorderId") ? Optional.of(tag.getUUID("borderId")) : Optional.empty(),
+                tag.getBoolean("hasPlatform")
+                        ? new BlockPos(tag.getInt("platformX"), tag.getInt("platformY"), tag.getInt("platformZ"))
+                        : null
+        );
     }
 
     // The same ListTag-of-UUID persistence shape BordersFixture.borderPath uses

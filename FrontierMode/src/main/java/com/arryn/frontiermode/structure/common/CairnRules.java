@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.structure;
+package com.arryn.frontiermode.structure.common;
 
 import com.arryn.satchel.common.tunable.Tunable;
 

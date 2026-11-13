@@ -13,7 +13,7 @@ public final class BorderConstants {
     public static final int MIN_RADIUS = 1;
 
     // a UI-sane bound, not a gameplay number -- 32 comfortably covers the longest
-    // existing default name in DefaultBorderRules.DEFAULT_BORDER_NAMES ("Shadowmere") with
+    // existing default name in BorderRules.DEFAULT_BORDER_NAMES ("Shadowmere") with
     // headroom. See border.md's "Proposal identity and validation" section.
     public static final int MAX_DISPLAY_NAME_LENGTH = 32;
 

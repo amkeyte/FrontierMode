@@ -36,6 +36,6 @@ side="BOTH"
 [[dependencies.frontiermode]]
 modId="satchel_ecosystem"
 mandatory=true
-versionRange="[${satchel_min_version},)"
+versionRange="[${satchel_min_version},${satchel_max_version})"
 ordering="AFTER"
 side="BOTH"

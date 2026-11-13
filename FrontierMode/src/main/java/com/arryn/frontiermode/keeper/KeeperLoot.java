@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.keeper.common.KeeperLootTables;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -45,7 +45,7 @@ public final class KeeperLoot {
      * force-defeating bosses for loot is the riskless exploit this reward shouldn't have).
      */
     public static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, Player credited) {
-        int waveLength = BorderRules.ACTIVE.borderWaveLength();
+        int waveLength = BorderRules.borderWaveLength();
         double lootStep = new Tunable("keeperLootStep", 0f, 2f, 0.3f).floatValue();
         LootParams params = new LootParams.Builder(level)
                 .withParameter(LootContextParams.THIS_ENTITY, boss)

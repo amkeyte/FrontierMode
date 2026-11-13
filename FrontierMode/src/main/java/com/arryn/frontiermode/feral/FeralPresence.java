@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.core.Presence;
-import com.arryn.frontiermode.feral.server.rules.FeralRules;
+import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.host.HostJigs;

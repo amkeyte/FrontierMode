@@ -11,7 +11,7 @@ import net.minecraft.world.entity.player.Player;
  * player's own. The kind decides what the tally is worth; the Keeper reads it in {@code judgeDeath}.
  *
  * <p>It hears {@link BossDamaged}, a module event scoped to the boss's mob scope, so it receives only its own boss's
- * damage. It keeps no state: the tally lives on the {@code Boss} and survives a chunk unload.
+ * damage. It keeps no state: the tally is the {@code Boss}'s, pooled across every player and saved with the body.
  */
 public final class CreditTally implements Trinket {
 

@@ -1,10 +1,10 @@
 package com.arryn.frontiermode.difficulty;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.border.server.rules.BorderRules;
+import com.arryn.frontiermode.difficulty.common.DifficultyRules;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
-import com.arryn.frontiermode.difficulty.server.rules.DifficultyRules;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -49,8 +49,8 @@ final class DifficultyHandlers {
         // reach it. Vanilla sets a summoned vex's owner before adding it to the level.
         if (mob instanceof Vex vex && vex.getOwner() != null
                 && Ladder.RUNG_KEEPER.equals(Ladder.rungOf(vex.getOwner()))) {
-            DifficultyRules rules = DifficultyRules.ACTIVE;
-            if (Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 0, 1.0, rules.keeperVexDamage() / rules.vexReferenceHit())) {
+            if (Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 0, 1.0,
+                    DifficultyRules.keeperVexDamage() / DifficultyRules.vexReferenceHit())) {
                 OUT.debug("[Difficulty] " + Ladder.RUNG_KEEPER_SUMMON + " rung on " + vex.getType() + " at " + vex.blockPosition());
             }
             return;
@@ -103,11 +103,10 @@ final class DifficultyHandlers {
             return;
         }
 
-        DifficultyRules rules = DifficultyRules.ACTIVE;
         int n = difficulty.getAsInt();
         boolean applied = Ladder.apply(mob, rung, n,
-                LadderMath.multiplier(rules.ordinaryHealthGrowth(), n),
-                LadderMath.multiplier(rules.ordinaryDamageGrowth(), n));
+                LadderMath.multiplier(DifficultyRules.ordinaryHealthGrowth(), n),
+                LadderMath.multiplier(DifficultyRules.ordinaryDamageGrowth(), n));
         if (applied) {
             OUT.debug("[Difficulty] " + rung + " rung n=" + n + " on " + mob.getType() + " at " + mob.blockPosition());
         }
@@ -120,7 +119,7 @@ final class DifficultyHandlers {
      * attacker's record holds the multiplier.
      */
     static void onLadderHit(LadderHit hit) {
-        double multiplier = Ladder.damageMultiplier(hit.ladder());
+        double multiplier = hit.multiplier();
         hit.setAmount((float) (hit.amount() * multiplier));
         OUT.debug("[Difficulty] hit scaled x" + multiplier);
     }
@@ -149,6 +148,6 @@ final class DifficultyHandlers {
         if (containing.isEmpty()) {
             return OptionalInt.empty();
         }
-        return BorderRules.ACTIVE.ambientDifficultyAt(containing.get(), pos);
+        return BorderRules.ambientDifficultyAt(containing.get(), pos);
     }
 }

@@ -133,6 +133,8 @@ public final class FrontierMode {
         // see BossTellModule's own class doc), but a DeferredRegister still needs the mod bus
         // instance to register onto, which only exists in this constructor.
         BossTellModule.ITEMS.register(modBus);
+        // the Amethyst Eye's entity type, wired the same way.
+        BossTellModule.ENTITY_TYPES.register(modBus);
         // The sun ward's register lives on KeeperItems for the same reason.
         KeeperItems.ITEMS.register(modBus);
         // the diorite module's items live on their own holder, wired the same way.

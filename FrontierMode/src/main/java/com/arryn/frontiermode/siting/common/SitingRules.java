@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.siting.server.rules;
+package com.arryn.frontiermode.siting.common;
 
 import com.arryn.frontiermode.siting.common.SitingMath;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -9,10 +9,11 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
- * Safe-baseline siting numbers (siting.md): the terrain checks, the used-ground penalty on
- * {@code hazardScore}, and the Tunables, which are constructed fresh at each read.
+ * The siting module's one rules helper (siting.md): the shared terrain-suitability check, the used-ground penalty
+ * on {@code hazardScore}, and every Tunable the starting-site search and the penalty read. Safe-baseline numbers,
+ * Tunable-backed and constructed fresh at each read. Server-side only.
  */
-public final class DefaultSitingRules implements SitingRules {
+public final class SitingRules {
 
     // flatnessScore()'s own safe baseline: candidate height compared against four points this far
     // out in each cardinal direction. A tuning number, not an architecture decision.
@@ -26,12 +27,15 @@ public final class DefaultSitingRules implements SitingRules {
     // flatness score is this implementation's call, same as every other threshold here.
     private static final double FOOTPRINT_MIN_FLATNESS = 0.5;
 
-    // Whether the first above-zero used-ground penalty has been logged. The one rules instance
-    // (SitingRules.ACTIVE) lives for the JVM, so this logs once per launch, not once per world.
-    private boolean usedGroundLogged;
+    // Whether the first above-zero used-ground penalty has been logged. A static, so it logs once per launch,
+    // not once per world.
+    private static boolean usedGroundLogged;
 
-    @Override
-    public double flatnessScore(Level level, BlockPos candidate) {
+    private SitingRules() {
+    }
+
+    /** 0 (steepest) to 1 (flat) for a column's immediate footprint -- "safe baseline, replace later". */
+    public static double flatnessScore(Level level, BlockPos candidate) {
         // Safe baseline: compares candidate's own resolved height against its four cardinal
         // neighbors, FLATNESS_SAMPLE_DISTANCE blocks over -- a flat plateau scores near 1.0, a
         // sharp cliff edge scores near 0.0. Not a locked algorithm.
@@ -52,8 +56,13 @@ public final class DefaultSitingRules implements SitingRules {
         return Math.max(0.0, 1.0 - (maxDelta / FLATNESS_MAX_DELTA));
     }
 
-    @Override
-    public double hazardScore(Level level, BlockPos candidate) {
+    /**
+     * 0 (safe) to 1 (worst) for a column. 1 is disqualifying: fluid at the surface, the world-floor
+     * void, or no solid footing. Any other column scores the used-ground penalty, from 0 for a chunk
+     * no player has spent time in up to {@link SitingRules#sitingUsedGroundMaxPenalty()} (below 1) for a
+     * well-used one: a rank, never a veto. {@link SitingRules#footprintSuitable} ignores the penalty.
+     */
+    public static double hazardScore(Level level, BlockPos candidate) {
         // 1.0 (worst, disqualifying) for a disqualifying hazard, otherwise the used-ground penalty,
         // which the Tunable ranges keep below 1. Not a locked algorithm.
         if (disqualified(level, candidate)) {
@@ -72,7 +81,7 @@ public final class DefaultSitingRules implements SitingRules {
      *     open space well above the world floor, which the two checks above can't see.
      * The footprint check asks this directly, so it never pays for the used-ground penalty.
      */
-    private boolean disqualified(Level level, BlockPos candidate) {
+    private static boolean disqualified(Level level, BlockPos candidate) {
         if (!level.getBlockState(candidate).getFluidState().isEmpty()) {
             return true;
         }
@@ -84,7 +93,7 @@ public final class DefaultSitingRules implements SitingRules {
     }
 
     /** The penalty for the chunk's inhabited time (siting.md § Used ground ranks lower); 0 with the rule off. */
-    private double usedGroundPenalty(Level level, BlockPos candidate) {
+    private static double usedGroundPenalty(Level level, BlockPos candidate) {
         double maxPenalty = sitingUsedGroundMaxPenalty();
         if (maxPenalty <= 0.0) {
             return 0.0;
@@ -101,8 +110,11 @@ public final class DefaultSitingRules implements SitingRules {
         return penalty;
     }
 
-    @Override
-    public boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
+    /**
+     * Footprint mode: pass/fail over a {@code size x size} area centered on {@code center}, every column
+     * flat enough and hazard-free, with {@code clearance} blocks of air above each.
+     */
+    public static boolean footprintSuitable(Level level, BlockPos center, int size, int clearance) {
         int half = size / 2;
         for (int dx = -half; dx <= half; dx++) {
             for (int dz = -half; dz <= half; dz++) {
@@ -125,53 +137,51 @@ public final class DefaultSitingRules implements SitingRules {
         return true;
     }
 
-    @Override
-    public int startingSiteMinLogs() {
+    /** Logs the first Border's disc must hold, for wood without a trip into the Wilds. */
+    public static int startingSiteMinLogs() {
         return new Tunable("startingSiteMinLogs", 0, 100, 5).intValue();
     }
 
-    @Override
-    public int startingSiteLogDepth() {
+    /** How far below each column's surface the log count looks, to find trunks under leaves. */
+    public static int startingSiteLogDepth() {
         return new Tunable("startingSiteLogDepth", 1, 32, 12).intValue();
     }
 
-    @Override
-    public double startingSiteMaxWater() {
+    /** The share of the disc's columns that may have a fluid as their surface block. */
+    public static double startingSiteMaxWater() {
         return new Tunable("startingSiteMaxWater", 0f, 1f, 0.3f).floatValue();
     }
 
-    @Override
-    public int startingSiteMinStoneColumns() {
+    /** Columns that must have natural stone within {@link SitingRules#startingSiteStoneDepth()} of the surface. */
+    public static int startingSiteMinStoneColumns() {
         return new Tunable("startingSiteMinStoneColumns", 0, 500, 10).intValue();
     }
 
-    @Override
-    public int startingSiteStoneDepth() {
+    public static int startingSiteStoneDepth() {
         return new Tunable("startingSiteStoneDepth", 0, 16, 4).intValue();
     }
 
-    @Override
-    public int startingSiteRingStep() {
+    /** Distance between rings of candidates, and the farthest ring searched. */
+    public static int startingSiteRingStep() {
         return new Tunable("startingSiteRingStep", 16, 1000, 100).intValue();
     }
 
-    @Override
-    public int startingSiteSearchLimit() {
+    public static int startingSiteSearchLimit() {
         return new Tunable("startingSiteSearchLimit", 100, 10000, 1500).intValue();
     }
 
-    @Override
-    public int startingSiteMaxFullChecks() {
+    /** The real time bound: full checks (each generates a disc) before taking the best one seen. */
+    public static int startingSiteMaxFullChecks() {
         return new Tunable("startingSiteMaxFullChecks", 1, 200, 24).intValue();
     }
 
-    @Override
-    public int sitingUsedGroundFullTicks() {
+    /** Ticks players must have spent in a chunk for its used-ground penalty to reach the maximum. */
+    public static int sitingUsedGroundFullTicks() {
         return new Tunable("sitingUsedGroundFullTicks", 1, 3600000, 12000).intValue();
     }
 
-    @Override
-    public double sitingUsedGroundMaxPenalty() {
+    /** The most a chunk's used ground adds to a column's hazard score; 0 turns the rule off. */
+    public static double sitingUsedGroundMaxPenalty() {
         return new Tunable("sitingUsedGroundMaxPenalty", 0f, 0.9f, 0.5f).floatValue();
     }
 }

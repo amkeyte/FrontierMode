@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.feral.server.rules.FeralRules;
+import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
