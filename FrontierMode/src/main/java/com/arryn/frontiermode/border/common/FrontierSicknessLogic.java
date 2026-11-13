@@ -6,7 +6,7 @@ package com.arryn.frontiermode.border.common;
  * the same unit-testability reason {@link BorderMathLogic}/{@link BorderCurveMath} already are:
  * this project's test sourceSet has no Minecraft userdev classes on its classpath.
  *
- * <p>Both formulas here are explicitly "safe baseline, replace later" placeholders, per
+ * <p>Both formulas here are baselines, not tuned against play, per
  * wiki/frontiermode/design/wilds.md's own framing ("Lead Dev owns picking sane initial numbers
  * to playtest against").
  */

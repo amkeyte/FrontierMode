@@ -101,7 +101,7 @@ public class AmethystCompassItem extends CompassItem {
     private static final int RESONANCE_CODE = 4;
 
     // Ring-jitter radii per Intuition tier (index 0=I, 1=II, 2=III), tighter at higher tiers --
-    // "safe baseline, replace later," same framing as every other tunable in this cluster.
+    // not tuned against play, like every other tunable in this cluster.
     private static final int[] INTUITION_OUTER_RADIUS = {64, 32, 12};
     private static final int[] INTUITION_INNER_RADIUS = {56, 28, 10};
 

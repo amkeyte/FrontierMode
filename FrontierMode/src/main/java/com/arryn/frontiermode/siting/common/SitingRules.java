@@ -34,7 +34,7 @@ public final class SitingRules {
     private SitingRules() {
     }
 
-    /** 0 (steepest) to 1 (flat) for a column's immediate footprint -- "safe baseline, replace later". */
+    /** 0 (steepest) to 1 (flat) for a column's immediate footprint. A baseline, not tuned against play. */
     public static double flatnessScore(Level level, BlockPos candidate) {
         // Safe baseline: compares candidate's own resolved height against its four cardinal
         // neighbors, FLATNESS_SAMPLE_DISTANCE blocks over -- a flat plateau scores near 1.0, a

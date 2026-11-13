@@ -5,9 +5,9 @@ import com.arryn.satchel.common.util.out.OUT;
 
 /**
  * Tunables for Feral. Feral's stat growth is not here: the {@code feral} rung's
- * growth factors are {@code DifficultyRules} Tunables. The numbers are placeholder baselines, not
- * tuned against play, the same "safe baseline, replace later" convention every other rules class in this
- * codebase follows (e.g. {@code PlayerRules}, {@code SentinelRules}).
+ * growth factors are {@code DifficultyRules} Tunables. The numbers are baselines, not
+ * tuned against play, as in every other rules class in this codebase (e.g. {@code PlayerRules},
+ * {@code SentinelRules}).
  *
  * <p>Every number here but one is {@link Tunable}-backed: an accessor
  * <b>method</b>, not a field, since a {@code Tunable} is constructed fresh at point of use rather than
@@ -49,7 +49,7 @@ public final class FeralRules {
     /**
      * Radius (blocks, both x and z, uniform) a density companion can land from the original spawn's
      * position: a 49x49 area, wide enough that a dense event makes the player maneuver among mobs
-     * instead of sidestepping one pile. A placeholder, not derived from anything else.
+     * instead of sidestepping one pile. Not derived from anything else.
      */
     public static final int DENSITY_COMPANION_SPREAD_RADIUS = 24;
 
@@ -101,8 +101,8 @@ public final class FeralRules {
     // cap room a fresh pack needs. A tight band of visible Feral mobs at the border is kept as a visual
     // cue while the player decides whether to cross, and anything past it is cleared. The lingering timer
     // below tolerates a player standing right at the border, where an instant cutoff would make mobs
-    // flicker out from under them. The pack and ambient rules further down are what the sweep uses
-    // today; the lingering rule is built and switched off (FeralCleanup).
+    // flicker out from under them. The sweep uses the pack and ambient rules further down; the
+    // lingering rule is switched off (FeralCleanup).
     // ------------------------------------------------------------------
 
     /**
@@ -137,7 +137,7 @@ public final class FeralRules {
      * alive across a level at once: a combined-population safety valve, not a per-mechanic budget (see
      * {@link #maxAlivePackMembers()} for that). Read only by {@code FeralDensity.rollDensityCompanion},
      * which clamps a density roll to the room left under it; that mechanic is switched off
-     * ({@code FeralDensity}), so the cap has no effect today. The pack top-up does not read it:
+     * ({@code FeralDensity}), so the cap has no effect while it is off. The pack top-up does not read it:
      * {@code FeralPlayerTick.maintainPack} is budgeted by {@link FeralRules#maxAlivePackMembers()}.
      * It is deliberately not part of the tagging decision ({@code FeralTagging.onHostileJoining}), which
      * stays unconditional: every hostile outside the Frontier is Feral. Only whichever mechanic is

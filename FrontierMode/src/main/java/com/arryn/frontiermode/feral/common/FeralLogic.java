@@ -12,7 +12,7 @@ package com.arryn.frontiermode.feral.common;
  * {@code wildlifeDensityMultiplier}'s flattening curve. How dangerous a Feral mob is does not follow
  * distance: it is the {@code feral} rung of the stat ladder.
  *
- * <p>The formulas are "safe baseline, replace later" placeholders, not tuned against play.
+ * <p>The formulas are baselines, not tuned against play.
  */
 public final class FeralLogic {
 

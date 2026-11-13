@@ -75,7 +75,7 @@ final class SentinelConversion {
      * {@code BossTellFixture.createTellCurveIfAbsent}'s idempotent shape), but also
      * reconciles an existing record whose shape/steepness has drifted from the current constants
      * via {@link BorderCurveFixture#replace}, so a live world that seeded a curve under an older
-     * "safe baseline, replace later" value picks up a later tuning pass without a world reset.
+     * value picks up a retuned one without a world reset.
      * Called from {@link SentinelIngress}'s consumer of {@code KeeperCreated}, and once more from
      * {@link #resolveNearby} when a curve is missing.
      */

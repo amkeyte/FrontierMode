@@ -124,9 +124,9 @@ public final class BorderCurveFixture extends SatchelFixture {
      *
      * <p>Covers exactly the gap {@code create}-if-absent helpers like
      * {@code BossTellFixture.createTellCurveIfAbsent}/{@code SentinelConversion
-     * .ensureSentinelCurves} can't cover on their own: a curve's shape/steepness is "safe
-     * baseline, replace later" tuning territory by design, and a live world that already
-     * seeded a curve under earlier constants
+     * .ensureSentinelCurves} can't cover on their own: a curve's shape/steepness is tuning
+     * territory, not tuned against play, and a live world that already seeded a curve under
+     * different constants
      * would otherwise be stuck with them until the world resets, since {@code create}-if-absent
      * never touches an existing record. This lets a consumer's own "ensure current shape" helper
      * reconcile forward instead.

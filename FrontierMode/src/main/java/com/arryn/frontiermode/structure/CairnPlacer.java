@@ -25,7 +25,7 @@ import java.util.Optional;
 
 /**
  * Places a Cairn: one candidate spot per Cairn per tick, built when the spot passes every rule. Tuning
- * ("safe baseline, replace later", same framing as every other tunable in this codebase) is this
+ * (not tuned against play, like every other tunable in this codebase) is this
  * module's own build decisions, not part of any wiki-ratified contract.
  */
 final class CairnPlacer {

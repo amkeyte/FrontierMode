@@ -3,9 +3,9 @@ package com.arryn.frontiermode.border.server.rules;
 /**
  * Player-side interpretation rules for border evaluation.
  *
- * <p>Frontier Sickness thresholds and climb/decay rates are "safe baseline, replace later"
- * values, the same convention {@code BorderConstants}/{@code SentinelRules}' own tunables
- * follow -- wiki/frontiermode/design/wilds.md's "Open questions" section leaves exact
+ * <p>Frontier Sickness thresholds and climb/decay rates are baselines, not tuned against play,
+ * as {@code BorderConstants}/{@code SentinelRules}' own tunables are -- wiki/frontiermode/design/wilds.md's
+ * "Open questions" section leaves exact
  * thresholds and climb/decay rates to Lead Dev to pick and playtest against.
  */
 public final class PlayerRules {

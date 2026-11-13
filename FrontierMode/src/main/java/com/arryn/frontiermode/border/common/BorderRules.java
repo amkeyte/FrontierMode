@@ -54,7 +54,7 @@ public final class BorderRules {
             "Blackgate"
     );
     // Pregeneration throttle budget (wiki/frontiermode/architecture/border-pregeneration.md) --
-    // safe baseline, replace later, same category as the growth-wave Tunables. A real 1009-chunk
+    // not tuned against play, the same category as the growth-wave Tunables. A real 1009-chunk
     // (radius 18) disk can't be kept up with at 1 tick/16 chunks or 1 tick/8 chunks: at
     // interval=1 every tick forces fresh, far-out chunk generation back-to-back for 100+
     // consecutive ticks with zero gap to recover in between, so the problem is sustained load,
@@ -172,19 +172,15 @@ public final class BorderRules {
     // ------------------------------------------------------------------
     // Difficulty (Border Vocabulary: Layer is one input to Difficulty, not
     // the definition of it -- see wiki frontiermode/architecture/difficulty.md).
-    // Kept in this class rather than a separate DifficultyRules sibling:
-    // one rules helper per module, per project owner's call.
     // ------------------------------------------------------------------
 
     /**
      * Converts a Border's Layer into a difficulty rating. The one shared formula both
-     * ambient (via {@link BorderRules#ambientDifficultyAt}) and boss difficulty are meant to go through --
-     * safe-baseline placeholder for now, not a locked curve.
+     * ambient (via {@link BorderRules#ambientDifficultyAt}) and boss difficulty are meant to go through.
+     * Identity: a rating equals the layer, and the two words stay distinct.
      */
     public static int layerToDifficulty(int layer) {
-        // Safe baseline: identity. Layer and Difficulty are vocabulary-distinct even though this
-        // placeholder happens to make them numerically equal -- replace once there's a real curve
-        // to tune against (Game Designer/playtest territory).
+        // Layer and Difficulty are vocabulary-distinct even though the rating equals the layer.
         return layer;
     }
 
@@ -206,10 +202,8 @@ public final class BorderRules {
 
     // ------------------------------------------------------------------
     // Border Pregeneration (wiki/frontiermode/architecture/border-pregeneration.md).
-    // Tuning numbers only, not architecture decisions -- same "safe baseline, replace later"
-    // category as the growth-wave Tunables. Kept in this class rather than a separate
-    // PregenRules sibling, matching this class's one-rules-helper-per-module
-    // precedent (see the Difficulty section above for the same reasoning).
+    // Tuning numbers only, not architecture decisions, and not tuned against play: the same
+    // category as the growth-wave Tunables.
     // ------------------------------------------------------------------
 
     /**

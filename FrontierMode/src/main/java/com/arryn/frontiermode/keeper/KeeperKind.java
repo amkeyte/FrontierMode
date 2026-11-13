@@ -228,7 +228,7 @@ public final class KeeperKind implements BossKind {
         Optional<UUID> borderId = keeper.borderId();
         boolean lastStanding = borderId.isEmpty() || !keepers.anyAliveWithBorderId(bosses, borderId.get());
 
-        // placeholder defeat loot -- pays out at the same last-standing point growth
+        // The defeat reward (KeeperLoot, keeper.md § Defeat loot) pays out at the same last-standing point growth
         // itself gates on (trivially true for an off-path record), independent of whether growth
         // actually fires afterward. A forced defeat has no credited player and no body, so it pays nothing.
         if (lastStanding && credited.isPresent() && body.isPresent()) {

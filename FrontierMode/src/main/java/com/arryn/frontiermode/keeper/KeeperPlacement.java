@@ -18,7 +18,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 final class KeeperPlacement {
 
     // Border Pregeneration: how many candidate chunk-center positions choosePosition() scores
-    // before picking a winner -- a tuning number ("safe baseline, replace later"), not settled by
+    // before picking a winner -- a tuning number, not tuned against play and not settled by
     // border-pregeneration.md itself. 20, not 5: with 5 independent random draws a radius-32
     // (3209-chunk) border could score every candidate hazardous and fall back to placing a
     // boss at the world floor -- 5 draws isn't enough coverage once a disk gets that large, and

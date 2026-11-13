@@ -33,8 +33,8 @@ public final class ResonanceTrade {
     }
 
     // Fixed price, not vanilla's own randomized enchant-book formula (this trade always offers
-    // exactly Resonance, never a random pick) -- "safe baseline, replace later," same framing
-    // as every other tunable in this cluster. Offered at Librarian level 3, roughly matching
+    // exactly Resonance, never a random pick) -- not tuned against play, like every other
+    // tunable in this cluster. Offered at Librarian level 3, roughly matching
     // where other treasure-tier trades sit.
     private static final int LIBRARIAN_LEVEL = 3;
     private static final int EMERALD_COST = 20;
