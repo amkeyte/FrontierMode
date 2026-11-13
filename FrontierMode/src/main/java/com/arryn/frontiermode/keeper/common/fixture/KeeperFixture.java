@@ -177,6 +177,19 @@ public final class KeeperFixture extends SatchelFixture {
                 .anyMatch(r -> bosses.get(r.bossId()).map(BossRecord::alive).orElse(false));
     }
 
+    /**
+     * The first Keeper record whose {@code borderId} is {@code borderId}, alive or defeated, materialized or not: what
+     * a Border change request asks (keeper.md § A Keeper holds its Border still). More than one record can share a
+     * Border (the cascade gating exists for that) and any one of them holds it, so which one comes back does not
+     * matter. Unlike {@link #anyAliveWithBorderId} it reads no base record and counts a defeated one.
+     */
+    public Optional<KeeperRecord> firstForBorder(UUID borderId) {
+        Objects.requireNonNull(borderId, "borderId");
+        return records.stream()
+                .filter(r -> r.borderId().map(borderId::equals).orElse(false))
+                .findFirst();
+    }
+
     /** Read-only snapshot, the same defensive-copy discipline {@link #all()} follows. */
     public Set<UUID> pendingAttach() {
         return Set.copyOf(pendingAttach);

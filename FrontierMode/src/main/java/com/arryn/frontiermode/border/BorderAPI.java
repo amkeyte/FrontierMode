@@ -19,6 +19,7 @@ import com.arryn.frontiermode.border.common.navigator.TargetType;
 import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
+import com.arryn.frontiermode.border.server.BorderChangeRequest;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -488,6 +489,12 @@ public final class BorderAPI {
         return crud.applyProposal(proposal);
     }
 
+    /**
+     * Moves or resizes an existing Border; a null {@code newCenter} or {@code newRadius} leaves that value alone.
+     * Before it changes anything it posts a {@link BorderChangeRequest}, and if a consumer refuses (the Keeper's,
+     * for a Border that has a Keeper record) it changes nothing and answers
+     * {@link Result#validationRejected(String)} with the first reason given (border.md § Change requests).
+     */
     public static Result transformBorder(
             Level level,
             UUID borderId,
@@ -509,6 +516,11 @@ public final class BorderAPI {
             return Result.notFound("No such border: " + borderId);
         }
 
+        Optional<String> refusal = changeRefusal(level, existing.get(), BorderChangeRequest.Kind.TRANSFORM);
+        if (refusal.isPresent()) {
+            return Result.validationRejected(refusal.get());
+        }
+
         var proposal = crud.getProposal();
 
         // proposal.insert(border) seeds center/radius from the existing border first
@@ -528,7 +540,9 @@ public final class BorderAPI {
     /**
      * returns a {@link Result} -- looks the border up first so a successful removal can still
      * hand the caller the {@link Border} that was removed, same "Border on success" shape every
-     * other mutating operation here follows.
+     * other mutating operation here follows. Before it removes anything it posts a {@link BorderChangeRequest},
+     * and a refusal changes nothing and answers {@link Result#validationRejected(String)} (border.md § Change
+     * requests).
      */
     public static Result removeBorder(Level level, UUID id) {
         Optional<BordersCrudFacet> crudOpt = CRUD(level);
@@ -544,6 +558,11 @@ public final class BorderAPI {
         Optional<Border> existing = crud.get(id);
         if (existing.isEmpty()) {
             return Result.notFound("No such border: " + id);
+        }
+
+        Optional<String> refusal = changeRefusal(level, existing.get(), BorderChangeRequest.Kind.REMOVE);
+        if (refusal.isPresent()) {
+            return Result.validationRejected(refusal.get());
         }
 
         boolean removed = crud.remove(id);
@@ -565,6 +584,16 @@ public final class BorderAPI {
         );
 
         return Result.success(existing.get());
+    }
+
+    /**
+     * Posts a {@link BorderChangeRequest} for {@code border} and answers the first reason a consumer gave to refuse
+     * it, empty when none did. Runs synchronously on the server thread, in the caller's call, before the change.
+     */
+    private static Optional<String> changeRefusal(Level level, Border border, BorderChangeRequest.Kind kind) {
+        BorderChangeRequest request = new BorderChangeRequest(level, border, kind);
+        foundation().eventBus().post(request);
+        return request.refusal();
     }
 
     /**

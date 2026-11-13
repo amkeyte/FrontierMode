@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.border.server.BorderChangeRequest;
 import com.arryn.frontiermode.border.server.BorderPathGrown;
 import com.arryn.frontiermode.boss.Boss;
 import com.arryn.frontiermode.boss.BossAPI;
@@ -21,10 +22,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The holder class for the Keeper's ingress (wiki/frontiermode/architecture/keeper.md § Class map): one consumer of
- * Border's {@link BorderPathGrown}, which marks the new Border pending attach, one of the Info report's
- * {@link InfoRequest}, which adds the {@code keeper:} line, and the two module events the Keeper's mob abilities hear,
- * {@link KeeperConversion} and {@link KeeperTargetChange}. {@link KeeperModule#init()} registers
+ * The holder class for the Keeper's ingress (wiki/frontiermode/architecture/keeper.md § Class map): two consumers of
+ * Border's events, {@link BorderPathGrown}, which marks the new Border pending attach, and
+ * {@link BorderChangeRequest}, which refuses a transform or removal of a Border that has a Keeper; one of the Info
+ * report's {@link InfoRequest}, which adds the {@code keeper:} line; and the two module events the Keeper's mob
+ * abilities hear, {@link KeeperConversion} and {@link KeeperTargetChange}. {@link KeeperModule#init()} registers
  * {@link #build()} through a lambda, so this class loads when the server side boots.
  */
 final class KeeperIngress {
@@ -35,6 +37,7 @@ final class KeeperIngress {
     static IngressConfig build() {
         IngressConfig ingress = new IngressConfig(FrontierKeys.KEEPER_INGRESS);
         ingress.listenForAll(BorderPathGrown.class, KeeperIngress::onPathGrown);
+        ingress.listenForAll(BorderChangeRequest.class, KeeperIngress::onBorderChangeRequest);
         ingress.listenForAll(InfoRequest.class, KeeperIngress::onInfo);
         ingress.translate(LivingConversionEvent.Pre.class, KeeperIngress::resolveConvertingBoss, KeeperConversion::new);
         ingress.translate(LivingChangeTargetEvent.class, KeeperIngress::resolveTargetedBoss, KeeperTargetChange::new);
@@ -49,6 +52,23 @@ final class KeeperIngress {
     private static void onPathGrown(BorderPathGrown event) {
         OUT.debug("[Keeper] BorderPathGrown reached its consumer");
         KeeperAPI.keepers(event.level()).ifPresent(keepers -> keepers.addPendingAttach(event.border().id()));
+    }
+
+    /**
+     * A Border that has a Keeper record is held still (keeper.md § A Keeper holds its Border still): the request is
+     * refused for any record, alive or defeated, materialized or not, positioned or not, and for both kinds of request.
+     * The reason names the Border and the Keeper by short id and says to {@code /boss delete} the Keeper first. A
+     * Keeper fixture that is not resolvable yet refuses nothing, the same standby discipline as
+     * {@link KeeperIngress#onPathGrown}.
+     */
+    private static void onBorderChangeRequest(BorderChangeRequest request) {
+        OUT.debug("[Keeper] BorderChangeRequest reached its consumer");
+        UUID borderId = request.border().id();
+        KeeperAPI.keepers(request.level())
+                .flatMap(keepers -> keepers.firstForBorder(borderId))
+                .ifPresent(keeper -> request.refuse("Border " + Ids.shortId(borderId) + " cannot be "
+                        + (request.kind() == BorderChangeRequest.Kind.TRANSFORM ? "transformed" : "removed")
+                        + ": Keeper " + Ids.shortId(keeper.bossId()) + " holds it. /boss delete the Keeper first"));
     }
 
     /**
