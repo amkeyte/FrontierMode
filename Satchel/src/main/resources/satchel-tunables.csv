@@ -88,3 +88,4 @@ FeralRules:densityMaxPerEvent,INT,0,50,8,8,8
 FeralRules:despawnLingerTicks,INT,0,6000,1200,1200,1200
 FeralRules:despawnRadius,FLOAT,0.0,200.0,20.0,20.0,20.0
 FeralRules:maxAliveFeral,INT,0,70,40,40,40
+KeeperKind:keeperArmorRange,INT,8,512,64,64,
