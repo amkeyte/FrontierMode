@@ -24,7 +24,7 @@ net.minecraft.world.entity.EquipmentSlot  # enum of slots
 
 # ---- Identity and text ----
 
-net.minecraft.resources.ResourceLocation  # judgment call: ids are everywhere and a constructor change is a mechanical replace
+net.minecraft.resources.ResourceLocation  # judgment call: ids are everywhere and a constructor change is a mechanical replace; a module builds one through its mod's id helper, so the constructor is called in one place
 net.minecraft.network.chat.Component  # judgment call: immutable text; a factory change is a mechanical replace
 
 
@@ -53,5 +53,5 @@ net.minecraft.world.entity.player.Player  # common to both sides; logic is typed
 
 # ---- Plain base classes (Code Conventions: the Free tier) ----
 
-net.minecraft.world.item.Item  # judgment call: plain subclasses with no per-stack data only; stack data goes through StackData
-net.minecraft.world.level.block.Block  # judgment call: plain subclasses with no block entity only
+net.minecraft.world.item.Item  # judgment call: plain subclasses with no per-stack data only; stack data goes through StackData; the import is free, and a subclass that overrides vanilla behaviour is still a platform class
+net.minecraft.world.level.block.Block  # judgment call: plain subclasses with no block entity only; the import is free, and a subclass that overrides vanilla behaviour is still a platform class

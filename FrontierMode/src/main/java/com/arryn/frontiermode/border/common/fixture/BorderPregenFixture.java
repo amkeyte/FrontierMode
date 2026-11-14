@@ -284,7 +284,7 @@ public final class BorderPregenFixture extends SatchelFixture {
         Border border = borderOpt.get();
 
         // Recomputed fresh from the border's *current* radius every batch, not cached at job
-        // start -- if the border grows mid-pregen (/border transform), the newly-uncovered ring
+        // start -- if the border's radius changes mid-pregen, the newly-uncovered ring
         // is picked up automatically on the next batch rather than being silently missed.
         int chunkRadius = BorderPregenLogic.chunkRadiusFor(border.radius());
         List<int[]> offsets = BorderPregenLogic.chunkOffsetsInDisk(chunkRadius);

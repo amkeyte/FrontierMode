@@ -252,9 +252,9 @@ public final class FrontierKeys {
     public static final IngressKey BOSS_INGRESS =
             new IngressKey("frontiermode:boss");
 
-    // RM_FRO_064 ("Charlotte"): names the Keeper's ingress, which carries the consumer of Border's BorderPathGrown and
-    // the two module events the Keeper's mob abilities hear. Wired in KeeperIngress.build(), registered from
-    // KeeperModule.init().
+    // RM_FRO_064 ("Charlotte"): names the Keeper's ingress, which carries the consumer of Border's
+    // BorderChangeRequest and the two module events the Keeper's mob abilities hear. Wired in
+    // KeeperIngress.build(), registered from KeeperModule.init().
 
     public static final IngressKey KEEPER_INGRESS =
             new IngressKey("frontiermode:keeper");

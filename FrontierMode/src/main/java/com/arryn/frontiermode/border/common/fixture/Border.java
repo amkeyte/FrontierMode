@@ -8,9 +8,8 @@ import java.util.UUID;
 /**
  * Immutable materialized border.
  * <p>
- * Borders can only be constructed within this package -- {@link BorderProposal#create()} is the
- * only real caller ({@link BordersFixture#reassignLayers} also constructs directly, for the
- * layer-reassignment replace-in-place case).
+ * Borders can only be constructed within this package: {@link BorderProposal#create()} builds a new one, and
+ * {@code BordersFixture} builds one for each it loads.
  */
 @SuppressWarnings("ClassCanBeRecord")
 public final class Border {

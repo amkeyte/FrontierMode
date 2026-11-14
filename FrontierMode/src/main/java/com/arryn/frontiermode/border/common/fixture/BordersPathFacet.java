@@ -1,15 +1,11 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.common.BorderRules;
-import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,36 +48,6 @@ public final class BordersPathFacet {
 
     public int indexOf(UUID id) {
         return fixture.borderPath.indexOf(id); // -1 if absent
-    }
-
-    public void insert(int index, Border border) {
-        Satchel.requireServer();
-
-        if (!fixture.all().contains(border)) {
-            throw new IllegalArgumentException(
-                    "Cannot insert border not owned by this setting: " + border.id()
-            );
-        }
-
-        if (fixture.borderPath.contains(border.id())) {
-            throw new IllegalStateException(
-                    "Border already present in path: " + border.id()
-            );
-        }
-
-        fixture.borderPath.add(index, border.id());
-        fixture.markPathDirty();
-    }
-
-
-    public RecordChange remove(Border border) {
-        Satchel.requireServer();
-
-        if (!fixture.borderPath.remove(border.id())) {
-            return RecordChange.NO_RECORD;
-        }
-        fixture.markPathDirty();
-        return RecordChange.DONE;
     }
 
     /**
@@ -180,134 +146,4 @@ public final class BordersPathFacet {
     private int nextRadius(Level level) {
         return BorderRules.radiusForPathPosition(level, size() + 1);
     }
-
-    public int insertAll(int index, Collection<Border> borders) {
-        Satchel.requireServer();
-
-        // Validate first (no partial mutation)
-        for (Border b : borders) {
-            if (!fixture.all().contains(b)) {
-                throw new IllegalArgumentException(
-                        "Cannot insert border not owned by this setting: " + b.id()
-                );
-            }
-            if (fixture.borderPath.contains(b.id())) {
-                throw new IllegalStateException(
-                        "Border already present in path: " + b.id()
-                );
-            }
-        }
-
-        int inserted = 0;
-        int cursor = index;
-
-        for (Border b : borders) {
-            fixture.borderPath.add(cursor, b.id());
-            cursor++;
-            inserted++;
-        }
-
-        if (inserted > 0) {
-            fixture.markPathDirty();
-        }
-
-        return inserted;
-    }
-
-
-    public int removeAll(Collection<Border> borders) {
-        Satchel.requireServer();
-
-        int removed = 0;
-        for (Border b : borders) {
-            if (remove(b) == RecordChange.DONE) {
-                removed++;
-            }
-        }
-        return removed;
-    }
-// ------------------------------------------------------------
-// Ordered path mutation
-// ------------------------------------------------------------
-
-    /**
-     * Moves {@code border} one place toward the start of the path. {@link Result.FailureKind#NOT_FOUND} if it is
-     * not on the path, {@link Result.FailureKind#VALIDATION_REJECTED} if it is already first.
-     */
-    public Result moveDown(Border border) {
-        Satchel.requireServer();
-
-        int idx = fixture.borderPath.indexOf(border.id());
-        if (idx < 0) {
-            return Result.notFound("Border is not present in the path.");
-        }
-        if (idx == 0) {
-            return Result.validationRejected("Border is already at the start of the path.");
-        }
-
-        fixture.borderPath.remove(idx);
-        fixture.borderPath.add(idx - 1, border.id());
-        fixture.markPathDirty();
-        return Result.success(border);
-    }
-
-    /**
-     * Moves {@code border} one place toward the end of the path. {@link Result.FailureKind#NOT_FOUND} if it is
-     * not on the path, {@link Result.FailureKind#VALIDATION_REJECTED} if it is already last.
-     */
-    public Result moveUp(Border border) {
-        Satchel.requireServer();
-
-        int idx = fixture.borderPath.indexOf(border.id());
-        if (idx < 0) {
-            return Result.notFound("Border is not present in the path.");
-        }
-        if (idx == fixture.borderPath.size() - 1) {
-            return Result.validationRejected("Border is already at the end of the path.");
-        }
-
-        fixture.borderPath.remove(idx);
-        fixture.borderPath.add(idx + 1, border.id());
-        fixture.markPathDirty();
-        return Result.success(border);
-    }
-
-    /**
-     * Reconciles layer values with path order: {@code moveUp}/{@code moveDown} reorder the path
-     * list, but {@link Border#layer()} is immutable (only a fresh {@link BorderProposal} can set
-     * it), so reordering the path never touches the layer values
-     * {@code BorderRules.getRelevant()} sorts by -- this is the operation that brings the
-     * two back in line.
-     *
-     * <p>Builds this path's own target layer assignment --
-     * {@code target[borderPath.get(i)] = i + 1} for every path member, counting only entries that
-     * have a Border (a stale entry takes no position, so the Borders after it match the path once
-     * {@code reassignLayers} has removed it) -- and delegates the actual bulk
-     * apply to {@link BordersFixture#reassignLayers(Map)}. This just sets each path member's
-     * layer to its 1-based path position (layers start at 1), no more and no less -- layer collisions with off-path borders aren't
-     * a concern to route around (see {@code BordersCrudFacet}'s doc: Layer
-     * and Path are definitionally unrelated, and duplicate layers resolve fine via
-     * {@code getRelevant()}'s own nearest-center tie-break). Full design: Border Path & Layer
-     * Reconciliation (architecture wiki).
-     *
-     * @return the count of borders whose layer actually changed -- {@code 0} is a real, honest
-     * no-op (path and layer order were already consistent).
-     */
-    public int fixLayers() {
-        Satchel.requireServer();
-
-        Map<UUID, Integer> pathTargets = new LinkedHashMap<>();
-        int position = 0;
-        for (UUID id : fixture.borderPath) {
-            // A stale entry (no Border) takes no position: reassignLayers removes it, so the Borders
-            // after it are numbered as if it were already gone. Its own target is never used.
-            if (fixture.get(id).isPresent()) {
-                position++;
-            }
-            pathTargets.put(id, position);
-        }
-
-        return fixture.reassignLayers(pathTargets);
-    }
-
 }

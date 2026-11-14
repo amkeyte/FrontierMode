@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  * them as separate parcels, in either order. Every mutation is the server's ({@code Satchel.requireServer()}).
  *
  * <p><b>{@code pendingAttach}</b> is the border ids that are on the path with no Keeper yet: a boss-less
- * path layer produced by a boss-less {@code pathGrow()} or by removing an on-path Keeper
+ * path layer produced by removing an on-path Keeper
  * (keeper.md § Boss-less path layers and attach). It is a set of its own, since it tracks Borders with no
  * record at all.
  */
@@ -258,8 +258,7 @@ public final class KeeperFixture extends SatchelFixture {
     }
 
     /**
-     * Marks {@code borderId} as awaiting {@code /boss attach} -- written by
-     * {@code BorderCommandHandler.pathGrow()} on a successful boss-less grow, and by the Keeper kind's
+     * Marks {@code borderId} as awaiting {@code /boss attach} -- written by the Keeper kind's
      * {@code onRemoved} when the removed Keeper was on-path.
      *
      * @return {@link SetChange#CHANGED} if {@code borderId} was newly added; {@link SetChange#UNCHANGED} if it was
@@ -305,7 +304,7 @@ public final class KeeperFixture extends SatchelFixture {
      * on a real transition, not every tick the same mismatch persists.
      *
      * <p>A gap whose border id is in {@link #pendingAttach()} logs at {@code OUT.info} ("awaiting attach",
-     * the sanctioned wait-state a boss-less {@code pathGrow()} or an on-path {@code /boss delete} produces)
+     * the sanctioned wait-state an on-path {@code /boss delete} produces)
      * instead of the loud {@code OUT.warn} "real data bug"; an uncovered gap logs as a warning. Both halves feed
      * the same edge trigger, keyed on the full {@code missing} set, so a gap closing, or moving from uncovered
      * to covered by a fresh {@code pendingAttach} entry, still logs once.

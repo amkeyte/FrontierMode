@@ -100,29 +100,12 @@ public interface BossKind {
     void subscribeRecordAbilities(Level level, Boss boss, DynamicTrinket host);
 
     /**
-     * Whether this kind offers {@code /boss add}, hand placement. A command asks before it calls {@link #handPlace},
-     * and answers that the verb does not apply to a kind that says no. The default is a kind that does not offer it.
-     */
-    default boolean offersHandPlace() {
-        return false;
-    }
-
-    /**
      * Whether this kind offers {@code /boss attach}, pairing onto an existing Border. A command asks before it calls
      * {@link #attachToBorder}, and answers that the verb does not apply to a kind that says no. The default is a kind
      * that does not offer it.
      */
     default boolean offersAttach() {
         return false;
-    }
-
-    /**
-     * {@code /boss add}: creates a record of this kind at a position an admin chose, with no Border, and commits the
-     * position at once. Only called for a kind that {@link #offersHandPlace() offers it}; calling it on one that does
-     * not is a programming error. Empty means the kind rejected the arguments (logged).
-     */
-    default Optional<BossRecord> handPlace(Level level, BlockPos position, int layer) {
-        throw new UnsupportedOperationException("[Boss] handPlace(): kind \"" + key() + "\" does not offer the verb.");
     }
 
     /**

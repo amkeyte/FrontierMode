@@ -5,15 +5,12 @@ import com.arryn.frontiermode.border.server.commands.BorderSelectorArgumentType;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 
@@ -35,7 +32,6 @@ public final class BossCommands {
                 Commands.literal("boss")
                         .requires(src -> src.hasPermission(2))
                         .then(info())
-                        .then(add())
                         .then(attach())
                         .then(delete())
                         .then(mob())
@@ -127,33 +123,7 @@ public final class BossCommands {
     }
 
     // ------------------------------------------------------------
-    // ADD -- no selector, mirrors Border's own add() shape (pos/here x layer, no radius)
-    // ------------------------------------------------------------
-
-    private static ArgumentBuilder<CommandSourceStack, ?> add() {
-        return Commands.literal("add")
-                .then(Commands.argument("pos", BlockPosArgument.blockPos())
-                        .then(Commands.argument("layer", IntegerArgumentType.integer(1))
-                                .executes(ctx -> {
-                                    BlockPos pos = BlockPosArgument.getLoadedBlockPos(ctx, "pos");
-                                    int layer = IntegerArgumentType.getInteger(ctx, "layer");
-                                    return BossCommandHandler.addExplicit(ctx, pos, layer);
-                                })
-                        )
-                )
-                .then(Commands.literal("here")
-                        .then(Commands.argument("layer", IntegerArgumentType.integer(1))
-                                .executes(ctx -> {
-                                    int layer = IntegerArgumentType.getInteger(ctx, "layer");
-                                    return BossCommandHandler.addHere(ctx, layer);
-                                })
-                        )
-                );
-    }
-
-    // ------------------------------------------------------------
-    // ATTACH -- nests BorderSelectorArgumentType directly, the same
-    // way BorderCommandHandler.pathInsert/pathRemove already do -- see BossCommandHandler.attach
+    // ATTACH -- nests BorderSelectorArgumentType directly; see BossCommandHandler.attach
     // for why this isn't wired through BossSelectorResult's own four-mode-only chain.
     // ------------------------------------------------------------
 

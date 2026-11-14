@@ -491,54 +491,6 @@ public final class BorderAPI {
     }
 
     /**
-     * Moves or resizes an existing Border; a null {@code newCenter} or {@code newRadius} leaves that value alone.
-     * Before it changes anything it posts a {@link BorderChangeRequest}, and if a consumer refuses (the Keeper's,
-     * for a Border that has a Keeper record) it changes nothing and answers
-     * {@link Result#validationRejected(String)} with the first reason given (border.md § Change requests).
-     */
-    public static Result transformBorder(
-            Level level,
-            UUID borderId,
-            BlockPos newCenter,
-            Integer newRadius
-    ) {
-        Optional<BordersCrudFacet> crudOpt = CRUD(level);
-        if (crudOpt.isEmpty()) {
-            return Result.notReady(
-                    "transformBorder called but BordersFixture not available "
-                            + "level=" + level.dimension().location()
-            );
-        }
-
-        BordersCrudFacet crud = crudOpt.get();
-
-        Optional<Border> existing = crud.get(borderId);
-        if (existing.isEmpty()) {
-            return Result.notFound("No such border: " + borderId);
-        }
-
-        Optional<String> refusal = changeRefusal(level, existing.get(), BorderChangeRequest.Kind.TRANSFORM);
-        if (refusal.isPresent()) {
-            return Result.validationRejected(refusal.get());
-        }
-
-        var proposal = crud.getProposal();
-
-        // proposal.insert(border) seeds center/radius from the existing border first
-        // -- a null newCenter/newRadius means "leave that seeded value alone," not "pass null
-        // through."
-        proposal.insert(existing.get());
-        if (newCenter != null) {
-            proposal.center(newCenter);
-        }
-        if (newRadius != null) {
-            proposal.radius(newRadius);
-        }
-
-        return crud.applyProposal(proposal);
-    }
-
-    /**
      * returns a {@link Result} -- looks the border up first so a successful removal can still
      * hand the caller the {@link Border} that was removed, same "Border on success" shape every
      * other mutating operation here follows. Before it removes anything it posts a {@link BorderChangeRequest},
@@ -561,7 +513,7 @@ public final class BorderAPI {
             return Result.notFound("No such border: " + id);
         }
 
-        Optional<String> refusal = changeRefusal(level, existing.get(), BorderChangeRequest.Kind.REMOVE);
+        Optional<String> refusal = changeRefusal(level, existing.get());
         if (refusal.isPresent()) {
             return Result.validationRejected(refusal.get());
         }
@@ -588,10 +540,10 @@ public final class BorderAPI {
 
     /**
      * Posts a {@link BorderChangeRequest} for {@code border} and answers the first reason a consumer gave to refuse
-     * it, empty when none did. Runs synchronously on the server thread, in the caller's call, before the change.
+     * it, empty when none did. Runs synchronously on the server thread, in the caller's call, before the removal.
      */
-    private static Optional<String> changeRefusal(Level level, Border border, BorderChangeRequest.Kind kind) {
-        BorderChangeRequest request = new BorderChangeRequest(level, border, kind);
+    private static Optional<String> changeRefusal(Level level, Border border) {
+        BorderChangeRequest request = new BorderChangeRequest(level, border);
         foundation().eventBus().post(request);
         return request.refusal();
     }

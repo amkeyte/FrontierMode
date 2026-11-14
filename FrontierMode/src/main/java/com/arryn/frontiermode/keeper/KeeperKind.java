@@ -46,7 +46,6 @@ import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
@@ -103,7 +102,7 @@ public final class KeeperKind implements BossKind {
 
     /**
      * Drops the {@link KeeperRecord} and, when the removed Keeper's Border is still on the path, marks it
-     * pending attach: the same sanctioned wait-state a boss-less {@code pathGrow()} produces. A hand-placed
+     * pending attach, the sanctioned wait-state {@code /boss attach} clears. A hand-placed
      * off-path Keeper (no {@code borderId}) skips that step, and so does a Border removed from the path some
      * other way, which shouldn't be queued for an attach that no longer makes sense.
      */
@@ -241,8 +240,8 @@ public final class KeeperKind implements BossKind {
         }
 
         if (borderId.isEmpty()) {
-            return new DefeatOutcome(true, fallen + ", defeated -- it was never on-path (borderId empty, e.g. a"
-                    + " hand-placed /boss add), so there is no border growth to trigger.");
+            return new DefeatOutcome(true, fallen + ", defeated -- it was never on-path (borderId empty), so"
+                    + " there is no border growth to trigger.");
         }
         if (!lastStanding) {
             return new DefeatOutcome(true, fallen + ", defeated -- but another boss on border "
@@ -380,32 +379,8 @@ public final class KeeperKind implements BossKind {
     }
 
     @Override
-    public boolean offersHandPlace() {
-        return true;
-    }
-
-    @Override
     public boolean offersAttach() {
         return true;
-    }
-
-    /**
-     * {@code /boss add}: a Keeper with no Border at a position an admin chose (keeper.md § Creation). The record is
-     * created unpositioned and its position committed at once, rather than waiting on Border pregeneration: an
-     * admin-forced position, where unvalidated terrain is expected. Empty if the layer is rejected (below 1) or the
-     * boss data is not resolvable yet.
-     */
-    @Override
-    public Optional<BossRecord> handPlace(Level level, BlockPos position, int layer) {
-        Optional<BossFixture> fixtureOpt = BossAPI.bosses(level);
-        if (fixtureOpt.isEmpty()) {
-            return Optional.empty();
-        }
-        BossFixture fixture = fixtureOpt.get();
-        Optional<BossRecord> recordOpt = fixture.create(KEY,
-                new KeeperCreation(layer, Optional.empty(), OptionalInt.empty()));
-        recordOpt.ifPresent(record -> fixture.finalizePosition(record.bossId(), position));
-        return recordOpt;
     }
 
     /**

@@ -82,7 +82,6 @@ com/arryn/frontiermode/boss/server/commands/BossCommandHandler.java  net.minecra
 com/arryn/frontiermode/boss/server/commands/BossCommandHandler.java  net.minecraft.world.entity.Entity
 com/arryn/frontiermode/boss/server/commands/BossCommands.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/boss/server/commands/BossCommands.java  net.minecraft.commands.Commands
-com/arryn/frontiermode/boss/server/commands/BossCommands.java  net.minecraft.commands.arguments.coordinates.BlockPosArgument
 com/arryn/frontiermode/boss/server/commands/BossSelectorArgumentType.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/boss/server/commands/BossSelectorArgumentTypeInfo.java  net.minecraft.commands.CommandBuildContext
 com/arryn/frontiermode/boss/server/commands/BossSelectorArgumentTypeInfo.java  net.minecraft.commands.synchronization.ArgumentTypeInfo

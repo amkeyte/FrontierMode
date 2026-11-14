@@ -264,8 +264,8 @@ public final class BossFixture extends SatchelFixture {
 
     /**
      * Records materialization: the vanilla mob has been spawned at a resolved ground position, at the kind's
-     * body size {@code scale}. Replaces the record in place (records are immutable) -- same remove-then-add-back
-     * shape {@code BordersFixture.reassignLayers} uses.
+     * body size {@code scale}. Replaces the record in place (records are immutable), removing it and adding the
+     * changed one back.
      *
      * @return {@link RecordChange#DONE} only if the record existed, was unmaterialized, and is now
      *         materialized with that scale; {@code NO_RECORD} or {@code WRONG_STATE} (already materialized) otherwise

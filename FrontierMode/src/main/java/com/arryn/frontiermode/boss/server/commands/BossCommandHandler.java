@@ -51,8 +51,7 @@ public final class BossCommandHandler {
         return Component.literal("[Boss] " + m);
     }
 
-    // /boss add and /boss attach are the kind's verbs (BossKind.handPlace, BossKind.attachToBorder). Until the node F
-    // rules split they name the Keeper's kind.
+    // /boss attach is the kind's verb (BossKind.attachToBorder), and it names the Keeper's kind.
     private static BossKind keeperKind() {
         return BossKinds.get(KeeperKind.KEY).orElseThrow();
     }
@@ -105,76 +104,6 @@ public final class BossCommandHandler {
     }
 
     // ------------------------------------------------------------
-    // ADD (no selector -- unchanged, same shape as Border's own add())
-    // ------------------------------------------------------------
-
-    public static int addExplicit(
-            CommandContext<CommandSourceStack> ctx,
-            BlockPos pos,
-            int layer
-    ) {
-        Level level = ctx.getSource().getLevel();
-
-        if (BossAPI.bosses(level).isEmpty()) {
-            ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
-            return 0;
-        }
-        BossKind kind = keeperKind();
-        if (!kind.offersHandPlace()) {
-            ctx.getSource().sendFailure(doesNotApply(kind, "add"));
-            return 0;
-        }
-
-        // the kind answers empty on a rejected sub-1 layer -- Brigadier's own
-        // IntegerArgumentType.integer(1) on "layer" already keeps this unreachable from this command, but the
-        // kind-level guard applies to every caller. Border Pregeneration: the record starts unpositioned, and
-        // this command's whole point is an admin choosing the position directly, so the kind commits `pos`
-        // immediately rather than waiting on BorderAPI.isPregenReady() -- the same "admin-forced position,
-        // unvalidated terrain is expected" precedent debugGoto's own comment already uses.
-        Optional<BossRecord> recordOpt = kind.handPlace(level, pos, layer);
-        if (recordOpt.isEmpty()) {
-            ctx.getSource().sendFailure(msg("Rejected: no boss record was created for layer " + layer
-                    + " (see server log)."));
-            return 0;
-        }
-
-        BossRecord record = recordOpt.get();
-        ctx.getSource().sendSuccess(() -> msg("Created boss record " + record.bossId()), false);
-        return 1;
-    }
-
-    public static int addHere(
-            CommandContext<CommandSourceStack> ctx,
-            int layer
-    ) throws CommandSyntaxException {
-
-        Player sp = ctx.getSource().getPlayerOrException();
-
-        if (BossAPI.bosses(sp.level()).isEmpty()) {
-            sp.sendSystemMessage(msg("Boss data not available for this level yet."));
-            return 0;
-        }
-        BossKind kind = keeperKind();
-        if (!kind.offersHandPlace()) {
-            sp.sendSystemMessage(doesNotApply(kind, "add"));
-            return 0;
-        }
-
-        // Same hand placement as addExplicit() -- see its comment.
-        Optional<BossRecord> recordOpt = kind.handPlace(sp.level(), sp.blockPosition(), layer);
-        if (recordOpt.isEmpty()) {
-            sp.sendSystemMessage(msg("Rejected: no boss record was created for layer " + layer
-                    + " (see server log)."));
-            return 0;
-        }
-
-        BossRecord record = recordOpt.get();
-        // see addExplicit()'s matching comment above.
-        sp.sendSystemMessage(msg("Created boss record " + record.bossId() + " at your location"));
-        return 1;
-    }
-
-    // ------------------------------------------------------------
     // DELETE
     // ------------------------------------------------------------
 
@@ -201,14 +130,12 @@ public final class BossCommandHandler {
     // ------------------------------------------------------------
 
     /**
-     * Pairs a boss onto an existing boss-less path border.
-     * {@code add} with a border to bind to instead of a raw position: the kind's {@code attachToBorder}
+     * Pairs a boss onto an existing boss-less path border: the kind's {@code attachToBorder}
      * creates the Keeper, which sets the new record's {@code borderId} to the selected border, then clears
      * that border from {@code pendingAttach}. See
      * wiki/frontiermode/architecture/keeper.md#boss-less-path-layers-and-attach.
      *
-     * <p>Nests {@code BorderSelectorArgumentType} the same way {@code BorderCommandHandler
-     * .pathInsert}/{@code .pathRemove} already do -- the argument is Border's own selector
+     * <p>Nests {@code BorderSelectorArgumentType}: the argument is Border's own selector
      * grammar directly, resolved to exactly one border via {@code BorderSelector.resolveSingle}
      * (throws its own {@code CommandSyntaxException} on zero or more than one match), not a mode
      * nested inside {@code BossSelectorResult} -- {@code @border} as a {@code BossSelector} mode
@@ -287,7 +214,7 @@ public final class BossCommandHandler {
             }
             case DEFEATED -> {
                 ctx.getSource().sendFailure(msg("Boss " + id + " is defeated. /boss mob spawn does not bring a"
-                        + " defeated boss back; /boss add or /boss attach makes a new one."));
+                        + " defeated boss back; /boss attach makes a new one."));
                 yield 0;
             }
             case DECLINED -> {
