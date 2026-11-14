@@ -100,8 +100,6 @@ com/arryn/frontiermode/bosstell/ResonanceTrade.java  net.minecraft.world.item.It
 com/arryn/frontiermode/bosstell/ResonanceTrade.java  net.minecraft.world.item.Items
 com/arryn/frontiermode/bosstell/ResonanceTrade.java  net.minecraft.world.item.enchantment.EnchantmentInstance
 com/arryn/frontiermode/bosstell/ResonanceTrade.java  net.minecraft.world.item.trading.MerchantOffer
-com/arryn/frontiermode/bosstell/common/CompassAttunement.java  net.minecraft.nbt.CompoundTag
-com/arryn/frontiermode/bosstell/common/CompassAttunement.java  net.minecraft.world.item.ItemStack
 com/arryn/frontiermode/bosstell/common/enchantments/IntuitionEnchantment.java  net.minecraft.world.item.enchantment.Enchantment
 com/arryn/frontiermode/bosstell/common/enchantments/ResonanceEnchantment.java  net.minecraft.world.item.enchantment.Enchantment
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.core.GlobalPos
@@ -200,9 +198,6 @@ com/arryn/frontiermode/feral/FeralCleanup.java  net.minecraft.server.level.Serve
 com/arryn/frontiermode/feral/FeralCleanup.java  net.minecraft.world.entity.Entity
 com/arryn/frontiermode/feral/FeralCleanup.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/feral/FeralCleanup.java  net.minecraft.world.entity.monster.Slime
-com/arryn/frontiermode/feral/FeralData.java  net.minecraft.nbt.CompoundTag
-com/arryn/frontiermode/feral/FeralData.java  net.minecraft.world.entity.Entity
-com/arryn/frontiermode/feral/FeralData.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/feral/FeralDensity.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/feral/FeralDensity.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/feral/FeralIngress.java  net.minecraft.world.entity.LivingEntity
@@ -267,9 +262,6 @@ com/arryn/frontiermode/sentinel/SentinelAllyTargetGoal.java  net.minecraft.world
 com/arryn/frontiermode/sentinel/SentinelAllyTargetGoal.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelAllyTargetGoal.java  net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal
 com/arryn/frontiermode/sentinel/SentinelConversion.java  net.minecraft.world.entity.Mob
-com/arryn/frontiermode/sentinel/SentinelData.java  net.minecraft.nbt.CompoundTag
-com/arryn/frontiermode/sentinel/SentinelData.java  net.minecraft.world.entity.Entity
-com/arryn/frontiermode/sentinel/SentinelData.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelIngress.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelJigHandlers.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelJigHandlers.java  net.minecraft.world.entity.MobSpawnType

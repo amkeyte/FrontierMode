@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.core.WriteOutcome;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +22,7 @@ import java.util.UUID;
  * wins. The writer then calls {@code mob.refreshDimensions()}, because {@code EntityEvent.Size} fires
  * inside the {@code Entity} constructor, before MobData's container is attached.
  */
+@PlatformBound(reason = "mob data namespace")
 public final class SentinelData {
 
     public static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "sentinel");

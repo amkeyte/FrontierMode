@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.bosstell.common;
 
 import com.arryn.frontiermode.FrontierMode;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.StackData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -30,6 +31,7 @@ import java.util.UUID;
  * current enchant level against this stored value -- a mismatch is the trigger to re-roll/
  * re-lock and update it.
  */
+@PlatformBound(reason = "stack data namespace")
 public final class CompassAttunement {
 
     private static final ResourceLocation NAMESPACE =

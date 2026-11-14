@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.core.WriteOutcome;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -25,6 +26,7 @@ import java.util.Optional;
  * <p>Server-only: MobData is not synced. The record dies with the mob, so no record outside it can go
  * stale. Module code touches the mob's data only through {@link MobData}.
  */
+@PlatformBound(reason = "mob data namespace")
 public final class FeralData {
 
     public static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "feral");

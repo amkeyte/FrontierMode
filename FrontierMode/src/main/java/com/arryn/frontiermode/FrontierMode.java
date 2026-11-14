@@ -41,7 +41,7 @@ import net.minecraftforge.registries.RegistryObject;
 //'ResourceLocation(java.lang.String, java.lang.String)' is deprecated since version 1.20.6 and marked for removal
 
 
-@PlatformBound(reason = "registration, commands")
+@PlatformBound(reason = "registration")
 @Mod(FrontierMode.MODID)
 public final class FrontierMode {
 
