@@ -5,6 +5,8 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.Result;
+import com.arryn.frontiermode.boss.ArmorAnswer;
+import com.arryn.frontiermode.boss.ArmorReading;
 import com.arryn.frontiermode.boss.BodyScale;
 import com.arryn.frontiermode.boss.Boss;
 import com.arryn.frontiermode.boss.BossAPI;
@@ -23,6 +25,7 @@ import com.arryn.frontiermode.boss.common.SiteOutcome;
 import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.keeper.common.BossMobTypes;
 import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
@@ -41,6 +44,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -290,7 +294,9 @@ public final class KeeperKind implements BossKind {
     /**
      * The Keeper's mob-side abilities (keeper.md § Abilities). The hitbox follows the record's scale on both sides; the
      * rest are the server's: the damage tally, the leash (the first Keeper has its own, shorter radius), recovery (a
-     * hurt Keeper heals like the Wither), the health bar for a milestone Keeper, the Sentinels' defense, and the three rules that keep a live Keeper what it is (it never
+     * hurt Keeper heals like the Wither), the armor answer (a hit lands at 1/m when the players' armor beats what the
+     * Keeper's row expects), the health bar for a milestone Keeper, the Sentinels' defense, and the three rules that
+     * keep a live Keeper what it is (it never
      * converts, takes no fire damage, and is left alone by allies).
      */
     @Override
@@ -307,6 +313,8 @@ public final class KeeperKind implements BossKind {
         double radius = KeeperAPI.pathPositionOf(keeper) <= 1 ? leashRadiusFirst() : Leash.standardRadius();
         host.subscribe(new Leash(boss, radius));
         host.subscribe(new Recovery(boss, recoverySeconds()));
+        host.subscribe(new ArmorAnswer(boss, keeperArmorRange(),
+                players -> armorReading(level, boss.bossId(), players)));
         if (KeeperAPI.isMilestone(keeper)) {
             host.subscribe(new HealthBar(boss, KeeperSetup.BOSS_NAME));
         }
@@ -320,6 +328,32 @@ public final class KeeperKind implements BossKind {
     // second on a maximum of 300 (boss.md § The Recovery ability).
     private static int recoverySeconds() {
         return new Tunable("keeperRecoverySeconds", 30, 3600, 300).intValue();
+    }
+
+    // The Keeper's rule for ArmorAnswer (keeper.md § Armor answers back): the highest armor capability among the
+    // players in the fight, 0 for none, against the capability the Keeper's row expects. The record is read when
+    // the rule runs, not held from the subscribe.
+    private static ArmorReading armorReading(Level level, UUID bossId, List<Player> players) {
+        double capability = 0.0;
+        for (Player player : players) {
+            capability = Math.max(capability, DifficultyAPI.armorCapability(player));
+        }
+        // A living Keeper body always has its record (the whole-entry rule), so a missing one is a programming error.
+        KeeperRecord keeper = keeper(level, bossId).orElseThrow(() -> new IllegalStateException(
+                "[Keeper] armorReading(): no Keeper record for bossId=" + bossId));
+        double expected = KeeperAPI.expectedCapability(keeper);
+        return new ArmorReading(capability, DifficultyAPI.armorMultiplier(keeperArmorCounter(), capability, expected));
+    }
+
+    // How hard a Keeper counters armor that beats its row: the multiplier is this to the power of the capability's
+    // lead over the expected one, and 1 turns it off for Keepers.
+    private static double keeperArmorCounter() {
+        return new Tunable("keeperArmorCounter", 1f, 20f, 4f).floatValue();
+    }
+
+    // Blocks from the Keeper within which a player counts as in the fight, with whoever hits.
+    private static int keeperArmorRange() {
+        return new Tunable("keeperArmorRange", 8, 512, 64).intValue();
     }
 
     // The level 1 Keeper's own, shorter leash: a Rabbit is fast and small, and the first Border is radius 8, so the

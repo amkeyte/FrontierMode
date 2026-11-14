@@ -70,4 +70,12 @@ public final class DifficultyRules {
         // A vex's sword hit on Normal.
         return 9.0;
     }
+
+    /**
+     * The size, in points, of the hit the armor read runs vanilla's two reductions on (difficulty.md § Armor answers
+     * back); a larger hit makes armor toughness count for more.
+     */
+    public static double armorReferenceHit() {
+        return new Tunable("armorReferenceHit", 1f, 100f, 10f).floatValue();
+    }
 }

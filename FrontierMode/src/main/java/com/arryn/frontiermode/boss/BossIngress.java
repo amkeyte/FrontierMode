@@ -19,7 +19,8 @@ import java.util.UUID;
 
 /**
  * The holder class for the boss module's ingress: one consumer of the Info report's {@link InfoRequest},
- * which adds the {@code boss:} line for an entity, and the two module events the mob abilities hear, {@link BossMount} and {@link BossDamaged}.
+ * which adds the {@code boss:} line for an entity, and the three module events the mob abilities hear, {@link BossMount},
+ * {@link BossTakingDamage} and {@link BossDamaged}.
  * {@link BossModule#init()} registers {@link #build()} through a lambda, so this class loads when the
  * server side boots.
  */
@@ -32,6 +33,8 @@ final class BossIngress {
         IngressConfig ingress = new IngressConfig(FrontierKeys.BOSS_INGRESS);
         ingress.listenForAll(InfoRequest.class, BossIngress::onInfo);
         ingress.translate(EntityMountEvent.class, BossIngress::resolveMountingBoss, BossMount::new);
+        // Normal priority: the stage where the amount can still be changed.
+        ingress.translate(LivingDamageEvent.class, BossIngress::resolveDamagedBoss, BossTakingDamage::new);
         // Lowest, so the amount is what every other listener left.
         ingress.priority(EventPriority.LOWEST).translate(
                 LivingDamageEvent.class, BossIngress::resolveDamagedBoss, BossDamaged::new);

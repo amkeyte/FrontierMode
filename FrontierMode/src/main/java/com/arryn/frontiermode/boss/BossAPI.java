@@ -147,6 +147,15 @@ public final class BossAPI {
     }
 
     /**
+     * The armor multiplier in force for the boss {@code bossId} (boss.md § The ArmorAnswer ability): its
+     * {@link Boss#armorMultiplier()}, and 1 when the level has no roster yet or no such boss. It is for a caller
+     * that holds only the id, which is a Sentinel asking for its Keeper.
+     */
+    public static double armorMultiplier(Level level, UUID bossId) {
+        return roster(level).flatMap(roster -> roster.boss(bossId)).map(Boss::armorMultiplier).orElse(1.0);
+    }
+
+    /**
      * Forces materialization of {@code bossId} regardless of chunk-loaded state -- used by
      * {@code /boss mob spawn}. Goes through the same {@link Boss} path as the tick, with the differences the
      * admin command has: it loads the chunk synchronously, works on a record that has no entity or a stale

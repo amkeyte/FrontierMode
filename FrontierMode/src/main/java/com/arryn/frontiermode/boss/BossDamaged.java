@@ -8,8 +8,9 @@ import net.minecraftforge.event.entity.living.LivingDamageEvent;
 
 /**
  * A boss is about to take damage, after armor, protection and absorption: the module's event for Forge's
- * {@link LivingDamageEvent}, server only, at the lowest Forge priority so the amount is what other listeners left. Its
- * context is the boss's mob scope. It is built only for a boss, so the ingress's resolver is the cheap filter.
+ * {@link LivingDamageEvent}, server only, at the lowest Forge priority so the amount is what other listeners left. It
+ * is the later of the module's two stages on that event: {@link BossTakingDamage} comes first, at the normal priority,
+ * and may change the amount. Its context is the boss's mob scope. It is built only for a boss, so the ingress's resolver is the cheap filter.
  * {@code CreditTally} reads it to tally the damage players deal (boss.md § Player credit and non-player death).
  */
 public final class BossDamaged extends ModuleSignal<LivingDamageEvent, ScopeInfo> {

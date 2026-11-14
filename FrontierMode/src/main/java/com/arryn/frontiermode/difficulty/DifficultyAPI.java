@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.difficulty;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.difficulty.common.ArmorMath;
 import com.arryn.frontiermode.difficulty.common.DifficultyRules;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import net.minecraft.server.MinecraftServer;
@@ -14,6 +15,7 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.monster.piglin.Piglin;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.OptionalInt;
 
@@ -94,6 +96,24 @@ public final class DifficultyAPI {
         return BorderAPI.PATH(server.overworld())
                 .map(path -> OptionalInt.of(path.size()))
                 .orElseGet(OptionalInt::empty);
+    }
+
+    /**
+     * {@code player}'s armor as one hidden number from 0 (bare skin) to 1 (the best vanilla kit), read from the armor
+     * and toughness attributes and the Protection on the four armor slots (difficulty.md § Armor answers back). Nothing
+     * is stored and nothing is shown.
+     */
+    public static double armorCapability(Player player) {
+        return ArmorSources.capabilityOf(player);
+    }
+
+    /**
+     * What a use multiplies by for armor that beats what the thing being fought expects:
+     * {@code counter ^ max(0, capability - expected)}, never below 1, and always 1 for a {@code counter} of 1. A
+     * {@code counter} below 1 is a programming error.
+     */
+    public static double armorMultiplier(double counter, double capability, double expected) {
+        return ArmorMath.multiplier(counter, capability, expected);
     }
 
     /** The mob's place on the stat ladder as one Info report line (level, rung, multipliers), if it has one. */

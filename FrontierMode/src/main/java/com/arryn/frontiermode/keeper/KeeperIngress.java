@@ -93,14 +93,16 @@ final class KeeperIngress {
     /** The {@code keeper:} line, or null (no line) for a subject that is not a Keeper. */
     private static String keeperLine(Level level, Optional<UUID> bossId) {
         return bossId.flatMap(id -> KeeperAPI.keepers(level).flatMap(keepers -> keepers.get(id)))
-                .map(keeper -> String.format("  keeper: layer %d, path position %d, body %s, border %s, platform %s",
+                .map(keeper -> String.format(
+                        "  keeper: layer %d, path position %d, body %s, border %s, platform %s, expects %.2f",
                         keeper.layer(), KeeperAPI.pathPositionOf(keeper),
                         keeper.body().isEmpty() ? "-" : keeper.body(),
                         keeper.borderId().map(Ids::shortId).orElse("none"),
                         keeper.platformBuilt()
                                 ? keeper.platformPos().getX() + ", " + keeper.platformPos().getY() + ", "
                                         + keeper.platformPos().getZ()
-                                : "-"))
+                                : "-",
+                        KeeperAPI.expectedCapability(keeper)))
                 .orElse(null);
     }
 

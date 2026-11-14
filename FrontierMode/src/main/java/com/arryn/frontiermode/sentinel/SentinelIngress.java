@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.frontiermode.keeper.KeeperCreated;
 import com.arryn.frontiermode.keeper.KeeperDefeated;
@@ -15,7 +16,9 @@ import net.minecraft.world.level.Level;
 /**
  * The holder class for the Sentinel module's ingress (wiki/frontiermode/architecture/sentinels.md § Class map): the three
  * consumers of the Keeper's events ({@link KeeperCreated}, {@link KeeperHit}, {@link KeeperDefeated}; keeper.md §
- * Keeper events) and the consumer of the Info report's {@link InfoRequest}, which adds the {@code sentinel:} line.
+ * Keeper events), the consumer of the Info report's {@link InfoRequest}, which adds the {@code sentinel:} line, and
+ * the module event {@link SentinelTakingDamage} with its one consumer, which lets a hit on a Sentinel land at one over
+ * its Keeper's armor multiplier.
  * {@link SentinelModule#init()} registers {@link #build()} through a lambda, so this class loads when the server side
  * boots.
  */
@@ -30,6 +33,8 @@ final class SentinelIngress {
         ingress.listenForAll(KeeperHit.class, SentinelIngress::onKeeperHit);
         ingress.listenForAll(KeeperDefeated.class, SentinelIngress::onKeeperDefeated);
         ingress.listenForAll(InfoRequest.class, SentinelIngress::onInfo);
+        ingress.translate(SentinelTakingDamage.NATIVE, SentinelTakingDamage::resolve, SentinelTakingDamage::new);
+        ingress.listenForAll(SentinelTakingDamage.class, SentinelIngress::onSentinelTakingDamage);
         return ingress;
     }
 
@@ -62,6 +67,19 @@ final class SentinelIngress {
         OUT.debug("[Sentinel] KeeperDefeated reached its consumer");
         SentinelPresence.of(defeated.level()).ifPresent(presence -> presence.doomSentinelsOf(
                 defeated.bossId(), defeated.credited().map(Player::getUUID).orElse(null)));
+    }
+
+    /**
+     * A Sentinel is about to take damage (sentinels.md § Sentinels answer armor too): while its Keeper's armor reading
+     * is in force, the hit lands at one over the Keeper's multiplier. A Keeper that is unloaded, fully healed, defeated
+     * or not yet hit answers 1, and the hit lands whole.
+     */
+    private static void onSentinelTakingDamage(SentinelTakingDamage hit) {
+        double multiplier = BossAPI.armorMultiplier(hit.level(), hit.bossId());
+        if (multiplier > 1.0) {
+            hit.setAmount((float) (hit.amount() / multiplier));
+            OUT.debug(String.format("[Sentinel] hit scaled x1/%.2f", multiplier));
+        }
     }
 
     /** Registers the Sentinel answer; the work happens in the supplier, once per report. */

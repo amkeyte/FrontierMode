@@ -73,6 +73,15 @@ public final class KeeperAPI {
     }
 
     /**
+     * The armor capability a player needs to beat {@code record}'s Keeper as balanced, on Difficulty's scale of 0 to
+     * 1 (keeper.md § Armor answers back): the {@code keeper-capability} row at the record's path position, the 20
+     * row past it.
+     */
+    public static double expectedCapability(KeeperRecord record) {
+        return KeeperBodies.expectedCapability(pathPositionOf(record));
+    }
+
+    /**
      * {@code border}'s 1-based position on {@code level}'s path -- the value a Keeper record copies once at
      * creation. Empty if the Border is not on the path (or the path isn't resolvable yet).
      */

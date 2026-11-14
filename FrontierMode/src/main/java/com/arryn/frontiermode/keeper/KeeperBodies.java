@@ -5,6 +5,7 @@ import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.CellType;
+import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.tunable.TuningTable;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
@@ -16,7 +17,7 @@ import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import java.util.List;
 
 /**
- * What a Keeper is made of (wiki/frontiermode/architecture/keeper.md § Keeper stats): the five tuning tables, the
+ * What a Keeper is made of (wiki/frontiermode/architecture/keeper.md § Keeper stats): the six tuning tables, the
  * authored bodies and their ladder, the pool and egg roll past path position 20, the size, and the seeds that fill
  * the tables. The tables are declared when this class loads, so they appear on the first use of a Keeper's stats
  * ({@code /satchel tables list}), not at level boot.
@@ -88,6 +89,11 @@ public final class KeeperBodies {
             .seededColumn("value", "seed", CellType.FLOAT, p -> AUTHORED_SIZE[p - 1])
             .build();
 
+    private static final TuningTable KEEPER_CAPABILITY = TuningTable.builder(tableId("keeper-capability"))
+            .intKeys("pathPosition", 1, AUTHORED_THROUGH)
+            .seededColumn("value", "seed", CellType.FLOAT, p -> capabilitySeed(p))
+            .build();
+
     private static final RandomSource RNG = RandomSource.create();
 
     private KeeperBodies() {
@@ -133,6 +139,23 @@ public final class KeeperBodies {
     private static double authoredDamageSeed(int pathPosition) {
         return authoredBody(pathPosition).referenceHit()
                 * LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
+    }
+
+    // The expected capability's seed (keeper.md § Armor answers back): a straight line from 0 at path position 1
+    // to keeperCapabilityAtTwenty at path position 20, on Difficulty's armor scale.
+    private static double capabilitySeed(int pathPosition) {
+        double atTwenty = new Tunable("keeperCapabilityAtTwenty", 0f, 1f, 0.8f).floatValue();
+        return atTwenty * (pathPosition - 1) / (AUTHORED_THROUGH - 1);
+    }
+
+    /**
+     * The {@code keeper-capability} table's value for {@code pathPosition}: the armor capability a player needs to
+     * beat that Keeper as balanced. Past path position {@link #AUTHORED_THROUGH} it is the last row's value, and
+     * nothing rises past it.
+     */
+    static double expectedCapability(int pathPosition) {
+        int row = Math.min(Math.max(pathPosition, 1), AUTHORED_THROUGH);
+        return KEEPER_CAPABILITY.row(row).getFloat("value");
     }
 
     /** The {@code keeper-bodies} row for {@code bodyName}. */

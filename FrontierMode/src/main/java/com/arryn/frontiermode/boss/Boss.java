@@ -27,15 +27,16 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.player.Player;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
  * A boss's runtime view (wiki/frontiermode/architecture/boss.md § The Boss object and the roster): built by
  * the {@link BossRoster} from a whole entry, never saved. It holds the boss's identity and kind, the mob (empty
- * until the mob loads), and the transient state the lifecycle needs: the damage tally, the respawn delay, the
- * repeat-death count, the suspended flag and the retiring flag. It reads the base record from the fixture and
- * keeps no copy.
+ * until the mob loads), and the transient state the lifecycle needs: the damage tally, the armor reading, the
+ * respawn delay, the repeat-death count, the suspended flag and the retiring flag. It reads the base record from
+ * the fixture and keeps no copy.
  *
  * <p>It runs the base lifecycle on the server (position, site, spawn) and the endings: a death is settled at
  * the death, and the endings that are not deaths reach it through {@link Leaving}. A loss goes to the
@@ -56,6 +57,11 @@ public final class Boss implements Leaving {
     // (BossData), written whenever this changes and read back when the body attaches; a new body starts it at
     // zero, and it reads as zero while the body is unloaded.
     private double playerDamage;
+
+    // The working copy of the armor reading the body is held to (boss.md § The ArmorAnswer ability), null when it
+    // holds none. The durable copy is saved with the body (BossData), written whenever this changes and read back
+    // when the body attaches; a new body holds none, and none is held while the body is unloaded.
+    private ArmorReading armorReading;
 
     // Whether the death event for the current body has been settled, so a Leaving(KILLED) that follows it
     // does nothing.
@@ -96,7 +102,7 @@ public final class Boss implements Leaving {
 
     /**
      * What this {@code Boss} knows that its record does not, for the Info report: the player-damage tally, the respawn
-     * state, and whether the kind subscribed {@code Persistent}.
+     * state, whether the kind subscribed {@code Persistent}, and the armor reading the body is held to.
      */
     public String describe() {
         String respawn;
@@ -107,8 +113,18 @@ public final class Boss implements Leaving {
         } else {
             respawn = "ready";
         }
-        return String.format("player damage %.1f, respawn %s, %s", playerDamage, respawn,
-                persistent != null ? "persistent" : "transient");
+        return String.format("player damage %.1f, respawn %s, %s, %s", playerDamage, respawn,
+                persistent != null ? "persistent" : "transient", describeArmor());
+    }
+
+    // "armor 0.62 x1.38", with "(inert)" after it while the body is at full health, or "armor none".
+    private String describeArmor() {
+        if (armorReading == null) {
+            return "armor none";
+        }
+        boolean inert = mob != null && mob.getHealth() >= mob.getMaxHealth();
+        return String.format("armor %.2f x%.2f%s", armorReading.capability(), armorReading.multiplier(),
+                inert ? " (inert)" : "");
     }
 
     /** Adds health a player's own hit actually removed (after armor, capped at what the boss had left). */
@@ -134,6 +150,38 @@ public final class Boss implements Leaving {
     // Mirrors the working copy to the body, which saves it. No body attached means nothing to mirror to.
     private void saveTally() {
         mob().ifPresent(body -> BossData.writePlayerDamage(body, playerDamage));
+    }
+
+    /** Holds the body to {@code reading} until it has fully healed, and saves it with the body. */
+    public void holdArmorReading(ArmorReading reading) {
+        armorReading = Objects.requireNonNull(reading, "reading");
+        mob().ifPresent(body -> BossData.writeArmorReading(body, reading));
+    }
+
+    /** Lets go of the reading the body is held to, if it holds one, and takes it off the body. */
+    public void releaseArmorReading() {
+        if (armorReading == null) {
+            return;
+        }
+        armorReading = null;
+        mob().ifPresent(BossData::clearArmorReading);
+    }
+
+    /** The reading the body is held to, empty when it holds none. */
+    public Optional<ArmorReading> armorReading() {
+        return Optional.ofNullable(armorReading);
+    }
+
+    /**
+     * The armor multiplier in force (boss.md § The ArmorAnswer ability): the held multiplier while a reading is held
+     * and the body is attached, alive and below its maximum health, otherwise 1. A body that has healed answers 1 at
+     * once; the reading it still holds is released by its next hit.
+     */
+    public double armorMultiplier() {
+        if (armorReading == null || mob == null || !mob.isAlive() || mob.getHealth() >= mob.getMaxHealth()) {
+            return 1.0;
+        }
+        return armorReading.multiplier();
     }
 
     /** Marks the boss as being removed by the project, ahead of discarding its body. */
@@ -381,8 +429,9 @@ public final class Boss implements Leaving {
     public void onAttach(ScopeInfo info) {
         MobScope scope = info.scopeAs();
         mob = scope.mob();
-        // The tally saved with the body, so a chunk unload, a quit and a restart keep it.
+        // The tally and the armor reading saved with the body, so a chunk unload, a quit and a restart keep them.
         playerDamage = BossData.playerDamage(mob);
+        armorReading = BossData.readArmorReading(mob).orElse(null);
 
         // A defeated record whose body loads (a forced defeat while it was unloaded) leaves in a puff; the
         // record keeps naming the dead body, and the roster stops holding interest in it.
@@ -400,8 +449,9 @@ public final class Boss implements Leaving {
         // A respawned body may have attached this Boss to its own scope before the old scope detaches.
         if (mob == ((MobScope) info.scope()).mob()) {
             mob = null;
-            // The durable copy stays with the body; this one reads as zero until a body attaches.
+            // The durable copies stay with the body; these read as zero and none until a body attaches.
             playerDamage = 0.0;
+            armorReading = null;
         }
     }
 
