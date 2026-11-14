@@ -5,7 +5,7 @@ import com.arryn.frontiermode.boss.server.commands.BossSelector;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorResult;
 import com.arryn.frontiermode.structure.StructureAPI;
-import com.arryn.frontiermode.structure.common.CairnRecord;
+import com.arryn.frontiermode.structure.common.fixture.CairnRecord;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;

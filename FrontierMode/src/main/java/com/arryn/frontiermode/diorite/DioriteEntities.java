@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.diorite;
 
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.diorite.common.EdgeStone;
+import com.arryn.frontiermode.diorite.common.entities.EdgeStone;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.registries.DeferredRegister;

@@ -132,6 +132,19 @@ public final class DifficultyAPI {
     }
 
     /**
+     * A Keeper's health multiplier at {@code pathPosition} by the formula: 1 + the Keeper's total health growth x
+     * (pathPosition - 1), so path position 1 is exactly vanilla.
+     */
+    public static double keeperHealthMultiplier(int pathPosition) {
+        return LadderMath.multiplier(keeperHealthGrowthTotal(), pathPosition);
+    }
+
+    /** A Keeper's damage multiplier at {@code pathPosition} by the formula, as {@link #keeperHealthMultiplier}. */
+    public static double keeperDamageMultiplier(int pathPosition) {
+        return LadderMath.multiplier(keeperDamageGrowthTotal(), pathPosition);
+    }
+
+    /**
      * Puts {@code mob} -- a Keeper, before it joins the level -- on the Keeper rung with the given
      * multipliers, which Boss works out from its stat tables (boss.md § Keeper stats).
      * {@link RungOutcome#ALREADY_RUNG} if a rung already had it.

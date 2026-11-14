@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.siting;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.siting.common.SitingMath;
 import com.arryn.frontiermode.siting.common.SitingRules;
 import com.arryn.satchel.common.util.out.OUT;
@@ -43,7 +42,7 @@ final class StartingSite {
         long started = System.nanoTime();
 
         BlockPos vanilla = vanillaSpawn(level);
-        int radius = BorderRules.radiusForPathPosition(level, 1);
+        int radius = BorderAPI.radiusForPathPosition(level, 1);
         SitingMath.Requirements need = new SitingMath.Requirements(
                 SitingRules.startingSiteMinLogs(), SitingRules.startingSiteMaxWater(), SitingRules.startingSiteMinStoneColumns());
         int maxChecks = SitingRules.startingSiteMaxFullChecks();

@@ -13,7 +13,6 @@ import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
 import com.arryn.frontiermode.core.RecordChange;
-import com.arryn.frontiermode.keeper.KeeperKind;
 import com.arryn.frontiermode.core.InfoPrinter;
 import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.satchel.Satchel;
@@ -49,16 +48,6 @@ public final class BossCommandHandler {
 
     private static Component msg(String m) {
         return Component.literal("[Boss] " + m);
-    }
-
-    // /boss attach is the kind's verb (BossKind.attachToBorder), and it names the Keeper's kind.
-    private static BossKind keeperKind() {
-        return BossKinds.get(KeeperKind.KEY).orElseThrow();
-    }
-
-    // A kind that does not offer a verb answers that it does not apply.
-    private static Component doesNotApply(BossKind kind, String verb) {
-        return msg("/boss " + verb + " does not apply to the " + kind.key() + " kind.");
     }
 
     // ------------------------------------------------------------
@@ -155,11 +144,14 @@ public final class BossCommandHandler {
             ctx.getSource().sendFailure(msg("Boss data not available for this level yet."));
             return 0;
         }
-        BossKind kind = keeperKind();
-        if (!kind.offersAttach()) {
-            ctx.getSource().sendFailure(doesNotApply(kind, "attach"));
+        // /boss attach is a kind's verb (BossKind.attachToBorder): the command asks for the kind that offers it and
+        // names no module.
+        Optional<BossKind> kindOpt = BossKinds.offeringAttach();
+        if (kindOpt.isEmpty()) {
+            ctx.getSource().sendFailure(msg("/boss attach does not apply: no boss kind offers it."));
             return 0;
         }
+        BossKind kind = kindOpt.get();
 
         // Clearing pendingAttach is a no-op, not an error, if border.id() wasn't actually pending -- attach
         // doesn't require the target to already be in it (boss.md's own spec places no such restriction on it).

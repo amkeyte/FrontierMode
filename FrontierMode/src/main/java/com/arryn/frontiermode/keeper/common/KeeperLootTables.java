@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.keeper.common;
 
-import com.arryn.frontiermode.border.common.BorderMathLogic;
+import com.arryn.frontiermode.border.BorderAPI;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +47,7 @@ public final class KeeperLootTables {
             names.add("wave_1");
         } else {
             int p = Math.max(pathPosition.getAsInt(), 1);
-            if (BorderMathLogic.waveStep(p, waveLength) == waveLength) {
+            if (BorderAPI.MATH.waveStep(p, waveLength) == waveLength) {
                 names.add(isAuthoredMilestone(p) ? "milestone_" + p : "milestone_late");
             } else {
                 int wave = (p + waveLength - 1) / waveLength;

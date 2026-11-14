@@ -1,6 +1,8 @@
 package com.arryn.frontiermode.border;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.border.common.BorderMathLogic;
+import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
@@ -40,6 +42,7 @@ import net.minecraft.world.entity.player.Player;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -392,6 +395,48 @@ public final class BorderAPI {
     }
 
     /**
+     * The Relevant Border at {@code pos} (border-vocabulary.md, Relevance): of the Borders that contain it, the one
+     * Border's rules pick. Empty when no Border contains {@code pos}, or before the Border facet is ready.
+     */
+    public static Optional<Border> getRelevant(Level level, BlockPos pos) {
+        return RULES(level)
+                .map(rules -> rules.containing(pos))
+                .map(containing -> BorderRules.getRelevant(containing, pos));
+    }
+
+    /**
+     * The ambient Difficulty at {@code pos}: the Relevant Border's layer as a difficulty rating. Empty with no
+     * Relevant Border, or before the Border facet is ready.
+     */
+    public static OptionalInt ambientDifficultyAt(Level level, BlockPos pos) {
+        Optional<List<Border>> containing = RULES(level).map(rules -> rules.containing(pos));
+        if (containing.isEmpty()) {
+            return OptionalInt.empty();
+        }
+        return BorderRules.ambientDifficultyAt(containing.get(), pos);
+    }
+
+    /** A Border's layer as a difficulty rating: the one formula ambient and boss difficulty share. */
+    public static int layerToDifficulty(int layer) {
+        return BorderRules.layerToDifficulty(layer);
+    }
+
+    /** The length of a growth wave, in path positions (border.md § Radius: growth in waves). */
+    public static int waveLength() {
+        return BorderRules.borderWaveLength();
+    }
+
+    /** A path position's step within its growth wave, 1 to {@link #waveLength()}; the last step closes the wave. */
+    public static int waveStep(int pathPosition) {
+        return BorderRules.waveStep(pathPosition);
+    }
+
+    /** The radius a Border at {@code pathPosition} is given (border.md § Radius: growth in waves). */
+    public static int radiusForPathPosition(Level level, int pathPosition) {
+        return BorderRules.radiusForPathPosition(level, pathPosition);
+    }
+
+    /**
      * raw distance past the nearest point on the Frontier's
      * boundary at an arbitrary position -- {@code min} over every {@link Border} in this level's
      * list of {@link MATH#distanceOutside(BlockPos, BlockPos, int)}, per
@@ -643,6 +688,11 @@ public final class BorderAPI {
 
         public static double distanceTo(BlockPos a, BlockPos b) {
             return BorderMath.distanceTo(a, b);
+        }
+
+        /** A path position's step within a growth wave of {@code waveLength}, for a caller that holds the length. */
+        public static int waveStep(int pathPosition, int waveLength) {
+            return BorderMathLogic.waveStep(pathPosition, waveLength);
         }
 
         public static Vec3 direction(BlockPos from, BlockPos to) {

@@ -2,7 +2,6 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
-import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.CellType;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -133,12 +132,12 @@ public final class KeeperBodies {
     // The seeds are the formula (boss.md § Keeper stats): the body's vanilla value x (1 + growth x (p - 1)).
     private static double authoredHealthSeed(int pathPosition) {
         return vanillaMaxHealth(authoredBody(pathPosition).type())
-                * LadderMath.multiplier(DifficultyAPI.keeperHealthGrowthTotal(), pathPosition);
+                * DifficultyAPI.keeperHealthMultiplier(pathPosition);
     }
 
     private static double authoredDamageSeed(int pathPosition) {
         return authoredBody(pathPosition).referenceHit()
-                * LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
+                * DifficultyAPI.keeperDamageMultiplier(pathPosition);
     }
 
     // The expected capability's seed (keeper.md § Armor answers back): a straight line from 0 at path position 1

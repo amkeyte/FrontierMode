@@ -1,14 +1,12 @@
 package com.arryn.frontiermode.bosstell.common.items;
 
+import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
-import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.keeper.KeeperBodies;
 import com.arryn.frontiermode.keeper.KeeperSetup;
-import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -254,7 +252,7 @@ public class AmethystCompassItem extends CompassItem {
                 return;
             }
             int tierIndex = newCode - 1;
-            BlockPos jitter = BorderMath.randomPointInAnnulus(
+            BlockPos jitter = BorderAPI.MATH.randomPointInAnnulus(
                     RNG, posOpt.get(), INTUITION_INNER_RADIUS[tierIndex], INTUITION_OUTER_RADIUS[tierIndex]);
             CompassAttunement.setFrozen(stack, jitter, ownerId, bossLevel);
             writeLodestoneFields(stack, level, jitter);
@@ -300,7 +298,7 @@ public class AmethystCompassItem extends CompassItem {
                 KeeperAPI.keepers(level).flatMap(keepers -> fixture.all().stream()
                         .filter(record -> record.positioned() && keepers.get(record.bossId())
                                 .map(keeper -> matchesPlatform(record.position(), clicked,
-                                        BossPlatform.halfWidth(KeeperBodies.keeperScale(keeper))))
+                                        KeeperAPI.platformHalfWidth(keeper)))
                                 .orElse(false))
                         .findFirst()));
         if (recordOpt.isEmpty()) {
@@ -327,7 +325,7 @@ public class AmethystCompassItem extends CompassItem {
     /**
      * Is {@code clicked} inside the square bedrock cell centered at {@code bossPos.below()}?
      * {@code halfWidth} is 1 for the base 3x3 and grows with the boss's size -- see
-     * {@code BossPlatform.halfWidth}.
+     * {@code KeeperAPI.platformHalfWidth}.
      */
     private static boolean matchesPlatform(BlockPos bossPos, BlockPos clicked, int halfWidth) {
         BlockPos platformCenter = bossPos.below();

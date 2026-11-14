@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.player.PlayerScope;

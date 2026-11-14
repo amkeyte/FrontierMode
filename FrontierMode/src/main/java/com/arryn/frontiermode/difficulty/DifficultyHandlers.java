@@ -1,8 +1,6 @@
 package com.arryn.frontiermode.difficulty;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderRules;
-import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.difficulty.common.DifficultyRules;
 import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.satchel.common.util.out.OUT;
@@ -17,8 +15,6 @@ import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.piglin.Piglin;
 import net.minecraft.world.level.Level;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -144,10 +140,6 @@ final class DifficultyHandlers {
 
     /** The ambient Difficulty at {@code pos}; empty with no Relevant Border or before Border is ready. */
     private static OptionalInt ambientDifficulty(Level level, BlockPos pos) {
-        Optional<List<Border>> containing = BorderAPI.RULES(level).map(rules -> rules.containing(pos));
-        if (containing.isEmpty()) {
-            return OptionalInt.empty();
-        }
-        return BorderRules.ambientDifficultyAt(containing.get(), pos);
+        return BorderAPI.ambientDifficultyAt(level, pos);
     }
 }

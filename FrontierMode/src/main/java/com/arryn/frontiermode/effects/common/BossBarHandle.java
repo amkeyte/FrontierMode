@@ -17,7 +17,7 @@ public final class BossBarHandle {
 
     private final ServerBossEvent event;
 
-    BossBarHandle(ServerBossEvent event) {
+    public BossBarHandle(ServerBossEvent event) {
         this.event = event;
     }
 

@@ -1,6 +1,7 @@
-package com.arryn.frontiermode.structure.common;
+package com.arryn.frontiermode.structure.common.bundle;
 
 import com.arryn.frontiermode.FrontierKeys;
+import com.arryn.frontiermode.structure.common.fixture.CairnFixture;
 import com.arryn.satchel.common.bundle.Capability;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;

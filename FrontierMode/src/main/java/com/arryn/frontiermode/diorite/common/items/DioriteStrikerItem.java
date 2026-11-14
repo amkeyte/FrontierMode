@@ -1,12 +1,11 @@
 package com.arryn.frontiermode.diorite.common.items;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.diorite.common.DioriteRules;
 import com.arryn.frontiermode.diorite.common.StrikerMath;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -24,7 +23,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -70,10 +68,7 @@ public final class DioriteStrikerItem extends Item {
             return InteractionResult.sidedSuccess(false);
         }
 
-        Optional<List<Border>> containing = BorderAPI.RULES(level).map(r -> r.containing(pos));
-        Border relevant = containing.isEmpty() || containing.get().isEmpty()
-                ? null
-                : BorderRules.getRelevant(containing.get(), pos);
+        Border relevant = BorderAPI.getRelevant(level, pos).orElse(null);
         if (relevant == null) {
             sputter(level, x, y, z);
         } else {
@@ -101,14 +96,14 @@ public final class DioriteStrikerItem extends Item {
                               double x, double y, double z) {
         Optional<BordersPathFacet> path = BorderAPI.PATH(level);
 
-        int difficulty = BorderRules.layerToDifficulty(relevant.layer());
+        int difficulty = BorderAPI.layerToDifficulty(relevant.layer());
         int tipDifficulty = path.flatMap(BordersPathFacet::tip)
-                .map(tip -> BorderRules.layerToDifficulty(tip.layer()))
+                .map(tip -> BorderAPI.layerToDifficulty(tip.layer()))
                 .orElse(1);
         float[] rgb = StrikerMath.color(StrikerMath.heat(difficulty, tipDifficulty));
 
         int pathIndex = path.map(p -> p.indexOf(relevant.id())).orElse(-1);
-        int count = pathIndex >= 0 ? BorderRules.waveStep(pathIndex + 1) : DioriteRules.strikerColorOnlySparks();
+        int count = pathIndex >= 0 ? BorderAPI.waveStep(pathIndex + 1) : DioriteRules.strikerColorOnlySparks();
 
         DustParticleOptions dust = new DustParticleOptions(new Vector3f(rgb[0], rgb[1], rgb[2]), DioriteRules.strikerSparkSize());
         // The face's own axes: the normal, "top" (world up on a wall, north on a floor or ceiling) and the

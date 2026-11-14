@@ -1,4 +1,6 @@
-package com.arryn.frontiermode.effects.common;
+package com.arryn.frontiermode.effects;
+
+import com.arryn.frontiermode.effects.common.BossBarHandle;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.DustParticleOptions;

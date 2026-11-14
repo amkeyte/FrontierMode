@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
-import com.arryn.frontiermode.difficulty.common.LadderMath;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.satchel.common.tunable.TuningTable;
@@ -95,9 +94,9 @@ public final class KeeperSetup {
                 damageMultiplier = KeeperBodies.authoredDamage(pathPosition) / referenceHit;
             }
         } else {
-            healthMultiplier = LadderMath.multiplier(DifficultyAPI.keeperHealthGrowthTotal(), pathPosition);
+            healthMultiplier = DifficultyAPI.keeperHealthMultiplier(pathPosition);
             if (referenceHit > 0f) {
-                damageMultiplier = LadderMath.multiplier(DifficultyAPI.keeperDamageGrowthTotal(), pathPosition);
+                damageMultiplier = DifficultyAPI.keeperDamageMultiplier(pathPosition);
             }
         }
         DifficultyAPI.applyKeeperRung(mob, pathPosition, healthMultiplier, damageMultiplier);

@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.diorite.common.items;
 
-import com.arryn.frontiermode.diorite.common.EdgeStone;
+import com.arryn.frontiermode.diorite.common.entities.EdgeStone;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;

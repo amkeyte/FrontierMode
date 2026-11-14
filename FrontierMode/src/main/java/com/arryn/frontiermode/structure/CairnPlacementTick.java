@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.structure;
 
 import com.arryn.frontiermode.FrontierKeys;
-import com.arryn.frontiermode.structure.common.CairnFixture;
-import com.arryn.frontiermode.structure.common.CairnRecord;
-import com.arryn.frontiermode.structure.common.StructureBundle;
+import com.arryn.frontiermode.structure.common.fixture.CairnFixture;
+import com.arryn.frontiermode.structure.common.fixture.CairnRecord;
+import com.arryn.frontiermode.structure.common.bundle.StructureBundle;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Ticking;

@@ -5,7 +5,7 @@ import com.arryn.satchel.common.util.out.OUT;
 /**
  * Entry point for the Effects module -- cross-cutting particle/sound dispatch that other modules
  * (Boss, Border, Discovery, future systems) call into via
- * {@link com.arryn.frontiermode.effects.common.EffectsAPI} /
+ * {@link com.arryn.frontiermode.effects.EffectsAPI} /
  * {@link com.arryn.frontiermode.effects.client.ClientEffectsAPI} rather than rolling their own.
  * See wiki/frontiermode/architecture/effects.md.
  *

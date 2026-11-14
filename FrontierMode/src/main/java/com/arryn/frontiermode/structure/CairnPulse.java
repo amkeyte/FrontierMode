@@ -2,9 +2,9 @@ package com.arryn.frontiermode.structure;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.boss.BossAPI;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
-import com.arryn.frontiermode.structure.common.CairnFixture;
-import com.arryn.frontiermode.structure.common.CairnRecord;
+import com.arryn.frontiermode.effects.EffectsAPI;
+import com.arryn.frontiermode.structure.common.fixture.CairnFixture;
+import com.arryn.frontiermode.structure.common.fixture.CairnRecord;
 import com.arryn.frontiermode.structure.common.CairnRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;

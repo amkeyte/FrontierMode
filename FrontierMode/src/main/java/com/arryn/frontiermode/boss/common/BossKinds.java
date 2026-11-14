@@ -32,6 +32,19 @@ public final class BossKinds {
     }
 
     /**
+     * The kind that offers {@code /boss attach} ({@link BossKind#offersAttach()}), or empty if no registered kind does.
+     * One kind offers it.
+     */
+    public static Optional<BossKind> offeringAttach() {
+        for (BossKind kind : KINDS.values()) {
+            if (kind.offersAttach()) {
+                return Optional.of(kind);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Whether any registered kind can have a body of {@code type}: the base's cheap type gate. Nothing is registered
      * until the kinds' modules have initialized, so before that no type is a body.
      */

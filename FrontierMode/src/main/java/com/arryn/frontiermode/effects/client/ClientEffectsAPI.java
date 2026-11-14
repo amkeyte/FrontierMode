@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.effects.client;
 
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import com.arryn.satchel.common.util.SimParity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;

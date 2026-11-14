@@ -4,7 +4,7 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.player.PlayerScope;

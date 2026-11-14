@@ -1,16 +1,15 @@
 package com.arryn.frontiermode.structure;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.siting.SitingAPI;
-import com.arryn.frontiermode.structure.common.CairnFixture;
+import com.arryn.frontiermode.structure.common.fixture.CairnFixture;
 import com.arryn.frontiermode.structure.common.CairnPlacement;
-import com.arryn.frontiermode.structure.common.CairnRecord;
+import com.arryn.frontiermode.structure.common.fixture.CairnRecord;
 import com.arryn.frontiermode.structure.common.CairnRules;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -65,7 +64,7 @@ final class CairnPlacer {
         }
 
         int radius = homeOpt.get().radius();
-        BlockPos candidate = BorderMath.randomPointInAnnulus(RNG, boss.position(),
+        BlockPos candidate = BorderAPI.MATH.randomPointInAnnulus(RNG, boss.position(),
                 CairnPlacement.innerRadius(radius), CairnPlacement.outerRadius(radius));
 
         Optional<BlockPos> ground = suitableGround(level, candidate);

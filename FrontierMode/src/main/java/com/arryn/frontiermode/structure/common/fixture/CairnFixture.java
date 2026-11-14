@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.structure.common;
+package com.arryn.frontiermode.structure.common.fixture;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;

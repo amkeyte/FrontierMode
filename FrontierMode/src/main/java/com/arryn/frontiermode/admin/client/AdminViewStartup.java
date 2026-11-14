@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.admin.client;
 
 import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
+import com.arryn.frontiermode.border.client.ClientBorderAPI;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -22,6 +22,6 @@ public final class AdminViewStartup {
 
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
-        event.enqueueWork(() -> WorldBordersRenderer.setVisibleWhen(AdminViewClient::viewOn));
+        event.enqueueWork(() -> ClientBorderAPI.setRingsVisibleWhen(AdminViewClient::viewOn));
     }
 }

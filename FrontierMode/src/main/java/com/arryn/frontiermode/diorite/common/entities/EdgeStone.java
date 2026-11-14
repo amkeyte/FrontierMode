@@ -1,11 +1,11 @@
-package com.arryn.frontiermode.diorite.common;
+package com.arryn.frontiermode.diorite.common.entities;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.diorite.DioriteEntities;
 import com.arryn.frontiermode.diorite.DioriteItems;
 import com.arryn.frontiermode.diorite.common.DioriteRules;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;

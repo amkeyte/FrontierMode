@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.effects.common.BossBarHandle;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Ticking;

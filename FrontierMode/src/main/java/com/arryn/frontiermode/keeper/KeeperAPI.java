@@ -2,12 +2,12 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
@@ -82,6 +82,14 @@ public final class KeeperAPI {
     }
 
     /**
+     * Half the width, in blocks, of the square bedrock platform under {@code record}'s Keeper (keeper.md § Spawn
+     * platform): the platform's footprint for the Keeper's size.
+     */
+    public static int platformHalfWidth(KeeperRecord record) {
+        return BossPlatform.halfWidth(KeeperBodies.keeperScale(record));
+    }
+
+    /**
      * {@code border}'s 1-based position on {@code level}'s path -- the value a Keeper record copies once at
      * creation. Empty if the Border is not on the path (or the path isn't resolvable yet).
      */
@@ -99,7 +107,7 @@ public final class KeeperAPI {
         if (record.pathPosition().isEmpty()) {
             return false;
         }
-        return BorderRules.waveStep(record.pathPosition().getAsInt()) == BorderRules.borderWaveLength();
+        return BorderAPI.waveStep(record.pathPosition().getAsInt()) == BorderAPI.waveLength();
     }
 
     /**

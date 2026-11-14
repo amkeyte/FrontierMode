@@ -1,7 +1,6 @@
 package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderCurve;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
@@ -153,7 +152,7 @@ final class SentinelConversion {
         }
 
         return Optional.of(new Nearby(nearest, nearestKeeper, borderOpt.get().radius(), placementOpt.get(),
-                difficultyOpt.get(), BorderMath.distanceTo(nearest.position(), pos)));
+                difficultyOpt.get(), BorderAPI.MATH.distanceTo(nearest.position(), pos)));
     }
 
     /**
@@ -176,7 +175,7 @@ final class SentinelConversion {
     static boolean rollPlacement(Nearby nearby) {
         double placementRadius = nearby.radius() * SentinelRules.sentinelPlacementRadiusFraction();
         double normalized = placementRadius > 0.0 ? nearby.distanceToBoss() / placementRadius : 1.0;
-        double intensity = BorderMath.intensityAt(nearby.placement(), normalized);
+        double intensity = BorderAPI.MATH.intensityAt(nearby.placement(), normalized);
         if (intensity <= 0.0) {
             return false;
         }
@@ -188,7 +187,7 @@ final class SentinelConversion {
      * border.
      */
     static double difficultyIntensity(Nearby nearby) {
-        return BorderMath.intensityAt(
+        return BorderAPI.MATH.intensityAt(
                 nearby.difficulty(), nearby.radius() > 0.0 ? nearby.distanceToBoss() / nearby.radius() : 1.0);
     }
 

@@ -2,7 +2,6 @@ package com.arryn.frontiermode.bosstell.common.fixture;
 
 import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderMath;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderCurve;
 import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
@@ -11,7 +10,7 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.bosstell.common.bundle.TellBundle;
-import com.arryn.frontiermode.effects.common.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsAPI;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
@@ -322,8 +321,8 @@ public final class BossTellFixture extends SatchelFixture {
             // ~80% of its own border's radius from center, and standing right on that boss' platform
             // would then read as ~0.15 intensity instead of ~1.0. Border radius still normalizes
             // the distance (there's no other natural "how far is far" reference).
-            double normalizedDistance = BorderMath.distanceTo(nearest.position(), playerPos) / borderOpt.get().radius();
-            double intensity = BorderMath.intensityAt(curveOpt.get(), normalizedDistance);
+            double normalizedDistance = BorderAPI.MATH.distanceTo(nearest.position(), playerPos) / borderOpt.get().radius();
+            double intensity = BorderAPI.MATH.intensityAt(curveOpt.get(), normalizedDistance);
             if (intensity <= 0.0) {
                 continue;
             }

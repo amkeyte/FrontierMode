@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.sentinel;
+package com.arryn.frontiermode.sentinel.common.goals;
 
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import net.minecraft.world.entity.LivingEntity;
@@ -11,7 +11,7 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
  * goal at the highest priority, so it takes over whenever an ally is in view and lets go when none is.
  * Goals aren't saved with a mob, so {@link #addTo} runs on every join of a Sentinel and is idempotent.
  */
-final class SentinelAllyTargetGoal extends NearestAttackableTargetGoal<LivingEntity> {
+public final class SentinelAllyTargetGoal extends NearestAttackableTargetGoal<LivingEntity> {
 
     // Vanilla's own interval for a player-targeting goal; line of sight required, reach not.
     private static final int CHECK_INTERVAL = 10;
@@ -23,7 +23,7 @@ final class SentinelAllyTargetGoal extends NearestAttackableTargetGoal<LivingEnt
     }
 
     /** Gives {@code sentinel} the goal unless it already has it. */
-    static void addTo(Mob sentinel) {
+    public static void addTo(Mob sentinel) {
         boolean present = sentinel.targetSelector.getAvailableGoals().stream()
                 .anyMatch(wrapped -> wrapped.getGoal() instanceof SentinelAllyTargetGoal);
         if (!present) {
