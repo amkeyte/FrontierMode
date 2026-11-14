@@ -1,6 +1,8 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.core.Adoption;
+import com.arryn.frontiermode.core.WriteOutcome;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.EntityType;
@@ -51,7 +53,7 @@ final class FeralTagging {
         if (mob instanceof Slime) {
             return;
         }
-        if (tag(mob, level)) {
+        if (tag(mob, level) == Adoption.ADOPT) {
             FeralPresence.of(level).ifPresent(presence -> presence.join(mob, true));
         }
     }
@@ -66,16 +68,17 @@ final class FeralTagging {
      * <p>The rung's health and damage come from the path tip's position, not the distance
      * ({@link DifficultyAPI#applyFeralRung}).
      *
-     * @return whether the mob is Feral, and so belongs in presence
+     * @return {@link Adoption#ADOPT} if the mob is Feral, and so belongs in presence; {@link Adoption#LEAVE_OUT}
+     *         otherwise
      */
-    private static boolean tag(Mob mob, Level level) {
+    private static Adoption tag(Mob mob, Level level) {
         boolean wrote = false;
         if (!FeralData.has(mob)) {
             int frontierDistance = BorderAPI.frontierDistanceAt(level, mob.blockPosition());
             if (frontierDistance <= 0) {
-                return false;
+                return Adoption.LEAVE_OUT;
             }
-            wrote = FeralData.writeIfAbsent(mob, frontierDistance, false);
+            wrote = FeralData.writeIfAbsent(mob, frontierDistance, false) == WriteOutcome.WRITTEN;
         }
         String rung = switch (DifficultyAPI.applyFeralRung(mob)) {
             case APPLIED -> "applied";
@@ -84,6 +87,6 @@ final class FeralTagging {
         };
         OUT.debug("[Feral] tagged " + EntityType.getKey(mob.getType()) + " at " + mob.blockPosition().toShortString()
                 + (wrote ? ", record written" : ", record kept") + ", feral rung " + rung);
-        return true;
+        return Adoption.ADOPT;
     }
 }

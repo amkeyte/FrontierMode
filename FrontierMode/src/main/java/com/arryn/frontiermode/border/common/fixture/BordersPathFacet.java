@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.common.BorderRules;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -73,14 +74,14 @@ public final class BordersPathFacet {
     }
 
 
-    public boolean remove(Border border) {
+    public RecordChange remove(Border border) {
         Satchel.requireServer();
 
-        boolean removed = fixture.borderPath.remove(border.id());
-        if (removed) {
-            fixture.markPathDirty();
+        if (!fixture.borderPath.remove(border.id())) {
+            return RecordChange.NO_RECORD;
         }
-        return removed;
+        fixture.markPathDirty();
+        return RecordChange.DONE;
     }
 
     /**
@@ -219,7 +220,7 @@ public final class BordersPathFacet {
 
         int removed = 0;
         for (Border b : borders) {
-            if (remove(b)) {
+            if (remove(b) == RecordChange.DONE) {
                 removed++;
             }
         }

@@ -29,17 +29,20 @@ public final class BordersRevisionMonitor {
      * {@code border.common.fixture} alongside {@link BordersFixture}, so it can still poll the
      * fixture directly via {@link #poll(BordersFixture)} below without that type crossing this
      * method's own public boundary).
+     *
+     * @return {@link RevisionPoll#CHANGED} when the revision moved since it was last read (the poll consumes that
+     *         read), {@link RevisionPoll#UNCHANGED} otherwise, including when the Borders are not available
      */
-    public boolean poll(Level level) {
+    public RevisionPoll poll(Level level) {
         Objects.requireNonNull(level, "level");
 
         return BorderAPI.INFO(level)
                 .map(BordersInfoFacet::owner)
                 .map(this::poll)
-                .orElse(false);
+                .orElse(RevisionPoll.UNCHANGED);
     }
 
-    public boolean poll(BordersFixture monitored) {
+    public RevisionPoll poll(BordersFixture monitored) {
         Objects.requireNonNull(monitored, "monitored");
 
         var info  = monitored.INFO;
@@ -52,7 +55,7 @@ public final class BordersRevisionMonitor {
         );
 
         if (!throttler.allow()) {
-            return false;
+            return RevisionPoll.UNCHANGED;
         }
 
         return checkChanged(monitored);
@@ -62,7 +65,7 @@ public final class BordersRevisionMonitor {
      * Internal logic (ungated)
      * ------------------------------------------------------------------ */
 
-    private boolean checkChanged(BordersFixture monitored) {
+    private RevisionPoll checkChanged(BordersFixture monitored) {
         var info  = monitored.INFO;
         var scope = info.scope();
 
@@ -71,9 +74,9 @@ public final class BordersRevisionMonitor {
 
         if (lastRev == null || lastRev != currentRev) {
             lastRevs.put(scope, currentRev);
-            return true;
+            return RevisionPoll.CHANGED;
         }
 
-        return false;
+        return RevisionPoll.UNCHANGED;
     }
 }

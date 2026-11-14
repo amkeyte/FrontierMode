@@ -174,7 +174,6 @@ com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecra
 com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.core.particles.DustParticleOptions
 com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.server.MinecraftServer
 com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.server.TickTask
-com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.tags.BlockTags
 com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.world.InteractionResult
 com/arryn/frontiermode/diorite/common/items/DioriteStrikerItem.java  net.minecraft.world.item.ItemStack

@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.boss.common.fixture;
 
 import com.arryn.frontiermode.boss.common.BossCreation;
+import com.arryn.frontiermode.core.RecordChange;
 import net.minecraft.core.BlockPos;
 
 import java.util.List;
@@ -46,7 +47,7 @@ public class BossCrudFacet {
      *
      */
     @SuppressWarnings("UnusedReturnValue")
-    public boolean finalizePosition(UUID bossId, BlockPos resolvedPosition) {
+    public RecordChange finalizePosition(UUID bossId, BlockPos resolvedPosition) {
         return fixture.finalizePosition(bossId, resolvedPosition);
     }
 
@@ -57,29 +58,28 @@ public class BossCrudFacet {
      *
      */
     @SuppressWarnings("UnusedReturnValue")
-    public boolean materialize(UUID bossId, UUID entityId, float scale) {
+    public RecordChange materialize(UUID bossId, UUID entityId, float scale) {
         return fixture.materialize(bossId, entityId, scale);
     }
 
     /**
      * See {@link BossFixture#dematerialize(UUID)}.
      */
-    public boolean dematerialize(UUID bossId) {
+    public RecordChange dematerialize(UUID bossId) {
         return fixture.dematerialize(bossId);
     }
 
     /**
      * See {@link BossFixture#markDefeated(UUID)}.
      */
-    @SuppressWarnings({"inverted", "BooleanMethodIsAlwaysInverted"})
-    public boolean markDefeated(UUID bossId) {
+    public RecordChange markDefeated(UUID bossId) {
         return fixture.markDefeated(bossId);
     }
 
     /**
      * See {@link BossFixture#remove(UUID)}.
      */
-    public boolean remove(UUID bossId) {
+    public RecordChange remove(UUID bossId) {
         return fixture.remove(bossId);
     }
 

@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.border.common.fixture;
 
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -237,19 +238,18 @@ public final class BordersFixture
                 .findFirst();
     }
 
-    boolean remove(UUID id) {
+    RecordChange remove(UUID id) {
         Satchel.requireServer();
 
-        boolean removed = borders.removeIf(b -> b.id().equals(id));
-        if (!removed) {
-            return false;
+        if (!borders.removeIf(b -> b.id().equals(id))) {
+            return RecordChange.NO_RECORD;
         }
 
         // Referential integrity only
         borderPath.removeIf(pathId -> pathId.equals(id));
 
         markDirty();
-        return true;
+        return RecordChange.DONE;
     }
 
     void markPathDirty() {

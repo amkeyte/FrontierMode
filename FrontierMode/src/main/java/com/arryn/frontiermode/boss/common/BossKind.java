@@ -34,11 +34,11 @@ public interface BossKind {
     boolean canBeBody(EntityType<?> type);
 
     /**
-     * Writes the kind's own record for {@code bossId} from {@code args}. Returns whether the kind accepted the
-     * arguments: {@code false} means it refused, logged why, and wrote nothing. Throws if {@code args} is not
+     * Writes the kind's own record for {@code bossId} from {@code args}. Answers {@link CreateOutcome#CREATED}, or
+     * {@link CreateOutcome#REJECTED} when it refused, logged why, and wrote nothing. Throws if {@code args} is not
      * the type this kind declares, which is a programming error.
      */
-    boolean onCreate(Level level, UUID bossId, BossCreation args);
+    CreateOutcome onCreate(Level level, UUID bossId, BossCreation args);
 
     /**
      * Whether the boss's entry is whole: the kind's own record exists for {@code bossId}, or the kind keeps

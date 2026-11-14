@@ -6,11 +6,14 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.core.Adoption;
 import com.arryn.frontiermode.core.Dismissal;
 import com.arryn.frontiermode.core.Presence;
+import com.arryn.frontiermode.core.SetChange;
 import com.arryn.frontiermode.core.WidePathing;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.sentinel.common.AlertOutcome;
 import com.arryn.frontiermode.sentinel.common.SentinelRules;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -65,7 +68,7 @@ final class SentinelPresence implements Ticking {
 
     private final Presence.Hooks presenceHooks = new Presence.Hooks() {
         @Override
-        public boolean adopt(Mob mob, boolean fresh) {
+        public Adoption adopt(Mob mob, boolean fresh) {
             return adoptSentinel(mob, fresh);
         }
 
@@ -131,23 +134,23 @@ final class SentinelPresence implements Ticking {
      * healed to full, because vanilla's setup can raise max health without healing. A reloaded Sentinel
      * keeps the health it saved with.
      */
-    private boolean adoptSentinel(Mob mob, boolean fresh) {
+    private Adoption adoptSentinel(Mob mob, boolean fresh) {
         Optional<SentinelData.Facts> facts = SentinelData.read(mob);
         Optional<BossFixture> bossOpt = BossAPI.bosses(mob.level());
         if (facts.isEmpty() || bossOpt.isEmpty()) {
-            return false;
+            return Adoption.LEAVE_OUT;
         }
         boolean bossStands = bossOpt.get().CRUD.get(facts.get().bossId()).map(BossRecord::alive).orElse(false);
         if (!bossStands) {
             Dismissal.dismiss(mob);
-            return false;
+            return Adoption.LEAVE_OUT;
         }
         SentinelMarkers.fixture(mob.level()).ifPresent(fixture -> fixture.add(mob.getUUID(), facts.get().scale()));
         mob.refreshDimensions();
         if (fresh) {
             SentinelRules.healSentinel(mob);
         }
-        return true;
+        return Adoption.ADOPT;
     }
 
     // ── defeat ───────────────────────────────────────────────────────────────
@@ -192,7 +195,7 @@ final class SentinelPresence implements Ticking {
             if (!present.contains(mob.getUUID()) || !isSentinelOf(mob, bossId)) {
                 continue;
             }
-            if (SentinelRules.alertSentinel(mob, player)) {
+            if (SentinelRules.alertSentinel(mob, player) == AlertOutcome.ALERTED) {
                 alerts.put(mob.getUUID(), new Alert(player.getUUID(), alertedUntil));
             }
         }
@@ -246,8 +249,8 @@ final class SentinelPresence implements Ticking {
         return liftedPositions.contains(pos.asLong());
     }
 
-    private boolean consumeLifted(BlockPos pos) {
-        return liftedPositions.remove(pos.asLong());
+    private SetChange consumeLifted(BlockPos pos) {
+        return liftedPositions.remove(pos.asLong()) ? SetChange.CHANGED : SetChange.UNCHANGED;
     }
 
     // ── the tick ─────────────────────────────────────────────────────────────
@@ -401,7 +404,7 @@ final class SentinelPresence implements Ticking {
 
         Satchel.requireServer();
         // A lifted spawn already rolled at the placement gate; consuming here also retires the entry.
-        boolean lifted = consumeLifted(mob.blockPosition());
+        boolean lifted = consumeLifted(mob.blockPosition()) == SetChange.CHANGED;
         BossAPI.bosses(level).ifPresent(bossFixture ->
                 BorderAPI.CURVE(level).ifPresent(curves ->
                         tryMakeSentinel(mob, level, bossFixture, curves, lifted)));

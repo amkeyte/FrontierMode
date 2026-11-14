@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.sentinel;
 
+import com.arryn.frontiermode.core.WriteOutcome;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -56,11 +57,11 @@ public final class SentinelData {
         return MobData.read((Mob) entity, NAMESPACE).getFloat(KEY_SCALE);
     }
 
-    /** Writes the record unless {@code mob} already carries one; {@code true} if it wrote. */
-    public static boolean writeIfAbsent(Mob mob, UUID bossId, float scale) {
+    /** Writes the record unless {@code mob} already carries one; {@link WriteOutcome#WRITTEN} if it wrote. */
+    public static WriteOutcome writeIfAbsent(Mob mob, UUID bossId, float scale) {
         CompoundTag tag = new CompoundTag();
         tag.putUUID(KEY_BOSS_ID, bossId);
         tag.putFloat(KEY_SCALE, scale);
-        return MobData.writeIfAbsent(mob, NAMESPACE, tag);
+        return MobData.writeIfAbsent(mob, NAMESPACE, tag) ? WriteOutcome.WRITTEN : WriteOutcome.ALREADY_PRESENT;
     }
 }

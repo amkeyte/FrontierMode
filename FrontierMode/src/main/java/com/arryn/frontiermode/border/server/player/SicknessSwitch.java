@@ -34,11 +34,11 @@ public final class SicknessSwitch implements Trinket {
         return of(server).map(found -> found.on).orElse(true);
     }
 
-    /** Sets the switch; {@code false} when it cannot be found (the Overworld's scope is not ready). */
-    public static boolean set(MinecraftServer server, boolean value) {
+    /** Sets the switch; {@link SwitchSet#NOT_AVAILABLE} when it cannot be found (the Overworld's scope is not ready). */
+    public static SwitchSet set(MinecraftServer server, boolean value) {
         Optional<SicknessSwitch> found = of(server);
         found.ifPresent(switchFound -> switchFound.on = value);
-        return found.isPresent();
+        return found.isPresent() ? SwitchSet.SET : SwitchSet.NOT_AVAILABLE;
     }
 
     private static Optional<SicknessSwitch> of(MinecraftServer server) {

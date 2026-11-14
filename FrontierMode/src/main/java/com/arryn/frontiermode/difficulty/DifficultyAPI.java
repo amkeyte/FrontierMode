@@ -79,10 +79,9 @@ public final class DifficultyAPI {
             return RungOutcome.NO_PATH_TIP;
         }
         int n = tip.getAsInt();
-        boolean applied = Ladder.apply(mob, Ladder.RUNG_FERAL, n,
+        return Ladder.apply(mob, Ladder.RUNG_FERAL, n,
                 LadderMath.multiplier(DifficultyRules.feralHealthGrowth(), n),
                 LadderMath.multiplier(DifficultyRules.feralDamageGrowth(), n));
-        return applied ? RungOutcome.APPLIED : RungOutcome.ALREADY_RUNG;
     }
 
     /**
@@ -114,10 +113,10 @@ public final class DifficultyAPI {
 
     /**
      * Puts {@code mob} -- a Keeper, before it joins the level -- on the Keeper rung with the given
-     * multipliers, which Boss works out from its stat tables (boss.md § Keeper stats). {@code false}
-     * if a rung already had it.
+     * multipliers, which Boss works out from its stat tables (boss.md § Keeper stats).
+     * {@link RungOutcome#ALREADY_RUNG} if a rung already had it.
      */
-    public static boolean applyKeeperRung(Mob mob, int keeperPathPosition, double healthMultiplier,
+    public static RungOutcome applyKeeperRung(Mob mob, int keeperPathPosition, double healthMultiplier,
                                           double damageMultiplier) {
         return Ladder.apply(mob, Ladder.RUNG_KEEPER, keeperPathPosition, healthMultiplier, damageMultiplier);
     }
@@ -126,9 +125,9 @@ public final class DifficultyAPI {
      * Puts {@code mob} on the Sentinel rung (difficulty.md § One formula, a rung for each kind of mob):
      * {@code n} is its Keeper's path position, and the growth is the ordinary growth plus a Sentinel
      * share rising with {@code difficultyIntensity}, 1 beside the boss. Called before the mob joins
-     * the level, so the ordinary rung never touches it. {@code false} if a rung already had it.
+     * the level, so the ordinary rung never touches it. {@link RungOutcome#ALREADY_RUNG} if a rung already had it.
      */
-    public static boolean applySentinelRung(Mob mob, int keeperPathPosition, double difficultyIntensity) {
+    public static RungOutcome applySentinelRung(Mob mob, int keeperPathPosition, double difficultyIntensity) {
         double healthGrowth = LadderMath.sentinelGrowth(DifficultyRules.ordinaryHealthGrowth(),
                 DifficultyRules.sentinelHealthGrowthFar(), DifficultyRules.sentinelHealthGrowthNear(), difficultyIntensity);
         double damageGrowth = LadderMath.sentinelGrowth(DifficultyRules.ordinaryDamageGrowth(),

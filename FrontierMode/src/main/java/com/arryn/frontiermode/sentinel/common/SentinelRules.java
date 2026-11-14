@@ -111,19 +111,20 @@ public final class SentinelRules {
      * Turns {@code sentinel} on {@code player}, replacing any current target, unless vanilla's combat targeting rules
      * exclude the player (creative, spectator, allied). No line-of-sight check.
      *
-     * @return true if the sentinel now targets {@code player}
+     * @return {@link AlertOutcome#ALERTED} if the sentinel now targets {@code player}; {@link AlertOutcome#LEFT_ALONE} if
+     *         it is fighting an ally or vanilla's targeting rules exclude the player
      */
-    public static boolean alertSentinel(Mob sentinel, Player player) {
+    public static AlertOutcome alertSentinel(Mob sentinel, Player player) {
         // Allies come first: a Sentinel already fighting an ally is left to it, so no alert window is
         // recorded; once the ally is gone or out of sight the next hit on the boss alerts it as usual.
         if (sentinel.getTarget() != null && DifficultyAPI.isAlly(sentinel.getTarget())) {
-            return false;
+            return AlertOutcome.LEFT_ALONE;
         }
         if (!SENTINEL_ALERT_TARGETING.test(sentinel, player)) {
-            return false;
+            return AlertOutcome.LEFT_ALONE;
         }
         sentinel.setTarget(player);
-        return true;
+        return AlertOutcome.ALERTED;
     }
 
     /**

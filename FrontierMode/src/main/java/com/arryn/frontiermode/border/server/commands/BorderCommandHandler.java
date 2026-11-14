@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.border.server.commands;
 
+import com.arryn.frontiermode.border.server.player.SwitchSet;
 import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.server.player.SicknessSwitch;
@@ -7,6 +8,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderDisplay;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.BorderPathGrown;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -268,9 +270,9 @@ public final class BorderCommandHandler {
         }
         var path = pathOpt.get();
 
-        boolean removed = path.remove(border);
+        RecordChange removed = path.remove(border);
 
-        if (!removed) {
+        if (removed != RecordChange.DONE) {
             source.sendFailure(msg("Border is not present in the path."));
             return 0;
         }
@@ -401,7 +403,7 @@ public final class BorderCommandHandler {
     // toggling the switch just changes what the very next refresh does.
     // ------------------------------------------------------------------
     public static int setSicknessEnabled(CommandContext<CommandSourceStack> ctx, boolean value) {
-        if (!SicknessSwitch.set(ctx.getSource().getServer(), value)) {
+        if (SicknessSwitch.set(ctx.getSource().getServer(), value) == SwitchSet.NOT_AVAILABLE) {
             ctx.getSource().sendFailure(msg("[Border][Debug] The sickness switch is not available yet: the"
                     + " Overworld's Border scope is not ready. Try again in a moment."));
             return 0;

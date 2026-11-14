@@ -20,6 +20,7 @@ import com.arryn.frontiermode.border.common.player.BorderPlayerBundle;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatusFixture;
 import com.arryn.frontiermode.border.server.BorderChangeRequest;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -565,8 +566,7 @@ public final class BorderAPI {
             return Result.validationRejected(refusal.get());
         }
 
-        boolean removed = crud.remove(id);
-        if (!removed) {
+        if (crud.remove(id) != RecordChange.DONE) {
             // Shouldn't happen given the get() above just succeeded, but stay defensive rather
             // than assume -- same discipline the rest of this refactor follows.
             return Result.notFound("No such border: " + id);

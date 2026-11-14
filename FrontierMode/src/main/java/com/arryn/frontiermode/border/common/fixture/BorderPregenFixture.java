@@ -161,24 +161,24 @@ public final class BorderPregenFixture extends SatchelFixture {
     // ------------------------------------------------------------------
 
     /**
-     * Starts a border's pregeneration job. A no-op (returns {@code false}) if a job already
+     * Starts a border's pregeneration job. A no-op (answers {@link PregenStart#ALREADY_STARTED}) if a job already
      * exists for {@code borderId}, whether still in progress or already complete -- calling this
      * twice is safe, not an error, per this fixture's own class doc.
      */
     @SuppressWarnings("UnusedReturnValue")
-    public boolean start(UUID borderId) {
+    public PregenStart start(UUID borderId) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
         if (get(borderId).isPresent()) {
-            return false;
+            return PregenStart.ALREADY_STARTED;
         }
 
         jobs.add(new BorderPregenRecord(borderId, false, 0));
         startedAtMillis.put(borderId, System.currentTimeMillis());
         markDirty();
         OUT.info("[BorderPregen] Pregeneration started for border " + Ids.shortId(borderId) + ".");
-        return true;
+        return PregenStart.STARTED;
     }
 
     private void advance(UUID borderId, int newCursor, int totalChunks) {

@@ -45,24 +45,24 @@ final class Ladder {
 
     /**
      * Writes {@code rung} and its multipliers if no rung has reached {@code mob}, then scales its
-     * maximum health and heals it to the new maximum. {@code false} if the mob was already claimed
-     * and is left alone. {@code step} is what the mob's level was read as (0 if the rung has none, like
+     * maximum health and heals it to the new maximum. {@link RungOutcome#ALREADY_RUNG} if the mob was already
+     * claimed and is left alone. {@code step} is what the mob's level was read as (0 if the rung has none, like
      * a Keeper's summoned vex): kept so the Info report can show it.
      */
-    static boolean apply(Mob mob, String rung, int step, double healthMultiplier, double damageMultiplier) {
+    static RungOutcome apply(Mob mob, String rung, int step, double healthMultiplier, double damageMultiplier) {
         CompoundTag tag = new CompoundTag();
         tag.putString(KEY_RUNG, rung);
         tag.putInt(KEY_STEP, step);
         tag.putDouble(KEY_HEALTH, healthMultiplier);
         tag.putDouble(KEY_DAMAGE, damageMultiplier);
         if (!MobData.writeIfAbsent(mob, NAMESPACE, tag)) {
-            return false;
+            return RungOutcome.ALREADY_RUNG;
         }
         MobData.scaleMaxHealth(mob, NAMESPACE, healthMultiplier);
         // Vanilla setup can raise max health without healing (a leader zombie), so the mob is healed
         // to its final maximum rather than trusted to be at full already.
         mob.setHealth(mob.getMaxHealth());
-        return true;
+        return RungOutcome.APPLIED;
     }
 
     /**

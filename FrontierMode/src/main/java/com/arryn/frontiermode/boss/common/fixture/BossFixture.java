@@ -3,7 +3,9 @@ package com.arryn.frontiermode.boss.common.fixture;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossKind;
 import com.arryn.frontiermode.boss.common.BossKinds;
+import com.arryn.frontiermode.boss.common.CreateOutcome;
 import com.arryn.frontiermode.boss.common.bundle.BossBundle;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.Ids;
@@ -222,7 +224,7 @@ public final class BossFixture extends SatchelFixture {
 
         BossRecord record = new BossRecord(UUID.randomUUID(), kindKey, null, null, true, 1.0F);
         bosses.add(record);
-        if (!kindOpt.get().onCreate(level(), record.bossId(), args)) {
+        if (kindOpt.get().onCreate(level(), record.bossId(), args) != CreateOutcome.CREATED) {
             bosses.remove(record);
             return Optional.empty();
         }
@@ -234,30 +236,30 @@ public final class BossFixture extends SatchelFixture {
     /**
      * Finalizes an unpositioned record's {@code position}, once the kind says it is final. Rejects a record
      * that already has a finalized position (defensive, mirroring {@link #materialize}'s identical guard) --
-     * returns {@code false} rather than silently overwriting a committed position.
+     * answers {@link RecordChange#WRONG_STATE} rather than silently overwriting a committed position.
      */
-    public boolean finalizePosition(UUID bossId, BlockPos resolvedPosition) {
+    public RecordChange finalizePosition(UUID bossId, BlockPos resolvedPosition) {
         Satchel.requireServer();
         Objects.requireNonNull(resolvedPosition, "resolvedPosition");
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
             OUT.warn("[Boss] finalizePosition(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return false;
+            return RecordChange.NO_RECORD;
         }
 
         BossRecord record = existing.get();
         if (record.positioned()) {
             OUT.warn("[Boss] finalizePosition(): bossId=" + Ids.shortId(bossId) + " already has a finalized"
                     + " position (" + record.position() + ") -- ignoring.");
-            return false;
+            return RecordChange.WRONG_STATE;
         }
 
         BossRecord updated = record.finalizedAt(resolvedPosition);
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         changed();
-        return true;
+        return RecordChange.DONE;
     }
 
     /**
@@ -265,15 +267,16 @@ public final class BossFixture extends SatchelFixture {
      * body size {@code scale}. Replaces the record in place (records are immutable) -- same remove-then-add-back
      * shape {@code BordersFixture.reassignLayers} uses.
      *
-     * @return true only if the record existed, was unmaterialized, and is now materialized with that scale
+     * @return {@link RecordChange#DONE} only if the record existed, was unmaterialized, and is now
+     *         materialized with that scale; {@code NO_RECORD} or {@code WRONG_STATE} (already materialized) otherwise
      */
-    public boolean materialize(UUID bossId, UUID entityId, float scale) {
+    public RecordChange materialize(UUID bossId, UUID entityId, float scale) {
         Satchel.requireServer();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
             OUT.warn("[Boss] materialize(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return false;
+            return RecordChange.NO_RECORD;
         }
 
         BossRecord record = existing.get();
@@ -284,7 +287,7 @@ public final class BossFixture extends SatchelFixture {
             // with a fresh entityId, silently orphaning the old one.
             OUT.warn("[Boss] materialize(): bossId=" + Ids.shortId(bossId) + " is already materialized"
                     + " (entity " + Ids.shortId(record.bossEntityId()) + ") -- ignoring.");
-            return false;
+            return RecordChange.WRONG_STATE;
         }
 
         // Border Pregeneration: position was already finalized (and validated) by
@@ -294,7 +297,7 @@ public final class BossFixture extends SatchelFixture {
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         changed();
-        return true;
+        return RecordChange.DONE;
     }
 
     /**
@@ -306,47 +309,49 @@ public final class BossFixture extends SatchelFixture {
      * a missing, already-defeated, or already-unmaterialized record is warned about and left
      * alone -- the last case also makes a duplicate death event for one physical death a no-op.
      *
-     * @return true if the record existed, was alive, and was materialized and now isn't
+     * @return {@link RecordChange#DONE} if the record existed, was alive, and was materialized and now isn't;
+     *         {@code NO_RECORD}, or {@code WRONG_STATE} for a defeated or unmaterialized record, otherwise
      */
-    public boolean dematerialize(UUID bossId) {
+    public RecordChange dematerialize(UUID bossId) {
         Satchel.requireServer();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
             OUT.warn("[Boss] dematerialize(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return false;
+            return RecordChange.NO_RECORD;
         }
 
         BossRecord record = existing.get();
         if (!record.alive()) {
             OUT.warn("[Boss] dematerialize(): bossId=" + Ids.shortId(bossId) + " is already defeated -- ignoring.");
-            return false;
+            return RecordChange.WRONG_STATE;
         }
         if (!record.materialized()) {
             OUT.warn("[Boss] dematerialize(): bossId=" + Ids.shortId(bossId) + " is not materialized -- ignoring.");
-            return false;
+            return RecordChange.WRONG_STATE;
         }
 
         BossRecord updated = record.dematerialized();
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         changed();
-        return true;
+        return RecordChange.DONE;
     }
 
     /**
      * Marks a boss record defeated (`alive: false`), addressed by its own {@code bossId} --
      * never via any {@code Border} reference, this fixture isn't keyed by one (see this class's
      * own doc and boss.md's "Data model" section). Replaces the record in place (records are
-     * immutable), same remove-then-add-back shape {@link #materialize} uses.
+     * immutable), same remove-then-add-back shape {@link #materialize} uses. {@link RecordChange#NO_RECORD}
+     * for a missing record, {@code WRONG_STATE} for one already defeated.
      */
-    public boolean markDefeated(UUID bossId) {
+    public RecordChange markDefeated(UUID bossId) {
         Satchel.requireServer();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
             OUT.warn("[Boss] markDefeated(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return false;
+            return RecordChange.NO_RECORD;
         }
 
         BossRecord record = existing.get();
@@ -356,14 +361,14 @@ public final class BossFixture extends SatchelFixture {
             // /boss transform defeat run twice against the same boss re-triggered it a second
             // time with no real defeat behind it. See boss.md's "Mutation validation boundary".
             OUT.warn("[Boss] markDefeated(): bossId=" + Ids.shortId(bossId) + " is already defeated -- ignoring.");
-            return false;
+            return RecordChange.WRONG_STATE;
         }
 
         BossRecord updated = record.defeated();
         bosses.removeIf(r -> r.bossId().equals(bossId));
         bosses.add(updated);
         changed();
-        return true;
+        return RecordChange.DONE;
     }
 
     /**
@@ -374,15 +379,16 @@ public final class BossFixture extends SatchelFixture {
      * record still had a live entity (see boss.md's "Known limitation" section -- same
      * indistinguishable-from-chunk-unload shape applies here as everywhere else).
      *
-     * @return true if a record with this id existed and was removed; false if there was nothing
-     *         to remove (not an error -- {@code /boss delete} reports this as a plain failure).
+     * @return {@link RecordChange#DONE} if a record with this id existed and was removed;
+     *         {@link RecordChange#NO_RECORD} if there was nothing to remove (not an error -- {@code /boss delete}
+     *         reports this as a plain failure).
      */
-    public boolean remove(UUID bossId) {
+    public RecordChange remove(UUID bossId) {
         Satchel.requireServer();
 
         Optional<BossRecord> existing = get(bossId);
         if (existing.isEmpty()) {
-            return false;
+            return RecordChange.NO_RECORD;
         }
 
         bosses.removeIf(r -> r.bossId().equals(bossId));
@@ -395,6 +401,6 @@ public final class BossFixture extends SatchelFixture {
         } else {
             kindOpt.get().onRemoved(level(), bossId);
         }
-        return true;
+        return RecordChange.DONE;
     }
 }

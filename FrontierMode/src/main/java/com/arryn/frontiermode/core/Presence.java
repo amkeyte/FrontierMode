@@ -41,9 +41,10 @@ public final class Presence {
 
         /**
          * A queued mob that passed the same-object check. {@code fresh} is true for a mob that spawned
-         * just now, false for one loaded from disk. Return true to adopt it, false to leave it out.
+         * just now, false for one loaded from disk. Answer {@link Adoption#ADOPT} to adopt it,
+         * {@link Adoption#LEAVE_OUT} to leave it out.
          */
-        boolean adopt(Mob mob, boolean fresh);
+        Adoption adopt(Mob mob, boolean fresh);
 
         /** A present mob reported {@code isRemoved()} and has left presence. */
         void onDrop(Mob mob);
@@ -91,7 +92,7 @@ public final class Presence {
             hooks.onDrop(known);
         }
 
-        if (hooks.adopt(mob, join.fresh())) {
+        if (hooks.adopt(mob, join.fresh()) == Adoption.ADOPT) {
             present.put(uuid, mob);
         }
     }

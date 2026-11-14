@@ -9,7 +9,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -109,12 +108,9 @@ public final class WildsTellFixture extends SatchelFixture {
             // particle is targeted (only this player sees their own local tell), sound is an
             // area broadcast (anyone nearby hears the wildlife, not just this one player).
             if (RNG.nextDouble() < PlayerRules.WILDLIFE_TELL_PARTICLE_CHANCE) {
-                // Placeholder particle -- WITCH reads as "something magical/wrong here" and needs
-                // no ColorParticleOption plumbing to compile; swap for a real poison-green
-                // particle once confirmed against actual 1.20.1 sources (Lead Dev's call, same
-                // hedge every other unverified API touch point in this cluster carries).
+                // The Wilds' tell is poison green, clear of the boss family's amethyst purple.
                 EffectsAPI.sendParticleToPlayer(
-                        player, ParticleTypes.WITCH,
+                        player, EffectsAPI.POISON_DUST,
                         pos.x, pos.y + animal.getBbHeight() * 0.5, pos.z,
                         6, 0.2, 0.2, 0.2, 0.01);
             }

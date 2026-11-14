@@ -3,6 +3,7 @@ package com.arryn.frontiermode.border.common.fixture;
 
 import com.arryn.frontiermode.border.common.BorderConstants;
 import com.arryn.frontiermode.border.common.BorderRules;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -123,13 +124,13 @@ public class BordersCrudFacet {
         return Optional.empty();
     }
 
-    public boolean remove(UUID uuid){
+    public RecordChange remove(UUID uuid){
         Satchel.requireServer();
 
         return fixture.remove(uuid);
     }
 
-    public boolean remove(Border border){
+    public RecordChange remove(Border border){
         Satchel.requireServer();
 
         return fixture.remove(border.id());

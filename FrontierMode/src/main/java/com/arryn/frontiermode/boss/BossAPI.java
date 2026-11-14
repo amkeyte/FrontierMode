@@ -10,6 +10,7 @@ import com.arryn.frontiermode.boss.common.fixture.BossInfoFacet;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.boss.common.fixture.MaterializeOutcome;
 import com.arryn.frontiermode.core.Dismissal;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
 import com.arryn.satchel.common.jig.guts.SatchelException;
@@ -180,21 +181,22 @@ public final class BossAPI {
      * an admin cleanup action, which is exactly the cascade that must not happen. An
      * unmaterialized record has no entity to despawn and is simply removed.
      *
-     * @return true if a record with this id existed and was removed; false otherwise (same
-     *         contract as {@link BossFixture#remove(UUID)}/{@link BossCrudFacet#remove(UUID)}).
+     * @return {@link RecordChange#DONE} if a record with this id existed and was removed;
+     *         {@link RecordChange#NO_RECORD} otherwise, including when the level's boss data is not available yet
+     *         (same contract as {@link BossFixture#remove(UUID)}/{@link BossCrudFacet#remove(UUID)}).
      */
-    public static boolean removeBoss(Level level, UUID bossId) {
+    public static RecordChange removeBoss(Level level, UUID bossId) {
         Optional<BossFixture> fixtureOpt = bosses(level);
         if (fixtureOpt.isEmpty()) {
             OUT.warn("[Boss] removeBoss(): BossFixture not available for level "
                     + level.dimension().location() + " -- bossId=" + bossId);
-            return false;
+            return RecordChange.NO_RECORD;
         }
         BossFixture fixture = fixtureOpt.get();
 
         Optional<BossRecord> recordOpt = fixture.CRUD.get(bossId);
         if (recordOpt.isEmpty()) {
-            return false;
+            return RecordChange.NO_RECORD;
         }
 
         // The Boss is marked retiring before its body is discarded, so the generic rule never reads the
@@ -255,10 +257,10 @@ public final class BossAPI {
                     + " -- cannot force-defeat.");
         }
 
-        // markDefeated() guards against an already-defeated record itself, returning false rather than
+        // markDefeated() guards against an already-defeated record itself, answering WRONG_STATE rather than
         // mutating -- without this check, forcing a defeat a second time against the same dead boss re-ran the
         // whole cascade with no real defeat behind it (boss.md's "Mutation validation boundary").
-        if (!fixture.CRUD.markDefeated(bossId)) {
+        if (fixture.CRUD.markDefeated(bossId) != RecordChange.DONE) {
             return new DefeatOutcome(false, "it is already defeated.");
         }
 

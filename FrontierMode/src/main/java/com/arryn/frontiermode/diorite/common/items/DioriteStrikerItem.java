@@ -13,7 +13,6 @@ import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
@@ -26,6 +25,7 @@ import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -51,7 +51,7 @@ public final class DioriteStrikerItem extends Item {
         if (player == null || !level.getBlockState(pos).is(BlockTags.BASE_STONE_OVERWORLD)) {
             return InteractionResult.PASS;
         }
-        if (!(level instanceof ServerLevel serverLevel)) {
+        if (level.isClientSide) {
             return InteractionResult.sidedSuccess(true);
         }
 
@@ -65,19 +65,19 @@ public final class DioriteStrikerItem extends Item {
         if (level.dimension() != Level.OVERWORLD) {
             // No source entity: vanilla's explosion skips its own source when gathering what to hurt,
             // so naming the player as the source would spare them.
-            serverLevel.explode(null, x, y, z, DioriteRules.strikerBlastPower(), Level.ExplosionInteraction.NONE);
+            level.explode(null, x, y, z, DioriteRules.strikerBlastPower(), Level.ExplosionInteraction.NONE);
             stack.hurtAndBreak(DioriteRules.strikerBlastDurability(), player, p -> p.broadcastBreakEvent(context.getHand()));
             return InteractionResult.sidedSuccess(false);
         }
 
-        Optional<List<Border>> containing = BorderAPI.RULES(serverLevel).map(r -> r.containing(pos));
+        Optional<List<Border>> containing = BorderAPI.RULES(level).map(r -> r.containing(pos));
         Border relevant = containing.isEmpty() || containing.get().isEmpty()
                 ? null
                 : BorderRules.getRelevant(containing.get(), pos);
         if (relevant == null) {
-            sputter(serverLevel, x, y, z);
+            sputter(level, x, y, z);
         } else {
-            spark(serverLevel, relevant, face, x, y, z);
+            spark(level, relevant, face, x, y, z);
         }
         stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(context.getHand()));
         return InteractionResult.sidedSuccess(false);
@@ -97,7 +97,7 @@ public final class DioriteStrikerItem extends Item {
      * the same places every time. An off-path Relevant Border gives color only, a few sparks on the
      * same circle.
      */
-    private static void spark(ServerLevel level, Border relevant, Direction face,
+    private static void spark(Level level, Border relevant, Direction face,
                               double x, double y, double z) {
         Optional<BordersPathFacet> path = BorderAPI.PATH(level);
 
@@ -124,7 +124,8 @@ public final class DioriteStrikerItem extends Item {
         double rz = ux * ny - uy * nx;
         double radius = DioriteRules.strikerCircleRadius();
         int delay = DioriteRules.strikerSparkDelayTicks();
-        MinecraftServer server = level.getServer();
+        // spark is server work, reached after useOn's client check, so the server is there.
+        MinecraftServer server = Objects.requireNonNull(level.getServer(), "server");
         // The sparks stay evenly spaced, so the count still reads, but the whole ring starts at a random
         // angle each strike, so they don't land in the same places every time. They fire clockwise.
         double phase = level.getRandom().nextDouble() * 2.0 * Math.PI;

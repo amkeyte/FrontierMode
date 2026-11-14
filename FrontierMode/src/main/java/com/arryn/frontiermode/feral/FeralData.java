@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.feral;
 
+import com.arryn.frontiermode.core.WriteOutcome;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -58,15 +59,15 @@ public final class FeralData {
     }
 
     /**
-     * Writes the record unless {@code mob} already carries one; {@code true} if it wrote.
+     * Writes the record unless {@code mob} already carries one; {@link WriteOutcome#WRITTEN} if it wrote.
      * {@code distance} must be positive.
      */
-    public static boolean writeIfAbsent(Mob mob, int distance, boolean pack) {
+    public static WriteOutcome writeIfAbsent(Mob mob, int distance, boolean pack) {
         CompoundTag tag = new CompoundTag();
         tag.putInt(KEY_DISTANCE, distance);
         if (pack) {
             tag.putBoolean(KEY_PACK, true);
         }
-        return MobData.writeIfAbsent(mob, NAMESPACE, tag);
+        return MobData.writeIfAbsent(mob, NAMESPACE, tag) ? WriteOutcome.WRITTEN : WriteOutcome.ALREADY_PRESENT;
     }
 }

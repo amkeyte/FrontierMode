@@ -7,6 +7,7 @@ import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersInfoFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
 import com.arryn.frontiermode.border.common.fixture.BordersRevisionMonitor;
+import com.arryn.frontiermode.border.common.fixture.RevisionPoll;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -144,7 +145,7 @@ public final class RenderContext implements Trinket {
         // Refresh if:
         // 1) revision poll
         // 2) cold start after hydration
-        if (revisionMonitor.poll(infoFacet.level()) || cachedBorders.isEmpty()) {
+        if (revisionMonitor.poll(infoFacet.level()) == RevisionPoll.CHANGED || cachedBorders.isEmpty()) {
             cachedBorders = crud().map(BordersCrudFacet::all).orElseGet(List::of);
             cachedPathTip = path().flatMap(BordersPathFacet::tip);
         }

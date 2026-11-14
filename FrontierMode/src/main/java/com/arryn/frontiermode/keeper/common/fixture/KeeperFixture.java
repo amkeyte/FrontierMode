@@ -2,6 +2,8 @@ package com.arryn.frontiermode.keeper.common.fixture;
 
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.core.RecordChange;
+import com.arryn.frontiermode.core.SetChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.util.Ids;
@@ -232,26 +234,27 @@ public final class KeeperFixture extends SatchelFixture {
     /**
      * Records that the Keeper's spawn platform is built, with its base position. Once per record: a second
      * call for a record that already has one is a logged no-op, so a respawned Keeper returns onto the
-     * platform already there and it is never re-carved.
+     * platform already there and it is never re-carved. {@link RecordChange#NO_RECORD} for a missing record,
+     * {@code WRONG_STATE} for one that already has a platform.
      */
-    public boolean setPlatform(UUID bossId, BlockPos platformPos) {
+    public RecordChange setPlatform(UUID bossId, BlockPos platformPos) {
         Satchel.requireServer();
         Objects.requireNonNull(platformPos, "platformPos");
 
         Optional<KeeperRecord> existing = get(bossId);
         if (existing.isEmpty()) {
             OUT.warn("[Keeper] setPlatform(): no record for bossId=" + Ids.shortId(bossId) + " -- ignoring.");
-            return false;
+            return RecordChange.NO_RECORD;
         }
         if (existing.get().platformBuilt()) {
             OUT.warn("[Keeper] setPlatform(): bossId=" + Ids.shortId(bossId) + " already has a platform -- ignoring.");
-            return false;
+            return RecordChange.WRONG_STATE;
         }
 
         records.remove(existing.get());
         records.add(existing.get().withPlatform(platformPos));
         markDirty();
-        return true;
+        return RecordChange.DONE;
     }
 
     /**
@@ -259,36 +262,36 @@ public final class KeeperFixture extends SatchelFixture {
      * {@code BorderCommandHandler.pathGrow()} on a successful boss-less grow, and by the Keeper kind's
      * {@code onRemoved} when the removed Keeper was on-path.
      *
-     * @return true if {@code borderId} was newly added; false if it was already pending (a plain no-op, not an
-     *         error -- {@code Set.add}'s own idempotent contract).
+     * @return {@link SetChange#CHANGED} if {@code borderId} was newly added; {@link SetChange#UNCHANGED} if it was
+     *         already pending (a plain no-op, not an error -- {@code Set.add}'s own idempotent contract).
      */
-    public boolean addPendingAttach(UUID borderId) {
+    public SetChange addPendingAttach(UUID borderId) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
-        boolean added = pendingAttach.add(borderId);
-        if (added) {
-            markDirty();
+        if (!pendingAttach.add(borderId)) {
+            return SetChange.UNCHANGED;
         }
-        return added;
+        markDirty();
+        return SetChange.CHANGED;
     }
 
     /**
      * Clears {@code borderId} from the pending set -- written by {@code /boss attach} once it has created and
      * paired a real record for that border.
      *
-     * @return true if {@code borderId} was present and removed; false if it wasn't pending (a plain no-op, not
-     *         an error).
+     * @return {@link SetChange#CHANGED} if {@code borderId} was present and removed; {@link SetChange#UNCHANGED} if it
+     *         wasn't pending (a plain no-op, not an error).
      */
-    public boolean removePendingAttach(UUID borderId) {
+    public SetChange removePendingAttach(UUID borderId) {
         Satchel.requireServer();
         Objects.requireNonNull(borderId, "borderId");
 
-        boolean removed = pendingAttach.remove(borderId);
-        if (removed) {
-            markDirty();
+        if (!pendingAttach.remove(borderId)) {
+            return SetChange.UNCHANGED;
         }
-        return removed;
+        markDirty();
+        return SetChange.CHANGED;
     }
 
     // ------------------------------------------------------------------

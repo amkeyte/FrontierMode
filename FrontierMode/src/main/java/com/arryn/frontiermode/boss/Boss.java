@@ -4,11 +4,14 @@ import com.arryn.frontiermode.boss.common.BossDeath;
 import com.arryn.frontiermode.boss.common.BossKind;
 import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.frontiermode.boss.common.DeathVerdict;
+import com.arryn.frontiermode.boss.common.LossOutcome;
+import com.arryn.frontiermode.boss.common.RespawnPoll;
 import com.arryn.frontiermode.boss.common.SiteOutcome;
 import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.core.Dismissal;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -148,23 +151,24 @@ public final class Boss implements Leaving {
     // ------------------------------------------------------------------
 
     /**
-     * Whether the boss may materialize this tick: false while auto-respawn is suspended by the repeat-death
-     * cap or while its respawn delay is still running. Counted once per tick per unmaterialized record, so
-     * the delay runs down in real ticks even while the home chunk is unloaded. A boss with no pending state
-     * is always ready.
+     * Polls whether the boss may materialize this tick: {@link RespawnPoll#WAITING} while auto-respawn is suspended
+     * by the repeat-death cap or while its respawn delay is still running, {@link RespawnPoll#READY} when the delay has
+     * just run out (the poll consumes it), and {@link RespawnPoll#NOT_PENDING} for a boss with no pending state, which
+     * is always ready. Counted once per tick per unmaterialized record, so the delay runs down in real ticks even
+     * while the home chunk is unloaded.
      */
-    public boolean respawnReady() {
+    public RespawnPoll respawnReady() {
         if (respawnSuspended) {
-            return false;
+            return RespawnPoll.WAITING;
         }
         if (respawnDelay == null) {
-            return true;
+            return RespawnPoll.NOT_PENDING;
         }
         if (respawnDelay.allow()) {
             respawnDelay = null;
-            return true;
+            return RespawnPoll.READY;
         }
-        return false;
+        return RespawnPoll.WAITING;
     }
 
     /**
@@ -182,9 +186,10 @@ public final class Boss implements Leaving {
      * auto-respawn (the record stays alive and unmaterialized until {@code /boss mob spawn}). The two settings
      * are {@code Persistent}'s, which calls this.
      *
-     * @return true if a respawn is now pending; false if the cap was reached and it's suspended
+     * @return {@link LossOutcome#RESPAWN_PENDING} under the cap; {@link LossOutcome#RESPAWN_SUSPENDED} if the cap was
+     *         reached
      */
-    boolean countLoss(BossFixture fixture, int delayTicks, int cap) {
+    LossOutcome countLoss(BossFixture fixture, int delayTicks, int cap) {
         nonPlayerDeaths++;
         if (nonPlayerDeaths >= cap) {
             respawnSuspended = true;
@@ -193,10 +198,10 @@ public final class Boss implements Leaving {
             OUT.warn("[Boss] countLoss(): bossId=" + Ids.shortId(bossId) + " (position " + position
                     + ") has died to non-player causes " + nonPlayerDeaths + " times in a row -- auto-respawn"
                     + " suspended. Use /boss mob spawn to bring it back (that resets the count).");
-            return false;
+            return LossOutcome.RESPAWN_SUSPENDED;
         }
         respawnDelay = new TickDelay(Math.max(1, delayTicks), new SchedulerClock.AutoClock());
-        return true;
+        return LossOutcome.RESPAWN_PENDING;
     }
 
     /** Called by the {@code Persistent} ability as it attaches. */
@@ -260,7 +265,7 @@ public final class Boss implements Leaving {
         }
         // a boss returned here by a loss waits out its respawn delay (or stays suspended at the
         // repeat-death cap). Polled before the isLoaded check so the delay counts real ticks.
-        if (!respawnReady()) {
+        if (respawnReady() == RespawnPoll.WAITING) {
             return;
         }
         BlockPos position = record.position();
@@ -326,7 +331,7 @@ public final class Boss implements Leaving {
             return;
         }
 
-        if (!fixture.CRUD.markDefeated(bossId)) {
+        if (fixture.CRUD.markDefeated(bossId) != RecordChange.DONE) {
             return;
         }
         clearRespawnState();
@@ -365,7 +370,7 @@ public final class Boss implements Leaving {
     // Marks the Boss retiring, removes its base record and flushes; see dropIfTransient for when.
     private void dropRecord(BossFixture fixture, String why) {
         retire();
-        if (fixture.CRUD.remove(bossId)) {
+        if (fixture.CRUD.remove(bossId) == RecordChange.DONE) {
             roster.scheduleFlush();
             OUT.info("[Boss] dropRecord(): bossId=" + Ids.shortId(bossId) + " " + why
                     + " -- not Persistent, record removed.");

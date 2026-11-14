@@ -7,7 +7,6 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -82,10 +81,9 @@ public final class FeralPlayerTick implements Ticking {
         // particle is targeted (only this player sees their own local tell), sound is an area
         // broadcast (anyone nearby hears it, not just this one player).
         if (random.nextDouble() < FeralRules.tellParticleChance()) {
-            // Placeholder particle -- same WITCH placeholder WildsTellFixture uses, same
-            // "swap for a real poison-green particle once confirmed against real sources" hedge.
+            // The same poison-green dust as WildsTellFixture's tell.
             EffectsAPI.sendParticleToPlayer(
-                    player, ParticleTypes.WITCH,
+                    player, EffectsAPI.POISON_DUST,
                     pos.x, pos.y + monster.getBbHeight() * 0.5, pos.z,
                     6, 0.2, 0.2, 0.2, 0.01);
         }

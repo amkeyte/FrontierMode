@@ -50,7 +50,7 @@ final class DifficultyHandlers {
         if (mob instanceof Vex vex && vex.getOwner() != null
                 && Ladder.RUNG_KEEPER.equals(Ladder.rungOf(vex.getOwner()))) {
             if (Ladder.apply(vex, Ladder.RUNG_KEEPER_SUMMON, 0, 1.0,
-                    DifficultyRules.keeperVexDamage() / DifficultyRules.vexReferenceHit())) {
+                    DifficultyRules.keeperVexDamage() / DifficultyRules.vexReferenceHit()) == RungOutcome.APPLIED) {
                 OUT.debug("[Difficulty] " + Ladder.RUNG_KEEPER_SUMMON + " rung on " + vex.getType() + " at " + vex.blockPosition());
             }
             return;
@@ -104,10 +104,10 @@ final class DifficultyHandlers {
         }
 
         int n = difficulty.getAsInt();
-        boolean applied = Ladder.apply(mob, rung, n,
+        RungOutcome applied = Ladder.apply(mob, rung, n,
                 LadderMath.multiplier(DifficultyRules.ordinaryHealthGrowth(), n),
                 LadderMath.multiplier(DifficultyRules.ordinaryDamageGrowth(), n));
-        if (applied) {
+        if (applied == RungOutcome.APPLIED) {
             OUT.debug("[Difficulty] " + rung + " rung n=" + n + " on " + mob.getType() + " at " + mob.blockPosition());
         }
     }

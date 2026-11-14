@@ -137,6 +137,10 @@ public final class EffectsAPI {
     public static final DustParticleOptions AMETHYST_DUST =
             new DustParticleOptions(new Vector3f(0.65F, 0.45F, 0.9F), 1.0F);
 
+    /** The Wilds' colour, as {@link #AMETHYST_DUST} is the boss's: vanilla dust in the colour of the poison effect. */
+    public static final DustParticleOptions POISON_DUST =
+            new DustParticleOptions(new Vector3f(0.31F, 0.58F, 0.19F), 1.0F);
+
     /**
      * A new boss bar with no viewers -- persistent visual state, like a team, so server-authoritative
      * and with no client-derived counterpart. Callers add and remove players and set progress on the

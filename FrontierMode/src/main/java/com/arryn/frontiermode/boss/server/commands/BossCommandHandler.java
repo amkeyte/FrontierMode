@@ -12,6 +12,7 @@ import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.Result;
 import com.arryn.frontiermode.border.server.commands.BorderSelector;
 import com.arryn.frontiermode.border.server.commands.BorderSelectorResult;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.frontiermode.keeper.KeeperKind;
 import com.arryn.frontiermode.core.InfoPrinter;
 import com.arryn.frontiermode.core.InfoRequest;
@@ -184,8 +185,8 @@ public final class BossCommandHandler {
         // removeBoss() wraps the same removal, whose kind hook adds the pendingAttach step boss.md's
         // "Aliveness and removal" section describes. BossAPI.bosses(level)'s own "not available yet"
         // check lives inside removeBoss() itself.
-        boolean removed = BossAPI.removeBoss(level, id);
-        if (!removed) {
+        RecordChange removed = BossAPI.removeBoss(level, id);
+        if (removed != RecordChange.DONE) {
             ctx.getSource().sendFailure(msg("No boss record to remove: " + id
                     + " (or boss data not available for this level yet)."));
             return 0;

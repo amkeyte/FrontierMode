@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.feral;
 
+import com.arryn.frontiermode.core.Adoption;
 import com.arryn.frontiermode.core.Presence;
 import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.Satchel;
@@ -56,11 +57,11 @@ public final class FeralPresence implements Ticking {
 
     private final Presence.Hooks hooks = new Presence.Hooks() {
         @Override
-        public boolean adopt(Mob mob, boolean fresh) {
+        public Adoption adopt(Mob mob, boolean fresh) {
             if (FeralData.isPack(mob)) {
                 packIds.add(mob.getUUID());
             }
-            return true;
+            return Adoption.ADOPT;
         }
 
         @Override

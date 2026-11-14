@@ -16,6 +16,7 @@ import com.arryn.frontiermode.boss.Recovery;
 import com.arryn.frontiermode.boss.common.BossCreation;
 import com.arryn.frontiermode.boss.common.BossDeath;
 import com.arryn.frontiermode.boss.common.BossKind;
+import com.arryn.frontiermode.boss.common.CreateOutcome;
 import com.arryn.frontiermode.boss.common.DefeatOutcome;
 import com.arryn.frontiermode.boss.common.DeathVerdict;
 import com.arryn.frontiermode.boss.common.SiteOutcome;
@@ -66,7 +67,7 @@ public final class KeeperKind implements BossKind {
      * Keeper may not.
      */
     @Override
-    public boolean onCreate(Level level, UUID bossId, BossCreation args) {
+    public CreateOutcome onCreate(Level level, UUID bossId, BossCreation args) {
         if (!(args instanceof KeeperCreation creation)) {
             throw new IllegalArgumentException("[Keeper] onCreate(): expected KeeperCreation, got "
                     + (args == null ? "null" : args.getClass().getName()));
@@ -74,7 +75,7 @@ public final class KeeperKind implements BossKind {
         if (creation.layer() < 1) {
             OUT.warn("[Keeper] onCreate(): rejected -- layer " + creation.layer()
                     + " is below 1; layers start at 1.");
-            return false;
+            return CreateOutcome.REJECTED;
         }
 
         Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
@@ -82,13 +83,13 @@ public final class KeeperKind implements BossKind {
             OUT.warn("[Keeper] onCreate(): KeeperFixture not available for level "
                     + level.dimension().location() + " -- no Keeper record written for bossId="
                     + Ids.shortId(bossId));
-            return false;
+            return CreateOutcome.REJECTED;
         }
 
         String body = KeeperBodies.chooseBody(creation.pathPosition().orElse(creation.layer()));
         keepersOpt.get().add(new KeeperRecord(
                 bossId, creation.layer(), creation.pathPosition(), body, creation.borderId(), null));
-        return true;
+        return CreateOutcome.CREATED;
     }
 
     @Override

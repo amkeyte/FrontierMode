@@ -1,6 +1,8 @@
 package com.arryn.frontiermode.boss;
 
+import com.arryn.frontiermode.boss.common.LossOutcome;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
+import com.arryn.frontiermode.core.RecordChange;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -58,7 +60,7 @@ public final class Persistent implements Trinket {
      */
     void onLoss(BossFixture fixture, String why) {
         UUID bossId = boss.bossId();
-        if (!fixture.CRUD.dematerialize(bossId)) {
+        if (fixture.CRUD.dematerialize(bossId) != RecordChange.DONE) {
             return;
         }
         // The cleared bossEntityId is real state worth protecting: a crash before the next autosave would
@@ -67,7 +69,7 @@ public final class Persistent implements Trinket {
 
         int delayTicks = new Tunable("respawnDelayTicks", 1, 6000, 100).intValue();
         int cap = new Tunable("maxConsecutiveNonPlayerDeaths", 1, 100, 5).intValue();
-        if (boss.countLoss(fixture, delayTicks, cap)) {
+        if (boss.countLoss(fixture, delayTicks, cap) == LossOutcome.RESPAWN_PENDING) {
             OUT.info("[Boss] Persistent.onLoss(): bossId=" + Ids.shortId(bossId) + " " + why
                     + " -- respawning at its recorded position.");
         }
