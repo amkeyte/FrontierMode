@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -78,6 +80,78 @@ class BorderPregenLogicTest {
     @Test
     void negative_radius_is_rejected() {
         assertThrows(IllegalArgumentException.class, () -> BorderPregenLogic.chunkOffsetsInDisk(-1));
+    }
+
+    @Test
+    void insideDisk_includes_the_boundary_and_excludes_one_chunk_beyond() {
+        // radius 5: (3,4) is exactly on the boundary (9 + 16 = 25), (5,1) is just past it (26).
+        assertTrue(BorderPregenLogic.insideDisk(3, 4, 0, 0, 5));
+        assertTrue(BorderPregenLogic.insideDisk(5, 0, 0, 0, 5));
+        assertFalse(BorderPregenLogic.insideDisk(5, 1, 0, 0, 5));
+        assertFalse(BorderPregenLogic.insideDisk(6, 0, 0, 0, 5));
+        // Radius 0 is the center chunk alone.
+        assertTrue(BorderPregenLogic.insideDisk(7, -3, 7, -3, 0));
+        assertFalse(BorderPregenLogic.insideDisk(8, -3, 7, -3, 0));
+    }
+
+    @Test
+    void insideDisk_of_a_smaller_disk_around_the_same_center_is_inside_the_larger_one() {
+        for (int x = -8; x <= 8; x++) {
+            for (int z = -8; z <= 8; z++) {
+                if (BorderPregenLogic.insideDisk(x, z, 2, 2, 3)) {
+                    assertTrue(BorderPregenLogic.insideDisk(x, z, 2, 2, 6), x + "," + z);
+                }
+            }
+        }
+        // And a chunk in the larger disk's ring is not in the smaller.
+        assertTrue(BorderPregenLogic.insideDisk(8, 2, 2, 2, 6));
+        assertFalse(BorderPregenLogic.insideDisk(8, 2, 2, 2, 3));
+    }
+
+    @Test
+    void insideDisk_follows_the_center_when_two_disks_have_different_centers() {
+        // Disk A at (0,0) r4, disk B at (3,0) r4: (6,0) is only in B, (-4,0) only in A, (1,0) in both.
+        assertFalse(BorderPregenLogic.insideDisk(6, 0, 0, 0, 4));
+        assertTrue(BorderPregenLogic.insideDisk(6, 0, 3, 0, 4));
+        assertTrue(BorderPregenLogic.insideDisk(-4, 0, 0, 0, 4));
+        assertFalse(BorderPregenLogic.insideDisk(-4, 0, 3, 0, 4));
+        assertTrue(BorderPregenLogic.insideDisk(1, 0, 0, 0, 4));
+        assertTrue(BorderPregenLogic.insideDisk(1, 0, 3, 0, 4));
+    }
+
+    @Test
+    void insideDisk_agrees_with_membership_in_chunkOffsetsInDisk() {
+        int radius = 4;
+        Set<String> members = new HashSet<>();
+        for (int[] o : BorderPregenLogic.chunkOffsetsInDisk(radius)) {
+            members.add(o[0] + "," + o[1]);
+        }
+        for (int dx = -radius - 2; dx <= radius + 2; dx++) {
+            for (int dz = -radius - 2; dz <= radius + 2; dz++) {
+                assertEquals(members.contains(dx + "," + dz),
+                        BorderPregenLogic.insideDisk(10 + dx, -5 + dz, 10, -5, radius),
+                        dx + "," + dz);
+            }
+        }
+    }
+
+    @Test
+    void insideDisk_rejects_a_negative_radius() {
+        assertThrows(IllegalArgumentException.class, () -> BorderPregenLogic.insideDisk(0, 0, 0, 0, -1));
+    }
+
+    @Test
+    void offsetsFor_is_the_same_sequence_as_chunkOffsetsInDisk_and_is_reused() {
+        List<int[]> cached = BorderPregenLogic.offsetsFor(5);
+        List<int[]> fresh = BorderPregenLogic.chunkOffsetsInDisk(5);
+
+        assertEquals(fresh.size(), cached.size());
+        for (int i = 0; i < fresh.size(); i++) {
+            assertEquals(fresh.get(i)[0], cached.get(i)[0]);
+            assertEquals(fresh.get(i)[1], cached.get(i)[1]);
+        }
+        assertSame(cached, BorderPregenLogic.offsetsFor(5));
+        assertThrows(UnsupportedOperationException.class, () -> cached.add(new int[] {0, 0}));
     }
 
     @Test

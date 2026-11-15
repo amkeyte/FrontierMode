@@ -88,4 +88,9 @@ FeralRules:densityMaxPerEvent,INT,0,50,8,8,8
 FeralRules:despawnLingerTicks,INT,0,6000,1200,1200,1200
 FeralRules:despawnRadius,FLOAT,0.0,200.0,20.0,20.0,20.0
 FeralRules:maxAliveFeral,INT,0,70,40,40,40
-KeeperKind:keeperArmorRange,INT,8,512,64,64,
+KeeperKind:keeperArmorRange,INT,8,512,64,64,64
+KeeperBodies:keeperCapabilityAtTwenty,FLOAT,0.0,1.0,0.8,0.8,0.8
+DifficultyRules:armorReferenceHit,FLOAT,1.0,100.0,10.0,10.0,10.0
+KeeperKind:keeperArmorCounter,FLOAT,1.0,20.0,4.0,4.0,4.0
+BorderRules:pregenChunksPerBatch,INT,1,64,2,8,
+BorderRules:pregenThrottleIntervalTicks,INT,1,100,4,4,

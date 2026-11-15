@@ -65,20 +65,19 @@ public final class BorderPregenFixture extends SatchelFixture {
     // predicted total duration.
     private static final long STALL_CHECK_INTERVAL_TICKS = 200L;
 
-    // A grown border's disk is concentric with its predecessor's -- same center, bigger radius
-    // (see BordersPathFacet.grow()/BorderRules' "reuses the previous center" comment) --
-    // so a large inner prefix of a new layer's offset list was very likely already forced to
-    // FULL by the previous layer's own completed job. runBatch() prechecks each offset with a
-    // non-forcing getChunk(status, false) status lookup before paying for real generation; an
-    // already-FULL chunk is skipped without spending the batch's chunk budget. That lookup is
-    // far cheaper than generation but not literally free, and an overlap run can span hundreds
-    // of chunks -- this caps how many offsets get *examined* (skip or generate) in one batch, so
-    // a long all-already-generated run can't become its own "Can't keep up" case the way
-    // unthrottled real generation did.
+    // A grown border's disk overlaps its predecessor's (the new center is near the old one, partly
+    // overlapping), so part of a new layer's offset list lies in a disk an earlier completed job
+    // already generated; runBatch() skips those offsets by arithmetic alone. What it cannot prove
+    // that way it checks with a non-forcing getChunk(status, false) lookup, which sees only chunks
+    // held in memory -- far cheaper than generation but not literally free, and a run of resident
+    // chunks can span hundreds of offsets. This caps how many offsets get *looked up* (resident or
+    // forced) in one batch, so a long all-resident run can't become its own "Can't keep up" case
+    // the way unthrottled real generation did. Offsets skipped by arithmetic count toward neither cap.
     private static final int MAX_OFFSETS_SCANNED_PER_BATCH = 64;
 
     private final List<BorderPregenRecord> jobs = new ArrayList<>();
-    private final TickThrottler throttler =
+    // Rebuilt in onJigTick() when the pregenThrottleIntervalTicks Tunable changes: a throttler's interval is final.
+    private TickThrottler throttler =
             new TickThrottler(BorderRules.pregenThrottleIntervalTicks(), new SchedulerClock.AutoClock());
 
     private final TickThrottler stallCheckThrottler =
@@ -221,6 +220,11 @@ public final class BorderPregenFixture extends SatchelFixture {
 
         checkStalled();
 
+        long intervalTicks = BorderRules.pregenThrottleIntervalTicks();
+        if (intervalTicks != throttler.interval()) {
+            throttler = new TickThrottler(intervalTicks, new SchedulerClock.AutoClock());
+        }
+
         if (!throttler.allow()) {
             return;
         }
@@ -287,7 +291,7 @@ public final class BorderPregenFixture extends SatchelFixture {
         // start -- if the border's radius changes mid-pregen, the newly-uncovered ring
         // is picked up automatically on the next batch rather than being silently missed.
         int chunkRadius = BorderPregenLogic.chunkRadiusFor(border.radius());
-        List<int[]> offsets = BorderPregenLogic.chunkOffsetsInDisk(chunkRadius);
+        List<int[]> offsets = BorderPregenLogic.offsetsFor(chunkRadius);
         int total = offsets.size();
 
         // cursor() == 0 only ever true on this job's very first batch (advance() only moves it
@@ -309,12 +313,22 @@ public final class BorderPregenFixture extends SatchelFixture {
         int centerChunkX = border.center().getX() >> 4;
         int centerChunkZ = border.center().getZ() >> 4;
 
-        // Two independent caps: `generated` bounds real generation calls (the throttled-cost
-        // work chunksPerBatch was always meant to pace), `scanned` bounds total offsets looked
-        // at either way (the MAX_OFFSETS_SCANNED_PER_BATCH safety valve above). Cursor still
-        // just indexes the same deterministic offset list either way -- resumability is
+        // Disks of the other Borders whose job is complete, each {centerChunkX, centerChunkZ,
+        // chunkRadius}: a completed job proves its whole disk was generated, so an offset inside one
+        // needs no game call. A Border that no longer resolves has no geometry and proves nothing.
+        List<int[]> provenDisks = completedDisksOtherThan(record.borderId());
+
+        // Three tests per offset, cheapest first (border-pregeneration.md, "Chunks already generated
+        // are skipped"): inside a proven disk (arithmetic, counts toward neither cap), already
+        // resident at FULL (a lookup, counts toward `scanned`), else forced (counts toward both).
+        // `generated` bounds real chunk loads or generations (the throttled-cost work chunksPerBatch
+        // paces); `scanned` bounds the offsets that cost a game call (the safety valve above). Cursor
+        // still just indexes the same deterministic offset list either way -- resumability is
         // unaffected by how many of a given batch turned out to be skips.
         int chunksPerBatch = BorderRules.pregenChunksPerBatch();
+        long startedNanos = System.nanoTime();
+        int covered = 0;
+        int resident = 0;
         int generated = 0;
         int scanned = 0;
         int i = record.cursor();
@@ -323,13 +337,22 @@ public final class BorderPregenFixture extends SatchelFixture {
             int chunkX = centerChunkX + offset[0];
             int chunkZ = centerChunkZ + offset[1];
 
-            // require=false: returns the chunk only if it's already at/past FULL (loaded, or on
-            // disk with no generation work needed) -- null if it would have to actually generate.
-            // Costs a status lookup, not generation, so this doesn't touch chunksPerBatch.
+            if (insideAny(provenDisks, chunkX, chunkZ)) {
+                covered++;
+                i++;
+                continue;
+            }
+
+            // require=false: returns the chunk only if it is already held in memory at FULL or
+            // better. It does not consult the disk, so a chunk generated earlier and unloaded since
+            // answers null, the same as one never generated.
             ChunkAccess existing =
                     level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
-            if (existing == null) {
-                // Not already there -- the real, forcing call, same as this loop always made.
+            if (existing != null) {
+                resident++;
+            } else {
+                // Not resident -- the real, forcing call: loads the chunk from disk if it exists,
+                // else generates it, and counts against the batch budget either way.
                 level.getChunk(chunkX, chunkZ);
 
                 // Border only promises generation, never suitability (see
@@ -352,6 +375,45 @@ public final class BorderPregenFixture extends SatchelFixture {
             i++;
         }
 
+        if (i > record.cursor()) {
+            double millis = (System.nanoTime() - startedNanos) / 1_000_000.0;
+            OUT.debug(String.format("[BorderPregen] batch border=%s cursor=%d-%d of %d: covered %d, resident %d, forced %d in %.1f ms",
+                    Ids.shortId(record.borderId()), record.cursor(), i, total, covered, resident, generated, millis));
+        }
+
         advance(record.borderId(), i, total);
+    }
+
+    /**
+     * The disks of every other Border whose job is complete and whose Border still resolves, each as
+     * {@code {centerChunkX, centerChunkZ, chunkRadius}} from the Border's current center and radius.
+     */
+    private List<int[]> completedDisksOtherThan(UUID borderId) {
+        Optional<BordersFixture> borders = this.<BordersBundle>getBundle().get(FrontierKeys.BORDERS);
+        if (borders.isEmpty()) {
+            return List.of();
+        }
+
+        List<int[]> disks = new ArrayList<>();
+        for (BorderPregenRecord other : jobs) {
+            if (!other.complete() || other.borderId().equals(borderId)) {
+                continue;
+            }
+            borders.get().CRUD.get(other.borderId()).ifPresent(b -> disks.add(new int[] {
+                    b.center().getX() >> 4,
+                    b.center().getZ() >> 4,
+                    BorderPregenLogic.chunkRadiusFor(b.radius())
+            }));
+        }
+        return disks;
+    }
+
+    private static boolean insideAny(List<int[]> disks, int chunkX, int chunkZ) {
+        for (int[] d : disks) {
+            if (BorderPregenLogic.insideDisk(chunkX, chunkZ, d[0], d[1], d[2])) {
+                return true;
+            }
+        }
+        return false;
     }
 }

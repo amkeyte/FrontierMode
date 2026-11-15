@@ -53,17 +53,6 @@ public final class BorderRules {
             "Mistbound",
             "Blackgate"
     );
-    // Pregeneration throttle budget (wiki/frontiermode/architecture/border-pregeneration.md) --
-    // not tuned against play, the same category as the growth-wave Tunables. A real 1009-chunk
-    // (radius 18) disk can't be kept up with at 1 tick/16 chunks or 1 tick/8 chunks: at
-    // interval=1 every tick forces fresh, far-out chunk generation back-to-back for 100+
-    // consecutive ticks with zero gap to recover in between, so the problem is sustained load,
-    // not a per-batch spike -- trimming batch size alone doesn't fix that while it still fires
-    // every tick. These values widen the interval too, so there's real breathing room between
-    // batches, not just a smaller one.
-    private static final int PREGEN_CHUNKS_PER_BATCH = 2;
-    private static final long PREGEN_THROTTLE_INTERVAL_TICKS = 4L;
-
     // The random direction chooseNextCenter picks.
     private static final RandomSource RNG = RandomSource.create();
 
@@ -211,7 +200,7 @@ public final class BorderRules {
      * {@code BorderPregenFixture}'s pacing {@code TickThrottler}.
      */
     public static int pregenChunksPerBatch() {
-        return PREGEN_CHUNKS_PER_BATCH;
+        return new Tunable("pregenChunksPerBatch", 1, 64, 2).intValue();
     }
 
     /**
@@ -219,6 +208,7 @@ public final class BorderRules {
      * {@code BorderPregenFixture}'s pacing {@code TickThrottler} is built with.
      */
     public static long pregenThrottleIntervalTicks() {
-        return PREGEN_THROTTLE_INTERVAL_TICKS;
+        // The range stops at 100 so the fixture's 200-tick stall check can never trip on a slow setting.
+        return new Tunable("pregenThrottleIntervalTicks", 1, 100, 4).intValue();
     }
 }
