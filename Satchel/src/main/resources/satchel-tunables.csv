@@ -92,5 +92,5 @@ KeeperKind:keeperArmorRange,INT,8,512,64,64,64
 KeeperBodies:keeperCapabilityAtTwenty,FLOAT,0.0,1.0,0.8,0.8,0.8
 DifficultyRules:armorReferenceHit,FLOAT,1.0,100.0,10.0,10.0,10.0
 KeeperKind:keeperArmorCounter,FLOAT,1.0,20.0,4.0,4.0,4.0
-BorderRules:pregenChunksPerBatch,INT,1,64,2,8,
-BorderRules:pregenThrottleIntervalTicks,INT,1,100,4,4,
+BorderRules:pregenChunksPerBatch,INT,1,64,2,8,8
+BorderRules:pregenThrottleIntervalTicks,INT,1,100,4,4,4
