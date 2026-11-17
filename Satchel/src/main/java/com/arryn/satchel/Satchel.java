@@ -12,7 +12,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.Trinket;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -71,16 +70,6 @@ public final class Satchel {
     public static LogicalFoundation peekFoundation() {
         LogicalSide side = LogicalSideContext.peek();
         return side == null ? null : FOUNDATIONS.get(side);
-    }
-
-    /**
-     * The one switch for failure behavior, read from Forge's production flag: true in a development
-     * run, false in a release. In development a failure in module code a Satchel path runs (a
-     * resolver, a module event's constructor, a consumer) propagates and crashes, and a SatchelHealth
-     * violation throws; in release the failure is logged with the module id and the work continues.
-     */
-    public static boolean isDevelopment() {
-        return !FMLEnvironment.production;
     }
 
     /**

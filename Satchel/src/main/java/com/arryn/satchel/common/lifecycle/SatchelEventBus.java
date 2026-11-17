@@ -1,16 +1,12 @@
 package com.arryn.satchel.common.lifecycle;
 
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.ingress.ModuleSignal;
-import com.arryn.satchel.common.util.out.OUT;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.BiConsumer;
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
@@ -34,9 +30,8 @@ import java.util.function.Consumer;
  *   are delivered by context.</li>
  *   <li><b>A nesting-depth guard</b> ({@value #MAX_DEPTH}) so a consumer that triggers its own event
  *   recursively fails instead of overflowing the stack.</li>
- *   <li><b>Failure policy.</b> A consumer with an owner (an ingress or a scope) that throws
- *   propagates in development and is logged with its owner, and the dispatch continues, in release.
- *   An ownerless consumer, from {@link #subscribe(Class, Consumer)}, always propagates.</li>
+ *   <li><b>Failure.</b> A consumer that throws propagates out of {@link #post}, in every build, and
+ *   the dispatch stops. The bus catches nothing.</li>
  * </ul>
  */
 public final class SatchelEventBus {
@@ -103,30 +98,10 @@ public final class SatchelEventBus {
     }
 
     private final ConcurrentHashMap<Class<?>, Subs> byType = new ConcurrentHashMap<>();
-    private final BooleanSupplier development;
-    private final BiConsumer<String, Throwable> errorLog;
     private final Object lock = new Object();
 
     private long nextSequence;
     private int depth;
-
-    /**
-     * A bus whose failure policy follows {@link Satchel#isDevelopment()} and logs through {@code OUT}.
-     */
-    public SatchelEventBus() {
-        this(Satchel::isDevelopment, OUT::error);
-    }
-
-    /**
-     * A bus with an explicit failure policy, for a test.
-     *
-     * @param development true when a failure in an owned consumer should propagate
-     * @param errorLog    where a failure that did not propagate is reported
-     */
-    public SatchelEventBus(BooleanSupplier development, BiConsumer<String, Throwable> errorLog) {
-        this.development = Objects.requireNonNull(development, "development");
-        this.errorLog = Objects.requireNonNull(errorLog, "errorLog");
-    }
 
     /* =============================================================
      * Subscription
@@ -150,8 +125,7 @@ public final class SatchelEventBus {
      * @param contextKey       null for a global subscription, which hears every firing; otherwise the
      *                         key (see {@link ContextKeyed}) of the one context it hears
      * @param receiveCancelled whether a cancelled {@link ModuleSignal} is delivered to it
-     * @param owner            who to name if the consumer fails; null for an ownerless consumer, whose
-     *                         failures always propagate
+     * @param owner            who owns the subscription (an ingress or a scope), or null for none
      * @return a handle to end the subscription
      */
     public <E> Subscription subscribe(
@@ -244,10 +218,10 @@ public final class SatchelEventBus {
 
     /**
      * Post an event to the consumers of its exact class, synchronously, in priority order. A {@link
-     * ModuleSignal} also reaches those filed under its context's key.
+     * ModuleSignal} also reaches those filed under its context's key. A consumer that throws
+     * propagates out of this call and ends the dispatch.
      *
-     * @throws IllegalStateException if dispatches nest deeper than {@value #MAX_DEPTH}, or, for an
-     *                               owned consumer in a development run, if a consumer throws
+     * @throws IllegalStateException if dispatches nest deeper than {@value #MAX_DEPTH}
      */
     public <E> void post(E event) {
         Objects.requireNonNull(event, "event");
@@ -305,13 +279,7 @@ public final class SatchelEventBus {
         if (!sub.active) return;
         if (signal != null && !sub.receiveCancelled && signal.isCanceled()) return;
 
-        try {
-            ((Consumer<Object>) sub.consumer).accept(event);
-        } catch (RuntimeException ex) {
-            if (sub.owner == null || development.getAsBoolean()) throw ex;
-            errorLog.accept("[SatchelEventBus] a consumer owned by " + sub.owner + " threw on "
-                    + event.getClass().getSimpleName() + "; continuing", ex);
-        }
+        ((Consumer<Object>) sub.consumer).accept(event);
     }
 
     /* =============================================================

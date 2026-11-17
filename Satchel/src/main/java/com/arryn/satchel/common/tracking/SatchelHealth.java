@@ -27,10 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Same package, same conceptual "one home" as before the split -- just not one literal file.
  *
  * <p><b>MobJig, LevelJig, and PlayerJig are not the same shape underneath, and their checks
- * aren't copy-pasted from one another.</b> MobJig's teardown is <i>inferred</i> -- a poll-driven
- * reconcile cycle (~every 20 ticks) decides a scope is gone based on whether the backing entity
- * can still be resolved, which is exactly the kind of decision that can be wrong (RM_SAT_022's
- * whole premise). LevelJig and PlayerJig's teardown is <i>authoritative</i> -- {@code
+ * aren't copy-pasted from one another.</b> MobJig's teardown has two triggers -- the leave event
+ * unloads most scopes, and a per-tick backstop unloads a scope whose mob has been removed -- so a
+ * scope can outlive its mob if both miss it, which is exactly the kind of failure that can go
+ * unseen (RM_SAT_022's whole premise). LevelJig and PlayerJig's teardown is <i>authoritative</i>
+ * -- {@code
  * ServerForgeIngress}/{@code ClientForgeIngress} call {@code tryRemoveSource} from exactly one
  * real Forge event each ({@code LevelEvent.Unload}, {@code PlayerLoggedOutEvent}), never inferred.
  * So their violation checks aren't "is the backing thing still there" (Mob's shape) but "did

@@ -69,7 +69,7 @@ public final class FoundationLifecycleDispatcher {
             // 2. Internal walk. jigInfos() is registration order, so the walk is the same on every
             // run. All internal work finishes before any Trinket runs its after step.
             for (var jInfo:foundation.jigInfos()){
-                // RM_SAT_021: poll-driven scope reconciliation, ahead of the per-ScopeInfo walk
+                // RM_SAT_021: scope reconciliation, ahead of the per-ScopeInfo walk
                 // below. No-op for every jig kind except MobJig -- see SatchelJig.reconcile's
                 // docs.
                 jInfo.jig.reconcile(jInfo);

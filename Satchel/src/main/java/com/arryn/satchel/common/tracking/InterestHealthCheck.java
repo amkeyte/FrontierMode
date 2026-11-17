@@ -42,7 +42,7 @@ import java.util.UUID;
  *   <li><b>{@code lostInterest} inside a handler.</b> Called from the rebuilt scope's own {@code
  *   onAttach}, it takes effect at once and does not unload the scope;</li>
  *   <li><b>{@code drop}.</b> Ends the interest and the scope, and the sweep does not bring it back;</li>
- *   <li><b>the cap.</b> A fourth entry throws in a development run and warns in release.</li>
+ *   <li><b>the cap.</b> A fourth entry throws.</li>
  * </ol>
  */
 final class InterestHealthCheck {
@@ -290,12 +290,8 @@ final class InterestHealthCheck {
                 } catch (IllegalStateException expected) {
                     threw = true;
                 }
-                if (Satchel.isDevelopment()) {
-                    check(threw, "entry " + (CAP + 1) + " past the cap of " + CAP + " did not throw in a development run");
-                    check(jig.interestCount() == CAP, "a refused entry was added anyway");
-                } else {
-                    check(!threw, "entry past the cap threw in a release run, which should warn");
-                }
+                check(threw, "entry " + (CAP + 1) + " past the cap of " + CAP + " did not throw");
+                check(jig.interestCount() == CAP, "a refused entry was added anyway");
                 jig.lostInterest(over);   // idempotent: clears the entry if a failed check let it in
                 for (UUID fake : fakes) jig.lostInterest(fake);
 

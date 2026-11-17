@@ -143,7 +143,7 @@ public final class JigConfigCompiler {
             JigKey<?> jigKey = Objects.requireNonNull(cfg.jigKey(), "config.jigKey");
 
             // The registration owns the side. Unset takes the registration's; an explicit different
-            // value is a crash, in development and release alike.
+            // value is a crash.
             JigPolicies.SideApplicability declared = cfg.binding().sideApplicability();
             if (declared != null && declared != registration.side()) {
                 throw new IllegalStateException(

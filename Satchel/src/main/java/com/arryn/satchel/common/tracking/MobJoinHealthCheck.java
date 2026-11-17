@@ -28,7 +28,7 @@ import java.util.UUID;
 /**
  * A scope is built only for a mob that has joined the level (SAT_135) -- see {@link SatchelHealth}. Forge
  * posts a mob's own {@code EntityJoinLevelEvent} before the mob is in the level, where the join can
- * still be cancelled, so a module event on it resolved with {@code Scopes.of} on an interest jig must
+ * still be cancelled, so a module event on it resolved with {@code Scopes.of} on a mob jig must
  * find no scope for the mob. The server probe adds a synthetic mob of its own, once per world, to the
  * health mob jig's interest and checks, with a listener that cancels the join after the module event
  * has been resolved:

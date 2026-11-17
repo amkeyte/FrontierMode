@@ -23,7 +23,7 @@ import java.util.function.Supplier;
  *   event's own setters can change is read live, since another listener may have changed it.</li>
  *   <li><b>Valid only during dispatch,</b> like Forge's own events. After the last consumer returns,
  *   Satchel closes the event and a read of the native event throws, so a consumer that kept the event
- *   fails loudly in development. Snapshot fields stay readable, and so does {@link #isCanceled()}.</li>
+ *   fails loudly. Snapshot fields stay readable, and so does {@link #isCanceled()}.</li>
  *   <li><b>No Forge types out.</b> A subclass's public getters return plain values, Satchel types,
  *   the module's own types and approved vanilla types. Vetoes are methods the module names,
  *   delegating to the native event.</li>

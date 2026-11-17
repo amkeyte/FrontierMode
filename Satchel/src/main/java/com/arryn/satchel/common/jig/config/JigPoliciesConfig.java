@@ -60,9 +60,9 @@ public abstract class JigPoliciesConfig {
     }
 
     /**
-     * Mob jigs only: how many mobs the jig may hold interest in at once. Exceeding it crashes in a
-     * development run and warns in release, naming the jig and a few UUIDs. It is the diagnostic for
-     * a module that forgets {@code lostInterest}. Default {@value #DEFAULT_MAX_INTEREST}.
+     * Mob jigs only: how many mobs the jig may hold interest in at once. Exceeding it crashes,
+     * naming the jig and a few UUIDs. It is the diagnostic for a module that forgets
+     * {@code lostInterest}. Default {@value #DEFAULT_MAX_INTEREST}.
      */
     public int maxInterest() {
         return presets().maxInterest;

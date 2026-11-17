@@ -4,7 +4,6 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.guts.*;
 import com.arryn.satchel.common.util.Ids;
-import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -51,9 +50,6 @@ public final class MobJig extends ASatchelJig<MobScope> {
     /** True for the whole of {@link #reset}: no scope is built, for any UUID. */
     private volatile boolean resetting;
 
-    /** The over-cap warning in a release run is repeated this often, not on every add. */
-    private static final int CAP_WARNING_EVERY = 50;
-
     public MobJig() {
     }
 
@@ -99,8 +95,8 @@ public final class MobJig extends ASatchelJig<MobScope> {
      * its Trinkets attached ({@code Loaded} has fired inside the call).
      *
      * <p>
-     * Idempotent. Past the jig's cap ({@code policies().maxInterest()}, default 500) a development
-     * run throws and a release run warns, naming the jig and a few UUIDs.
+     * Idempotent. Past the jig's cap ({@code policies().maxInterest()}, default 500) it throws,
+     * naming the jig and a few UUIDs.
      *
      * <p>
      * The entry is recorded even when no scope can be built now: the mob is not in the level, its scope
@@ -113,7 +109,7 @@ public final class MobJig extends ASatchelJig<MobScope> {
         Objects.requireNonNull(uuid, "uuid");
 
         if (interests.wouldExceed(uuid, policies().maxInterest())) {
-            overCap(uuid);
+            throw overCap(uuid);
         }
         interests.add(uuid);
 
@@ -260,18 +256,11 @@ public final class MobJig extends ASatchelJig<MobScope> {
         return interests.snapshot();
     }
 
-    private void overCap(UUID uuid) {
+    private IllegalStateException overCap(UUID uuid) {
         int cap = policies().maxInterest();
-        String message = "Mob jig " + jigKey().name + " would hold more than its cap of " + cap
+        return new IllegalStateException("Mob jig " + jigKey().name + " would hold more than its cap of " + cap
                 + " interest entries (adding " + Ids.shortId(uuid) + "). A module is not calling "
-                + "lostInterest. Listed, for example: " + shortIds(interests.sample(5));
-
-        if (Satchel.isDevelopment()) {
-            throw new IllegalStateException(message);
-        }
-        if ((interests.size() - cap) % CAP_WARNING_EVERY == 0) {
-            OUT.warn("[MobJig] " + message);
-        }
+                + "lostInterest. Listed, for example: " + shortIds(interests.sample(5)));
     }
 
     private static String shortIds(List<UUID> uuids) {

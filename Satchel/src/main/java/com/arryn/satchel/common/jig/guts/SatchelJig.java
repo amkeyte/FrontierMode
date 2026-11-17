@@ -13,8 +13,8 @@ import java.util.UUID;
  * MobJig} are the three real implementors today, each extending {@link ASatchelJig}, the
  * concrete base that supplies this interface's actual dispatch logic. Owns lifecycle
  * dispatch (load/execution-pulse/tick/unload, see {@code ASatchelJig.handleExecutionPulse}/
- * {@code onTick} for the phase-branching that drives {@link ScopeEvent} onto {@code
- * SatchelEventBus}) and delegates bundle access ({@link #get}/{@link #ask}/{@link
+ * {@code onTick} for the phase-branching; a scope's load and unload post {@link ScopeEvent} onto
+ * {@code SatchelEventBus}) and delegates bundle access ({@link #get}/{@link #ask}/{@link
  * #getOrCreate}) to this jig's own {@link ScopeCoupler}.
  */
 public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
@@ -41,23 +41,24 @@ public interface SatchelJig<S extends SatchelScope> extends IJigConfigurable {
 
     /**
      * Called once per jig tick for a {@code LOADED} scope, gated on {@code
-     * participatesInTick()}. This is what posts {@link ScopeEvent}{@code .Tick} onto the bus
-     * -- a jig kind's own tick-driven domain logic (Border's growth, a coupler's {@code
-     * onJigTick}) runs from here, not from {@link #handleExecutionPulse}.
+     * participatesInTick()}. It posts no event: a jig kind's own tick-driven domain logic
+     * (Border's growth, a coupler's {@code onJigTick}) runs from here, not from {@link
+     * #handleExecutionPulse}, and a module ticks through a Trinket.
      */
     void onTick(ScopeInfoImpl info);
 
     /**
      * Called once this scope is torn down (real teardown, driven by {@code
-     * LevelEvent.Unload}/{@code PlayerLoggedOutEvent}, or, for {@code MobJig}, an
-     * unresolvable UUID at reconcile time). Posts {@link ScopeEvent}{@code .Unloaded} onto
+     * LevelEvent.Unload}/{@code PlayerLoggedOutEvent}, or, for {@code MobJig}, the mob's {@code
+     * EntityLeaveLevelEvent} or a removed mob found at reconcile time). Posts {@link
+     * ScopeEvent}{@code .Unloaded} onto
      * {@code SatchelEventBus} before forwarding to this jig's {@link
      * ScopeCoupler#onScopeUnload}.
      */
     void onUnload(ScopeInfoImpl info);
 
     /**
-     * Poll-driven scope reconciliation, called once per {@link JigInfo} every foundation pulse,
+     * Per-pulse scope reconciliation, called once per {@link JigInfo} every foundation pulse,
      * before the per-{@link ScopeInfoImpl} handleExecutionPulse/onTick walk (see
      * FoundationLifecycleDispatcher.pulse()). Default no-op -- only a jig kind whose sources
      * aren't discovered via a Forge join/load event (i.e. MobJig, RM_SAT_021) overrides this;

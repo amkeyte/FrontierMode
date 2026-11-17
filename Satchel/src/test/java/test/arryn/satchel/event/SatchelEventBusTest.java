@@ -15,8 +15,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * The bus's own rules (SAT_111): priority order, scoped dispatch merged into one order,
- * receiveCancelled, removal, the nesting-depth guard and the failure policy. Plain JUnit on a bus
- * with an injected failure policy, no Minecraft or Forge classes.
+ * receiveCancelled, removal, the nesting-depth guard and failure. Plain JUnit on a bus, no Minecraft
+ * or Forge classes.
  */
 class SatchelEventBusTest {
 
@@ -41,15 +41,11 @@ class SatchelEventBusTest {
         }
     }
 
-    private boolean development;
-    private final List<String> logged = new ArrayList<>();
     private SatchelEventBus bus;
 
     @BeforeEach
     void setUp() {
-        development = true;
-        logged.clear();
-        bus = new SatchelEventBus(() -> development, (msg, t) -> logged.add(msg));
+        bus = new SatchelEventBus();
     }
 
     private SatchelEventBus.Subscription sub(Object key, Priority p, boolean recv, String owner, List<String> into, String tag) {
@@ -168,7 +164,7 @@ class SatchelEventBusTest {
     }
 
     @Test
-    void nesting_deeper_than_the_guard_throws_in_development() {
+    void nesting_deeper_than_the_guard_throws() {
         bus.subscribe(Hit.class, null, Priority.NORMAL, false, "t", h -> bus.post(new Hit(1)));
 
         IllegalStateException e = assertThrows(IllegalStateException.class, () -> bus.post(new Hit(1)));
@@ -177,17 +173,7 @@ class SatchelEventBusTest {
     }
 
     @Test
-    void runaway_recursion_in_release_is_logged_and_unwinds() {
-        development = false;
-        bus.subscribe(Hit.class, null, Priority.NORMAL, false, "t", h -> bus.post(new Hit(1)));
-
-        assertDoesNotThrow(() -> bus.post(new Hit(1)));
-
-        assertFalse(logged.isEmpty());
-    }
-
-    @Test
-    void an_owned_consumer_that_throws_crashes_in_development() {
+    void an_owned_consumer_that_throws_crashes() {
         List<String> order = new ArrayList<>();
         bus.subscribe(Hit.class, null, Priority.HIGH, false, "mod", h -> { throw new IllegalArgumentException("boom"); });
         sub(null, Priority.NORMAL, false, "t", order, "after");
@@ -195,26 +181,10 @@ class SatchelEventBusTest {
         assertThrows(IllegalArgumentException.class, () -> bus.post(new Hit(1)));
 
         assertEquals(List.of(), order);
-        assertTrue(logged.isEmpty());
-    }
-
-    @Test
-    void an_owned_consumer_that_throws_is_logged_with_its_owner_and_skipped_in_release() {
-        development = false;
-        List<String> order = new ArrayList<>();
-        bus.subscribe(Hit.class, null, Priority.HIGH, false, "frontiermode:ingress", h -> { throw new IllegalArgumentException("boom"); });
-        sub(null, Priority.NORMAL, false, "t", order, "after");
-
-        assertDoesNotThrow(() -> bus.post(new Hit(1)));
-
-        assertEquals(List.of("after"), order);
-        assertEquals(1, logged.size());
-        assertTrue(logged.get(0).contains("frontiermode:ingress"), logged.get(0));
     }
 
     @Test
     void an_ownerless_consumer_that_throws_always_propagates() {
-        development = false;
         bus.subscribe(Hit.class, h -> { throw new IllegalArgumentException("boom"); });
 
         assertThrows(IllegalArgumentException.class, () -> bus.post(new Hit(1)));

@@ -157,7 +157,7 @@ public final class IngressConfig {
 
         subscriptions.add((foundation, owner) -> {
             SatchelEventHandler<N> handler = handlerFor.apply(owner);
-            handler.bind(foundation, owner);
+            handler.bind(foundation);
             MinecraftForge.EVENT_BUS.addListener(priority, receiveCancelled, nativeType, handler::onEvent);
         });
     }

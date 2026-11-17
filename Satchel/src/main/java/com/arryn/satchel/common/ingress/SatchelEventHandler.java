@@ -2,7 +2,6 @@ package com.arryn.satchel.common.ingress;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.util.out.OUT;
 
 import java.util.Objects;
 
@@ -26,9 +25,7 @@ import java.util.Objects;
  * than translate.
  *
  * <p>
- * <b>Failure.</b> One switch, {@link Satchel#isDevelopment()}: in development a throw from {@code
- * handle} propagates and crashes; in release it is logged with the ingress's name and the firing is
- * dropped.
+ * <b>Failure.</b> A throw from {@code handle} propagates and crashes, in every build.
  *
  * <p>
  * <b>Stateless.</b> A handler lives as long as the JVM while an integrated server starts and stops
@@ -46,7 +43,6 @@ public abstract class SatchelEventHandler<N> {
 
     private final Class<N> nativeType;
     private LogicalFoundation foundation;
-    private String owner;
 
     protected SatchelEventHandler(Class<N> nativeType) {
         this.nativeType = Objects.requireNonNull(nativeType, "nativeType");
@@ -62,14 +58,13 @@ public abstract class SatchelEventHandler<N> {
     /**
      * Ties the handler to its ingress's foundation. Once; called when the ingress installs.
      */
-    final void bind(LogicalFoundation foundation, String owner) {
+    final void bind(LogicalFoundation foundation) {
         if (this.foundation != null) {
             throw new IllegalStateException(
                     "A handler serves one ingress on one side; " + getClass().getName()
                             + " is already bound. Build a fresh handler in the factory.");
         }
         this.foundation = Objects.requireNonNull(foundation, "foundation");
-        this.owner = Objects.requireNonNull(owner, "owner");
     }
 
     /**
@@ -80,13 +75,7 @@ public abstract class SatchelEventHandler<N> {
         if (own == null) return;
         if (Satchel.peekFoundation() != own || !own.isReady()) return;
 
-        try {
-            handle(event);
-        } catch (RuntimeException e) {
-            if (Satchel.isDevelopment()) throw e;
-            OUT.error("[Ingress " + owner + "] a handler for " + nativeType.getSimpleName()
-                    + " failed; dropping the firing", e);
-        }
+        handle(event);
     }
 
     /**

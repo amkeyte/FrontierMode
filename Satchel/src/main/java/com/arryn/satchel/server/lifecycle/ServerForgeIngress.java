@@ -109,8 +109,7 @@ public final class ServerForgeIngress {
 
         // Every jig resets as the server begins to stop, while its levels and storage are still up, so
         // a mob scope's Unloaded handlers and terminal flush run against a live world and nothing a
-        // stopped world held reaches the next integrated session (SAT_122). Before this, a stopped
-        // server left its mob scopes in the jig, because the poll that would clear them had stopped.
+        // stopped world held reaches the next integrated session (SAT_122).
         BOOTER.bindFoundation();
         Satchel.foundationFor(LogicalSide.SERVER).ifPresent(LogicalFoundation::reset);
     }

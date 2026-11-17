@@ -9,7 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * RM_SAT_022 ("Roger"): the side-resolved lookup abstraction that lets {@code MobJig}'s poll ask
+ * RM_SAT_022 ("Roger"): the side-resolved lookup abstraction that lets {@code MobJig}'s sweep ask
  * "does this UUID resolve to a live entity in this level" without caring which side it's on.
  * Mirrors the existing {@code ScopeEngine}/{@code ASatchelFoundationBooter#engine()} precedent
  * exactly -- one interface, one implementation per side, chosen at foundation boot -- rather than

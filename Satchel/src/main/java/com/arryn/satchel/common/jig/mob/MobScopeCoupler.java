@@ -7,8 +7,8 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
  * Policy boundary for mob-scoped bundles. Mirrors
  * {@link com.arryn.satchel.common.jig.player.PlayerScopeCoupler}'s shape exactly: no extra
  * readiness gating beyond the scope existing -- a {@link MobScope} is only ever constructed for a
- * currently-resolved, non-removed mob (via the poll's reconciliation or {@link MobScope#getFor}),
- * so there's no analogous deferral window to gate on here.
+ * currently-resolved, non-removed mob (built by {@link MobJig}'s sweep or by a call to its {@code
+ * interest} or {@code scopeFor}), so there's no analogous deferral window to gate on here.
  */
 public final class MobScopeCoupler extends AScopeCoupler {
 
