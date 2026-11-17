@@ -203,6 +203,7 @@ public final class SatchelHealth {
         HotEventHealthCheck.register();
         CanaryEventHealthCheck.register();
         RealEventHealthCheck.register();
+        SpawnGateHealthCheck.register();
         InterestHealthCheck.register();
     }
 
