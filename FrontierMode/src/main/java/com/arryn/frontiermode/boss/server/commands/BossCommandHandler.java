@@ -37,7 +37,7 @@ import java.util.UUID;
  * Handler logic for {@code /boss}'s leaves -- Border's registration/handler split,
  * applied to Boss. Uses Optional/boolean feedback throughout, matching {@code BossFixture}/
  * {@code BossAPI}'s own idiom (Border's {@code Result} type is not used on Boss wholesale --
- * {@link #transformDefeat} is the one place {@code Result} appears, because it wraps
+ * {@link #defeat} is the one place {@code Result} appears, because it wraps
  * {@link BossAPI#forceDefeat}, which itself wraps a real {@code BorderAPI.grow} call and so
  * returns what that call already produces).
  */
@@ -219,7 +219,7 @@ public final class BossCommandHandler {
     }
 
     // ------------------------------------------------------------
-    // TRANSFORM DEFEAT
+    // DEFEAT
     // ------------------------------------------------------------
 
     /**
@@ -229,7 +229,7 @@ public final class BossCommandHandler {
      * grows and the next boss is queued) on demand. The boss is named by short id and kind; the kind's message
      * says the rest (the Keeper says its level).
      */
-    public static int transformDefeat(CommandContext<CommandSourceStack> ctx, UUID id) {
+    public static int defeat(CommandContext<CommandSourceStack> ctx, UUID id) {
         Level level = ctx.getSource().getLevel();
 
         // Named before the defeat, so every line below says which boss it is about.

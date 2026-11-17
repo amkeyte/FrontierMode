@@ -136,7 +136,7 @@ public final class BossFixture extends SatchelFixture {
     /**
      * A defensive copy, not a live view: {@code BossSelector.resolve()}'s {@code @all} case
      * hands this straight to {@code BossCommands.applySelector}'s
-     * {@code for (BossRecord b : bosses)} loop, and {@code /boss transform defeat @all} is the one
+     * {@code for (BossRecord b : bosses)} loop, and {@code /boss defeat @all} is the one
      * boss operation that adds a brand-new record as a side effect mid-loop
      * ({@code forceDefeat} -> {@code createBoss} -> {@code create()} ->
      * {@code bosses.add(...)}). Over a live view that structurally modifies the exact list the
@@ -358,7 +358,7 @@ public final class BossFixture extends SatchelFixture {
         if (!record.alive()) {
             // real, shipped bug this guard closes -- BossAPI.forceDefeat() had no check
             // that the record was still alive before running the full grow-and-spawn cascade, so
-            // /boss transform defeat run twice against the same boss re-triggered it a second
+            // /boss defeat run twice against the same boss re-triggered it a second
             // time with no real defeat behind it. See boss.md's "Mutation validation boundary".
             OUT.warn("[Boss] markDefeated(): bossId=" + Ids.shortId(bossId) + " is already defeated -- ignoring.");
             return RecordChange.WRONG_STATE;

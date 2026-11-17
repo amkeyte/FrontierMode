@@ -6,7 +6,6 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.keeper.KeeperSetup;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
@@ -357,6 +356,6 @@ public class AmethystCompassItem extends CompassItem {
         super.appendHoverText(stack, level, tooltip, flag);
 
         CompassAttunement.bossLevel(stack).ifPresent(bossLevel ->
-                tooltip.add(Component.literal(KeeperSetup.BOSS_NAME + ", level " + bossLevel)));
+                tooltip.add(Component.literal(KeeperAPI.BOSS_NAME + ", level " + bossLevel)));
     }
 }
