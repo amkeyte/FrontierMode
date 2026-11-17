@@ -8,7 +8,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
-import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
 import com.arryn.satchel.common.trinket.Order;
@@ -42,9 +41,6 @@ final class BossJigConfig {
 
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        // MobDied is a bare, unscoped signal -- declared here only because this is the topically
-                        // closest config, not a claim it is BOSS_JIG-scoped.
-                        .on(MobDied.class, BossJigHandlers::onMobDied)
                         // The client roster cache holds the last level: evict it when the level's scope unloads
                         // (new-module-checklist.md item 9). The per-side bus fires this for every scope.
                         .on(ScopeEvent.Unloaded.class, BossMarkers::onScopeUnloaded)

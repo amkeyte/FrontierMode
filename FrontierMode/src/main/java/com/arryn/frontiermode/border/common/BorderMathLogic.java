@@ -3,10 +3,9 @@ package com.arryn.frontiermode.border.common;
 /**
  * Pure, Minecraft-type-free XZ geometry backing {@link BorderMath#distanceTo(net.minecraft.core.BlockPos, net.minecraft.core.BlockPos)}
  * and {@link BorderMath#direction(net.minecraft.core.BlockPos, net.minecraft.core.BlockPos)} --
- * split out purely so it can be unit-tested directly, the same reason Satchel's
- * {@code MobReconcileLogic} exists alongside {@code MobJig}: this project's test sourceSet has no
- * Minecraft userdev classes on its classpath (see {@code MobReconcileLogicTest}/
- * {@code TickThrottleTest}'s own "plain-JUnit, no mocking" precedent), so the
+ * split out purely so it can be unit-tested directly: this project's test sourceSet has no
+ * Minecraft userdev classes on its classpath (see Satchel's {@code TickDelayTest} and
+ * {@code TickThrottlerTest} for the "plain-JUnit, no mocking" precedent), so the
  * correctness-sensitive math has to live somewhere that doesn't import {@code BlockPos} at all.
  * {@link BorderMath}'s own public methods are thin {@code BlockPos}-unwrapping wrappers over this
  * class -- this class is never meant to be called directly outside {@link BorderMath}.

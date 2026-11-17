@@ -7,12 +7,8 @@ import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.lifecycle.EntityJoinLevelSignal;
 import com.arryn.satchel.common.lifecycle.EventHandlers;
-import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
-import com.arryn.satchel.common.lifecycle.SpawnPlacementCheckSignal;
-import com.arryn.satchel.common.lifecycle.SpawnPositionCheckSignal;
 
 import java.util.List;
 
@@ -43,15 +39,10 @@ final class SentinelJigConfig {
                         List.of(sentinelFixture)
                 );
 
-        // Bare, unscoped signals -- declared here only because this is the topically closest config, not a claim
-        // they are SENTINEL_JIG-scoped. The Unloaded handler is the same: the per-side bus fires it for every scope,
-        // and it evicts the client's cached fixture (new-module-checklist.md item 9).
+        // The Unloaded handler is not scoped to this jig: the per-side bus fires it for every scope, and it evicts
+        // the client's cached fixture (new-module-checklist.md item 9).
         EventHandlers eventHandlers =
                 EventHandlers.builder()
-                        .on(EntityJoinLevelSignal.class, SentinelJigHandlers::onEntityJoinLevel)
-                        .on(SpawnPlacementCheckSignal.class, SentinelJigHandlers::onSpawnPlacementCheck)
-                        .on(SpawnPositionCheckSignal.class, SentinelJigHandlers::onSpawnPositionCheck)
-                        .on(LivingConversionSignal.class, SentinelJigHandlers::onConversion)
                         .on(ScopeEvent.Unloaded.class, SentinelMarkers::onScopeUnloaded)
                         .build();
 

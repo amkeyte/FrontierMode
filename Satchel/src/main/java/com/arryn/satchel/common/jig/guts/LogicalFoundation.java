@@ -155,13 +155,6 @@ public final class LogicalFoundation {
     }
 
     /**
-     * Whether any mob jig on this side holds interest in {@code uuid} in its own list.
-     */
-    public boolean anyMobInterest(UUID uuid) {
-        return MobJig.anyInterested(this, uuid);
-    }
-
-    /**
      * Resets every jig, in registration order: called when a server stops or a client logs out, so
      * nothing a stopped world left in a jig reaches the next one.
      */

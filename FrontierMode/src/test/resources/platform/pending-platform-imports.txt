@@ -264,7 +264,6 @@ com/arryn/frontiermode/sentinel/common/goals/SentinelAllyTargetGoal.java  net.mi
 com/arryn/frontiermode/sentinel/SentinelConversion.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelIngress.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelJigHandlers.java  net.minecraft.world.entity.Mob
-com/arryn/frontiermode/sentinel/SentinelJigHandlers.java  net.minecraft.world.entity.MobSpawnType
 com/arryn/frontiermode/sentinel/SentinelMarkers.java  net.minecraft.world.entity.Entity
 com/arryn/frontiermode/sentinel/SentinelMarkers.java  net.minecraft.world.entity.Mob
 com/arryn/frontiermode/sentinel/SentinelModule.java  net.minecraft.server.level.ServerLevel

@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * RM_FRO_026 ("Dorothy")'s own done-bar line: {@code BorderMath.distanceTo()/direction()} exist
  * and are unit-exercised against at least one real pair of points. Mirrors
- * {@code MobReconcileLogicTest}/{@code TickThrottleTest}'s plain-JUnit, no-mocking style --
+ * Satchel's {@code TickDelayTest}/{@code TickThrottlerTest} plain-JUnit, no-mocking style --
  * targets {@link BorderMathLogic} directly rather than {@code BorderMath} itself, since the
  * latter's {@code BlockPos} parameters aren't on this project's test classpath.
  */

@@ -184,7 +184,6 @@ public abstract class ASatchelJig<S extends SatchelScope>
         }
 
         coupler().onJigTick(info);
-        foundation().scopeLifecycle().signalScopeTick(info);
     }
 
     @Override

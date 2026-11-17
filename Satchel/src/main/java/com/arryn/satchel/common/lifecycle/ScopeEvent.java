@@ -23,10 +23,7 @@ import java.util.Objects;
  */
 public abstract sealed class ScopeEvent
         permits ScopeEvent.Loaded,
-        ScopeEvent.Tick,
-        ScopeEvent.Unloaded,
-        ScopeEvent.MobGainedInterest,
-        ScopeEvent.MobLostInterest {
+        ScopeEvent.Unloaded {
 
     private final ScopeInfo info;
 
@@ -76,19 +73,6 @@ public abstract sealed class ScopeEvent
     }
 
     /**
-     * Emitted for each valid semantic tick of a loaded scopeInfo.
-     *
-     * <p>
-     * Execution and maintenance work for the scopeInfo will have already
-     * been performed by Satchel prior to this event being delivered.
-     */
-    public static final class Tick extends ScopeEvent {
-        public Tick(ScopeInfo info) {
-            super(info);
-        }
-    }
-
-    /**
      * Emitted exactly once when a scopeInfo enters teardown.
      *
      * <p>
@@ -97,39 +81,6 @@ public abstract sealed class ScopeEvent
      */
     public static final class Unloaded extends ScopeEvent {
         public Unloaded(ScopeInfo info) {
-            super(info);
-        }
-    }
-
-    /* =============================================================
-     * Mob-kind additive signals (SAT_044)
-     * ========================================================== */
-
-    /**
-     * Emitted by {@link com.arryn.satchel.common.jig.mob.MobJig} immediately after
-     * {@link Loaded} fires for a mob scope — additively, never instead of the generic
-     * event. Honest rename: "loaded" borrows LevelScope vocabulary; "gained interest"
-     * is what the interest-registry poll actually detected.
-     *
-     * <p>
-     * {@link ScopeInfo} guarantees are identical to those of {@link Loaded}: the scope
-     * is stable and authoritative for the duration of the handler.
-     */
-    public static final class MobGainedInterest extends ScopeEvent {
-        public MobGainedInterest(ScopeInfo info) {
-            super(info);
-        }
-    }
-
-    /**
-     * Emitted by {@link com.arryn.satchel.common.jig.mob.MobJig} immediately after
-     * {@link Unloaded} fires for a mob scope — additively, never instead of the generic
-     * event. The scope has already been evicted from {@code JigInfo} by the time this
-     * fires; the {@link ScopeInfo} object is still valid for reading but is no longer
-     * resident in the jig.
-     */
-    public static final class MobLostInterest extends ScopeEvent {
-        public MobLostInterest(ScopeInfo info) {
             super(info);
         }
     }

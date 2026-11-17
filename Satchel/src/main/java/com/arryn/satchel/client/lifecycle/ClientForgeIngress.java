@@ -93,9 +93,8 @@ public final class ClientForgeIngress {
 
         // RM_SAT_014: same fix as ServerForgeIngress -- introduceSource(level) here was a
         // no-op re-announcement, not a teardown. tryRemoveSource drives jig.onUnload(info) for
-        // every jig that recognizes this source, tearing the scope down for real (including the
-        // client jig's ScopeEvent.Tick subscription, which used to survive past disconnect --
-        // see FRO_016, a symptom of this same missing call).
+        // every jig that recognizes this source, tearing the scope down for real (FRO_016 was a
+        // symptom of the missing call: a client jig's subscription survived past disconnect).
         foundation.tryRemoveSource(level);
     }
 

@@ -11,15 +11,14 @@ import java.util.function.BiConsumer;
 /**
  * where a consumer registers to hear "a boss record's position just finalized"
  * without {@code Boss} importing that consumer directly -- the same
- * one-directional-dependency discipline {@code MobInterestRegistry} already establishes for a
- * different concern (mob-death interest). Cairn's own record creation is paired with exactly this
+ * one-directional-dependency discipline of a listener registry. Cairn's own record creation is paired with exactly this
  * moment (see wiki/frontiermode/architecture/cairn.md's "Data model" section: "the moment a
  * qualifying boss's own position commits, not raw boss-record creation"), but {@code
  * StructureModule} is a third module Boss has never heard of and never will -- {@code
  * StructureModule} depends on Boss (reads {@code BossAPI}/registers here), never the reverse,
  * mirroring {@code Feral}'s own one-directional relationship with Border/Boss.
  *
- * <p>Deliberately simpler than {@code MobInterestRegistry} -- not keyed by {@code JigKey}, since
+ * <p>Deliberately simple -- not keyed by {@code JigKey}, since
  * there's only ever one thing to notify about ("boss position finalized"), not a per-consumer
  * interest set to look up. A plain list of listeners is the whole mechanism.
  */

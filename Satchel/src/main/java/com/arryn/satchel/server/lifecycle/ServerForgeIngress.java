@@ -5,47 +5,18 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.jig.mob.MobInterestRegistry;
-import com.arryn.satchel.common.lifecycle.AnimalTameSignal;
-import com.arryn.satchel.common.lifecycle.BlockBreakSignal;
-import com.arryn.satchel.common.lifecycle.CreateWorldSpawnSignal;
-import com.arryn.satchel.common.lifecycle.ItemPickupSignal;
-import com.arryn.satchel.common.lifecycle.LivingChangeTargetSignal;
-import com.arryn.satchel.common.lifecycle.LivingConversionSignal;
-import com.arryn.satchel.common.lifecycle.LivingDamageSignal;
-import com.arryn.satchel.common.lifecycle.LivingDropsSignal;
-import com.arryn.satchel.common.lifecycle.LivingExperienceDropSignal;
-import com.arryn.satchel.common.lifecycle.LivingHurtSignal;
-import com.arryn.satchel.common.lifecycle.MobDied;
-import com.arryn.satchel.common.lifecycle.MobRemoved;
-import com.arryn.satchel.common.lifecycle.PlayerAttackSignal;
-import com.arryn.satchel.common.lifecycle.PlayerRespawnSignal;
 import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tunable.TunableManager;
-import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.storage.ServerLevelData;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.event.entity.living.AnimalTameEvent;
-import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
-import net.minecraftforge.event.entity.living.LivingConversionEvent;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -66,17 +37,8 @@ import java.util.UUID;
  *   <li>Bootstrap the server foundation</li>
  *   <li>Introduce host sources to Satchel</li>
  *   <li>Drive execution pulses</li>
- *   <li>Post {@link MobDied} when a registered mob dies (SAT_044)</li>
- *   <li>Post {@link ItemPickupSignal}/{@link BlockBreakSignal}/{@link LivingDropsSignal}/
- *   {@link LivingExperienceDropSignal} for item pickup, block break, and death drops
- *   (SAT_072)</li>
- *   <li>Post {@link PlayerRespawnSignal} when a player respawns (SAT_083)</li>
- *   <li>Post {@link PlayerAttackSignal} before a player's attack applies (SAT_087)</li>
- *   <li>Post {@link MobRemoved}, with the removal reason, when a mob something is interested
- *   in leaves its level (SAT_084)</li>
- *   <li>Post {@link CreateWorldSpawnSignal} when a new world picks its spawn (SAT_093)</li>
- *   <li>Post {@link LivingHurtSignal}/{@link LivingDamageSignal}/{@link LivingChangeTargetSignal}/
- *   {@link AnimalTameSignal} for hits, damage, target changes, and taming (SAT_094)</li>
+ *   <li>Unload a mob's scope when the mob leaves its level</li>
+ *   <li>Push a level's networked bundles to a player who arrives (login, dimension change, respawn)</li>
  *   <li>Re-read Tunables before each server starts, and save them as it stops (SAT_093)</li>
  * </ul>
  *
@@ -202,41 +164,6 @@ public final class ServerForgeIngress {
     }
 
     /* =============================================================
-     * New-world spawn — CreateWorldSpawnSignal (SAT_093)
-     * ========================================================== */
-
-    /**
-     * Posts {@link CreateWorldSpawnSignal} when a brand-new world's overworld picks its spawn --
-     * once per world, inside {@code MinecraftServer.createLevels}, right after the overworld's
-     * {@code LevelEvent.Load} (so {@link #onFirstLevelLoad}/{@link #onLevelDiscover} have already
-     * bound and installed the foundation on this thread). Binds anyway, since this is the earliest
-     * point any signal fires. See the signal's class doc for what a subscriber may touch.
-     *
-     * <p>
-     * A subscriber that cancels takes over the spawn choice; one that cancels without moving the
-     * spawn leaves it at the level data's default, which is almost certainly a bug, so that case
-     * logs a warning.
-     */
-    @SubscribeEvent
-    public static void onCreateWorldSpawn(LevelEvent.CreateSpawnPosition e) {
-        if (!(e.getLevel() instanceof ServerLevel level)) return;
-
-        BOOTER.bindFoundation();
-        if (!Satchel.isReady()) return;
-
-        ServerLevelData data = e.getSettings();
-        int x = data.getXSpawn(), y = data.getYSpawn(), z = data.getZSpawn();
-        boolean bonusChest = level.getServer().getWorldData().worldGenOptions().generateBonusChest();
-
-        Satchel.require().eventBus().post(new CreateWorldSpawnSignal(level, e, bonusChest));
-
-        if (e.isCanceled() && data.getXSpawn() == x && data.getYSpawn() == y && data.getZSpawn() == z) {
-            OUT.warn("[CreateWorldSpawnSignal] a subscriber canceled vanilla's spawn choice but never set one"
-                    + " -- the world spawn stays at " + x + ", " + y + ", " + z + ".");
-        }
-    }
-
-    /* =============================================================
      * Scope discovery — PLAYER (RM_SAT_020)
      * ========================================================== */
 
@@ -293,18 +220,14 @@ public final class ServerForgeIngress {
     }
 
     /**
-     * Posts {@link PlayerRespawnSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
-     * (SAT_083). A per-player event, so it rides this general ingress class beside the other two
-     * player handlers rather than a concern-grouped one. No {@code BOOTER.bindFoundation()}: a
-     * respawn happens mid-gameplay, long after the foundation is established; the {@code
-     * Satchel.isReady()} guard is the safety net.
+     * Pushes the respawned player the level bundles of the level they land in. No {@code
+     * BOOTER.bindFoundation()}: a respawn happens mid-gameplay, long after the foundation is
+     * established; the {@code Satchel.isReady()} guard is the safety net.
      */
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer player)) return;
         if (!Satchel.isReady()) return;
-
-        Satchel.require().eventBus().post(new PlayerRespawnSignal(e));
 
         // A respawn fires no dimension-change event, and the event does not say where the player was, so
         // every respawn is pushed: a duplicate of an earlier send is harmless.
@@ -319,25 +242,6 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         Satchel.require().pushLevelBundlesTo(player);
-    }
-
-    /**
-     * Posts {@link PlayerAttackSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
-     * (SAT_087) before any of the attack applies, so a subscriber can cancel the whole hit. A
-     * per-player event, so it rides this general ingress class beside the other player handlers.
-     *
-     * <p>
-     * {@link AttackEntityEvent} fires on both logical sides -- {@code Player#attack} also runs for
-     * the local player's predicted attack -- so the client firing is dropped explicitly, ahead of
-     * the {@code Satchel.isReady()} gate. No {@code BOOTER.bindFoundation()}: an attack happens
-     * mid-gameplay, long after the foundation is established.
-     */
-    @SubscribeEvent
-    public static void onPlayerAttack(AttackEntityEvent e) {
-        if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) return;
-
-        Satchel.require().eventBus().post(new PlayerAttackSignal(e));
     }
 
     /**
@@ -359,83 +263,10 @@ public final class ServerForgeIngress {
         );
     }
 
-    /* =============================================================
-     * Mob death signal — MobDied (SAT_044)
-     * ========================================================== */
-
-    /**
-     * Posts {@link MobDied} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus} when
-     * a mob that at least one registered supplier has interest in dies.
-     *
-     * <p>
-     * Gate: checks the union of every {@link MobInterestRegistry} supplier's interest set for
-     * the dying entity's UUID. No match -- the overwhelming common case -- returns immediately,
-     * constructing nothing. A match anywhere posts one bare {@code MobDied} to the whole bus;
-     * every subscriber checks its own relevance before acting.
-     *
-     * <p>
-     * No {@code BOOTER.bindFoundation()} call: this fires mid-gameplay, long after the
-     * foundation is established. The {@code Satchel.isReady()} guard is the real safety net.
-     */
-    @SubscribeEvent
-    public static void onLivingDeath(LivingDeathEvent e) {
-        if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) return;
-
-        UUID uuid = e.getEntity().getUUID();
-        // Interest is either form: the old registry, or an entry in a mob jig's own list.
-        if (!MobInterestRegistry.isAnyInterested(e.getEntity().level(), uuid)
-                && !Satchel.require().anyMobInterest(uuid)) return;
-
-        OUT.debug("[MobDied] posting for " + Ids.shortId(uuid));
-        Satchel.require().eventBus().post(new MobDied(e.getEntity().level(), uuid, e));
-    }
-
-    /* =============================================================
-     * Mob removal signal — MobRemoved (SAT_084)
-     * ========================================================== */
-
-    /**
-     * Posts {@link MobRemoved} when a mob some registered supplier has interest in leaves its
-     * level, with the reason captured at the exact moment it leaves -- {@code Entity#setRemoved}
-     * records the reason before the level's tracking-end callback posts this event, so {@code
-     * getRemovalReason()} is already set here.
-     *
-     * <p>
-     * {@link EntityLeaveLevelEvent} fires for every entity on both logical sides, far more often
-     * than a death, so the cheap filters come first, in order: client side dropped, non-{@link Mob}
-     * dropped (items and orbs can't be {@code MobJig} scopes), then the interest gate. No debug
-     * line on the dropped paths -- they are nearly every call.
-     */
-    @SubscribeEvent
-    public static void onEntityLeaveLevel(EntityLeaveLevelEvent e) {
-        if (e.getLevel().isClientSide()) return;
-        Entity entity = e.getEntity();
-        if (!(entity instanceof Mob)) return;
-        if (!Satchel.isReady()) return;
-
-        UUID uuid = entity.getUUID();
-        if (!MobInterestRegistry.isAnyInterested(e.getLevel(), uuid)
-                && !Satchel.require().anyMobInterest(uuid)) return;
-
-        Entity.RemovalReason reason = entity.getRemovalReason();
-        if (reason == null) {
-            // Expected: a chunk unload, and the chunks demoted while a server stops, leave with no reason.
-            OUT.debug("[MobRemoved] interested mob " + Ids.shortId(uuid)
-                    + " left its level with no removal reason -- not posting.");
-            return;
-        }
-
-        OUT.debug("[MobRemoved] posting for " + Ids.shortId(uuid) + " reason=" + reason);
-        Satchel.require().eventBus().post(new MobRemoved(e.getLevel(), uuid, entity, reason));
-    }
-
     /**
      * Unloads a mob's scope the moment the mob leaves its level (SAT_123): whatever the reason, a
-     * kill, a chunk unload, a level change, and with the interest left as it is. Replaces the
-     * teardown half of the old reconcile poll. A separate handler from {@link #onEntityLeaveLevel}
-     * and at LOW priority, so the {@link MobRemoved} signal posts first and its consumers still find
-     * the scope they were tracking, as they did when teardown trailed by a poll cycle.
+     * kill, a chunk unload, a level change, and with the interest left as it is. At LOW priority,
+     * so another listener of the same event still finds the scope it was tracking.
      */
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onMobLeaveScopes(EntityLeaveLevelEvent e) {
@@ -444,147 +275,6 @@ public final class ServerForgeIngress {
         if (!Satchel.isReady()) return;
 
         Satchel.require().mobLeft(mob);
-    }
-
-    /* =============================================================
-     * Item pickup signal — ItemPickupSignal (SAT_072)
-     * ========================================================== */
-
-    /**
-     * Posts {@link ItemPickupSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
-     * before a pickup completes, so a subscriber can veto it. No {@code isClientSide} guard
-     * needed: {@link EntityItemPickupEvent} is only ever fired from {@code ItemEntity.playerTouch}
-     * behind that class's own server-side check, so this handler never sees a client-side firing.
-     *
-     * <p>
-     * No interest-registry gate, unlike {@link #onLivingDeath}: nothing here proposes narrowing by
-     * item/player up front, so every pickup posts, and each subscriber checks its own relevance —
-     * the same discipline {@link MobDied} established, cheap regardless since {@code
-     * SatchelEventBus.post()} is a no-op when nothing's subscribed.
-     */
-    @SubscribeEvent
-    public static void onItemPickup(EntityItemPickupEvent e) {
-        if (!Satchel.isReady()) return;
-
-        Satchel.require().eventBus().post(new ItemPickupSignal(e));
-    }
-
-    /* =============================================================
-     * Block break signal — BlockBreakSignal (SAT_072)
-     * ========================================================== */
-
-    /**
-     * Posts {@link BlockBreakSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
-     * synchronously, off the real {@link BlockEvent.BreakEvent} — not queued or tick-delayed, so a
-     * consumer reacting to it (Cairn's capstone explosion) reads as an immediate reaction to the
-     * player's own break.
-     */
-    @SubscribeEvent
-    public static void onBlockBreak(BlockEvent.BreakEvent e) {
-        if (!(e.getLevel() instanceof ServerLevel level)) return;
-
-        if (!Satchel.isReady()) return;
-
-        Satchel.require().eventBus().post(new BlockBreakSignal(level, e));
-    }
-
-    /* =============================================================
-     * Living drops signal — LivingDropsSignal (SAT_072)
-     * ========================================================== */
-
-    /**
-     * Posts {@link LivingDropsSignal} to {@link com.arryn.satchel.common.lifecycle.SatchelEventBus}
-     * before a dying entity's drops are spawned into the world, so a subscriber can veto them
-     * entirely or mutate the drop list directly.
-     *
-     * <p>
-     * No {@code isClientSide} guard needed: {@link LivingDropsEvent} is only ever posted from
-     * inside {@code LivingEntity.dropAllDeathLoot}, itself only reached from {@code die()}'s own
-     * {@code level instanceof ServerLevel} branch -- unlike {@link LivingDeathEvent}, which fires
-     * unconditionally at the top of {@code die()} and needs the explicit guard {@link
-     * #onLivingDeath} has.
-     */
-    @SubscribeEvent
-    public static void onLivingDrops(LivingDropsEvent e) {
-        if (!Satchel.isReady()) return;
-
-        Satchel.require().eventBus().post(new LivingDropsSignal(e));
-    }
-
-    /* =============================================================
-     * Living experience drop signal — LivingExperienceDropSignal (SAT_072)
-     * ========================================================== */
-
-    /**
-     * Posts {@link LivingExperienceDropSignal} to
-     * {@link com.arryn.satchel.common.lifecycle.SatchelEventBus} before a dying entity's
-     * experience orb is awarded, so a subscriber can veto it entirely.
-     *
-     * <p>
-     * No {@code isClientSide} guard needed, same reasoning as {@link #onLivingDrops}: {@link
-     * LivingExperienceDropEvent} is only ever posted from inside {@code
-     * LivingEntity.dropExperience}'s own {@code level instanceof ServerLevel} check.
-     */
-    @SubscribeEvent
-    public static void onLivingExperienceDrop(LivingExperienceDropEvent e) {
-        if (!Satchel.isReady()) return;
-
-        Satchel.require().eventBus().post(new LivingExperienceDropSignal(e));
-    }
-
-    /* =============================================================
-     * Combat signals (SAT_094)
-     * ========================================================== */
-
-    /**
-     * Posts {@link LivingHurtSignal} before armor applies -- the place modules scale a hit. No
-     * client guard: {@code LivingEntity#hurt} returns before this event on the client.
-     */
-    @SubscribeEvent
-    public static void onLivingHurt(LivingHurtEvent e) {
-        if (!Satchel.isReady()) return;
-        Satchel.require().eventBus().post(new LivingHurtSignal(e));
-    }
-
-    /**
-     * Posts {@link LivingDamageSignal} just before health comes off -- the place modules tally
-     * damage. Lowest priority, so another mod's change to the amount is already in. Server-only,
-     * like {@link #onLivingHurt}.
-     */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onLivingDamage(LivingDamageEvent e) {
-        if (!Satchel.isReady()) return;
-        Satchel.require().eventBus().post(new LivingDamageSignal(e));
-    }
-
-    /**
-     * Posts {@link LivingChangeTargetSignal}. Mob AI targets server-side; the client guard is cheap
-     * insurance against any client-side {@code setTarget} call.
-     */
-    @SubscribeEvent
-    public static void onLivingChangeTarget(LivingChangeTargetEvent e) {
-        if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) return;
-        Satchel.require().eventBus().post(new LivingChangeTargetSignal(e));
-    }
-
-    /**
-     * Posts {@link LivingConversionSignal} before a mob converts (SAT_101); a subscriber's
-     * {@code cancel()} keeps it unconverted. Conversion runs server-side; the guard is cheap insurance.
-     */
-    @SubscribeEvent
-    public static void onLivingConversionPre(LivingConversionEvent.Pre e) {
-        if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) return;
-        Satchel.require().eventBus().post(new LivingConversionSignal(e));
-    }
-
-    /** Posts {@link AnimalTameSignal}. Taming is server-side; the guard is cheap insurance. */
-    @SubscribeEvent
-    public static void onAnimalTame(AnimalTameEvent e) {
-        if (e.getEntity().level().isClientSide()) return;
-        if (!Satchel.isReady()) return;
-        Satchel.require().eventBus().post(new AnimalTameSignal(e));
     }
 
     /* =============================================================

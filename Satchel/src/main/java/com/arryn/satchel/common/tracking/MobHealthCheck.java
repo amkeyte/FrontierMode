@@ -9,6 +9,7 @@ import com.arryn.satchel.common.jig.guts.LeaveReason;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Leaving;
+import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
@@ -26,9 +27,7 @@ import net.minecraft.world.entity.ambient.Bat;
 import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * MobJig's slice of SatchelHealth -- see {@link SatchelHealth} for the shared
@@ -85,7 +84,6 @@ final class MobHealthCheck {
                 EventHandlers.builder()
                         .on(ScopeEvent.Loaded.class, MobHealthCheck::onMobScopeLoaded)
                         .on(ScopeEvent.Unloaded.class, MobHealthCheck::onMobScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, MobHealthCheck::onMobScopeTick)
                         .build();
 
         MobJigConfig config = new MobJigConfig(MOB_JIG);
@@ -116,6 +114,9 @@ final class MobHealthCheck {
         // Reacts when each side builds the canary's scope, and checks the reason it leaves with.
         config.trinkets().declare(CanaryMobTrinket.class, CanaryMobTrinket::new);
 
+        // Counts each tick that reaches a mob scope, and runs the leak check.
+        config.trinkets().declare(TickWatch.class, TickWatch::new);
+
         return config;
     }
 
@@ -131,7 +132,7 @@ final class MobHealthCheck {
 
         // Persistence is a server job, so the tracker has no client form: a client bundle gets its data from a
         // parcel, and a mob scope is never sent one. The client keeps the Trinket and event checks, which do not
-        // use the bundle. The Unloaded and Tick handlers find no bundle there and skip.
+        // use the bundle. The Unloaded handler and the tick Trinket find no bundle there and skip.
         if (info.jigInfo().side() == LogicalSide.SERVER) {
             var bundle = jig.getOrCreate(info.scope(), MOB_BUNDLE);
             var tracker = bundle.getOrCreateFixture(MOB_TRACKER, TrackerFixture::new);
@@ -149,11 +150,10 @@ final class MobHealthCheck {
 
     /**
      * A mob scope unloads on its mob's leave event, which can come while {@link Mob#isRemoved()} is
-     * still {@code false}: a chunk's tracking ends before the removal is recorded. So the old rule,
-     * "torn down while the mob is still present", is not a violation any more. The invariant is the
-     * leak: see {@link #onMobScopeTick}. This handler counts the unload, forgets the leak counter, and
-     * logs the reason the scope carried, which is how a real chunk unload's reason (UNLOADED or
-     * UNKNOWN) is found.
+     * still {@code false}: a chunk's tracking ends before the removal is recorded. So "torn down while
+     * the mob is still present" is not a violation. The invariant is the leak: see {@link TickWatch}.
+     * This handler counts the unload and logs the reason the scope carried, which is how a real chunk
+     * unload's reason (UNLOADED or UNKNOWN) is found.
      */
     private static void onMobScopeUnloaded(ScopeEvent.Unloaded event) {
         ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
@@ -169,8 +169,6 @@ final class MobHealthCheck {
         jig.ask(info.scope(), MOB_BUNDLE)
                 .flatMap(b -> b.get(MOB_TRACKER))
                 .ifPresent(TrackerFixture::countUnloaded);
-
-        ABSENT.remove(side + ":" + scope.uuid());
 
         OUT.debug("[SatchelHealth] UNLOADED scope=" + scope.debugName() + " side=" + side
                 + " reason=" + info.leaveReason());
@@ -189,54 +187,50 @@ final class MobHealthCheck {
     }
 
     /**
-     * Mob scopes the leak check is counting against: {@code side:uuid} to how many checks in a row
-     * found the mob absent from the lookup.
+     * On the health mob jig, on both sides, for every mob scope under it. Counts each tick that reaches
+     * the scope, and runs the leak invariant: a scope alive after its mob has been absent from the
+     * lookup for more than a few ticks. A scope unloads on its mob's leave event or once the mob is
+     * removed, so one still alive while the lookup can no longer find its mob has missed both. The miss
+     * count is this Trinket's own state, so it ends with the scope.
      */
-    private static final Map<String, Integer> ABSENT = new ConcurrentHashMap<>();
+    public static final class TickWatch implements Ticking {
 
-    /** The leak check runs every this many ticks, and a scope is leaked after this many misses. */
-    private static final int LEAK_CHECK_EVERY = 10;
-    private static final int LEAK_MISSES = 3;
+        /** The leak check runs every this many ticks, and a scope is leaked after this many misses. */
+        private static final int LEAK_CHECK_EVERY = 10;
+        private static final int LEAK_MISSES = 3;
 
-    /**
-     * Counts the tick, and runs the leak invariant: a scope alive after its mob has been absent from
-     * the lookup for more than a few ticks. A scope unloads on its mob's leave event or once the mob
-     * is removed, so one still alive while the lookup can no longer find its mob has missed both.
-     */
-    private static void onMobScopeTick(ScopeEvent.Tick event) {
-        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
+        /** How many checks in a row found the mob absent from the lookup. */
+        private int misses;
 
-        if (!MOB_JIG.equals(info.jigInfo().key)) {
-            return;
-        }
+        @Override
+        public void onTickAfter(ScopeInfo scopeInfo) {
+            ScopeInfoImpl info = ScopeInfoImpl.of(scopeInfo);
+            MobScope scope = (MobScope) info.scope();
 
-        var jig = info.jigInfo().jig;
-        MobScope scope = (MobScope) info.scope();
+            info.ask(MOB_BUNDLE)
+                    .flatMap(b -> b.get(MOB_TRACKER))
+                    .ifPresent(TrackerFixture::countExternalTick);
 
-        jig.ask(info.scope(), MOB_BUNDLE)
-                .flatMap(b -> b.get(MOB_TRACKER))
-                .ifPresent(TrackerFixture::countExternalTick);
+            if (info.jigInfo().trinketTick().tickNumber() % LEAK_CHECK_EVERY != 0) {
+                return;
+            }
 
-        if (info.jigInfo().trinketTick().tickNumber() % LEAK_CHECK_EVERY != 0) {
-            return;
-        }
+            LogicalSide side = info.jigInfo().side();
+            Mob mob = scope.mob();
+            boolean present = info.jigInfo().foundation().egress().getEntity(mob.level(), scope.uuid()).isPresent();
+            if (present) {
+                misses = 0;
+                return;
+            }
 
-        LogicalSide side = info.jigInfo().side();
-        String key = side + ":" + scope.uuid();
-        Mob mob = scope.mob();
-        boolean present = info.jigInfo().foundation().egress().getEntity(mob.level(), scope.uuid()).isPresent();
-        if (present) {
-            ABSENT.remove(key);
-            return;
-        }
-
-        int misses = ABSENT.merge(key, 1, Integer::sum);
-        if (misses > LEAK_MISSES) {
-            SatchelHealth.violation("[SatchelHealth] VIOLATION: MobScope leaked on side=" + side
-                    + ": its mob " + mob.getType() + " " + Ids.shortId(scope.uuid()) + " has been absent from "
-                    + "the lookup for " + (misses * LEAK_CHECK_EVERY) + "+ ticks and the scope is still alive "
-                    + "(isRemoved()=" + mob.isRemoved() + "). A scope unloads on its mob's leave event or "
-                    + "once the mob is removed; this one missed both.");
+            misses++;
+            if (misses > LEAK_MISSES) {
+                SatchelHealth.violation("[SatchelHealth] VIOLATION: MobScope leaked on side=" + side
+                        + ": its mob " + mob.getType() + " " + Ids.shortId(scope.uuid()) + " has been absent from "
+                        + "the lookup for " + (misses * LEAK_CHECK_EVERY) + "+ ticks and the scope is still alive "
+                        + "(isRemoved()=" + mob.isRemoved() + "). A scope unloads on its mob's leave event or "
+                        + "once the mob is removed; this one missed both.");
+            }
         }
     }
 

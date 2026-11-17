@@ -18,7 +18,8 @@ import net.minecraft.world.level.Level;
  * consumers of the Keeper's events ({@link KeeperCreated}, {@link KeeperHit}, {@link KeeperDefeated}; keeper.md §
  * Keeper events), the consumer of the Info report's {@link InfoRequest}, which adds the {@code sentinel:} line, and
  * the module event {@link SentinelTakingDamage} with its one consumer, which lets a hit on a Sentinel land at one over
- * its Keeper's armor multiplier.
+ * its Keeper's armor multiplier, and the four module events the Sentinel handlers hear: {@link SentinelJoining},
+ * {@link SentinelPlacementCheck}, {@link SentinelPositionCheck} and {@link SentinelConverting}.
  * {@link SentinelModule#init()} registers {@link #build()} through a lambda, so this class loads when the server side
  * boots.
  */
@@ -35,8 +36,17 @@ final class SentinelIngress {
         ingress.listenForAll(InfoRequest.class, SentinelIngress::onInfo);
         ingress.translate(SentinelTakingDamage.NATIVE, SentinelTakingDamage::resolve, SentinelTakingDamage::new);
         ingress.listenForAll(SentinelTakingDamage.class, SentinelIngress::onSentinelTakingDamage);
+        ingress.translate(SentinelJoining.NATIVE, SentinelJoining::resolve, SentinelJoining::new);
+        ingress.translate(SentinelPlacementCheck.NATIVE, SentinelPlacementCheck::resolve, SentinelPlacementCheck::new);
+        ingress.translate(SentinelPositionCheck.NATIVE, SentinelPositionCheck::resolve, SentinelPositionCheck::new);
+        ingress.translate(SentinelConverting.NATIVE, SentinelConverting::resolve, SentinelConverting::new);
+        ingress.listenForAll(SentinelJoining.class, SentinelJigHandlers::onSentinelJoining);
+        ingress.listenForAll(SentinelPlacementCheck.class, SentinelJigHandlers::onSpawnPlacementCheck);
+        ingress.listenForAll(SentinelPositionCheck.class, SentinelJigHandlers::onSpawnPositionCheck);
+        ingress.listenForAll(SentinelConverting.class, SentinelJigHandlers::onSentinelConverting);
         return ingress;
     }
+
 
     /**
      * A Keeper was created for a Border (keeper.md § Keeper events): the Border gets its two Sentinel curves if it

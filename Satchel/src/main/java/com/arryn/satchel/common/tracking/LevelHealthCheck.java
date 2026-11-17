@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -12,6 +13,7 @@ import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
+import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -78,7 +80,6 @@ final class LevelHealthCheck {
                 EventHandlers.builder()
                         .listenFor(ScopeEvent.Loaded.class, LevelHealthCheck::onLevelScopeLoaded)
                         .listenFor(ScopeEvent.Unloaded.class, LevelHealthCheck::onLevelScopeUnloaded)
-                        .listenFor(ScopeEvent.Tick.class, LevelHealthCheck::onLevelScopeTick)
                         .build();
 
         LevelJigConfig config = new LevelJigConfig(LEVEL_JIG);
@@ -90,6 +91,9 @@ final class LevelHealthCheck {
 
         // Notices a client whose synced canary data never arrives or is dropped on apply (SAT_126).
         config.trinkets().declare(ClientSyncHealthCheck.SyncProbe.class, ClientSyncHealthCheck.SyncProbe::new);
+
+        // Counts each tick that reaches a level scope, beside the tracker's own internal count.
+        config.trinkets().declare(TickCount.class, TickCount::new);
 
         config.bundles().schema(bundles);
 
@@ -197,17 +201,18 @@ final class LevelHealthCheck {
         }
     }
 
-    private static void onLevelScopeTick(ScopeEvent.Tick event) {
-        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
+    /**
+     * On the health level jig, on both sides, for every level scope. Counts each tick that reaches the
+     * scope through the module-facing path, which the tracker's log line shows beside its own internal
+     * count. A Trinket belongs to its jig, so it needs no jig-key check.
+     */
+    public static final class TickCount implements Ticking {
 
-        if (!LEVEL_JIG.equals(info.jigInfo().key)) {
-            return;
+        @Override
+        public void onTickAfter(ScopeInfo info) {
+            info.ask(LEVEL_BUNDLE)
+                    .flatMap(b -> b.get(LEVEL_TRACKER))
+                    .ifPresent(TrackerFixture::countExternalTick);
         }
-
-        var jig = info.jigInfo().jig;
-
-        jig.ask(info.scope(), LEVEL_BUNDLE)
-                .flatMap(b -> b.get(LEVEL_TRACKER))
-                .ifPresent(TrackerFixture::countExternalTick);
     }
 }

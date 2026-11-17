@@ -36,7 +36,7 @@ public final class KeeperSetup {
      * be created or added (not a terrain problem anymore) -- the caller retries next tick, same fixed
      * {@code position}.
      *
-     * <p>Deliberately does not call {@code MobScope.getFor(mob)} or touch {@code BossFixture} -- both are Satchel
+     * <p>Deliberately does not look up the mob's scope or touch {@code BossFixture} -- both are Satchel
      * wiring concerns owned by the roster, not a "boss design" decision.
      */
     static Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper) {

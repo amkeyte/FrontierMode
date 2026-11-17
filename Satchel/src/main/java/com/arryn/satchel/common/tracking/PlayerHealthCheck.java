@@ -4,6 +4,7 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.jig.player.PlayerScope;
@@ -12,6 +13,7 @@ import com.arryn.satchel.common.lifecycle.EventHandlers;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
+import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -75,7 +77,6 @@ final class PlayerHealthCheck {
                 EventHandlers.builder()
                         .on(ScopeEvent.Loaded.class, PlayerHealthCheck::onPlayerScopeLoaded)
                         .on(ScopeEvent.Unloaded.class, PlayerHealthCheck::onPlayerScopeUnloaded)
-                        .on(ScopeEvent.Tick.class, PlayerHealthCheck::onPlayerScopeTick)
                         .build();
 
         PlayerJigConfig config = new PlayerJigConfig(PLAYER_JIG);
@@ -92,6 +93,9 @@ final class PlayerHealthCheck {
         );
 
         config.bundles().schema(bundles);
+
+        // Counts each tick that reaches a player scope, beside the tracker's own internal count.
+        config.trinkets().declare(TickCount.class, TickCount::new);
 
         // NETWORKING (SAT_063): SatchelNetwork.sendToPlayer() now gives PlayerScope-scoped
         // bundles a real distribution path, and JigConfigValidator's BOTH-applicability
@@ -235,18 +239,18 @@ final class PlayerHealthCheck {
         }
     }
 
-    private static void onPlayerScopeTick(ScopeEvent.Tick event) {
-        ScopeInfoImpl info = ScopeInfoImpl.of(event.info());
+    /**
+     * On the health player jig, on both sides, for every player scope. Counts each tick that reaches the
+     * scope through the module-facing path, which the tracker's log line shows beside its own internal
+     * count. A Trinket belongs to its jig, so it needs no jig-key check.
+     */
+    public static final class TickCount implements Ticking {
 
-        if (!PLAYER_JIG.equals(info.jigInfo().key)) {
-            return;
+        @Override
+        public void onTickAfter(ScopeInfo info) {
+            info.ask(PLAYER_BUNDLE)
+                    .flatMap(b -> b.get(PLAYER_TRACKER))
+                    .ifPresent(TrackerFixture::countExternalTick);
         }
-
-        var jig = info.jigInfo().jig;
-        PlayerScope scope = (PlayerScope) info.scope();
-
-        jig.ask(info.scope(), PLAYER_BUNDLE)
-                .flatMap(b -> b.get(PLAYER_TRACKER))
-                .ifPresent(TrackerFixture::countExternalTick);
     }
 }

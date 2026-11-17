@@ -19,8 +19,9 @@ import java.util.UUID;
 
 /**
  * The holder class for the boss module's ingress: one consumer of the Info report's {@link InfoRequest},
- * which adds the {@code boss:} line for an entity, and the three module events the mob abilities hear, {@link BossMount},
- * {@link BossTakingDamage} and {@link BossDamaged}.
+ * which adds the {@code boss:} line for an entity, the three module events the mob abilities hear, {@link BossMount},
+ * {@link BossTakingDamage} and {@link BossDamaged}, and {@link BossDied}, which {@link BossJigHandlers#onBossDied}
+ * turns into a defeat or a loss.
  * {@link BossModule#init()} registers {@link #build()} through a lambda, so this class loads when the
  * server side boots.
  */
@@ -38,8 +39,11 @@ final class BossIngress {
         // Lowest, so the amount is what every other listener left.
         ingress.priority(EventPriority.LOWEST).translate(
                 LivingDamageEvent.class, BossIngress::resolveDamagedBoss, BossDamaged::new);
+        ingress.translate(BossDied.NATIVE, BossDied::resolve, BossDied::new);
+        ingress.listenForAll(BossDied.class, BossJigHandlers::onBossDied);
         return ingress;
     }
+
 
     /** The boss's mob scope, for the entity mounting or the entity being mounted; empty when neither is a boss. */
     private static Optional<ScopeInfo> resolveMountingBoss(EntityMountEvent event) {

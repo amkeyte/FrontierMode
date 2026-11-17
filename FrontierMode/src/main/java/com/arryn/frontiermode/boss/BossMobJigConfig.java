@@ -12,8 +12,8 @@ import java.util.List;
  * Builds {@code BOSS_MOB_JIG} (wiki/frontiermode/architecture/boss.md § Module wiring): the mob jig that holds the
  * mob-side abilities, {@code BOTH} like {@code BOSS_JIG} and registered after it. Each side's roster pushes that side's
  * interest, and the kind subscribes its abilities once, each on the side it applies to. The jig holds no bundle and no
- * handler on {@code MobGainedInterest} or {@code MobLostInterest}: the mob scope's Trinket attach, {@code Leaving} and
- * detach are the hooks.
+ * handler on a mob's gaining or losing interest: the mob scope's Trinket attach, {@code Leaving} and detach are the
+ * hooks.
  */
 final class BossMobJigConfig {
 

@@ -45,9 +45,9 @@ public interface ForgeEgress {
     Optional<Player> getPlayer(UUID uuid);
 
     /**
-     * The levels this side currently has, for a poll that asks a per-level question of every one
-     * (see {@code MobInterestPerLevel}): every loaded level server-side, the one local level
-     * client-side (none before the client has joined one).
+     * The levels this side currently has, for a search that asks every one (the mob jig's sweep):
+     * every loaded level server-side, the one local level client-side (none before the client has
+     * joined one).
      */
     Iterable<Level> levels();
 }

@@ -1,6 +1,5 @@
 package com.arryn.satchel.common.jig.mob;
 
-import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.ASatchelScope;
 import com.arryn.satchel.common.stitch.PersistStitch;
@@ -14,8 +13,7 @@ import java.util.UUID;
 /**
  * SatchelScope representing a tagged {@link Mob} -- the fourth jig kind (RM_SAT_021, "Frank").
  * Mirrors {@link com.arryn.satchel.common.jig.player.PlayerScope}'s shape for the scope/config
- * plumbing, with two deliberate departures documented on Jig & Scope Runtime's MobJig section and
- * this class's own {@link #getFor} contract:
+ * plumbing, with two deliberate departures documented on Jig & Scope Runtime's MobJig section:
  * <ul>
  *   <li>Holds a {@link Mob} directly, not the broader {@code LivingEntity} -- {@code LivingEntity}
  *   includes {@code Player}/{@code ServerPlayer}, which {@code PlayerJig} already owns, and typing
@@ -95,44 +93,5 @@ public final class MobScope extends ASatchelScope implements PersistStitch {
     @Override
     public Optional<CompoundTag> loadBundleTag(BundleKey<?> key) {
         return Optional.empty();
-    }
-
-    /**
-     * The sanctioned entry point for tagging a live {@link Mob} into MobJig's scope machinery
-     * outside of the poll's own reconciliation cycle -- see the MobScope.getFor() Contract wiki
-     * page for the full boundary contract this method must keep. In order:
-     * <ol>
-     *   <li>Check {@code Satchel.isReady()} for the calling side -- cheap and side-agnostic.</li>
-     *   <li>Reject an already-{@code isRemoved()} reference -- {@code Optional.empty()}, not a
-     *   throw: the "bad reference" case.</li>
-     *   <li>Call {@code Satchel.require().introduceSource(mob)} -- idempotent via
-     *   {@code JigInfo.hasScope}'s existing guard; deliberately no second duplicate-check here.</li>
-     *   <li>Return {@code Optional.of(new MobScope(mob))} -- immediate attachment, no poll wait.</li>
-     * </ol>
-     * Neither {@code Optional.empty()} case is an error: a caller that gets one back has nothing
-     * further to retry synchronously -- a mob that becomes resolvable later is the poll's job to
-     * pick up, not this call's. The returned {@code MobScope} is not a handle safe to hold across
-     * ticks; once a mob's chunk becomes unresolvable, the poll tears the scope down.
-     *
-     * @deprecated a shim until FrontierMode's callers move. It is jig-agnostic: it introduces the
-     *             mob into every mob jig and registers no interest. Hold interest in the jig that
-     *             owns the mob ({@code Satchel.mobJig(key).interest(uuid)}) and ask {@code
-     *             scopeFor(uuid)}; the mob leaving, not a poll, unloads the scope.
-     */
-    @Deprecated
-    public static Optional<MobScope> getFor(Mob mob) {
-        Objects.requireNonNull(mob, "mob");
-
-        if (!Satchel.isReady()) {
-            return Optional.empty();
-        }
-
-        if (mob.isRemoved()) {
-            return Optional.empty();
-        }
-
-        Satchel.require().introduceSource(mob);
-
-        return Optional.of(new MobScope(mob));
     }
 }

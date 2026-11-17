@@ -58,23 +58,6 @@ public final class ScopeLifecycleDispatcher {
     }
 
     /**
-     * Emit a semantic tick for a loaded scopeInfo.
-     *
-     * <p>
-     * Caller is responsible for ensuring execution work
-     * has already been performed.
-     */
-    public void signalScopeTick(ScopeInfoImpl info) {
-        Objects.requireNonNull(info, "info");
-
-        if (info.phase() != ScopeInfoImpl.Phase.LOADED) {
-            return; // not tickable
-        }
-
-        emitTick(info);
-    }
-
-    /**
      * Begin unloading a scopeInfo for a specific jig.
      */
     public void signalScopeUnloaded(ScopeInfoImpl info) {
@@ -99,11 +82,6 @@ public final class ScopeLifecycleDispatcher {
     private void emitLoaded(ScopeInfo info) {
         foundation.eventBus()
                 .post(new ScopeEvent.Loaded(info));
-    }
-
-    private void emitTick(ScopeInfo info) {
-        foundation.eventBus()
-                .post(new ScopeEvent.Tick(info));
     }
 
     private void emitUnloaded(ScopeInfo info) {

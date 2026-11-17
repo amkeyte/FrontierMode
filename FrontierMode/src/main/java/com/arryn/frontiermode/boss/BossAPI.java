@@ -186,7 +186,7 @@ public final class BossAPI {
      * fixture-record edit. {@code discard()}, deliberately not {@code kill()}: deletion is an
      * administrative removal ("get rid of this record"), not a "boss died" event, and
      * {@code kill()} would run real death handling and could re-enter {@code BossJigHandlers
-     * .onMobDied}'s own defeat-detection listener -- growing a border and queuing a next boss for
+     * .onBossDied}'s own defeat-detection listener -- growing a border and queuing a next boss for
      * an admin cleanup action, which is exactly the cascade that must not happen. An
      * unmaterialized record has no entity to despawn and is simply removed.
      *

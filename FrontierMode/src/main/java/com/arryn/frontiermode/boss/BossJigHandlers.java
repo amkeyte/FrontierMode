@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.boss;
 
-import com.arryn.satchel.common.lifecycle.MobDied;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Mob;
@@ -9,7 +8,7 @@ import net.minecraft.world.level.Level;
 import java.util.Optional;
 
 /**
- * Event handlers for {@code BOSS_JIG}: defeat detection.
+ * The consumer of the boss module's {@link BossDied}: defeat detection.
  */
 final class BossJigHandlers {
 
@@ -25,10 +24,10 @@ final class BossJigHandlers {
      * quirk -- multiple queued damage instances in the same tick). {@code markDefeated()} and
      * {@code dematerialize()} refuse the second; a duplicate death event is a clean no-op.
      */
-    static void onMobDied(MobDied event) {
-        Mob mob = (Mob) event.forgeEvent().getEntity();
+    static void onBossDied(BossDied event) {
+        Mob mob = event.mob();
         Level level = event.level();
-        OUT.debug("[Boss] onMobDied: received for " + Ids.shortId(event.uuid()));
+        OUT.debug("[Boss] onBossDied: received for " + Ids.shortId(mob.getUUID()));
 
         Optional<Boss> bossOpt = BossAPI.roster(level).flatMap(roster -> roster.bossFor(mob.getUUID()));
         if (bossOpt.isEmpty()) {
