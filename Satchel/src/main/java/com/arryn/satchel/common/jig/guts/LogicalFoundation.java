@@ -15,7 +15,6 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +36,7 @@ public final class LogicalFoundation {
     /**
      * The side this foundation serves.
      *
-     * @deprecated Discouraged, and probably going to be removed: it hands Forge's {@code LogicalSide} to module
+     * @deprecated Discouraged, and probably going to be removed: it hands Satchel's own {@code LogicalSide} to module
      *             code. A thread asks which side it is on with {@code Satchel.isClient()} and {@code
      *             Satchel.isServer()}.
      */

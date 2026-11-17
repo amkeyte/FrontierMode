@@ -3,12 +3,12 @@ package com.arryn.satchel.client.jig.guts;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ASatchelFoundationBooter;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.client.lifecycle.ClientForgeEgress;
 import com.arryn.satchel.common.jig.config.CompiledJigConfig;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 

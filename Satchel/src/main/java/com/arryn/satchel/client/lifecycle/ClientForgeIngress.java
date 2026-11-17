@@ -1,5 +1,6 @@
 package com.arryn.satchel.client.lifecycle;
 
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
@@ -18,7 +19,6 @@ import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;

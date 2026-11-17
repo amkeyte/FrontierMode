@@ -5,6 +5,7 @@ import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.lifecycle.SatchelEventBus;
@@ -13,7 +14,6 @@ import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.fml.LogicalSide;
 
 /**
  * A module event on a {@code @HasResult} Forge event (SAT_134 probe 3) -- see {@link SatchelHealth}.

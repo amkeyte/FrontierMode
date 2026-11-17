@@ -6,6 +6,7 @@ import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
@@ -18,7 +19,6 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.Cancelable;
 import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
 import java.util.List;

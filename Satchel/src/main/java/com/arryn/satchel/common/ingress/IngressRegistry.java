@@ -3,8 +3,8 @@ package com.arryn.satchel.common.ingress;
 import com.arryn.satchel.common.identity.SatchelKey;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.ArrayList;
 import java.util.EnumSet;

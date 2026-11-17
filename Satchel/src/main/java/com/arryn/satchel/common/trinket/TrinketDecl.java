@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.trinket;
 
 import com.arryn.satchel.common.jig.config.JigPolicies;
-import net.minecraftforge.fml.LogicalSide;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -45,7 +45,7 @@ public record TrinketDecl<T extends Trinket>(
     /**
      * Whether a scope on {@code logicalSide} gets this Trinket.
      *
-     * @deprecated Discouraged, and probably going to be removed: it takes Forge's {@code LogicalSide}, and a
+     * @deprecated Discouraged, and probably going to be removed: it takes Satchel's own {@code LogicalSide}, and a
      *             module has no need to ask. A Trinket's side is declared with {@code SideApplicability} when it is
      *             contributed, and Satchel applies it.
      */

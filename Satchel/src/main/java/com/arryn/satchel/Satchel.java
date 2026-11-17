@@ -12,7 +12,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.Trinket;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.EnumMap;
@@ -87,7 +86,7 @@ public final class Satchel {
     /**
      * Whether a foundation is installed for {@code side}, whichever thread asks.
      *
-     * @deprecated Discouraged, and probably going to be removed: it puts Forge's {@code LogicalSide} on Satchel's
+     * @deprecated Discouraged, and probably going to be removed: it puts Satchel's own {@code LogicalSide} on the
      *             API and invites code on one side to look at the other's. A thread asks which side it is on with
      *             {@link Satchel#isClient()} and {@link Satchel#isServer()}.
      */
@@ -99,7 +98,7 @@ public final class Satchel {
     /**
      * The foundation installed for {@code side}, whichever thread asks, or empty if none is.
      *
-     * @deprecated Discouraged, and probably going to be removed: it puts Forge's {@code LogicalSide} on Satchel's
+     * @deprecated Discouraged, and probably going to be removed: it puts Satchel's own {@code LogicalSide} on the
      *             API, and code that reaches the other side's foundation breaks the per-side split. Module code
      *             uses {@link Satchel#foundation()}, the calling thread's own, and {@link Satchel#isClient()}
      *             and {@link Satchel#isServer()} to ask which side that is.

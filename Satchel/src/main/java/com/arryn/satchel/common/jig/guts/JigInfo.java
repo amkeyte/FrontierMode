@@ -4,7 +4,6 @@ import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketTick;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.Collection;
 import java.util.List;
@@ -90,7 +89,7 @@ public final class JigInfo implements IJigConfigurable {
      * The side of the foundation this jig is installed in. A {@code BOTH} config yields two {@code
      * JigInfo}s, one per side.
      *
-     * @deprecated Discouraged, and probably going to be removed: it hands Forge's {@code LogicalSide} to module
+     * @deprecated Discouraged, and probably going to be removed: it hands Satchel's own {@code LogicalSide} to module
      *             code. A thread asks which side it is on with {@code Satchel.isClient()} and {@code
      *             Satchel.isServer()}.
      */

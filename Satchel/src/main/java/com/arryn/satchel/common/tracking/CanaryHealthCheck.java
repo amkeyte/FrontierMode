@@ -8,6 +8,7 @@ import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ForgeEgress;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.SatchelScope;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
@@ -20,7 +21,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityTypeTest;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 import java.util.Objects;

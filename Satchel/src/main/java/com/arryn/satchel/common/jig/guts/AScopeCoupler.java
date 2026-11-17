@@ -9,7 +9,6 @@ import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 import java.util.Map;

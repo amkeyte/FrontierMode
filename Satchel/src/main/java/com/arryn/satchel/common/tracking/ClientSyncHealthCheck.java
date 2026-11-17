@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.tracking;
 
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.net.ParcelInbox;
@@ -7,7 +8,6 @@ import com.arryn.satchel.common.net.S2cBundleParcel;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;

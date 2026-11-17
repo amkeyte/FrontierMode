@@ -4,9 +4,9 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.EnumSet;

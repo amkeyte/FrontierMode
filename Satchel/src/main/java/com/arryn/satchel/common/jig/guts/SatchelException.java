@@ -2,7 +2,6 @@ package com.arryn.satchel.common.jig.guts;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.fml.LogicalSide;
 
 /**
  * Base exception for jig-related access failures.

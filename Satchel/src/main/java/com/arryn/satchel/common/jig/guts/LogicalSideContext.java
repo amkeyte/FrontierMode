@@ -1,6 +1,5 @@
 package com.arryn.satchel.common.jig.guts;
 
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.Objects;
 import java.util.Optional;

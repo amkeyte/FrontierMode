@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.identity;
 
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.Objects;
 import java.util.Optional;

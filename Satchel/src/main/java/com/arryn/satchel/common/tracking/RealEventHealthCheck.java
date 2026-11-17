@@ -6,6 +6,7 @@ import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
@@ -18,7 +19,6 @@ import net.minecraftforge.event.entity.living.MobSpawnEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.village.VillagerTradesEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.fml.LogicalSide;
 
 /**
  * Real Forge events, counted against a raw Forge listener (SAT_134 probes 1 and 6) -- see {@link

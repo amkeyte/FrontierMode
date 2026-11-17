@@ -6,6 +6,7 @@ import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -19,7 +20,6 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.Optional;
 import java.util.UUID;

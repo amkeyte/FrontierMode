@@ -2,9 +2,9 @@ package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.identity.JigKey;
 
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.TrinketDecl;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.EnumMap;
 import java.util.HashSet;

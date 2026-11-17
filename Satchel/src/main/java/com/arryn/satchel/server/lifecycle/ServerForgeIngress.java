@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.lifecycle;
 
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
@@ -23,7 +24,6 @@ import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.UUID;

@@ -1,11 +1,11 @@
 package com.arryn.satchel.common.jig.config;
 
 import com.arryn.satchel.common.identity.JigKey;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.SatchelJig;
 import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import com.arryn.satchel.common.jig.guts.ScopeEngine;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.*;
 import java.util.function.Supplier;

@@ -1,12 +1,12 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.common.jig.config.JigPolicies;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 
 /**

@@ -1,6 +1,6 @@
 package com.arryn.satchel.common.lifecycle;
 
-import net.minecraftforge.fml.LogicalSide;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 
 import java.util.Objects;
 

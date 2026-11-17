@@ -6,6 +6,7 @@ import com.arryn.satchel.common.identity.FixtureKey;
 import com.arryn.satchel.common.identity.JigKey;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.guts.LeaveReason;
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.trinket.Leaving;
@@ -24,7 +25,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.List;
 import java.util.Objects;

@@ -1,11 +1,11 @@
 package com.arryn.satchel.common.tracking;
 
+import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import com.arryn.satchel.common.util.schedule.TickThrottler;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import net.minecraftforge.fml.LogicalSide;
 
 import java.util.Map;
 import java.util.Set;
