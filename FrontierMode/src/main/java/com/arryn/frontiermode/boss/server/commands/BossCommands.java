@@ -174,9 +174,7 @@ public final class BossCommands {
     // ------------------------------------------------------------
 
     /**
-     * shortened from {@code /boss transform defeat <selector>} --
-     * pure command-surface rename, no behavior change. Still forces
-     * {@code BossCommandHandler::transformDefeat}'s own defeat-detection cascade (border growth,
+     * {@code /boss defeat <selector>} forces the defeat cascade of the selected boss (border growth,
      * etc.), same as a real in-game defeat. {@code @all} skips bosses already defeated, so
      * repeating it to walk the path forward defeats only the Keeper standing at the tip.
      */
@@ -186,7 +184,7 @@ public final class BossCommands {
                         .executes(ctx -> applySelector(
                                 ctx,
                                 BossSelectorArgumentType.getSelector(ctx, "selector"),
-                                BossCommandHandler::transformDefeat,
+                                BossCommandHandler::defeat,
                                 true
                         ))
                 );

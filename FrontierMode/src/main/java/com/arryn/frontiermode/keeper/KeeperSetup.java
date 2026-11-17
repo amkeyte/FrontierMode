@@ -24,10 +24,6 @@ import java.util.Optional;
  */
 public final class KeeperSetup {
 
-    // The boss mob's player-facing name, and the text LogFilters matches in vanilla's death log line.
-    // See FRO_182.
-    public static final String BOSS_NAME = "Amethyst Keeper";
-
     private KeeperSetup() {
     }
 
@@ -104,7 +100,7 @@ public final class KeeperSetup {
 
     // Players see the name in vanilla death messages ("slain by Amethyst Keeper"), never as a tag.
     private static void name(Mob mob) {
-        mob.setCustomName(Component.literal(BOSS_NAME));
+        mob.setCustomName(Component.literal(KeeperAPI.BOSS_NAME));
         // The tag's visibility is the client-side debug view's to turn on (AdminViewClient); the
         // name itself stays set.
         mob.setCustomNameVisible(false);

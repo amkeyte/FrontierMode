@@ -315,7 +315,7 @@ public final class KeeperKind implements BossKind {
         host.subscribe(new ArmorAnswer(boss, keeperArmorRange(),
                 players -> armorReading(level, boss.bossId(), players)));
         if (KeeperAPI.isMilestone(keeper)) {
-            host.subscribe(new HealthBar(boss, KeeperSetup.BOSS_NAME));
+            host.subscribe(new HealthBar(boss, KeeperAPI.BOSS_NAME));
         }
         host.subscribe(new Defense(boss));
         host.subscribe(new NoConvert());

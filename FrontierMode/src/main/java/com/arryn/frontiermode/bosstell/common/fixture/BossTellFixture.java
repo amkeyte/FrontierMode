@@ -56,7 +56,7 @@ public final class BossTellFixture extends SatchelFixture {
      * Creates a {@code "tell"}-purpose {@link BorderCurve} (LOG shape, steepness 1.0) for
      * {@code borderId} if none exists yet. Idempotent -- a no-op after a server restart.
      * Called at every paired boss-creation call site (bootstrap, real-death cascade,
-     * {@code /boss transform defeat}, {@code /boss attach}) that has a real border to key off.
+     * {@code /boss defeat}, {@code /boss attach}) that has a real border to key off.
      */
     public static void createTellCurveIfAbsent(Level level, UUID borderId) {
         BorderAPI.CURVE(level).ifPresent(curves -> {

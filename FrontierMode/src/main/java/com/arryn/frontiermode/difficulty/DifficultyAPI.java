@@ -122,12 +122,12 @@ public final class DifficultyAPI {
     }
 
     /** The Keeper's health growth: the ordinary growth plus the Keeper's (boss.md § Keeper stats). */
-    public static double keeperHealthGrowthTotal() {
+    private static double keeperHealthGrowthTotal() {
         return DifficultyRules.ordinaryHealthGrowth() + DifficultyRules.keeperHealthGrowth();
     }
 
     /** The Keeper's damage growth: the ordinary growth plus the Keeper's. */
-    public static double keeperDamageGrowthTotal() {
+    private static double keeperDamageGrowthTotal() {
         return DifficultyRules.ordinaryDamageGrowth() + DifficultyRules.keeperDamageGrowth();
     }
 

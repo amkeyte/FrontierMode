@@ -31,6 +31,9 @@ import java.util.UUID;
  */
 public final class KeeperAPI {
 
+    /** The Keeper's player-facing name, which LogFilters also matches in vanilla's death log line. */
+    public static final String BOSS_NAME = "Amethyst Keeper";
+
     private KeeperAPI() {
     }
 
