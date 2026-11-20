@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.persistence;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 
 import net.minecraft.nbt.CompoundTag;
@@ -28,6 +29,7 @@ import java.util.UUID;
  * This class is Forge / server-only by design — see {@code WorldIdentityContext} for the
  * side-bound in-memory holder both sides actually read from at runtime.
  */
+@PlatformBound(reason = "saved data")
 public final class WorldIdentitySavedData extends SavedData {
 
     private static final String STORAGE_ID = "satchel_world_identity";

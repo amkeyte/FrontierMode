@@ -14,7 +14,7 @@ import java.util.UUID;
  * for why. Mirrors {@code LevelJig}'s shape exactly; see {@code PlayerJigConfig} for the
  * config-side defaults this jig is compiled against.
  */
-public final class PlayerJig extends ASatchelJig<PlayerScope> {
+public class PlayerJig extends ASatchelJig<PlayerScope> {
 
     public Class<PlayerScope> scopeType() { return PlayerScope.class; }
 

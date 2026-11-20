@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.config;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.common.ForgeConfigSpec;
 
 /**
@@ -10,6 +11,7 @@ import net.minecraftforge.common.ForgeConfigSpec;
  * {@code SatchelHealth} registers anything at all -- read once, in {@code SatchelHealth.init()},
  * before any jig config is registered.
  */
+@PlatformBound(reason = "config")
 public final class SatchelConfig {
 
     private SatchelConfig() {}
@@ -21,10 +23,9 @@ public final class SatchelConfig {
                             "Whether SatchelHealth's run-monitoring/self-verification module "
                                     + "registers at all. SatchelHealth synthetically exercises "
                                     + "persistence, tick/lifecycle, and (where wired) networking "
-                                    + "for its own tracker bundles, and crashes loudly on a "
-                                    + "detected teardown-contract violation -- disable for a "
-                                    + "release/production profile, or whenever that synthetic "
-                                    + "activity is unwanted."
+                                    + "for its own tracker bundles, and logs a VIOLATION error "
+                                    + "for each broken invariant it detects -- disable it "
+                                    + "whenever that synthetic activity is unwanted."
                     )
                     .define("healthEnabled", true);
 

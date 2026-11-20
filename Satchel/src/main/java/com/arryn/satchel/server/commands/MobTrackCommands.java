@@ -3,6 +3,7 @@ package com.arryn.satchel.server.commands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -39,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * the command) and avoids introducing a new Brigadier argument type. {@code unwatch} does NOT
  * re-run that same nearest-mob search -- see {@link #unwatch} for why.
  */
+@PlatformBound(reason = "commands")
 public final class MobTrackCommands {
 
     private MobTrackCommands() {

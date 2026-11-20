@@ -3,6 +3,7 @@ package com.arryn.satchel.server.commands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.JigInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.mojang.brigadier.CommandDispatcher;
@@ -20,6 +21,7 @@ import java.util.List;
  * holds, its abilities, and its {@link Trinket#describe()} line (SAT_097). Read-only. Shows the
  * server side's jigs.
  */
+@PlatformBound(reason = "commands")
 public final class TrinketCommands {
 
     private TrinketCommands() {

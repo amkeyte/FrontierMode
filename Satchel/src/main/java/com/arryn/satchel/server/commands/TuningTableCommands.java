@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.commands;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.tunable.TunableOutcome;
 import com.arryn.satchel.common.tunable.TuningTables;
 import com.mojang.brigadier.CommandDispatcher;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
  * Table ids carry a {@code ':'}, which Brigadier's unquoted-string argument doesn't accept, so the
  * table is one greedy argument, as in {@link TunableCommands}.
  */
+@PlatformBound(reason = "commands")
 public final class TuningTableCommands {
 
     private TuningTableCommands() {

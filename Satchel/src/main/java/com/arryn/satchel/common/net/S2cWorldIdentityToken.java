@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.net;
 
 import com.arryn.satchel.common.identity.WorldIdentityContext;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
@@ -22,6 +23,7 @@ import java.util.function.Supplier;
  * world-level state, not scope/bundle-level state, and has its own delivery policy
  * (join + dimension-change) distinct from bundle sync's.
  */
+@PlatformBound(reason = "network")
 public final class S2cWorldIdentityToken {
 
     private final UUID token;

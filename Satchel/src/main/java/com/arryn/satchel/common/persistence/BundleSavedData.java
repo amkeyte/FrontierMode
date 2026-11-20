@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.persistence;
 
 import com.arryn.satchel.common.identity.BundleKey;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 
 import net.minecraft.nbt.CompoundTag;
@@ -34,6 +35,7 @@ import java.util.UUID;
  * This class is Forge / server-only by design.
  * </p>
  */
+@PlatformBound(reason = "saved data")
 public final class BundleSavedData extends SavedData {
 
     // ---------------------------------------------------------------------

@@ -1,5 +1,6 @@
 package com.arryn.satchel.server.commands;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.tunable.TunableOutcome;
 import com.mojang.brigadier.CommandDispatcher;
@@ -39,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
  * first space; the rest of the line is the value, so a string value may contain spaces. Names
  * autocomplete from the registry, which holds every row loaded at start.
  */
+@PlatformBound(reason = "commands")
 public final class TunableCommands {
 
     private TunableCommands() {

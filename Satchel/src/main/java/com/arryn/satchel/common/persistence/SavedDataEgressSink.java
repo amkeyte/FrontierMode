@@ -2,6 +2,7 @@ package com.arryn.satchel.common.persistence;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
+import com.arryn.satchel.common.platform.PlatformBound;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -22,6 +23,7 @@ import net.minecraft.server.level.ServerLevel;
  * All sidedness is enforced at construction time.
  * Upstream code may assume correctness.
  */
+@PlatformBound(reason = "saved data")
 public final class SavedDataEgressSink {
 
     private final BundleSavedData saved;

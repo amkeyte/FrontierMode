@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.net;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -8,6 +9,7 @@ import net.minecraftforge.network.NetworkEvent;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+@PlatformBound(reason = "network")
 public final class S2cBundleParcel {
 
     private final UUID ownerScopeId;

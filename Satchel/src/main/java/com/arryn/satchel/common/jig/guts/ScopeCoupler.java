@@ -7,7 +7,7 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.trinket.TrinketSet;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,11 +24,11 @@ import java.util.Optional;
  * state machine -- a scope can be gate-able independently of whether any one of its
  * bundles has loaded (a future BlockJig's chunk actually loaded vs. ticket-requested; a
  * future {@code BossMobScopeCoupler} answering "is this mob actually materialized," not
- * just "does the entity resolve"). {@link AScopeCoupler} supplies a working, fully
- * permissive default implementation of every hook below; as of SAT_053's audit
- * (2026-09-10), every real coupler in either repo rides that default untouched -- this is
- * a real, available extension point with zero current overrides, not a proven pattern to
- * copy from an existing one.
+ * just "does the entity resolve"). {@link AScopeCoupler} supplies no hook: a coupler
+ * implements every hook below, and {@link #markReady}, so what it gates is stated and
+ * never inherited. A module supplies its own through {@code JigBindingConfig#couplerType}.
+ * The three couplers Satchel supplies implement each hook as a pass-through and are the
+ * worked example; none of them gates anything yet.
  */
 public interface ScopeCoupler extends IJigConfigurable {
 
@@ -115,62 +115,55 @@ public interface ScopeCoupler extends IJigConfigurable {
      * Sends this scope's networked bundles to one player, who has just joined its audience (SAT_144).
      * Forwarded to the engine; a client's does nothing.
      */
-    default void pushTo(ScopeInfoImpl info, ServerPlayer player) {
+    default void pushTo(ScopeInfoImpl info, Player player) {
     }
 
     /**
      * Called immediately before the engine's per-jig-tick pass for this scope, only when
-     * {@link JigPolicies.Lifecycle#participatesInTick()} is set. {@link AScopeCoupler}'s
-     * default is a no-op; unoverridden anywhere in either repo as of SAT_053's audit
-     * (2026-09-10).
+     * {@link JigPolicies.Lifecycle#participatesInTick()} is set.
      */
     void beforeTick(ScopeInfo info);
 
     /**
-     * Called immediately after the engine's per-jig-tick pass for this scope. Same
-     * no-op default and unoverridden-everywhere status as {@link #beforeTick}.
+     * Called immediately after the engine's per-jig-tick pass for this scope, under the same
+     * condition as {@link #beforeTick}.
      */
     void afterTick(ScopeInfo info);
 
     /**
-     * Called immediately before the engine unloads this scope's bundles. Same no-op
-     * default and unoverridden-everywhere status as {@link #beforeTick}.
+     * Called immediately before the engine unloads this scope's bundles.
      */
     void beforeUnload(ScopeInfo info);
 
     /**
-     * Called immediately after the engine unloads this scope's bundles. Same no-op
-     * default and unoverridden-everywhere status as {@link #beforeTick}.
+     * Called immediately after the engine unloads this scope's bundles.
      */
     void afterUnload(ScopeInfo info);
 
     /**
      * Called before a bundle read via {@link #get}/{@link #ask}. Returning {@link
-     * AccessDecision#DENY} refuses the read. {@link AScopeCoupler}'s default always
-     * returns {@link AccessDecision#ALLOW}; unoverridden anywhere in either repo as of
-     * SAT_053's audit (2026-09-10). A real candidate: a scope-level access gate
+     * AccessDecision#DENY} refuses the read. A real candidate: a scope-level access gate
      * independent of any one bundle's own data (refusing all access while a boss mob's
-     * scope is mid-materialization, say).
+     * scope is mid-materialization, say). A coupler that gates nothing returns {@link
+     * AccessDecision#ALLOW}.
      */
     ScopeCoupler.AccessDecision beforeAccess(ScopeInfo info, BundleKey<?> key);
 
     /**
      * Called after a bundle read succeeds, with the resolved bundle in hand. Returning
-     * {@link AccessDecision#DENY} invalidates the read after the fact. Same permissive
-     * default and unoverridden-everywhere status as {@link #beforeAccess}.
+     * {@link AccessDecision#DENY} invalidates the read after the fact.
      */
     ScopeCoupler.AccessDecision  afterAccess(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle);
 
     /**
-     * Called before a bundle is created via {@link #getOrCreate}. Same shape, same
-     * permissive default, same unoverridden-everywhere status as {@link #beforeAccess}.
+     * Called before a bundle is created via {@link #getOrCreate}. Same shape as {@link
+     * #beforeAccess}.
      */
     ScopeCoupler.AccessDecision beforeCreate(ScopeInfo info, BundleKey<?> key);
 
     /**
      * Called after a bundle is created, with the new bundle in hand, before {@link
-     * #afterAccess} runs on that same bundle. Same shape, same permissive default, same
-     * unoverridden-everywhere status as {@link #beforeAccess}.
+     * #afterAccess} runs on that same bundle. Same shape as {@link #beforeAccess}.
      */
     ScopeCoupler.AccessDecision  afterCreate(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle);
 

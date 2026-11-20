@@ -5,6 +5,7 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.player.PlayerScope;
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,6 +24,7 @@ import java.util.UUID;
  *   • S2C player bundle sync (legacy, until player 2.0 migration)
  *   • C2S request parcel routing
  */
+@PlatformBound(reason = "network")
 public final class SatchelNetwork {
 
     // Bump when the wire format changes (e.g., S2cBundleParcel adoption)

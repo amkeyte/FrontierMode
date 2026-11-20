@@ -10,13 +10,19 @@ import com.arryn.satchel.common.ingress.IngressRegistry;
 import com.arryn.satchel.common.jig.config.JigConfigCompiler;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.host.HostJigs;
+import com.arryn.satchel.common.jig.level.LevelJig;
 import com.arryn.satchel.common.jig.mob.MobJig;
+import com.arryn.satchel.common.jig.player.PlayerJig;
 import com.arryn.satchel.common.trinket.Trinket;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -45,7 +51,16 @@ public final class Satchel {
      * ========================================================== */
 
 
-    public static LogicalFoundation require() {
+    /**
+     * The foundation bound to the calling thread.
+     *
+     * @deprecated {@code LogicalFoundation} is Satchel's own per-side runtime holder, not a module API. Module
+     *             code uses the facades on this class: {@link #levelJig}, {@link #playerJig}, {@link #mobJig},
+     *             {@link #post}, {@link #entity} and {@link #player}. Satchel's own plumbing still calls it.
+     */
+    @Deprecated
+    public static LogicalFoundation require()
+    {
         LogicalSide side = LogicalSideContext.require();
         LogicalFoundation foundation = FOUNDATIONS.get(side);
 
@@ -58,6 +73,13 @@ public final class Satchel {
         return foundation;
     }
 
+    /**
+     * The foundation bound to the calling thread, or empty if none is.
+     *
+     * @deprecated As {@link #require()}: module code uses the facades on this class, and {@link #isReady()},
+     *             {@link #isClient()} and {@link #isServer()} for the checks it makes.
+     */
+    @Deprecated
     public static Optional<LogicalFoundation> foundation() {
         Optional<LogicalSide> sideOpt = LogicalSideContext.current();
         return sideOpt.map(FOUNDATIONS::get);
@@ -66,7 +88,10 @@ public final class Satchel {
     /**
      * The foundation bound to the calling thread, or null if none is: {@link #foundation()} without
      * the allocation, for the guard that runs on every Forge event a module listens to.
+     *
+     * @deprecated As {@link #require()}: Satchel's own guards use it, and module code has no need of it.
      */
+    @Deprecated
     public static LogicalFoundation peekFoundation() {
         LogicalSide side = LogicalSideContext.peek();
         return side == null ? null : FOUNDATIONS.get(side);
@@ -89,8 +114,8 @@ public final class Satchel {
      *
      * @deprecated Discouraged, and probably going to be removed: it puts Satchel's own {@code LogicalSide} on the
      *             API, and code that reaches the other side's foundation breaks the per-side split. Module code
-     *             uses {@link Satchel#foundation()}, the calling thread's own, and {@link Satchel#isClient()}
-     *             and {@link Satchel#isServer()} to ask which side that is.
+     *             uses the facades on this class for what it needs, and {@link Satchel#isClient()} and
+     *             {@link Satchel#isServer()} to ask which side the thread is on.
      */
     @Deprecated
     public static Optional<LogicalFoundation> foundationFor(LogicalSide side) {
@@ -104,9 +129,61 @@ public final class Satchel {
      *
      * @throws SatchelException.JigNotFound if the jig is not installed on this side
      */
-    public static MobJig mobJig(JigKey<MobJig> key) {
+    public static <J extends MobJig> J mobJig(JigKey<J> key) {
         Objects.requireNonNull(key, "key");
-        return (MobJig) require().requireJigInfo(key).jig;
+        return key.type.cast(require().requireJigInfo(key).jig);
+    }
+
+    /**
+     * The level jig {@code key} names, on the side the calling thread is bound to. The type is the key's
+     * own, so a jig that extends {@code LevelJig} is fetched with its own key and comes back as itself.
+     *
+     * @throws SatchelException.JigNotFound if the jig is not installed on this side
+     */
+    public static <J extends LevelJig> J levelJig(JigKey<J> key) {
+        Objects.requireNonNull(key, "key");
+        return key.type.cast(require().requireJigInfo(key).jig);
+    }
+
+    /**
+     * The player jig {@code key} names, on the side the calling thread is bound to. As {@link #levelJig}.
+     *
+     * @throws SatchelException.JigNotFound if the jig is not installed on this side
+     */
+    public static <J extends PlayerJig> J playerJig(JigKey<J> key) {
+        Objects.requireNonNull(key, "key");
+        return key.type.cast(require().requireJigInfo(key).jig);
+    }
+
+    /**
+     * Posts {@code event} to its consumers on the calling thread's side, synchronously, in priority order.
+     * A {@code ModuleSignal} also reaches the consumers filed under its context's key. A consumer that
+     * throws propagates out of this call and ends the dispatch.
+     *
+     * @throws IllegalStateException if dispatches nest too deep, or on a thread no side is bound to
+     */
+    public static <E> void post(E event) {
+        require().eventBus().post(event);
+    }
+
+    /**
+     * The live entity {@code uuid} names in {@code level}, or empty if there is none, resolved on the
+     * calling thread's side: a server looks in the level, a client among the entities it tracks.
+     *
+     * @throws IllegalStateException on a thread no side is bound to
+     */
+    public static Optional<Entity> entity(Level level, UUID uuid) {
+        return require().egress().getEntity(level, uuid);
+    }
+
+    /**
+     * The online player {@code uuid} names, or empty if there is none, whichever level they are in. On a
+     * client the only player it can find is the local one.
+     *
+     * @throws IllegalStateException on a thread no side is bound to
+     */
+    public static Optional<Player> player(UUID uuid) {
+        return require().egress().getPlayer(uuid);
     }
 
     /**

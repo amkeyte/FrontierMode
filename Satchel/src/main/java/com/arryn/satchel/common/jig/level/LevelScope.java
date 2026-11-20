@@ -15,7 +15,7 @@ import java.util.UUID;
 /**
  * SatchelScope representing a Minecraft level.
  */
-public final class LevelScope extends ASatchelScope
+public class LevelScope extends ASatchelScope
         implements
         PersistStitch {
 

@@ -23,7 +23,7 @@ import java.util.UUID;
  *   live directly on this class instead.</li>
  * </ul>
  */
-public final class MobScope extends ASatchelScope implements PersistStitch {
+public class MobScope extends ASatchelScope implements PersistStitch {
 
     private final Mob mob;
 

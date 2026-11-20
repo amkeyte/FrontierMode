@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.ingress;
 
 import com.arryn.satchel.common.lifecycle.ContextKeyed;
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.eventbus.api.Event;
 
 import java.util.Optional;
@@ -21,6 +22,7 @@ import java.util.function.Function;
  * Then the event is bound to the native event's cancel state, and to its result if the native event
  * carries one ({@code @HasResult}), and posted, and closed after the last consumer returns.
  */
+@PlatformBound(reason = "ingress")
 final class Translation<N extends Event, C, S extends ModuleSignal<N, C>> extends SatchelEventHandler<N> {
 
     private final Function<N, Optional<C>> resolver;

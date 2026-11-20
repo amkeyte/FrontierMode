@@ -3,7 +3,7 @@ package com.arryn.satchel.common.jig.guts;
 import com.arryn.satchel.common.bundle.SatchelBundle;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.config.JigBundles;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Optional;
 
@@ -69,6 +69,6 @@ public interface ScopeEngine extends IJigConfigurable {
      *
      * Server implementations send. Client implementations do nothing.
      */
-    default void pushTo(ScopeInfoImpl info, ServerPlayer player) {
+    default void pushTo(ScopeInfoImpl info, Player player) {
     }
 }

@@ -12,7 +12,7 @@ import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketTick;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -263,7 +263,7 @@ public final class LogicalFoundation {
      * login, on a dimension change and on a respawn. A duplicate of an earlier send is harmless, since
      * every parcel is the bundle's whole state.
      */
-    public void pushLevelBundlesTo(ServerPlayer player) {
+    public void pushLevelBundlesTo(Player player) {
         Objects.requireNonNull(player, "player");
         Level level = player.level();
 

@@ -7,7 +7,7 @@ import com.arryn.satchel.common.jig.guts.ScopeCoupler;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class LevelJig extends ASatchelJig<LevelScope> {
+public class LevelJig extends ASatchelJig<LevelScope> {
 
     public Class<LevelScope> scopeType(){return LevelScope.class;}
 

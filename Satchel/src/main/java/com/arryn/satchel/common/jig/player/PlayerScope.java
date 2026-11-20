@@ -30,7 +30,7 @@ import java.util.UUID;
  * <p>
  * <b>SAT_071: does not cache the backing {@link Player} object.</b> Only the player's own raw
  * UUID is held; {@link #player()} resolves fresh, every call, via {@code
- * Satchel.require().egress().getPlayer(uuid)}. This scope used to keep the {@link Player}
+ * Satchel.player(uuid)}. This scope used to keep the {@link Player}
  * reference it was constructed with for its whole lifetime, which vanilla/Forge respawn broke
  * silently: {@code PlayerList.respawn} replaces the {@code ServerPlayer} *instance* for a
  * connection (same UUID, new object, which is exactly why Forge fires {@code
@@ -43,7 +43,7 @@ import java.util.UUID;
  * itself is cheap either side -- a UUID-keyed map lookup server-side, a direct field read
  * client-side -- so this isn't a cached-field-vs-recompute tradeoff worth agonizing over.
  */
-public final class PlayerScope extends ASatchelScope implements PersistStitch {
+public class PlayerScope extends ASatchelScope implements PersistStitch {
 
     private final UUID playerUuid;
 
@@ -67,7 +67,7 @@ public final class PlayerScope extends ASatchelScope implements PersistStitch {
      * LogicalSideContext}), not a normal timing window worth pushing onto every caller.
      */
     public Player player() {
-        return Satchel.require().egress().getPlayer(playerUuid)
+        return Satchel.player(playerUuid)
                 .orElseThrow(() -> new IllegalStateException(
                         "PlayerScope for " + playerUuid + " could not resolve a live Player -- "
                                 + "either this scope has outlived the real player, or this was "
@@ -79,7 +79,7 @@ public final class PlayerScope extends ASatchelScope implements PersistStitch {
         // Deliberately does not call player() -- a debug-name helper should never throw, even
         // if this scope is in a genuinely broken state (exactly the kind of moment someone is
         // most likely to be reading a debug log for). Degrades to a placeholder instead.
-        String name = Satchel.require().egress().getPlayer(playerUuid)
+        String name = Satchel.player(playerUuid)
                 .map(p -> p.getGameProfile().getName())
                 .orElse("<unresolved>");
 

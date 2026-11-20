@@ -18,6 +18,7 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 import java.util.*;
@@ -540,7 +541,11 @@ public final class ScopeEngine_Server implements ScopeEngine {
      * networking never sends.
      */
     @Override
-    public void pushTo(ScopeInfoImpl info, ServerPlayer player) {
+    public void pushTo(ScopeInfoImpl info, Player player) {
+        // The one place a Player becomes a ServerPlayer: only this engine runs, and only on the
+        // server, so a player reaching it is always a ServerPlayer.
+        ServerPlayer target = (ServerPlayer) player;
+
         Map<BundleKey<?>, SatchelBundle> map = bundlesFor(info);
         if (map == null || map.isEmpty()) return;
 
@@ -553,11 +558,11 @@ public final class ScopeEngine_Server implements ScopeEngine {
             if (state != LifecycleState.LOADED && state != LifecycleState.ACTIVE) continue;
 
             OUT.TRACE().log("[server engine] Pushing Parcel for bundle: " + key.id + " to "
-                    + player.getGameProfile().getName());
+                    + target.getGameProfile().getName());
 
             ParcelEgressSink
                     .forBundle(info, key)
-                    .emitTo(player, bundle.saveAll());
+                    .emitTo(target, bundle.saveAll());
         }
     }
 

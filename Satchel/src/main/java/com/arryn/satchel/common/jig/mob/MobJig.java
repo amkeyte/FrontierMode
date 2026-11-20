@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Design: Mob Interest in the Satchel wiki; the contract of {@link #scopeFor} is the Mob
  * {@code scopeFor()} Contract.
  */
-public final class MobJig extends ASatchelJig<MobScope> {
+public class MobJig extends ASatchelJig<MobScope> {
 
     private final InterestList<Level> interests = new InterestList<>();
 

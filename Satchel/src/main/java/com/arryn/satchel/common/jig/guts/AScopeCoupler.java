@@ -8,7 +8,7 @@ import com.arryn.satchel.common.trinket.Trinket;
 import com.arryn.satchel.common.trinket.TrinketDecl;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.List;
 import java.util.Map;
@@ -18,19 +18,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * Default {@link ScopeCoupler} implementation every real coupler ({@code
- * LevelScopeCoupler}, {@code MobScopeCoupler}, {@code PlayerScopeCoupler}) extends. Wires
- * the mechanical plumbing -- engine binding, config installation, readiness gating around
- * {@link #get}/{@link #ask}/{@link #getOrCreate}, lifecycle forwarding from the engine --
- * and gives every before/after hook a permissive no-op default so a new coupler compiles
- * and works correctly with zero overrides.
+ * Base {@link ScopeCoupler} every real coupler ({@code LevelScopeCoupler}, {@code
+ * MobScopeCoupler}, {@code PlayerScopeCoupler}) extends. Wires the mechanical plumbing --
+ * engine binding, config installation, readiness gating around {@link #get}/{@link
+ * #ask}/{@link #getOrCreate}, lifecycle forwarding from the engine.
  *
  * <p>
- * That permissiveness is also this class's current reality, not just its fallback: as of
- * SAT_053's audit (2026-09-10), every hook below is still running its default in every
- * real coupler in either repo. Overriding one of them is how a future coupler would add
- * real scope-readiness logic (see {@link ScopeCoupler}'s class javadoc for the motivating
- * examples) -- nothing about this class makes that harder than it looks.
+ * It supplies no hook. A coupler implements all eight before/after hooks and {@code
+ * markReady} itself, so it states what it gates, even when that is nothing: a hook nobody
+ * wrote cannot be mistaken for one somebody decided. The three couplers Satchel supplies
+ * are the worked example; {@link ScopeCoupler}'s class javadoc has the motivating cases
+ * for a real gate.
  */
 public abstract class AScopeCoupler implements ScopeCoupler {
 
@@ -185,7 +183,7 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     @Override
-    public void pushTo(ScopeInfoImpl info, ServerPlayer player) {
+    public void pushTo(ScopeInfoImpl info, Player player) {
         requireConfig();
 
         engine().pushTo(info, player);
@@ -320,35 +318,10 @@ public abstract class AScopeCoupler implements ScopeCoupler {
     }
 
     // ---------------------------------------------------------------------
-    // Hooks (default permissive) -- override any of these to give this coupler real
-    // scope-readiness logic. Every one is currently unoverridden in both repos (SAT_053,
-    // 2026-09-10); see ScopeCoupler's class javadoc for what a real override looks like.
+    // Hooks -- none supplied here. ScopeCoupler declares the eight before/after hooks and
+    // markReady, and every concrete coupler implements each one, so a coupler states what it
+    // gates (nothing, for the three Satchel supplies) and never inherits an answer.
     // ---------------------------------------------------------------------
-
-    @Override public void beforeTick(ScopeInfo info) {}
-    @Override public void afterTick(ScopeInfo info) {}
-    @Override public void beforeUnload(ScopeInfo info) {}
-    @Override public void afterUnload(ScopeInfo info) {}
-
-    @Override
-    public AccessDecision beforeAccess(ScopeInfo info, BundleKey<?> key) {
-        return AccessDecision.ALLOW;
-    }
-
-    @Override
-    public AccessDecision afterAccess(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle) {
-        return AccessDecision.ALLOW;
-    }
-
-    @Override
-    public AccessDecision beforeCreate(ScopeInfo info, BundleKey<?> key) {
-        return AccessDecision.ALLOW;
-    }
-
-    @Override
-    public AccessDecision afterCreate(ScopeInfo info, BundleKey<?> key, SatchelBundle bundle) {
-        return AccessDecision.ALLOW;
-    }
 
 // ---------------------------------------------------------------------
 // Readiness

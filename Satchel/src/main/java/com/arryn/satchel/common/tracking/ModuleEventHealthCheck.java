@@ -256,7 +256,7 @@ final class ModuleEventHealthCheck {
         // This consumer runs inside JoinAny's dispatch, one deep: a post from here is two deep.
         if (SatchelHealth.firstTime("request:" + side)) {
             RequestProbe request = new RequestProbe();
-            Satchel.require().eventBus().post(request);
+            Satchel.post(request);
             if (!request.trail.equals(List.of("high", "normal", "low"))) {
                 violation("a request event posted from inside a consumer reached its consumers as "
                         + request.trail + " on the " + side + " side, expected high, normal, low");
