@@ -6,11 +6,10 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
+import com.arryn.satchel.common.platform.SatchelEnvironment;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.TrinketSet;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -98,7 +97,7 @@ final class HostHealthCheck {
                         + side + " side: " + info.debugName());
             }
 
-            if (side == LogicalSide.SERVER && FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
+            if (side == LogicalSide.SERVER && SatchelEnvironment.isDedicatedServer()) {
                 SatchelHealth.logOnce("host:client-contribution", "[SatchelHealth] Host contribution probe: on a "
                         + "dedicated server a Trinket contributed for the client only, whose body names a "
                         + "client-only type, was named at mod init and never constructed; the server booted and runs");

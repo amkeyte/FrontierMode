@@ -6,8 +6,8 @@ import com.arryn.satchel.common.ingress.IngressKey;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.LogicalSideContext;
+import com.arryn.satchel.common.platform.SatchelEnvironment;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -54,10 +54,10 @@ final class RegistrationHealthCheck {
             return new IngressConfig(new IngressKey("satchelhealth:registration_" + name));
         }
 
-        if (registered == JigPolicies.SideApplicability.CLIENT
-                && (side != LogicalSide.CLIENT || FMLEnvironment.dist.isDedicatedServer())) {
+        boolean dedicated = SatchelEnvironment.isDedicatedServer();
+        if (registered == JigPolicies.SideApplicability.CLIENT && (side != LogicalSide.CLIENT || dedicated)) {
             violation("a CLIENT factory (" + name + ") was invoked for side " + side
-                    + (FMLEnvironment.dist.isDedicatedServer() ? " on a dedicated server" : ""));
+                    + (dedicated ? " on a dedicated server" : ""));
         }
         if (registered == JigPolicies.SideApplicability.SERVER && side != LogicalSide.SERVER) {
             violation("a SERVER factory (" + name + ") was invoked for side " + side);

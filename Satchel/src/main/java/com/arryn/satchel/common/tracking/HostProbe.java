@@ -4,10 +4,9 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
+import com.arryn.satchel.common.platform.SatchelEnvironment;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 
 /**
  * What every SatchelHealth host probe checks about its own life (SAT_121, SAT_131, SAT_134): a Trinket
@@ -44,7 +43,7 @@ public abstract class HostProbe implements Ticking {
         this.name = name;
         this.declared = declared;
 
-        if (declared == JigPolicies.SideApplicability.CLIENT && FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
+        if (declared == JigPolicies.SideApplicability.CLIENT && SatchelEnvironment.isDedicatedServer()) {
             violation(name + " was contributed for the CLIENT only but was constructed on a dedicated server");
         }
     }

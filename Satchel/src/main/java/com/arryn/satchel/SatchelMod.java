@@ -3,7 +3,9 @@ package com.arryn.satchel;
 import com.arryn.satchel.common.config.SatchelConfig;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.net.SatchelNetwork;
+import com.arryn.satchel.common.platform.ForgeEnvironment;
 import com.arryn.satchel.common.platform.PlatformBound;
+import com.arryn.satchel.common.platform.SatchelEnvironment;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.MobDataStore;
@@ -28,6 +30,10 @@ public class SatchelMod {
 
     public SatchelMod() {
         OUT.info("HELLO SATCHEL");
+
+        // First, so every later ask of the loader (the dedicated-server check, the config folder, a mod's
+        // shipped files, the running server) finds an answer.
+        SatchelEnvironment.install(new ForgeEnvironment());
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, SatchelConfig.SPEC);
 

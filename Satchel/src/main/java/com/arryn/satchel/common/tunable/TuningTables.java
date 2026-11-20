@@ -1,12 +1,8 @@
 package com.arryn.satchel.common.tunable;
 
+import com.arryn.satchel.common.platform.SatchelEnvironment;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.loading.FMLPaths;
-import net.minecraftforge.forgespi.language.IModFileInfo;
-import net.minecraftforge.server.ServerLifecycleHooks;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -20,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Registry, loading, and files for {@link TuningTable} (SAT_092).
@@ -59,7 +56,8 @@ public final class TuningTables {
 
     private static final Map<ResourceLocation, TuningTable> DEFINED = new LinkedHashMap<>();
     private static final Map<ResourceLocation, Loaded> LOADED = new HashMap<>();
-    private static MinecraftServer loadedFor;
+    /** The server run the loaded tables belong to: {@link SatchelEnvironment#serverRun()}, kept to notice a new one. */
+    private static Object loadedFor;
 
     private TuningTables() {}
 
@@ -73,11 +71,11 @@ public final class TuningTables {
 
     /** The loaded rows, loading the table first if this server hasn't yet. A bad file throws. */
     static Loaded loaded(TuningTable table) {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server == null) {
+        Object run = SatchelEnvironment.serverRun();
+        if (run == null) {
             throw new IllegalStateException("Tuning table " + table.id() + " read with no server running");
         }
-        bindServer(server);
+        bindServer(run);
         Loaded loaded = LOADED.get(table.id());
         if (loaded == null) {
             loaded = load(table);
@@ -86,10 +84,10 @@ public final class TuningTables {
         return loaded;
     }
 
-    private static void bindServer(MinecraftServer server) {
-        if (server != loadedFor) {
+    private static void bindServer(Object run) {
+        if (run != loadedFor) {
             LOADED.clear();
-            loadedFor = server;
+            loadedFor = run;
         }
     }
 
@@ -121,8 +119,8 @@ public final class TuningTables {
      * nothing changes.
      */
     public static TunableOutcome reload(String target) {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server == null) return TunableOutcome.notRunning();
+        Object run = SatchelEnvironment.serverRun();
+        if (run == null) return TunableOutcome.notRunning();
 
         List<TuningTable> selected = new ArrayList<>();
         if (target == null) {
@@ -135,7 +133,7 @@ public final class TuningTables {
         }
         if (selected.isEmpty()) return TunableOutcome.ok("No tuning tables are declared.");
 
-        bindServer(server);
+        bindServer(run);
         Map<ResourceLocation, Loaded> fresh = new LinkedHashMap<>();
         try {
             for (TuningTable table : selected) fresh.put(table.id(), load(table));
@@ -189,19 +187,17 @@ public final class TuningTables {
     }
 
     private static Path livePath(TuningTable table) {
-        return FMLPaths.CONFIGDIR.get().resolve(DIR).resolve(table.id().getNamespace())
+        return SatchelEnvironment.configDir().resolve(DIR).resolve(table.id().getNamespace())
                 .resolve(table.id().getPath() + ".csv");
     }
 
     /** The shipped copy in the resources of the mod named by the table's namespace, or {@code null}. */
     private static Grid readShipped(TuningTable table) {
-        IModFileInfo mod = ModList.get().getModFileById(table.id().getNamespace());
-        if (mod == null) return null;
         List<String> segments = new ArrayList<>(List.of(DIR, table.id().getNamespace()));
         segments.addAll(List.of((table.id().getPath() + ".csv").split("/")));
-        Path path = mod.getFile().findResource(segments.toArray(String[]::new));
-        if (!Files.exists(path)) return null;
-        return Grid.parse(table, readLines(path), "shipped " + String.join("/", segments));
+        Optional<Path> path = SatchelEnvironment.modResource(table.id().getNamespace(), segments.toArray(String[]::new));
+        if (path.isEmpty() || !Files.exists(path.get())) return null;
+        return Grid.parse(table, readLines(path.get()), "shipped " + String.join("/", segments));
     }
 
     private static Grid merge(TuningTable table, Grid shipped, Grid live) {

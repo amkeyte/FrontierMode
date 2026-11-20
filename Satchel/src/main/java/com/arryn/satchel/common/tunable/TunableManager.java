@@ -1,7 +1,7 @@
 package com.arryn.satchel.common.tunable;
 
+import com.arryn.satchel.common.platform.SatchelEnvironment;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -140,7 +140,7 @@ public final class TunableManager {
         REGISTRY.clear();
         UNSAVED.clear();
         CONSTRUCTED.clear();
-        csvPath = FMLPaths.CONFIGDIR.get().resolve(FILE_NAME);
+        csvPath = SatchelEnvironment.configDir().resolve(FILE_NAME);
 
         Map<String, TunableRecord> seed = readSeeds();
         boolean liveExists = Files.exists(csvPath);
