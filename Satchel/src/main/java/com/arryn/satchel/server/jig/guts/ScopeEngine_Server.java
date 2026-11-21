@@ -11,9 +11,10 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.*;
 import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
-import com.arryn.satchel.common.persistence.ParcelEgressSink;
-import com.arryn.satchel.common.persistence.SavedDataEgressSink;
-import com.arryn.satchel.common.persistence.SavedDataHydrationSource;
+import com.arryn.satchel.server.persistence.BundleSavedData;
+import com.arryn.satchel.server.persistence.ParcelEgressSink;
+import com.arryn.satchel.server.persistence.SavedDataEgressSink;
+import com.arryn.satchel.server.persistence.SavedDataHydrationSource;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -490,7 +491,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
     /**
      * SAT_081: the delegate behind {@link SatchelBundle#forceSync()}. Runs the exact same {@link
      * #scheduleSync} the fixed timer runs -- one send path, two triggers -- so it inherits that
-     * method's skip when nobody is in the dimension, and {@code SatchelNetwork.send}'s jig-level
+     * method's skip when nobody is in the dimension, and {@code ServerNetwork.send}'s jig-level
      * {@code allowsNetworking()} gate. Unlike the timed path, a missing {@code
      * Capability.NETWORKING} declaration throws rather than silently sending: calling this on a
      * bundle that was never meant to be networked is a caller wiring mistake, the same "crash
@@ -516,7 +517,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
         // SAT_033: this fires on a fixed timer (SatchelBundle.pulseSync), deliberately not
         // gated on bundle.isDirty() -- project owner's call. Parcels have no delivery
         // acknowledgment and there's no client-side "resend please" request path
-        // (SatchelNetwork is fire-and-forget), so this periodic resend is the only thing that
+        // (ServerNetwork is fire-and-forget), so this periodic resend is the only thing that
         // heals a dropped parcel or catches a client up if it connected mid-session before the
         // next real state change. That safety net stays. What doesn't need to stay is doing the
         // work when there's nobody to receive it -- the project owner's original log was an
@@ -569,7 +570,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
     /**
      * True if this scope's sync target currently has nobody able to receive it, so the
      * NBT-serialize-and-send work in {@link #scheduleSync} can be skipped this pulse.
-     * {@link com.arryn.satchel.common.net.SatchelNetwork#send} only supports {@link LevelScope}
+     * {@link com.arryn.satchel.server.net.ServerNetwork#send} only supports {@link LevelScope}
      * today (its own doc: "future scope types need different distribution logic entirely," see
      * SAT_028) -- for a level-scoped bundle, its audience is whoever's in that dimension, so an
      * empty dimension really does mean nobody would receive this. Any other scope kind (a future

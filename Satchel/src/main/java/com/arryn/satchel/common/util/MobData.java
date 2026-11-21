@@ -41,11 +41,11 @@ import java.util.UUID;
  * Server-side only. A client-side mob has no container: {@link #read} returns an empty compound,
  * {@link #has} is {@code false}, and a write throws. Not synced -- anything the client must see goes through a synced fixture.
  */
-@PlatformBound(reason = "Data saved on a mob, through the MobDataStore capability")
+@PlatformBound(reason = "mob data namespace")
 public final class MobData {
 
     /** Satchel's own namespace: the stat changes it has made, for re-application on conversion. */
-    private static final String STATS_KEY = new ResourceLocation(SatchelMod.MODID, "stats").toString();
+    private static final String STATS_KEY = Ids.id(SatchelMod.MODID, "stats").toString();
     private static final String MAX_HEALTH = "max_health";
     private static final String FOLLOW_RANGE = "follow_range";
 

@@ -14,6 +14,7 @@ import com.arryn.satchel.server.commands.MobTrackCommands;
 import com.arryn.satchel.server.commands.TrinketCommands;
 import com.arryn.satchel.server.commands.TunableCommands;
 import com.arryn.satchel.server.commands.TuningTableCommands;
+import com.arryn.satchel.server.tracking.ServerHealth;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.RegisterCapabilitiesEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -39,7 +40,7 @@ public class SatchelMod {
 
         // SatchelNetwork.register() adds S2cBundleParcel's encoder/decoder/handler to CHANNEL --
         // without this, CHANNEL never learns about the message type, so every
-        // SatchelNetwork.send() call from ParcelEgressSink (server-side flush -> sync) fails
+        // ServerNetwork.send() call from ParcelEgressSink (server-side flush -> sync) fails
         // silently/throws internally in Forge's SimpleChannel, and no client ScopeEngine ever
         // receives a parcel to hydrate a bundle with. This was never called anywhere in either
         // repo -- confirmed by grepping for SatchelNetwork.register and .register() generally.
@@ -89,6 +90,8 @@ public class SatchelMod {
             // installed jigs at all -- without it the classes compile but nothing ever reaches
             // Satchel.registerJig(...). See SatchelHealth's own class doc for the full mechanism.
             SatchelHealth.init();
+            // The probes that need the server's own classes (server/tracking), after the shared ones.
+            ServerHealth.init();
 
             // SAT_093: Tunables load once per game, here -- before any world exists, so a Tunable
             // read during world creation (the new-world spawn search) sees the CSV, and a bad row

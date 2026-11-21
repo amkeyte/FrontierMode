@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.tracking;
+package com.arryn.satchel.server.tracking;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.ingress.IngressConfig;
@@ -8,6 +8,8 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.platform.PlatformBound;
+import com.arryn.satchel.common.tracking.MobHealthCheck;
+import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
@@ -53,7 +55,7 @@ import java.util.function.BooleanSupplier;
  * spawn area has loaded. The conversion probe uses a throwaway mob that never joins the world.
  */
 @PlatformBound(reason = "health-probe")
-final class SpawnGateHealthCheck {
+public final class SpawnGateHealthCheck {
 
     private SpawnGateHealthCheck() {}
 
@@ -61,7 +63,7 @@ final class SpawnGateHealthCheck {
 
     private static final IngressKey INGRESS = new IngressKey("satchelhealth:spawn_gates");
 
-    static void register() {
+    public static void register() {
         Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> build());
         Satchel.contributeLevelTrinket(MODULE, JigPolicies.SideApplicability.SERVER, Order.LATE,
                 GateDriver.class, GateDriver::new);

@@ -8,8 +8,8 @@ import net.minecraftforge.common.ForgeConfigSpec;
  * constructor via {@code ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON,
  * SatchelConfig.SPEC)}, mirroring FrontierMode's own {@code Config}/{@code FrontierMode}
  * registration shape. One value today: {@link #HEALTH_ENABLED}, the real switch for whether
- * {@code SatchelHealth} registers anything at all -- read once, in {@code SatchelHealth.init()},
- * before any jig config is registered.
+ * {@code SatchelHealth} registers anything at all -- read in {@code SatchelHealth.init()} and {@code
+ * ServerHealth.init()}, before any jig config is registered.
  */
 @PlatformBound(reason = "config")
 public final class SatchelConfig {

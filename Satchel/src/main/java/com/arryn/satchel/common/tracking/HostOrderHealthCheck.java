@@ -7,8 +7,7 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.trinket.Order;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 import java.util.Optional;
@@ -172,8 +171,7 @@ final class HostOrderHealthCheck {
 
         @Override
         void forEachWriter(ScopeInfo info, Consumer<Writer> check) {
-            if (!(info.level() instanceof ServerLevel level)) return;
-            for (ServerPlayer player : level.players()) {
+            for (Player player : info.level().players()) {
                 Optional<ScopeInfo> playerScope = Scopes.of(HostJigs.PLAYER_HOST, player);
                 if (playerScope.isEmpty()) continue;
                 Satchel.trinket(HostJigs.PLAYER_HOST, playerScope.get().scope(), PlayerWriter.class)

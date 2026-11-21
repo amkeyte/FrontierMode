@@ -1,5 +1,6 @@
 package com.arryn.satchel.common.tracking;
 
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -13,12 +14,12 @@ import net.minecraft.world.entity.Mob;
  * event tests ({@link CanaryEventHealthCheck}). Server only: a client mob has no container, so it is
  * never a canary here.
  */
-final class CanaryData {
+public final class CanaryData {
 
     private CanaryData() {}
 
     /** Not Satchel's own namespace, which {@code MobData} refuses. */
-    static final ResourceLocation NAMESPACE = new ResourceLocation("satchelhealth", "canary");
+    static final ResourceLocation NAMESPACE = Ids.id("satchelhealth", "canary");
 
     /** Marks {@code mob} as a canary. */
     static void mark(Mob mob) {
@@ -28,7 +29,7 @@ final class CanaryData {
     }
 
     /** Whether {@code entity} is a mob carrying the canary mark. */
-    static boolean isCanary(Entity entity) {
+    public static boolean isCanary(Entity entity) {
         return entity instanceof Mob mob && MobData.has(mob, NAMESPACE);
     }
 }

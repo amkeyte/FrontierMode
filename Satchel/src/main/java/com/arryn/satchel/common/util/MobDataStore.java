@@ -35,10 +35,10 @@ import java.util.Optional;
  * are invalid; doing it this way means {@code reviveCaps()} really brings the data back, which is
  * what copying data off a mob that conversion has just discarded relies on.
  */
-@PlatformBound(reason = "The container behind MobData: a Forge capability on the mob")
+@PlatformBound(reason = "mob data namespace")
 public final class MobDataStore {
 
-    public static final ResourceLocation ID = new ResourceLocation(SatchelMod.MODID, "mob_data");
+    public static final ResourceLocation ID = Ids.id(SatchelMod.MODID, "mob_data");
 
     public static final Capability<MobDataStore> CAPABILITY = CapabilityManager.get(new CapabilityToken<>() {});
 

@@ -15,7 +15,6 @@ import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.common.MinecraftForge;
@@ -112,7 +111,7 @@ final class MobJoinHealthCheck {
 
         @Override
         public void onTickAfter(ScopeInfo info) {
-            if (!(info.level() instanceof ServerLevel level)) return;
+            Level level = info.level();
             if (!level.dimension().equals(Level.OVERWORLD)) return;
             if (++ticks < RUN_AFTER_TICKS) return;
             if (!SatchelHealth.firstTime("mobjoin:run")) return;
@@ -120,7 +119,7 @@ final class MobJoinHealthCheck {
             run(info, level);
         }
 
-        private static void run(ScopeInfo info, ServerLevel level) {
+        private static void run(ScopeInfo info, Level level) {
             MobJig jig = Satchel.mobJig(MobHealthCheck.MOB_JIG);
             JigInfo jigInfo = ScopeInfoImpl.of(info).jigInfo().foundation().requireJigInfo(MobHealthCheck.MOB_JIG);
             HealthState state = SatchelHealth.state();
@@ -187,7 +186,7 @@ final class MobJoinHealthCheck {
         }
 
         /** A synthetic mob, tagged for this probe, not yet added to the level. */
-        private static Mob probeMob(ServerLevel level, boolean cancelJoin) {
+        private static Mob probeMob(Level level, boolean cancelJoin) {
             Mob mob = MobHealthCheck.createSyntheticMob(level);
             if (mob == null) return null;
             mob.addTag(TAG);

@@ -22,7 +22,7 @@ import java.util.function.IntFunction;
  * final} on its Rules class), and read wherever a value is needed:
  *
  * <pre>{@code
- * static final TuningTable KEEPER_HEALTH = TuningTable.builder(new ResourceLocation(MODID, "keeper-health"))
+ * static final TuningTable KEEPER_HEALTH = TuningTable.builder(Ids.id(MODID, "keeper-health"))
  *         .intKeys("pathPosition", 1, 20)
  *         .seededColumn("value", "seed", CellType.FLOAT, p -> formula(p))
  *         .build();

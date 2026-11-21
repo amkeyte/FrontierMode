@@ -14,7 +14,6 @@ import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Leaving;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -162,8 +161,8 @@ final class InterestHealthCheck {
      */
     static void drive(ScopeInfoImpl level) {
         if (!(level.scope() instanceof LevelScope levelScope)) return;
-        if (!(levelScope.level() instanceof ServerLevel server)) return;
-        if (!server.dimension().equals(Level.OVERWORLD)) return;
+        Level world = levelScope.level();
+        if (!world.dimension().equals(Level.OVERWORLD)) return;
         if (level.jigInfo().foundation().askJigInfo(PROBE_JIG).isEmpty()) return;
 
         long tick = level.jigInfo().trinketTick().tickNumber();
@@ -175,16 +174,16 @@ final class InterestHealthCheck {
         }
         if (run.done) return;
 
-        step(level, server, run, tick);
+        step(level, world, run, tick);
     }
 
-    private static void step(ScopeInfoImpl level, ServerLevel server, Run run, long tick) {
+    private static void step(ScopeInfoImpl level, Level world, Run run, long tick) {
         MobJig jig = Satchel.mobJig(PROBE_JIG);
         JigInfo ji = level.jigInfo().foundation().requireJigInfo(PROBE_JIG);
 
         switch (run.step) {
             case 0 -> {   // the mob
-                Mob mob = MobHealthCheck.spawnSyntheticMob(server);
+                Mob mob = MobHealthCheck.spawnSyntheticMob(world);
                 if (mob == null) return;   // try again next tick
                 run.entity = mob;
                 run.mob = mob.getUUID();

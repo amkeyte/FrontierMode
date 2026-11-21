@@ -15,7 +15,8 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.player.PlayerJigConfig;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 import java.util.Objects;
@@ -86,18 +87,16 @@ final class PlayerHealthCheck {
         // PlayerJigConfig sets no default (unlike LevelJigConfig's LevelScope::level -- a
         // PlayerScope has no single Level it's intrinsically tied to, see PlayerJigConfig's own
         // doc). Only ever consulted server-side (ScopeEngine_Client never calls
-        // resolveServerLevel), so the cast is safe regardless of this jig's own BOTH
-        // sideApplicability above.
-        config.binding().referenceLevel(
-                scope -> ((ServerPlayer) scope.player()).serverLevel()
-        );
+        // resolveServerLevel), and Player#level() is the general Level, as for MobHealthCheck's own
+        // reference level: resolveServerLevel() does the instanceof ServerLevel check.
+        config.binding().referenceLevel(scope -> scope.player().level());
 
         config.bundles().schema(bundles);
 
         // Counts each tick that reaches a player scope, beside the tracker's own internal count.
         config.trinkets().declare(TickCount.class, TickCount::new);
 
-        // NETWORKING (SAT_063): SatchelNetwork.sendToPlayer() now gives PlayerScope-scoped
+        // NETWORKING (SAT_063): ServerNetwork.sendToPlayer() now gives PlayerScope-scoped
         // bundles a real distribution path, and JigConfigValidator's BOTH-applicability
         // requirement for allowsNetworking() is already satisfied by this jig's own binding
         // above. Without this, the client-side bundle would stay in CREATED forever -- see
@@ -132,16 +131,17 @@ final class PlayerHealthCheck {
 
         PlayerScope scope = (PlayerScope) info.scope();
         // BOTH-applicability (SAT_063): scope.player() is a ServerPlayer server-side, a
-        // LocalPlayer client-side -- branch rather than cast unconditionally, mirroring
-        // LevelHealthCheck's own instanceof ServerLevel pattern. dimension() is only meaningful
-        // via the server-side accessor (serverLevel()); the client-side line skips it rather
-        // than reach for Minecraft.getInstance().level, which isn't this scope's own concern.
-        if (scope.player() instanceof ServerPlayer serverPlayer) {
+        // LocalPlayer client-side -- branch on the level's side, not on the player's class. The
+        // dimension is logged on the server only; the client-side line skips it rather than reach
+        // for Minecraft.getInstance().level, which isn't this scope's own concern.
+        Player player = scope.player();
+        Level level = player.level();
+        if (!level.isClientSide()) {
             OUT.debug(
-                    "[PlayerTracking] LOADED player=" + serverPlayer.getGameProfile().getName()
+                    "[PlayerTracking] LOADED player=" + player.getGameProfile().getName()
                             + " scope=" + scope.debugName()
                             + " side=SERVER"
-                            + " dim=" + serverPlayer.serverLevel().dimension().location()
+                            + " dim=" + level.dimension().location()
             );
         } else {
             OUT.debug(
@@ -207,10 +207,8 @@ final class PlayerHealthCheck {
 
         // BOTH-applicability (SAT_063): the deferred violation check below only makes sense
         // server-side -- see this method's own doc. A client-side teardown skips it entirely.
-        if (!(scope.player() instanceof ServerPlayer player)) {
-            return;
-        }
-
+        // A client's player has no server, so there is no online-player list to check.
+        Player player = scope.player();
         var server = player.getServer();
 
         if (server != null) {

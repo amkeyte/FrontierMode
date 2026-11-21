@@ -38,7 +38,7 @@ import java.util.UUID;
         value = Dist.CLIENT
 )
 
-@PlatformBound(reason = "Satchel's client-side Forge ingress: the one path in from the game")
+@PlatformBound(reason = "ingress")
 public final class ClientForgeIngress {
 
     private static final ClientFoundationBooter BOOTER =

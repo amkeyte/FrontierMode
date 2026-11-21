@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.persistence;
+package com.arryn.satchel.server.persistence;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;

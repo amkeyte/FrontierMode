@@ -126,7 +126,7 @@ public final class SatchelHealth {
      * True the first time {@code key} is offered in this world, on either side: an integrated server's
      * client and server share one world identity, so a key that is per side names the side.
      */
-    static boolean firstTime(String key) {
+    public static boolean firstTime(String key) {
         return state().logged.add(key);
     }
 
@@ -134,7 +134,7 @@ public final class SatchelHealth {
      * Logs {@code message} at INFO once per world for {@code key}: the one line a probe prints per
      * side. Include the side in the key.
      */
-    static void logOnce(String key, String message) {
+    public static void logOnce(String key, String message) {
         if (firstTime(key)) OUT.info(message);
     }
 
@@ -157,7 +157,7 @@ public final class SatchelHealth {
      * This side's canary, once it has one: the server's is the mob it spawned, a client's is the one
      * the synced canary fixture names.
      */
-    static Optional<UUID> canaryUuid() {
+    public static Optional<UUID> canaryUuid() {
         return existing().map(state -> state.canaryUuid);
     }
 
@@ -170,7 +170,7 @@ public final class SatchelHealth {
      * can show several violations (grep for {@code VIOLATION}). A probe that cannot continue after one
      * ends its own run.
      */
-    static void violation(String message) {
+    public static void violation(String message) {
         OUT.error(message);
     }
 
@@ -204,7 +204,6 @@ public final class SatchelHealth {
         HotEventHealthCheck.register();
         CanaryEventHealthCheck.register();
         RealEventHealthCheck.register();
-        SpawnGateHealthCheck.register();
         InterestHealthCheck.register();
     }
 

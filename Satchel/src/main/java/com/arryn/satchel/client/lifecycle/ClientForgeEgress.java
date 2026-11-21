@@ -30,7 +30,7 @@ import java.util.UUID;
  * <p>
  * Installed once per client foundation, from {@code ClientFoundationBooter#installFoundation()}.
  */
-@PlatformBound(reason = "Satchel's client-side read seam into the world")
+@PlatformBound(reason = "egress")
 public final class ClientForgeEgress implements ForgeEgress {
 
     @Override

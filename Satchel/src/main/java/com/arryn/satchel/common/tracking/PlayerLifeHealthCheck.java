@@ -11,7 +11,6 @@ import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.trinket.Order;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -100,7 +99,7 @@ final class PlayerLifeHealthCheck {
         ingress.translate(PlayerEvent.PlayerChangedDimensionEvent.class,
                 e -> Scopes.of(HostJigs.PLAYER_HOST, e.getEntity()), ChangedDimension::new);
         ingress.translate(LivingDropsEvent.class,
-                e -> e.getEntity() instanceof ServerPlayer player
+                e -> e.getEntity() instanceof Player player
                         ? Scopes.of(HostJigs.PLAYER_HOST, player)
                         : Optional.<ScopeInfo>empty(),
                 DyingDrops::new);

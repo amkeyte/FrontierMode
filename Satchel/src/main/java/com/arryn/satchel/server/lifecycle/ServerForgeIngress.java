@@ -6,12 +6,12 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.SatchelMod;
 import com.arryn.satchel.common.identity.WorldIdentityContext;
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.net.SatchelNetwork;
-import com.arryn.satchel.common.persistence.WorldIdentitySavedData;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.server.jig.guts.ServerFoundationBooter;
+import com.arryn.satchel.server.net.ServerNetwork;
+import com.arryn.satchel.server.persistence.WorldIdentitySavedData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
@@ -55,7 +55,7 @@ import java.util.UUID;
         modid = SatchelMod.MODID,
         bus = Mod.EventBusSubscriber.Bus.FORGE
 )
-@PlatformBound(reason = "Satchel's server-side Forge ingress: the one path in from the game")
+@PlatformBound(reason = "ingress")
 public final class ServerForgeIngress {
 
     private static final ServerFoundationBooter BOOTER =
@@ -252,7 +252,7 @@ public final class ServerForgeIngress {
         BOOTER.bindFoundation();
 
         WorldIdentityContext.current().ifPresentOrElse(
-                token -> SatchelNetwork.sendToken(player, token),
+                token -> ServerNetwork.sendToken(player, token),
                 () -> OUT.warn(
                         "[ServerForgeIngress] No world-identity token bound yet for " +
                                 player.getGameProfile().getName() +

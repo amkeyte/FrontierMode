@@ -21,10 +21,10 @@ import com.arryn.satchel.common.jig.mob.MobJigConfig;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ambient.Bat;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 import java.util.Objects;
@@ -35,7 +35,7 @@ import java.util.Objects;
  * SatchelHealth.java (SAT_060) once that file grew too large to keep editing as one piece --
  * same IDs, same behavior as before the split, not a rewrite.
  */
-final class MobHealthCheck {
+public final class MobHealthCheck {
 
     private MobHealthCheck() {}
 
@@ -283,7 +283,7 @@ final class MobHealthCheck {
      * interest and writes its UUID to a synced fixture, and each side mirrors that into its own mob
      * jig.
      */
-    static Mob spawnSyntheticMob(ServerLevel level) {
+    static Mob spawnSyntheticMob(Level level) {
         Mob mob = createSyntheticMob(level);
         if (mob == null) {
             return null;
@@ -300,7 +300,7 @@ final class MobHealthCheck {
      * A synthetic mob placed at the Overworld's shared spawn but not added to the level, for a probe
      * that needs to control the join ({@link MobJoinHealthCheck}).
      */
-    static Mob createSyntheticMob(ServerLevel level) {
+    public static Mob createSyntheticMob(Level level) {
         Mob mob = canaryEntityType().create(level);
         if (mob == null) {
             return null;

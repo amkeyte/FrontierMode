@@ -1,4 +1,4 @@
-package com.arryn.satchel.common.persistence;
+package com.arryn.satchel.server.persistence;
 
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;

@@ -15,7 +15,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
@@ -97,7 +96,7 @@ final class LevelHealthCheck {
 
         config.bundles().schema(bundles);
 
-        // NETWORKING: LevelScope-scoped send already works (SatchelNetwork.send(), see SAT_062's
+        // NETWORKING: LevelScope-scoped send already works (ServerNetwork.send(), see SAT_062's
         // enforcement of this exact flag) -- allowed here so scheduleSync()'s periodic parcel
         // resend actually exercises it, not just persistence/tick/lifecycle.
         config.policies().capabilities(new JigPolicies.Capabilities(true, true, false));
@@ -172,12 +171,13 @@ final class LevelHealthCheck {
                 });
 
         Level level = scope.level();
-        if (level instanceof ServerLevel serverLevel) {
-            var server = serverLevel.getServer();
-            var dimension = serverLevel.dimension();
+        // Only a server has a level registry to check: a client's level has no server.
+        var server = level.getServer();
+        if (server != null) {
+            var dimension = level.dimension();
 
             SatchelHealth.defer(() -> {
-                boolean stillRegistered = server.getLevel(dimension) == serverLevel;
+                boolean stillRegistered = server.getLevel(dimension) == level;
 
                 if (stillRegistered) {
                     String message = "[SatchelHealth] VIOLATION: LevelScope torn down for "

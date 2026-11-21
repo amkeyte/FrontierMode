@@ -1,19 +1,9 @@
 package com.arryn.satchel.common.net;
 
-import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.jig.guts.ScopeInfo;
-import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
-import com.arryn.satchel.common.jig.level.LevelScope;
-import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.platform.PlatformBound;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import com.arryn.satchel.common.util.Ids;
 import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-
-import java.util.UUID;
 
 /**
  * Satchel 2.0 — Unified networking entry point.
@@ -23,6 +13,9 @@ import java.util.UUID;
  *   • S2C bundle sync (unified bundle parcel format)
  *   • S2C player bundle sync (legacy, until player 2.0 migration)
  *   • C2S request parcel routing
+ *
+ * <p>Sending is server code: {@code ServerNetwork}, in the server packages, sends down {@link
+ * SatchelNetwork#CHANNEL}.
  */
 @PlatformBound(reason = "network")
 public final class SatchelNetwork {
@@ -30,10 +23,9 @@ public final class SatchelNetwork {
     // Bump when the wire format changes (e.g., S2cBundleParcel adoption)
     private static final String PROTOCOL = "2";
 
-    @SuppressWarnings("ResourceLocation(java.lang.String, java.lang.String)' is deprecated since version 1.20.6 and marked for removal")
     public static final SimpleChannel CHANNEL =
             NetworkRegistry.ChannelBuilder
-                    .named(new ResourceLocation("satchel", "network"))
+                    .named(Ids.id("satchel", "network"))
                     .networkProtocolVersion(() -> PROTOCOL)
                     .clientAcceptedVersions(PROTOCOL::equals)
                     .serverAcceptedVersions(PROTOCOL::equals)
@@ -68,116 +60,6 @@ public final class SatchelNetwork {
                 .consumerMainThread(S2cWorldIdentityToken::handle)
                 .add();
 
-    }
-// Currently routes scope packets to all clients in the scope's dimension.
-// Future scope types may require different PacketDistributors.
-
-    public static void send(
-            ScopeInfoImpl info,
-            Object packet
-    ) {
-        Satchel.requireServer();
-
-        // A jig that doesn't allow networking (JigPolicies.Capabilities.allowsNetworking()) never
-        // sends -- silent no-op, not an error. See SAT_062.
-        if (!info.policies().capabilities().allowsNetworking()) {
-            return;
-        }
-
-        // info.scopeAs() is an unchecked cast to whatever the call site infers -- the actual
-        // runtime scope object is a LevelScope (wrapping a Level), never a ServerLevel itself.
-        // ServerLevel level = info.scopeAs() compiled fine (erasure) and threw ClassCastException
-        // the first time this method actually ran, since flushIfDirty()/pulseSync() never
-        // reached scheduleSync() before SAT_027/FRO_018 fixed the chain ahead of it. Go through
-        // LevelScope.level() (the scope's own real accessor) instead, then cast to ServerLevel --
-        // safe here since Satchel.requireServer() above already guarantees server side. Matches
-        // this method's own doc: currently LevelScope-only, future scope types need different
-        // distribution logic entirely. See SAT_028.
-        LevelScope levelScope = info.scopeAs();
-        ServerLevel level = (ServerLevel) levelScope.level();
-
-        CHANNEL.send(
-                PacketDistributor.DIMENSION.with(
-                        level::dimension
-                ),
-                packet
-        );
-    }
-
-
-    /**
-     * {@link PlayerScope} counterpart to {@link #send(ScopeInfo, Object)} above -- that method is
-     * {@link LevelScope}-only by its own doc comment; this is the "future scope type needs
-     * different distribution logic entirely" case it already anticipated. Modeled directly on
-     * {@link #sendToken(ServerPlayer, UUID)}'s own {@link PacketDistributor#PLAYER} pattern
-     * (SAT_063) -- per-player, not per-dimension, since a {@link PlayerScope}'s audience is
-     * exactly one connection, not everyone in some dimension.
-     */
-    public static void sendToPlayer(
-            ScopeInfoImpl info,
-            Object packet
-    ) {
-        Satchel.requireServer();
-
-        // Same silent-no-op-on-disallowed shape as send() above -- see SAT_062.
-        if (!info.policies().capabilities().allowsNetworking()) {
-            return;
-        }
-
-        // info.scopeAs() erases to whatever the call site infers -- the real runtime scope is a
-        // PlayerScope, and PlayerScope.player() returns the abstract Player (SAT_063 widened it
-        // for real client-side PlayerJig existence). Safe to cast to ServerPlayer here
-        // specifically: Satchel.requireServer() above already guarantees this method only ever
-        // runs server-side, where the backing Player is always genuinely a ServerPlayer.
-        PlayerScope playerScope = info.scopeAs();
-        ServerPlayer player = (ServerPlayer) playerScope.player();
-
-        CHANNEL.send(
-                PacketDistributor.PLAYER.with(() -> player),
-                packet
-        );
-    }
-
-    /**
-     * RM_SAT_019 — push the world-identity token to one player.
-     *
-     * <p>
-     * Per-player, not per-scope/dimension like {@link #send(ScopeInfo, Object)} above — the token
-     * is world-level state, so it goes out via {@link PacketDistributor#PLAYER} keyed on the
-     * player's own connection rather than any dimension's audience. Called from
-     * {@code ServerForgeIngress} at login and again on each dimension change (see class docs on
-     * {@link S2cWorldIdentityToken}).
-     */
-    public static void sendToken(ServerPlayer player, UUID token) {
-        Satchel.requireServer();
-
-        CHANNEL.send(
-                PacketDistributor.PLAYER.with(() -> player),
-                new S2cWorldIdentityToken(token)
-        );
-    }
-
-    /**
-     * A level scope's bundle to one player who has just joined its audience (SAT_144): at login, on a
-     * dimension change, on a respawn. {@link #send(ScopeInfo, Object)} reaches everyone in the dimension;
-     * this reaches only {@code player}, so a second player joining does not resend to the first. The same
-     * silent no-op as the others for a jig that does not allow networking.
-     */
-    public static void sendToPlayer(
-            ServerPlayer player,
-            ScopeInfoImpl info,
-            Object packet
-    ) {
-        Satchel.requireServer();
-
-        if (!info.policies().capabilities().allowsNetworking()) {
-            return;
-        }
-
-        CHANNEL.send(
-                PacketDistributor.PLAYER.with(() -> player),
-                packet
-        );
     }
 
     private SatchelNetwork() {

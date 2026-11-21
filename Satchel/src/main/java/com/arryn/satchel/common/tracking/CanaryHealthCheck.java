@@ -17,10 +17,8 @@ import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.entity.EntityTypeTest;
 
 import java.util.List;
 import java.util.Objects;
@@ -222,24 +220,17 @@ final class CanaryHealthCheck {
          */
         private void maintainCanary(ScopeInfoImpl info) {
             if (!(info.scope() instanceof LevelScope levelScope)) return;
-            if (!(levelScope.level() instanceof ServerLevel serverLevel)) return;
-            if (!serverLevel.dimension().equals(Level.OVERWORLD)) return;
+            Level level = levelScope.level();
+            if (!level.dimension().equals(Level.OVERWORLD)) return;
 
             HealthState state = SatchelHealth.state();
             if (!state.canaryCheck.allow()) return;
 
-            // A canary is persistent and the world keeps it, so every earlier run's canary is still at
-            // spawn carrying the mark, and this run's UUID is not remembered across a restart. Repeated on
-            // every pass, because a stray's chunk can finish loading a few ticks after the first.
-            int strays = discardStrays(serverLevel, state.canaryUuid);
-            if (strays > 0) {
-                OUT.info("[SatchelHealth] Canary cleanup: discarded " + strays + " stale canary(ies) left by an "
-                        + "earlier run");
-            }
-
+            // An earlier run's canary is still at spawn, carrying the mark: the server's
+            // CanaryCleanupHealthCheck discards those, so this only keeps the current one alive.
             ForgeEgress egress = info.jigInfo().foundation().egress();
             UUID existing = state.canaryUuid;
-            if (existing != null && egress.getEntity(serverLevel, existing).isPresent()) return;
+            if (existing != null && egress.getEntity(level, existing).isPresent()) return;
 
             Optional<MobJig> jigFound = mobJig(info);
             if (jigFound.isEmpty()) return;
@@ -248,7 +239,7 @@ final class CanaryHealthCheck {
             // The previous canary is gone (killed, or its chunk never came back): stop caring.
             if (existing != null) jig.lostInterest(existing);
 
-            Mob canary = MobHealthCheck.spawnSyntheticMob(serverLevel);
+            Mob canary = MobHealthCheck.spawnSyntheticMob(level);
             if (canary == null) return;
             CanaryData.mark(canary);
 
@@ -267,20 +258,7 @@ final class CanaryHealthCheck {
 
             OUT.info("[SatchelHealth] Canary spawned: " + canary.getType()
                     + " uuid=" + Ids.shortId(uuid)
-                    + " dim=" + serverLevel.dimension().location());
-        }
-
-        /**
-         * Discards every loaded canary in {@code level} except {@code keep} (null on a fresh boot, when
-         * every marked mob is a stray).
-         *
-         * @return how many it discarded
-         */
-        private static int discardStrays(ServerLevel level, UUID keep) {
-            List<? extends Mob> strays = level.getEntities(EntityTypeTest.forClass(Mob.class),
-                    mob -> CanaryData.isCanary(mob) && !mob.getUUID().equals(keep));
-            for (Mob stray : strays) stray.discard();
-            return strays.size();
+                    + " dim=" + level.dimension().location());
         }
 
         /**

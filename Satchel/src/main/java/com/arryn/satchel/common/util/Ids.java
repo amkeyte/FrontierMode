@@ -1,5 +1,7 @@
 package com.arryn.satchel.common.util;
 
+import net.minecraft.resources.ResourceLocation;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -15,10 +17,30 @@ import java.util.UUID;
  * <br><br>
  * Pure static utility -- no fixture, no bundle, no {@code JigConfig}. Nothing identified needs
  * state beyond the input passed in.
+ * <br><br>
+ * It is also where a {@link ResourceLocation} is built: {@link #id(String, String)}.
  */
 public final class Ids {
 
     private Ids() {
+    }
+
+    /**
+     * The id {@code namespace:path}. Satchel and the modules built on it make an id here and nowhere else (the
+     * platform check fails a direct {@code new ResourceLocation(}), so a version that changes how an id is built,
+     * as 1.21 does by making the constructor private, changes this method and nothing else.
+     *
+     * @throws NullPointerException     if either is null
+     * @throws IllegalArgumentException if {@code namespace:path} is not a valid id: a programming error
+     */
+    public static ResourceLocation id(String namespace, String path) {
+        Objects.requireNonNull(namespace, "namespace");
+        Objects.requireNonNull(path, "path");
+        ResourceLocation id = ResourceLocation.tryParse(namespace + ":" + path);
+        if (id == null) {
+            throw new IllegalArgumentException("'" + namespace + ":" + path + "' is not a valid id");
+        }
+        return id;
     }
 
     /**

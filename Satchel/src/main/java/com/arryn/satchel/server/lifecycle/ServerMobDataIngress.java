@@ -27,7 +27,7 @@ import net.minecraftforge.fml.common.Mod;
         modid = SatchelMod.MODID,
         bus = Mod.EventBusSubscriber.Bus.FORGE
 )
-@PlatformBound(reason = "Satchel's MobData capability ingress")
+@PlatformBound(reason = "ingress")
 public final class ServerMobDataIngress {
 
     private ServerMobDataIngress() {}

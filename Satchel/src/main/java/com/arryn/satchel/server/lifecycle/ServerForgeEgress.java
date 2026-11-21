@@ -23,7 +23,7 @@ import java.util.UUID;
  * <p>
  * Installed once per server foundation, from {@code ServerFoundationBooter#installFoundation()}.
  */
-@PlatformBound(reason = "Satchel's server-side read seam into the world")
+@PlatformBound(reason = "egress")
 public final class ServerForgeEgress implements ForgeEgress {
 
     @Override

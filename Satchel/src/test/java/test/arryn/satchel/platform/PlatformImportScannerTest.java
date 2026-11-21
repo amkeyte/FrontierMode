@@ -5,6 +5,8 @@ import org.junit.jupiter.api.io.TempDir;
 import test.arryn.satchel.platform.PlatformBoundScanner.BaselineDiff;
 import test.arryn.satchel.platform.PlatformBoundScanner.ImportOffender;
 import test.arryn.satchel.platform.PlatformBoundScanner.ImportResult;
+import test.arryn.satchel.platform.PlatformBoundScanner.Root;
+import test.arryn.satchel.platform.PlatformBoundScanner.Rule;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -89,12 +91,26 @@ class PlatformImportScannerTest {
     }
 
     @Test
+    void a_neoforge_import_is_a_platform_import_too() {
+        assertEquals("net.neoforged.neoforge.registries.DeferredRegister", onlyOffender(scan("""
+                import net.neoforged.neoforge.registries.DeferredRegister;
+                public class A { }
+                """)).imported());
+
+        // And so is one named in code.
+        assertEquals("net.neoforged.bus.api.IEventBus", onlyOffender(scan("""
+                public class A { net.neoforged.bus.api.IEventBus bus; }
+                """)).imported());
+    }
+
+    @Test
     void imports_outside_net_minecraft_are_not_platform_imports() {
         ImportResult result = scan("""
                 import java.util.List;
                 import com.mojang.brigadier.CommandDispatcher;
                 import com.arryn.satchel.Satchel;
                 import net.minecraftish.Thing;
+                import net.neoforgedish.Thing;
                 public class A { }
                 """);
 
@@ -337,6 +353,264 @@ class PlatformImportScannerTest {
     }
 
     /* ------------------------------------------------------------
+     * Client and server packages
+     * --------------------------------------------------------- */
+
+    @Test
+    void a_server_package_may_import_the_servers_minecraft_classes() {
+        ImportResult result = scan("""
+                package m.server.level;
+                import net.minecraft.server.level.ServerLevel;
+                import net.minecraft.server.MinecraftServer;
+                public class A { net.minecraft.server.level.ServerPlayer p; }
+                """);
+
+        assertTrue(result.offenders().isEmpty(), result.offenders()::toString);
+        assertEquals(3, result.platformClasses());
+    }
+
+    @Test
+    void a_client_package_may_import_the_clients_minecraft_classes() {
+        assertTrue(scan("""
+                package m.client;
+                import net.minecraft.client.Minecraft;
+                public class A { }
+                """).offenders().isEmpty());
+    }
+
+    @Test
+    void the_same_import_outside_its_side_fails() {
+        assertEquals("net.minecraft.server.level.ServerLevel", onlyOffender(scan("""
+                package m.common.level;
+                import net.minecraft.server.level.ServerLevel;
+                public class A { }
+                """)).imported());
+
+        // Each side is its own: a server package does not take the client's classes, nor the reverse.
+        assertEquals("net.minecraft.client.Minecraft", onlyOffender(scan("""
+                package m.server;
+                import net.minecraft.client.Minecraft;
+                public class A { }
+                """)).imported());
+        assertEquals("net.minecraft.server.MinecraftServer", onlyOffender(scan("""
+                package m.client;
+                import net.minecraft.server.MinecraftServer;
+                public class A { }
+                """)).imported());
+    }
+
+    @Test
+    void a_side_package_covers_only_its_own_minecraft_classes() {
+        // A loader class of the side, and any other class off the list, still need the list or a marker.
+        assertEquals(List.of("net.minecraftforge.server.ServerLifecycleHooks", "net.minecraft.world.entity.Mob"),
+                scan("""
+                        package m.server;
+                        import net.minecraftforge.server.ServerLifecycleHooks;
+                        import net.minecraft.world.entity.Mob;
+                        public class A { }
+                        """).offenders().stream().map(ImportOffender::imported).toList());
+    }
+
+    @Test
+    void a_package_import_of_a_side_package_never_passes() {
+        assertEquals("net.minecraft.server.level.*", onlyOffender(scan("""
+                package m.server;
+                import net.minecraft.server.level.*;
+                public class A { }
+                """)).imported());
+    }
+
+    @Test
+    void the_side_is_a_package_segment_and_not_part_of_a_name() {
+        assertEquals(1, scan("""
+                package m.servers;
+                import net.minecraft.server.level.ServerLevel;
+                public class A { }
+                """).offenders().size());
+
+        // A segment deeper in the package counts.
+        assertTrue(scan("""
+                package m.server.tracking;
+                import net.minecraft.server.level.ServerLevel;
+                public class A { }
+                """).offenders().isEmpty());
+
+        // No package at all is no side.
+        assertEquals(1, scan("""
+                import net.minecraft.server.level.ServerLevel;
+                public class A { }
+                """).offenders().size());
+    }
+
+    /* ------------------------------------------------------------
+     * Two roots: a shared folder and a line folder
+     * --------------------------------------------------------- */
+
+    private static void write(Path root, String file, String source) throws IOException {
+        Path path = root.resolve(file);
+        Files.createDirectories(path.getParent());
+        Files.writeString(path, source);
+    }
+
+    private static ImportResult scanRoots(Path shared, Path line) {
+        return PlatformBoundScanner.scanImportRoots(List.of(
+                new Root("shared", shared, Rule.SHARED),
+                new Root("forge-1.20.1", line, Rule.LINE)), AUTHORIZED);
+    }
+
+    @Test
+    void a_loader_class_is_never_allowed_in_shared_but_a_marker_passes_it_in_a_line_folder(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        Path line = dir.resolve("line");
+        write(shared, "m/Marked.java", """
+                package m;
+                import net.minecraftforge.event.TickEvent;
+                @PlatformBound(reason = "ingress")
+                public class Marked { }
+                """);
+        write(shared, "m/Extending.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                import net.neoforged.bus.api.Event;
+                public class Extending extends SatchelFixture { }
+                """);
+        write(line, "m/Marked.java", """
+                package m;
+                import net.minecraftforge.event.TickEvent;
+                @PlatformBound(reason = "ingress")
+                public class MarkedInLine { }
+                """);
+
+        ImportResult result = scanRoots(shared, line);
+
+        assertEquals(List.of(
+                        "shared/m/Extending.java  net.neoforged.bus.api.Event",
+                        "shared/m/Marked.java  net.minecraftforge.event.TickEvent"),
+                baseline(result).stream().sorted().toList());
+        assertTrue(result.offenders().stream().allMatch(o -> o.problem().contains("cannot be named in shared")),
+                result.offenders()::toString);
+    }
+
+    @Test
+    void a_marker_excuses_no_minecraft_class_in_shared_but_does_in_a_line_folder(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        Path line = dir.resolve("line");
+        String marked = """
+                package m;
+                import net.minecraft.world.entity.LivingEntity;
+                @PlatformBound(reason = "entity")
+                public class A { }
+                """;
+        write(shared, "m/A.java", marked);
+        write(line, "m/B.java", marked.replace("class A", "class B"));
+
+        ImportResult result = scanRoots(shared, line);
+
+        assertEquals(List.of("shared/m/A.java  net.minecraft.world.entity.LivingEntity"), baseline(result));
+        assertTrue(onlyOffender(result).problem().contains("a marker does not excuse it"), result.offenders()::toString);
+    }
+
+    @Test
+    void shared_still_passes_the_list_a_side_package_and_a_class_that_extends_a_satchel_type(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/Listed.java", """
+                package m;
+                import net.minecraft.world.level.Level;
+                public class Listed { }
+                """);
+        write(shared, "m/server/Side.java", """
+                package m.server;
+                import net.minecraft.server.level.ServerLevel;
+                public class Side { }
+                """);
+        write(shared, "m/Extending.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                import net.minecraft.world.entity.LivingEntity;
+                import net.minecraft.world.entity.*;
+                public class Extending extends SatchelFixture { }
+                """);
+
+        ImportResult result = PlatformBoundScanner.scanImportRoots(
+                List.of(new Root("", shared, Rule.SHARED)), AUTHORIZED);
+
+        assertTrue(result.offenders().isEmpty(), result.offenders()::toString);
+        assertEquals(4, result.platformClasses());
+    }
+
+    @Test
+    void a_loader_package_import_in_shared_fails_even_for_a_class_that_extends_a_satchel_type(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/A.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                import net.minecraftforge.event.*;
+                public class A extends SatchelFixture { }
+                """);
+
+        assertEquals("net.minecraftforge.event.*", onlyOffender(PlatformBoundScanner.scanImportRoots(
+                List.of(new Root("", shared, Rule.SHARED)), AUTHORIZED)).imported());
+    }
+
+    @Test
+    void the_roots_are_read_together_and_a_report_names_a_file_by_its_root(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        Path line = dir.resolve("line");
+        // A line class that extends a shared class that extends a Satchel type passes, and the reverse.
+        write(shared, "m/Base.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                public class Base extends SatchelFixture { }
+                """);
+        write(line, "m/Impl.java", """
+                package m;
+                import net.minecraft.world.entity.Mob;
+                public class Impl extends Base { }
+                """);
+        write(line, "m/Platform.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                public class Platform extends SatchelFixture { }
+                """);
+        write(shared, "m/UsesPlatform.java", """
+                package m;
+                import net.minecraft.world.entity.Mob;
+                public class UsesPlatform extends Platform { }
+                """);
+        write(shared, "m/Bad.java", """
+                package m;
+                import net.minecraft.world.entity.Mob;
+                public class Bad { }
+                """);
+
+        ImportResult result = scanRoots(shared, line);
+
+        assertEquals(List.of("shared/m/Bad.java  net.minecraft.world.entity.Mob"), baseline(result));
+        assertEquals(3, result.platformClasses());
+    }
+
+    @Test
+    void the_single_root_calls_keep_the_line_rule(@TempDir Path dir) throws IOException {
+        Path root = dir.resolve("src");
+        write(root, "m/A.java", """
+                package m;
+                import net.minecraftforge.event.TickEvent;
+                @PlatformBound(reason = "ingress")
+                public class A { }
+                """);
+
+        assertTrue(PlatformBoundScanner.scanImports(root, AUTHORIZED).offenders().isEmpty());
+        assertTrue(PlatformBoundScanner.scanImportRoots(List.of(new Root("", root, Rule.LINE)), AUTHORIZED)
+                .offenders().isEmpty());
+        assertEquals(1, PlatformBoundScanner.scanImportRoots(List.of(new Root("", root, Rule.SHARED)), AUTHORIZED)
+                .offenders().size());
+    }
+
+    /* ------------------------------------------------------------
      * Order, the count, and walking a tree
      * --------------------------------------------------------- */
 
@@ -450,7 +724,8 @@ class PlatformImportScannerTest {
 
         assertFalse(list.isEmpty());
         for (String entry : list) {
-            assertTrue(entry.startsWith("net.minecraft.") || entry.startsWith("net.minecraftforge."), entry);
+            // A loader class on the list would let shared code name it unchecked.
+            assertTrue(entry.startsWith("net.minecraft."), () -> entry + " is not a Minecraft class");
 
             // An entry that is a nested class would be checked as its outer class and never match.
             ImportResult result = PlatformBoundScanner.scanImportSources(

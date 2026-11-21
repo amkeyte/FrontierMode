@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Mob;
  * Translates the vanilla removal reason into Satchel's {@link LeaveReason}, so the vanilla enum stays
  * inside Satchel's platform layer. Advisory by design (see {@code LeaveReason}).
  */
-@PlatformBound(reason = "Reads a mob's vanilla removal reason; the vanilla enum stays here")
+@PlatformBound(reason = "entity")
 final class LeaveReasons {
 
     private LeaveReasons() {

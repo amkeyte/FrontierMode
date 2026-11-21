@@ -8,13 +8,13 @@ import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.MobDataStore;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
@@ -45,10 +45,10 @@ final class MobDataHealthCheck {
     private static final String MODULE = "satchel_health";
 
     /** The namespace the probe writes: not Satchel's own, which {@code MobData} refuses. */
-    private static final ResourceLocation NAMESPACE = new ResourceLocation("satchelhealth", "mobdata_has");
+    private static final ResourceLocation NAMESPACE = Ids.id("satchelhealth", "mobdata_has");
 
     /** A second namespace the probe never writes. */
-    private static final ResourceLocation OTHER = new ResourceLocation("satchelhealth", "mobdata_has_other");
+    private static final ResourceLocation OTHER = Ids.id("satchelhealth", "mobdata_has_other");
 
     /** Ticks the server probe waits after the Overworld scope is ticking, so the world is settled. */
     private static final int RUN_AFTER_TICKS = 40;
@@ -90,7 +90,7 @@ final class MobDataHealthCheck {
 
         @Override
         public void onTickAfter(ScopeInfo info) {
-            if (!(info.level() instanceof ServerLevel level)) return;
+            Level level = info.level();
             if (!level.dimension().equals(Level.OVERWORLD)) return;
             if (++ticks < RUN_AFTER_TICKS) return;
             if (!SatchelHealth.firstTime("mobdata:run")) return;
@@ -98,7 +98,7 @@ final class MobDataHealthCheck {
             run(level);
         }
 
-        private static void run(ServerLevel level) {
+        private static void run(Level level) {
             Mob mob = MobHealthCheck.createSyntheticMob(level);
             if (mob == null) {
                 OUT.warn("[SatchelHealth] MobData.has probe: could not create a synthetic mob, so it was not run");
@@ -137,7 +137,7 @@ final class MobDataHealthCheck {
 
             // ---- Satchel's own namespace ----
             try {
-                MobData.has(mob, new ResourceLocation(SatchelMod.MODID, "probe"));
+                MobData.has(mob, Ids.id(SatchelMod.MODID, "probe"));
                 violation("accepted Satchel's own namespace, which read refuses");
             } catch (IllegalArgumentException refused) {
                 // as read does

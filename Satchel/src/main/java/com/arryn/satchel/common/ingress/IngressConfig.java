@@ -43,7 +43,7 @@ import java.util.function.Function;
  * Frozen when it is installed: a call after that throws. A factory builds a fresh config every time
  * it is called, so nothing is shared between the two sides of a {@code BOTH} registration.
  */
-@PlatformBound(reason = "The registration layer: binds module events to Forge's event bus")
+@PlatformBound(reason = "ingress")
 public final class IngressConfig {
 
     /** One thing to do to a foundation when this config installs. */

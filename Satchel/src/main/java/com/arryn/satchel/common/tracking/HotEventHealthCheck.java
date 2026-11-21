@@ -11,7 +11,6 @@ import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
@@ -119,7 +118,7 @@ final class HotEventHealthCheck {
         public void onTickAfter(ScopeInfo info) {
             ScopeInfoImpl impl = ScopeInfoImpl.of(info);
             if (!(info.scope() instanceof LevelScope levelScope)) return;
-            if (!(levelScope.level() instanceof ServerLevel level)) return;
+            Level level = levelScope.level();
             if (!level.dimension().equals(Level.OVERWORLD)) return;
 
             HealthState state = SatchelHealth.state();

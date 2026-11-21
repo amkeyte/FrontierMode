@@ -1,6 +1,5 @@
 package com.arryn.satchel.common.tunable;
 
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 
@@ -53,7 +52,7 @@ public enum CellType {
             default -> {
                 ResourceLocation id = ResourceLocation.tryParse(text);
                 if (id == null) throw new IllegalArgumentException("'" + text + "' is not a valid id");
-                return BuiltInRegistries.ENTITY_TYPE.getOptional(id)
+                return EntityType.byString(id.toString())
                         .orElseThrow(() -> new IllegalArgumentException("'" + text + "' is not a registered entity type"));
             }
         }

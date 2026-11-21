@@ -24,7 +24,7 @@ net.minecraft.world.entity.EquipmentSlot  # enum of slots
 
 # ---- Identity and text ----
 
-net.minecraft.resources.ResourceLocation  # judgment call: ids are everywhere and a constructor change is a mechanical replace; a module builds one through its mod's id helper, so the constructor is called in one place
+net.minecraft.resources.ResourceLocation  # judgment call: ids are everywhere and a constructor change is a mechanical replace; a module builds one through Ids.id, or through a helper of its own that calls it, so the constructor is called in one place, and the scan fails a direct new ResourceLocation(
 net.minecraft.network.chat.Component  # judgment call: immutable text; a factory change is a mechanical replace
 
 
@@ -49,6 +49,13 @@ net.minecraft.world.level.block.Blocks  # judgment call: constants for built-in 
 
 net.minecraft.world.level.Level  # common to both sides; logic is typed on Level, never on a server or client level
 net.minecraft.world.entity.player.Player  # common to both sides; logic is typed on Player
+net.minecraft.world.entity.Mob  # common to both sides; mob logic is typed on Mob, and MobData is how a module keeps state on one
+net.minecraft.world.entity.Entity  # common to both sides; the handle a lookup answers with, narrowed by instanceof to Mob or Player
+
+
+# ---- Saved state ----
+
+net.minecraft.nbt.CompoundTag  # judgment call: the NBT API is where a version change lands (stack data's move to components), so a CompoundTag stays inside the class that owns the data, a fixture or a module's namespace class over MobData and StackData, and never appears in a signature, a module event's context or a record (SAT_156); the import is free, that condition is not checked by the scan
 
 
 # ---- Plain base classes (Code Conventions: the Free tier) ----

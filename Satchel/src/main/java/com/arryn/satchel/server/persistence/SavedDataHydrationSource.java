@@ -1,7 +1,9 @@
-package com.arryn.satchel.common.persistence;
+package com.arryn.satchel.server.persistence;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
+import com.arryn.satchel.common.persistence.FixtureHydrationSource;
+import com.arryn.satchel.common.persistence.NbtFixtureHydrationSource;
 import com.arryn.satchel.common.platform.PlatformBound;
 
 import net.minecraft.nbt.CompoundTag;

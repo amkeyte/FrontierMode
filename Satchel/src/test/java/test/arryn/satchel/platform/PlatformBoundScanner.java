@@ -514,15 +514,23 @@ public final class PlatformBoundScanner {
      * A platform class a file imports or names, and the second rule says is not allowed there.
      *
      * <p>
-     * The second rule of Platform-Bound Code § The check: every {@code net.minecraft} and {@code net.minecraftforge}
-     * class a file imports is on the authorized list, or the file carries {@code @PlatformBound} with a reason on
+     * The second rule of Platform-Bound Code § The check: every {@code net.minecraft}, {@code net.minecraftforge} and
+     * {@code net.neoforged} class a file imports is on the authorized list, or the file carries {@code @PlatformBound} with a reason on
      * any of its classes, or any of its classes extends or implements a Satchel type (a class under
-     * {@code com.arryn.satchel}, or a class in the scanned tree that itself extends one). The unit is the outermost
+     * {@code com.arryn.satchel}, or a class in the scanned tree that itself extends one), or the file is in a
+     * {@code server} or {@code client} package and the class is a Minecraft class of that side ({@code
+     * net.minecraft.server} or {@code net.minecraft.client}). The unit is the outermost
      * class: an import of {@code Entity.RemovalReason} is an import of {@code Entity}, a static import of
      * {@code Blocks.STONE} is one of {@code Blocks}, and a fully qualified name in the code counts as an import. A
      * package wildcard import cannot be checked against a list of classes, so it never passes.
      *
-     * @param file     the source file, relative to the scanned root, with forward slashes
+     * <p>
+     * That is the {@link Rule#LINE} rule, for a line folder, where a file may name the loader. A {@link Rule#SHARED}
+     * root takes the stricter one, since its files compile on every line: a loader class is never allowed there, not
+     * on the list, not under a marker, not for a class that extends a Satchel type, and a marker excuses nothing else
+     * either. The extension of a Satchel type still passes a Minecraft class.
+     *
+     * @param file    the source file, relative to the scanned root, with forward slashes
      * @param line     the line of the first import or use of the class
      * @param imported the platform class ({@code net.minecraft.world.entity.Mob}), or the package import as written
      *                 ({@code net.minecraft.world.entity.*})
@@ -557,11 +565,49 @@ public final class PlatformBoundScanner {
     public record BaselineDiff(List<ImportOffender> fresh, List<String> stale) {
     }
 
+    /**
+     * Which of the import rule's two forms a root takes.
+     *
+     * <ul>
+     *   <li>{@code LINE}: a line folder, where a file may name the loader. A marker with a reason, or a class that
+     *   extends a Satchel type, passes every import of the file.</li>
+     *   <li>{@code SHARED}: the folder every line compiles. A loader class is never allowed, and a marker excuses
+     *   nothing; a Minecraft class must be on the list, in a side package of its own side, or in a file with a
+     *   class that extends a Satchel type.</li>
+     * </ul>
+     */
+    public enum Rule {
+        LINE, SHARED
+    }
+
+    /**
+     * A source root and the rule its files are read under.
+     *
+     * @param label a name put before each file's path in a report, so two roots with the same path inside them can
+     *              be told apart; empty for none
+     * @param path  the source root
+     * @param rule  the rule its files take
+     */
+    public record Root(String label, Path path, Rule rule) {
+    }
+
+    private static final String LOADER_IN_SHARED_PROBLEM =
+            "a loader class cannot be named in shared, since it does not compile on every line; "
+                    + "move the file to the line folders or put the call behind a seam";
+
+    private static final String SHARED_PROBLEM =
+            "not on the authorized list, and in shared a marker does not excuse it and the file does not extend a "
+                    + "Satchel type; the class belongs in the line folders";
+
     /** Where a Satchel type lives. */
     private static final String SATCHEL_PACKAGE = "com.arryn.satchel.";
 
     private static final String PACKAGE_IMPORT_PROBLEM =
             "a package import cannot be checked against the list; import the classes by name";
+
+    /** The Minecraft packages that hold the classes of one side. */
+    private static final String SERVER_CLASSES = "net.minecraft.server.";
+    private static final String CLIENT_CLASSES = "net.minecraft.client.";
 
     private static final Pattern IMPORT = Pattern.compile(
             "(?<![\\w$.])import\\s+(static\\s+)?([A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)*)(\\s*\\.\\s*\\*)?\\s*;");
@@ -571,7 +617,7 @@ public final class PlatformBoundScanner {
 
     /** A fully qualified platform class in code: lower-case package segments, then the first class. */
     private static final Pattern QUALIFIED_PLATFORM = Pattern.compile(
-            "(?<![\\w$.])net\\.(?:minecraftforge|minecraft)(?:\\.[a-z_]\\w*)*\\.[A-Z][\\w$]*");
+            "(?<![\\w$.])net\\.(?:minecraftforge|neoforged|minecraft)(?:\\.[a-z_]\\w*)*\\.[A-Z][\\w$]*");
 
     private static final Pattern HEADER_KEYWORD = Pattern.compile("\\b(extends|implements|permits)\\b");
 
@@ -587,27 +633,54 @@ public final class PlatformBoundScanner {
     public static ImportResult scanImportSources(Map<String, String> sources, Set<String> authorized) {
         List<Unit> units = new ArrayList<>();
         for (Map.Entry<String, String> source : sources.entrySet()) {
-            units.add(unit(source.getKey(), source.getValue()));
+            units.add(unit(source.getKey(), source.getValue(), Rule.LINE));
         }
+        return scanUnits(units, authorized);
+    }
+
+    /**
+     * The import offenders under {@code roots}, each file read under its root's rule. The roots are read together,
+     * since a line class can extend a shared one and the reverse; a report names a file by its root's label and its
+     * path inside the root.
+     */
+    public static ImportResult scanImportRoots(List<Root> roots, Set<String> authorized) {
+        List<Unit> units = new ArrayList<>();
+        for (Root root : roots) {
+            for (Map.Entry<String, String> source : readTree(root.path()).entrySet()) {
+                String name = root.label().isEmpty() ? source.getKey() : root.label() + "/" + source.getKey();
+                units.add(unit(name, source.getValue(), root.rule()));
+            }
+        }
+        return scanUnits(units, authorized);
+    }
+
+    private static ImportResult scanUnits(List<Unit> units, Set<String> authorized) {
         Hierarchy hierarchy = new Hierarchy(units);
 
         List<ImportOffender> offenders = new ArrayList<>();
         int platformClasses = 0;
         for (Unit unit : units) {
             platformClasses += unit.uses.size();
-            if (unit.marked) continue;
-            if (unit.declared.stream().anyMatch(hierarchy::extendsSatchel)) continue;
 
-            String problem = unit.unreasoned
+            boolean shared = unit.rule == Rule.SHARED;
+            boolean extendsSatchel = unit.declared.stream().anyMatch(hierarchy::extendsSatchel);
+            // What the file's own standing excuses, for a Minecraft class: in a line folder a marker or a Satchel
+            // supertype excuses every import; in shared only the Satchel supertype does, and never a loader class.
+            boolean excused = shared ? extendsSatchel : unit.marked || extendsSatchel;
+
+            String problem = shared ? SHARED_PROBLEM : unit.unreasoned
                     ? "not on the authorized list, and the file's @PlatformBound has no reason"
                     : "not on the authorized list, and the file neither carries @PlatformBound nor extends a Satchel type";
             for (PlatformUse use : unit.uses) {
-                if (use.packageImport()) {
-                    offenders.add(new ImportOffender(unit.name, lineOf(unit.source, use.offset()), use.imported(),
-                            PACKAGE_IMPORT_PROBLEM));
-                } else if (!authorized.contains(use.imported())) {
-                    offenders.add(new ImportOffender(unit.name, lineOf(unit.source, use.offset()), use.imported(),
-                            problem));
+                int line = lineOf(unit.source, use.offset());
+                if (shared && isLoader(use.imported())) {
+                    offenders.add(new ImportOffender(unit.name, line, use.imported(), LOADER_IN_SHARED_PROBLEM));
+                } else if (excused) {
+                    continue;
+                } else if (use.packageImport()) {
+                    offenders.add(new ImportOffender(unit.name, line, use.imported(), PACKAGE_IMPORT_PROBLEM));
+                } else if (!authorized.contains(use.imported()) && !namesOwnSide(unit.pkg, use.imported())) {
+                    offenders.add(new ImportOffender(unit.name, line, use.imported(), problem));
                 }
             }
         }
@@ -668,6 +741,57 @@ public final class PlatformBoundScanner {
         }
     }
 
+    // =================================================================
+    // Usage: how an id is built
+    // =================================================================
+
+    /**
+     * A use of a platform class that its import being free does not excuse: a line of code that breaks the
+     * condition the authorized list gives the entry.
+     *
+     * @param file    the source file, relative to the scanned root, with forward slashes
+     * @param line    the line of the use
+     * @param used    what the line does ({@code new ResourceLocation(})
+     * @param problem why it is not allowed
+     */
+    public record UsageOffender(String file, int line, String used, String problem) {
+        @Override
+        public String toString() {
+            return file + ":" + line + "  " + used + "  " + problem;
+        }
+    }
+
+    private static final String RESOURCE_LOCATION_PROBLEM =
+            "build an id with Ids.id, the one place that constructs a ResourceLocation, so a version that changes "
+                    + "the constructor changes one method";
+
+    /** {@code new ResourceLocation(}, or the same with the package written out. */
+    private static final Pattern NEW_RESOURCE_LOCATION = Pattern.compile(
+            "(?<![\\w$.])new\\s+(?:net\\s*\\.\\s*minecraft\\s*\\.\\s*resources\\s*\\.\\s*)?ResourceLocation\\s*\\(");
+
+    /**
+     * Every {@code new ResourceLocation(} in code under {@code sourceRoot}, one offender per use. The list's entry for
+     * {@code ResourceLocation} is free to import on the condition that an id is built in one place, a helper that
+     * does not call the constructor itself; a use anywhere is a use outside it. Comments and string literals are
+     * not code.
+     */
+    public static List<UsageOffender> scanResourceLocationConstructors(Path sourceRoot) {
+        return scanResourceLocationSources(readTree(sourceRoot));
+    }
+
+    /** {@link #scanResourceLocationConstructors} over {@code sources}, each file's name to its text. */
+    public static List<UsageOffender> scanResourceLocationSources(Map<String, String> sources) {
+        List<UsageOffender> offenders = new ArrayList<>();
+        for (Map.Entry<String, String> source : sources.entrySet()) {
+            Matcher m = NEW_RESOURCE_LOCATION.matcher(strip(source.getValue()).code());
+            while (m.find()) {
+                offenders.add(new UsageOffender(source.getKey(), lineOf(source.getValue(), m.start()),
+                        "new ResourceLocation(", RESOURCE_LOCATION_PROBLEM));
+            }
+        }
+        return offenders;
+    }
+
     // -----------------------------------------------------------------
     // One file, read for the second rule
     // -----------------------------------------------------------------
@@ -684,6 +808,8 @@ public final class PlatformBoundScanner {
         final String name;
         final String source;
         final String pkg;
+        /** The rule the file's root takes. */
+        final Rule rule;
         /** Simple name to fully qualified name, for the file's single-type imports. */
         final Map<String, String> imports = new HashMap<>();
         final List<PlatformUse> uses = new ArrayList<>();
@@ -693,17 +819,18 @@ public final class PlatformBoundScanner {
         /** Some class in the file carries {@code @PlatformBound} with no reason. */
         boolean unreasoned;
 
-        Unit(String name, String source, String pkg) {
+        Unit(String name, String source, String pkg, Rule rule) {
             this.name = name;
             this.source = source;
             this.pkg = pkg;
+            this.rule = rule;
         }
     }
 
-    private static Unit unit(String name, String source) {
+    private static Unit unit(String name, String source, Rule rule) {
         Stripped stripped = strip(source);
         String code = stripped.code();
-        Unit unit = new Unit(name, source, packageOf(code));
+        Unit unit = new Unit(name, source, packageOf(code), rule);
 
         // The first use of each platform class: an import, or a fully qualified name in the code.
         Map<String, PlatformUse> uses = new LinkedHashMap<>();
@@ -761,7 +888,24 @@ public final class PlatformBoundScanner {
     }
 
     private static boolean isPlatform(String name) {
-        return name.startsWith("net.minecraft.") || name.startsWith("net.minecraftforge.");
+        return name.startsWith("net.minecraft.") || isLoader(name);
+    }
+
+    /** A loader class: Forge's or NeoForge's. */
+    private static boolean isLoader(String name) {
+        return name.startsWith("net.minecraftforge.") || name.startsWith("net.neoforged.");
+    }
+
+    /**
+     * Whether {@code imported} is a Minecraft class of the side the file's package is for: a {@code net.minecraft.server}
+     * class in a package with a {@code server} segment, a {@code net.minecraft.client} class in one with a {@code client}
+     * segment. A loader class of either side is not covered, since it does not compile on every line, and neither is a
+     * class of the other side.
+     */
+    private static boolean namesOwnSide(String pkg, String imported) {
+        List<String> segments = List.of(pkg.split("\\."));
+        return (imported.startsWith(SERVER_CLASSES) && segments.contains("server"))
+                || (imported.startsWith(CLIENT_CLASSES) && segments.contains("client"));
     }
 
     /**

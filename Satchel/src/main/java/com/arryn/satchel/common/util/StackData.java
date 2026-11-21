@@ -58,7 +58,7 @@ import java.util.Optional;
  * Side-agnostic: client code reads stacks too. Pure static utility -- no fixture, no bundle, no
  * {@code JigConfig}.
  */
-@PlatformBound(reason = "The one place module code reads or writes item-stack data")
+@PlatformBound(reason = "stack data namespace")
 public final class StackData {
 
     private StackData() {

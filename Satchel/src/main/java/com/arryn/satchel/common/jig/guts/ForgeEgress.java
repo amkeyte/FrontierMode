@@ -26,7 +26,7 @@ import java.util.UUID;
  * {@code LogicalFoundation.booter()} is private (see SAT_038), and this interface's whole reason
  * for existing is to give side-agnostic callers like {@code MobJig} a path that never needs it.
  */
-@PlatformBound(reason = "The read seam into the world, answered differently by each side")
+@PlatformBound(reason = "egress")
 public interface ForgeEgress {
 
     Optional<Entity> getEntity(Level level, UUID uuid);

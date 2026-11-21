@@ -1,11 +1,11 @@
-package com.arryn.satchel.common.persistence;
+package com.arryn.satchel.server.persistence;
 
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.net.S2cBundleParcel;
-import com.arryn.satchel.common.net.SatchelNetwork;
+import com.arryn.satchel.server.net.ServerNetwork;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,8 +43,8 @@ public final class ParcelEgressSink {
     /**
      * Emits a parcel containing the given bundle snapshot. Picks the distributor by scope kind
      * (SAT_063) -- {@link PlayerScope} goes out per-player via {@link
-     * SatchelNetwork#sendToPlayer}, everything else still goes out per-dimension via {@link
-     * SatchelNetwork#send} ({@link com.arryn.satchel.common.jig.level.LevelScope}-only, by that
+     * ServerNetwork#sendToPlayer}, everything else still goes out per-dimension via {@link
+     * ServerNetwork#send} ({@link com.arryn.satchel.common.jig.level.LevelScope}-only, by that
      * method's own doc; {@code MobScope} networking has no distribution path built at all yet --
      * see the wiki's Networking § Known gaps section -- so nothing routes a {@code MobScope}
      * through here today).
@@ -58,9 +58,9 @@ public final class ParcelEgressSink {
         );
 
         if (scopeInfo.scope() instanceof PlayerScope) {
-            SatchelNetwork.sendToPlayer(scopeInfo, parcel);
+            ServerNetwork.sendToPlayer(scopeInfo, parcel);
         } else {
-            SatchelNetwork.send(scopeInfo, parcel);
+            ServerNetwork.send(scopeInfo, parcel);
         }
     }
 
@@ -77,6 +77,6 @@ public final class ParcelEgressSink {
                 snapshot
         );
 
-        SatchelNetwork.sendToPlayer(player, scopeInfo, parcel);
+        ServerNetwork.sendToPlayer(player, scopeInfo, parcel);
     }
 }

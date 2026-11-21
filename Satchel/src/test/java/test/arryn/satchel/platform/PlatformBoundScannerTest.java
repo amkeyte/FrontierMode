@@ -63,6 +63,31 @@ class PlatformBoundScannerTest {
     }
 
     @Test
+    void a_neoforge_listener_is_a_listener_too() {
+        // NeoForge keeps the names and moves the packages, so the scan reads them as it reads Forge's.
+        Offender annotation = onlyOffender("""
+                import net.neoforged.bus.api.SubscribeEvent;
+                public class A {
+                    @net.neoforged.bus.api.SubscribeEvent
+                    public static void on(Object e) { }
+                }
+                """);
+        assertEquals("@net.neoforged.bus.api.SubscribeEvent", annotation.listener());
+
+        assertEquals("@net.neoforged.fml.common.EventBusSubscriber", onlyOffender("""
+                @net.neoforged.fml.common.EventBusSubscriber(modid = "x")
+                public final class A { }
+                """).listener());
+
+        assertTrue(scan("""
+                @PlatformBound(reason = "registration")
+                public class A {
+                    A(IEventBus bus) { bus.addListener(this::on); }
+                }
+                """).offenders().isEmpty());
+    }
+
+    @Test
     void an_unmarked_event_bus_subscriber_fails_and_a_marked_one_passes() {
         String header = "@Mod.EventBusSubscriber(modid = \"x\", bus = Mod.EventBusSubscriber.Bus.FORGE)\n";
 
