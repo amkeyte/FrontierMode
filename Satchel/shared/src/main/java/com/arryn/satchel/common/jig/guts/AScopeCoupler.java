@@ -1,0 +1,415 @@
+package com.arryn.satchel.common.jig.guts;
+
+import com.arryn.satchel.common.bundle.SatchelBundle;
+import com.arryn.satchel.common.identity.BundleKey;
+import com.arryn.satchel.common.jig.config.*;
+import com.arryn.satchel.common.trinket.Ticking;
+import com.arryn.satchel.common.trinket.Trinket;
+import com.arryn.satchel.common.trinket.TrinketDecl;
+import com.arryn.satchel.common.trinket.TrinketSet;
+import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.world.entity.player.Player;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+/**
+ * Base {@link ScopeCoupler} every real coupler ({@code LevelScopeCoupler}, {@code
+ * MobScopeCoupler}, {@code PlayerScopeCoupler}) extends. Wires the mechanical plumbing --
+ * engine binding, config installation, readiness gating around {@link #get}/{@link
+ * #ask}/{@link #getOrCreate}, lifecycle forwarding from the engine.
+ *
+ * <p>
+ * It supplies no hook. A coupler implements all eight before/after hooks and {@code
+ * markReady} itself, so it states what it gates, even when that is nothing: a hook nobody
+ * wrote cannot be mistaken for one somebody decided. The three couplers Satchel supplies
+ * are the worked example; {@link ScopeCoupler}'s class javadoc has the motivating cases
+ * for a real gate.
+ */
+public abstract class AScopeCoupler implements ScopeCoupler {
+
+    private ScopeEngine engine;
+
+    // ---------------------------------------------------------------------
+    // Engine binding
+    // ---------------------------------------------------------------------
+
+    @Override
+    public final void installEngine(ScopeEngine engine) {
+        Objects.requireNonNull(engine, "engine");
+        if (this.engine != null) {
+            throw new IllegalStateException("Coupler already bound to engine");
+        }
+        this.engine = engine;
+        OUT.debug("Engine installed for " + debugName());
+    }
+
+    protected final ScopeEngine engine() {
+        if (engine == null) {
+            throw new IllegalStateException("Engine not installed: " + debugName());
+        }
+        return engine;
+    }
+
+    // ---------------------------------------------------------------------
+    // Public API
+    // ---------------------------------------------------------------------
+
+    @Override
+    public final <B extends SatchelBundle> Optional<B> ask(
+            ScopeInfoImpl info,
+            BundleKey<B> key
+    ) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(key, "key");
+        requireConfig();
+
+        if (!isReady(info)) return Optional.empty();
+
+        if (beforeAccess(info, key) == AccessDecision.DENY) {
+            return Optional.empty();
+        }
+
+        Optional<B> bundle = engine().ask(info, key);
+
+        if (bundle.isPresent()
+                && afterAccess(info, key, bundle.get()) == AccessDecision.DENY) {
+            return Optional.empty();
+        }
+
+        return bundle;
+    }
+
+    @Override
+    public final <B extends SatchelBundle> B get(
+            ScopeInfoImpl info,
+            BundleKey<B> key
+    ) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(key, "key");
+        requireConfig();
+
+        requireReady(info, key);
+
+        if (beforeAccess(info, key) == AccessDecision.DENY) {
+            throw new SatchelException.AccessDenied("Hook refused access.");
+        }
+
+        B bundle = engine().get(info, key);
+
+        if (afterAccess(info, key, bundle) == AccessDecision.DENY) {
+            throw new SatchelException.AccessDenied("Hook refused bundle validation.");
+        }
+
+        return bundle;
+    }
+
+    @Override
+    public final <B extends SatchelBundle> B getOrCreate(
+            ScopeInfoImpl info,
+            BundleKey<B> key
+    ) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(key, "key");
+        requireConfig();
+
+        requireReady(info, key);
+
+        // BundleNotFound here is the expected, routine signal for "no bundle yet, fall through
+        // and create one" -- true for every scope's first-ever getOrCreate() call (a freshly
+        // spawned mob, a freshly loaded level, ...), not an anomaly. Used to log at WARN as dev-
+        // tracking while this fallback path was being built; confirmed correct and removed now
+        // that it's just noise on every single new scope, forever, for the life of the world.
+        try {
+            return get(info, key);
+        } catch (SatchelException.BundleNotFound ignored) {
+            // fall through to create below
+        }
+
+
+        if (beforeCreate(info, key) == AccessDecision.DENY) {
+            throw new SatchelException.AccessDenied("Hook refused bundle creation.");
+        }
+
+        B bundle = engine().create(info, key);
+
+        if (afterCreate(info, key, bundle) == AccessDecision.DENY) {
+            throw new SatchelException.AccessDenied("Hook refused bundle afterCreate.");
+        }
+
+        if (afterAccess(info, key, bundle) == AccessDecision.DENY) {
+            throw new SatchelException.AccessDenied("Hook refused bundle afterAccess.");
+        }
+
+        return bundle;
+    }
+
+    // ---------------------------------------------------------------------
+    // Lifecycle forwarding
+    // ---------------------------------------------------------------------
+
+    @Override
+    public void onScopeLoad(ScopeInfoImpl info) {
+        requireConfig();
+
+        // Every declared Trinket is constructed first, then attached in declaration order, so a
+        // sibling always exists during onAttach. The set is registered before attaching so a
+        // sibling lookup from inside onAttach resolves.
+        List<TrinketDecl<?>> decls = declaredFor(info);
+        if (decls.isEmpty()) return;
+
+        TrinketSet set = TrinketSet.construct(decls);
+        trinkets.put(info, set);
+        set.attachAll(info);
+
+        // Ticking Trinkets join the foundation's global list once attached, so one whose attach
+        // threw never ticks. The tick under way, if any, has its snapshot already: they first run
+        // in the next one.
+        set.registerTicking(info, info.jigInfo().trinketTick());
+    }
+
+    @Override
+    public void onExecutionPulse(ScopeInfoImpl info) {
+        requireConfig();
+        requireReady(info);
+
+        if (!execution().lifecycle().participatesInExecutionPulse()) return;
+
+        engine().onExecutionPulse(info);
+    }
+
+    @Override
+    public void pushTo(ScopeInfoImpl info, Player player) {
+        requireConfig();
+
+        engine().pushTo(info, player);
+    }
+
+    @Override
+    public final void onJigTick(ScopeInfoImpl info) {
+        requireConfig();
+        requireReady(info);
+
+        if (!execution().lifecycle().participatesInTick()) return;
+
+        // The scope's internal tick only: Trinkets run in the foundation's global steps around the
+        // walk this belongs to, in TrinketTick's order.
+        beforeTick(info);
+        engine().onJigTick(info);
+        afterTick(info);
+    }
+
+    @Override
+    public final void tickTrinketBefore(ScopeInfoImpl info, Ticking trinket) {
+        if (mayTick(info, trinket)) trinket.onTickBefore(info);
+    }
+
+    @Override
+    public final void tickTrinketAfter(ScopeInfoImpl info, Ticking trinket) {
+        if (mayTick(info, trinket)) trinket.onTickAfter(info);
+    }
+
+    /**
+     * The gate every call in the global Trinket list goes through: the jig's tick policy, then this
+     * coupler's readiness for the scope, then the Trinket's own.
+     */
+    private boolean mayTick(ScopeInfo info, Ticking trinket) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(trinket, "trinket");
+        requireConfig();
+
+        return execution().lifecycle().participatesInTick()
+                && isReady(info)
+                && trinket.isReady(info);
+    }
+
+    @Override
+    public void onScopeUnload(ScopeInfoImpl info) {
+        requireConfig();
+
+        // First, before anything can throw: a tick under way must never run a Trinket whose scope
+        // is unloading.
+        TrinketSet unloading = trinkets.get(info);
+        if (unloading != null) unloading.retireTicking();
+
+        // The scope's own event consumers end with it, whether or not their subscriber remembers to.
+        info.dropSubscriptions();
+
+        requireReady(info);
+
+        beforeUnload(info);
+        // Trinkets detach before the engine unloads the bundles, so a fixture write made in
+        // onDetach is saved by the engine's terminal flush. A throw in onDetach still propagates,
+        // but only after the unload below has run; the set is dropped either way.
+        try {
+            TrinketSet set = trinkets.get(info);
+            if (set != null) {
+                // A mob scope has a reason it left; the Leaving Trinkets hear it before any onDetach.
+                LeaveReason reason = info.leaveReason();
+                if (reason != null) set.leaveAll(info, reason);
+                set.detachAll(info);
+            }
+        } finally {
+            try {
+                engine().unload(info);
+            } finally {
+                trinkets.remove(info);
+            }
+        }
+        afterUnload(info);
+    }
+
+    // ---------------------------------------------------------------------
+    // Trinkets
+    // ---------------------------------------------------------------------
+
+    /**
+     * One set per loaded scope, keyed by identity ({@link ScopeInfoImpl} has no equals). A jig that
+     * declares no Trinkets never adds an entry.
+     */
+    private final Map<ScopeInfo, TrinketSet> trinkets = new ConcurrentHashMap<>();
+
+    @Override
+    public final boolean declaresTrinket(Class<? extends Trinket> type) {
+        requireConfig();
+        return trinketsConfig.declarations().stream().anyMatch(d -> d.type() == type);
+    }
+
+    /**
+     * The declarations this scope gets: the jig's, minus any contributed for the other side.
+     */
+    private List<TrinketDecl<?>> declaredFor(ScopeInfoImpl info) {
+        LogicalSide side = info.jigInfo().side();
+        return trinketsConfig.declarations().stream()
+                .filter(d -> d.appliesTo(side))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public final <T extends Trinket> Optional<T> trinket(ScopeInfoImpl info, Class<T> type) {
+        Objects.requireNonNull(info, "info");
+        Objects.requireNonNull(type, "type");
+        requireConfig();
+
+        if (declaredFor(info).stream().noneMatch(d -> d.type() == type)) {
+            throw new SatchelException.Generic(
+                    "Jig " + debugName() + " does not declare Trinket " + type.getName()
+                            + " on side " + info.jigInfo().side());
+        }
+
+        if (!isReady(info)) return Optional.empty();
+
+        // Before onScopeLoad has attached the set, there is nothing to return. Once it has, the
+        // Trinket exists, but until its own isReady says so, a lookup answers empty.
+        TrinketSet set = trinkets.get(info);
+        if (set == null) return Optional.empty();
+        return set.get(type).filter(t -> t.isReady(info));
+    }
+
+    @Override
+    public final List<TrinketSet.Slot> trinkets(ScopeInfo info) {
+        Objects.requireNonNull(info, "info");
+        TrinketSet set = trinkets.get(info);
+        return set == null ? List.of() : set.slots();
+    }
+
+    // ---------------------------------------------------------------------
+    // Hooks -- none supplied here. ScopeCoupler declares the eight before/after hooks and
+    // markReady, and every concrete coupler implements each one, so a coupler states what it
+    // gates (nothing, for the three Satchel supplies) and never inherits an answer.
+    // ---------------------------------------------------------------------
+
+// ---------------------------------------------------------------------
+// Readiness
+// ---------------------------------------------------------------------
+
+    public final boolean isReady(ScopeInfo info) {
+        Objects.requireNonNull(info, "info");
+        requireConfig();
+
+        switch (policies().readiness().mode()) {
+
+            case IMMEDIATE:
+                return true;
+
+            case DEFERRED:
+                return info.isReady();
+
+            default:
+                throw new IllegalStateException(
+                        "Unhandled readiness mode: " +
+                                policies().readiness().mode()
+                );
+        }
+    }
+
+    @Override
+    public final boolean tryMarkReady(ScopeInfo info) {
+        Objects.requireNonNull(info, "info");
+        if (isReady(info)) return true;
+        return markReady(info);
+    }
+
+    public final void requireReady(ScopeInfo info) {
+        if (!isReady(info)) {
+            throw new SatchelException.ScopeNotReady(
+                    "Scope not ready: " + info.debugName()
+            );
+        }
+    }
+
+    @Override
+    public final void requireReady(ScopeInfo info, BundleKey<?> key) {
+        if (!isReady(info)) {
+            throw new SatchelException.AccessFailed(
+                    "Coupler accessed before ready: "
+                            + debugName()
+                            + " scope=" + info.debugName()
+                            + " key=" + key.name
+            );
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Policy helpers (live config reads)
+    // ---------------------------------------------------------------------
+
+    public String debugName() {
+        return getClass().getSimpleName()
+                + "@" + System.identityHashCode(this);
+    }
+
+    // ---------------------------------------------------------------------
+    // CONFIG (live reference, no flattening)
+    // ---------------------------------------------------------------------
+
+    private JigBindingConfig<?,?> binding;
+    private JigExecutionConfig execution;
+    private JigPoliciesConfig policies;
+    private JigBundlesConfig<?> bundles;
+    private JigTrinketsConfig trinketsConfig;
+
+    @Override
+    public void installJigConfig(CompiledJigConfig config) {
+        binding = config.binding();
+        execution = config.execution();
+        policies = config.policies();
+        bundles = config.bundles();
+        trinketsConfig = config.trinkets();
+    }
+
+    protected final void requireConfig() {
+        if (binding == null) {
+            throw new IllegalStateException("JigConfig not installed: " + debugName());
+        }
+    }
+
+    @Override public JigBindingConfig<?, ?> binding() { return binding; }
+    @Override public JigExecutionConfig execution() { return execution; }
+    @Override public JigPoliciesConfig policies() { return policies; }
+    @Override public JigBundlesConfig<?> bundles() { return bundles; }
+}
