@@ -10,6 +10,13 @@ plugins {
 version = mod_version
 group = mod_group_id
 
+// The mod's shared source folder, compiled by this line project together with its own src (PORT_002).
+// Tree shape: <mod>/shared and <mod>/<line>/.
+def sharedDir = file("${projectDir}/../shared")
+// The line is this project's folder name (forge-1.20.1, neoforge-1.21.1). Every cross-mod and release path below
+// is built from it, so the same text serves each line and a line's chain never reaches into another's.
+def lineName = projectDir.name
+
 // ------------------------------------------------------------
 // Java
 // ------------------------------------------------------------
@@ -61,7 +68,8 @@ minecraft {
             args '--mod', mod_id,
                     '--all',
                     '--output', file('src/generated/resources'),
-                    '--existing', file('src/main/resources')
+                    '--existing', file('src/main/resources'),
+                    '--existing', file("${sharedDir}/src/main/resources")
         }
     }
 }
@@ -72,10 +80,25 @@ minecraft {
 sourceSets.main {
     java {
         srcDir 'src/main/java'
+        srcDir "${sharedDir}/src/main/java"
     }
     resources {
         srcDir 'src/main/resources'
         srcDir 'src/generated/resources'
+        srcDir "${sharedDir}/src/main/resources"      // last, so a line's own file comes first
+    }
+}
+sourceSets.test {
+    java.srcDir "${sharedDir}/src/test/java"
+    resources.srcDir "${sharedDir}/src/test/resources"
+}
+
+// Gradle silently skips a source folder that does not exist, so a wrong path would build a jar with no shared code.
+tasks.named('compileJava') {
+    doFirst {
+        if (!sharedDir.isDirectory()) {
+            throw new GradleException("Missing shared source folder ${sharedDir}: expected it beside the line folder.")
+        }
     }
 }
 
@@ -142,8 +165,8 @@ tasks.named('jar', Jar).configure {
     // License and credits ship inside the jar: CREDITS_<mod_id>.md from this module, and the
     // repo-root MIT LICENSE renamed to LICENSE_<mod_id>. Gradle silently skips a missing `from`
     // source, so doFirst fails the build instead of shipping a jar without them.
-    def creditsFile = file("CREDITS_${mod_id}.md")
-    def licenseFile = file("${projectDir}/../LICENSE")
+    def creditsFile = file("${projectDir}/../CREDITS_${mod_id}.md")   // one file at the mod's folder, shared by its lines
+    def licenseFile = file("${projectDir}/../../LICENSE")   // one level deeper than before the tree
     from(creditsFile)
     from(licenseFile) { rename('^LICENSE$', "LICENSE_${mod_id}") }
     doFirst {
@@ -205,7 +228,7 @@ tasks.register('copyToFrontierMode', Copy) {
     group = 'satchel'
     description = "Copies the dev jar into FrontierMode's run/mods and run-server/mods, removing stale Satchel jars first."
 
-    def frontierRoot = file("${projectDir}/../FrontierMode")
+    def frontierRoot = file("${projectDir}/../../FrontierMode/${lineName}")   // the same line's FrontierMode project
     // client and dedicated server run out of separate working dirs (see FrontierMode's runs{}
     // server block), so both need their own copy of the Satchel jar on the mod-loading path.
     def frontierModsDirs = [file("${frontierRoot}/run/mods"), file("${frontierRoot}/run-server/mods")]
@@ -247,10 +270,10 @@ tasks.register('copyToFrontierMode', Copy) {
 // ------------------------------------------------------------
 tasks.register('release', Copy) {
     group = 'satchel'
-    description = "Reobfuscates and copies the release jar to ../Release/${mod_version}/ for GitHub upload."
+    description = "Reobfuscates and copies the release jar to <repo root>/Release/${mod_version}/${lineName}/ for GitHub upload."
     dependsOn tasks.named('reobfJar')
 
-    def releaseDir = file("${projectDir}/../Release/${mod_version}")
+    def releaseDir = file("${projectDir}/../../Release/${mod_version}/${lineName}")
 
     doFirst {
         releaseDir.mkdirs()
@@ -268,4 +291,4 @@ tasks.matching { it.name == 'runServer' }.configureEach {
 }
 
 // World control for the dedicated server (reset / switch world) -- see gradle/server-world.gradle
-apply from: 'gradle/server-world.gradle'
+apply from: '../gradle/server-world.gradle'
