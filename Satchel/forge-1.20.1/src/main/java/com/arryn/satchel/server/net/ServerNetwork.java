@@ -98,7 +98,7 @@ public final class ServerNetwork {
      * Per-player, not per-scope/dimension like {@link ServerNetwork#send(ScopeInfoImpl, Object)} above —
      * the token is world-level state, so it goes out via {@link PacketDistributor#PLAYER} keyed on the
      * player's own connection rather than any dimension's audience. Called from
-     * {@code ServerForgeIngress} at login and again on each dimension change (see class docs on
+     * {@code ServerLifecycle} at login and again on each dimension change (see class docs on
      * {@link S2cWorldIdentityToken}).
      */
     public static void sendToken(ServerPlayer player, UUID token) {

@@ -25,6 +25,11 @@ public final class NbtFixtureHydrationSource
         this.root = Objects.requireNonNull(root, "root");
     }
 
+    /** A source that holds nothing: no fixture finds data in it, so each hydrates as it was constructed. */
+    public static NbtFixtureHydrationSource empty() {
+        return new NbtFixtureHydrationSource(new CompoundTag());
+    }
+
     /**
      * Attempts to hydrate an already-existing fixture instance.
      *

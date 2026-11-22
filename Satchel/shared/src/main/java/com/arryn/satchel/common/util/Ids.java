@@ -3,6 +3,7 @@ package com.arryn.satchel.common.util;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -18,7 +19,8 @@ import java.util.UUID;
  * Pure static utility -- no fixture, no bundle, no {@code JigConfig}. Nothing identified needs
  * state beyond the input passed in.
  * <br><br>
- * It is also where a {@link ResourceLocation} is built: {@link #id(String, String)}.
+ * It is also where a {@link ResourceLocation} is built, {@link #id(String, String)}, and where text is parsed
+ * into one, {@link Ids#parse(String)}.
  */
 public final class Ids {
 
@@ -28,7 +30,8 @@ public final class Ids {
     /**
      * The id {@code namespace:path}. Satchel and the modules built on it make an id here and nowhere else (the
      * platform check fails a direct {@code new ResourceLocation(}), so a version that changes how an id is built,
-     * as 1.21 does by making the constructor private, changes this method and nothing else.
+     * as 1.21 does by making the constructor private, changes this class and nothing else. It goes through
+     * {@link Ids#parse(String)}.
      *
      * @throws NullPointerException     if either is null
      * @throws IllegalArgumentException if {@code namespace:path} is not a valid id: a programming error
@@ -36,11 +39,21 @@ public final class Ids {
     public static ResourceLocation id(String namespace, String path) {
         Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(path, "path");
-        ResourceLocation id = ResourceLocation.tryParse(namespace + ":" + path);
-        if (id == null) {
-            throw new IllegalArgumentException("'" + namespace + ":" + path + "' is not a valid id");
-        }
-        return id;
+        return parse(namespace + ":" + path)
+                .orElseThrow(() -> new IllegalArgumentException("'" + namespace + ":" + path + "' is not a valid id"));
+    }
+
+    /**
+     * The id that {@code text} names, or empty if it is not a valid id. An id that arrives as text, a cell of a
+     * data file or a saved key, is parsed here, by Satchel and by the modules built on it; this is the one place
+     * {@code ResourceLocation.tryParse} is called. Text with no namespace is read in {@code minecraft}'s, as
+     * {@code tryParse} reads it.
+     *
+     * @throws NullPointerException if text is null
+     */
+    public static Optional<ResourceLocation> parse(String text) {
+        Objects.requireNonNull(text, "text");
+        return Optional.ofNullable(ResourceLocation.tryParse(text));
     }
 
     /**

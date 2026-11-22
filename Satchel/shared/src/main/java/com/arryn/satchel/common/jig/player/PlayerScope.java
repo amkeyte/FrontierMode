@@ -1,14 +1,10 @@
 package com.arryn.satchel.common.jig.player;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.ASatchelScope;
-import com.arryn.satchel.common.stitch.PersistStitch;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -43,7 +39,7 @@ import java.util.UUID;
  * itself is cheap either side -- a UUID-keyed map lookup server-side, a direct field read
  * client-side -- so this isn't a cached-field-vs-recompute tradeoff worth agonizing over.
  */
-public class PlayerScope extends ASatchelScope implements PersistStitch {
+public class PlayerScope extends ASatchelScope {
 
     private final UUID playerUuid;
 
@@ -91,10 +87,5 @@ public class PlayerScope extends ASatchelScope implements PersistStitch {
 
     protected UUID determineUUID(Object source) {
         return PlayerResolver.determineUUID(source);
-    }
-
-    @Override
-    public Optional<CompoundTag> loadBundleTag(BundleKey<?> key) {
-        return Optional.empty();
     }
 }

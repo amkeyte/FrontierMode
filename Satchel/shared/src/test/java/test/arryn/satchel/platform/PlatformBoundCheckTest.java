@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -81,6 +82,38 @@ class PlatformBoundCheckTest {
         assertTrue(offenders.isEmpty(), () -> "ResourceLocation is free to import on the condition that an id is built "
                 + "through Ids.id (authorized-classes.txt, Platform-Bound Code, The check):\n"
                 + offenders.stream().map(Object::toString).collect(Collectors.joining("\n")));
+    }
+
+    /**
+     * The packages of {@code shared} whose files may import {@code CompoundTag}: Satchel's persistence layer (the
+     * fixture and the bundle that save and hydrate, the hydration sources, and the egress sinks and saved-data source
+     * that move a snapshot between storage and a scope) and the SatchelHealth probes, which build tags to exercise
+     * that layer and {@code MobData}. The reading is for the two lines Satchel has, Forge 1.20.1 and NeoForge 1.21.1:
+     * a further line may change it, and this list with it (Platform-Bound Code, Authorized platform classes). A new
+     * entry is a decision, not a fix for a failing build.
+     */
+    private static final Set<String> COMPOUND_TAG_PACKAGES = Set.of(
+            "com.arryn.satchel.common.bundle",
+            "com.arryn.satchel.common.fixture",
+            "com.arryn.satchel.common.persistence",
+            "com.arryn.satchel.server.persistence",
+            "com.arryn.satchel.common.tracking");
+
+    @Test
+    void a_compound_tag_is_imported_in_shared_only_in_the_persistence_packages() {
+        Roots roots = roots();
+
+        ImportResult result = PlatformBoundScanner.scanCompoundTagRoots(
+                List.of(new Root("shared", roots.shared(), Rule.SHARED)), COMPOUND_TAG_PACKAGES);
+
+        assertTrue(result.platformClasses() > 0,
+                "the scan found no file naming CompoundTag under " + roots.shared() + ", so it checked nothing");
+        assertTrue(result.offenders().isEmpty(), () -> "CompoundTag is free to import in shared only in Satchel's "
+                + "persistence packages (authorized-classes.txt, Platform-Bound Code, Authorized platform "
+                + "classes). A module keeps a tag inside its fixture or its namespace class, and shared is not a "
+                + "module; if Satchel's own persistence layer has grown a package, that is a decision for the "
+                + "owner and COMPOUND_TAG_PACKAGES, not a fix for this build:\n"
+                + result.offenders().stream().map(Object::toString).collect(Collectors.joining("\n")));
     }
 
     /** The two source roots of the tree: Satchel's shared folder, and the line folder this test runs in. */

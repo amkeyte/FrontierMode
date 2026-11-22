@@ -29,12 +29,12 @@ import java.util.UUID;
  *
  * <p>
  * <b>Server:</b> {@code serverToken} is set once per foundation lifetime, the first time any
- * dimension loads (see {@code ServerForgeIngress.onLevelDiscover}) — always available
+ * dimension loads (see {@code ServerLifecycle.levelLoaded}) — always available
  * synchronously, no network round-trip needed, since the server owns the persisted record.
  * <p>
  * <b>Client:</b> {@code clientToken} starts unset every session and is only ever set by the S2C
  * token packet's handler, once the server has actually sent it. Deliberately session-scoped, not
- * persisted: {@code ClientForgeIngress}'s logout handler clears it, so a later connection to a
+ * persisted: {@code ClientLifecycle.loggingOut} clears it, so a later connection to a
  * different server can never see a stale token from a previous session.
  */
 public final class WorldIdentityContext {

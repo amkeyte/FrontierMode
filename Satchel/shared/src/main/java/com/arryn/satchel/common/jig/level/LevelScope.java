@@ -1,23 +1,17 @@
 package com.arryn.satchel.common.jig.level;
 
 
-import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.ASatchelScope;
-import com.arryn.satchel.common.stitch.PersistStitch;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
  * SatchelScope representing a Minecraft level.
  */
-public class LevelScope extends ASatchelScope
-        implements
-        PersistStitch {
+public class LevelScope extends ASatchelScope {
 
 
     private final Level level;
@@ -51,10 +45,5 @@ public class LevelScope extends ASatchelScope
 
     protected UUID determineUUID(Object source) {
         return LevelResolver.determineUUID(source);
-    }
-
-    @Override
-    public Optional<CompoundTag> loadBundleTag(BundleKey<?> key) {
-        return Optional.empty();
     }
 }

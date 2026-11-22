@@ -154,12 +154,12 @@ final class PlayerHealthCheck {
 
     /**
      * Same reasoning as {@link LevelHealthCheck}'s own check: {@code PlayerJig} teardown is
-     * authoritative, not inferred -- {@code ServerForgeIngress#onPlayerScopeUnload} is the only
+     * authoritative, not inferred -- {@code ServerLifecycle#removePlayer} is the only
      * place that calls {@code tryRemoveSource(player)}, and it only runs from a real {@code
      * PlayerLoggedOutEvent}. The violation this check catches is teardown firing while the player
      * is still in the server's own online-player list -- exactly what would happen if a future
      * regression wired {@code tryRemoveSource} to something else that isn't a real logout (e.g.
-     * {@code PlayerChangedDimensionEvent}, which {@code ServerForgeIngress}'s own comment already
+     * {@code PlayerChangedDimensionEvent}, which {@code ServerLifecycle#removePlayer}'s own comment already
      * flags as deliberately NOT hooked to this -- an easy mistake for someone to reintroduce later
      * without this check in place).
      *
@@ -223,7 +223,7 @@ final class PlayerHealthCheck {
                             + "player=" + playerName + " and they are STILL present in the "
                             + "server's online player list one tick later. Teardown should "
                             + "only ever follow a real PlayerLoggedOutEvent (see "
-                            + "ServerForgeIngress#onPlayerScopeUnload) -- something called "
+                            + "ServerLifecycle#removePlayer) -- something called "
                             + "tryRemoveSource for a player who never actually logged out.";
                     SatchelHealth.violation(message);
                     return;

@@ -669,6 +669,101 @@ class PlatformImportScannerTest {
     }
 
     /* ------------------------------------------------------------
+     * Where a CompoundTag is imported
+     * --------------------------------------------------------- */
+
+    private static final Set<String> TAG_PACKAGES = Set.of("m.persistence");
+
+    private static ImportResult scanTags(Path shared, Path line) {
+        return PlatformBoundScanner.scanCompoundTagRoots(List.of(
+                new Root("shared", shared, Rule.SHARED),
+                new Root("forge-1.20.1", line, Rule.LINE)), TAG_PACKAGES);
+    }
+
+    @Test
+    void a_compound_tag_in_shared_passes_in_an_allowed_package_and_fails_in_another(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/persistence/Sink.java", """
+                package m.persistence;
+                import net.minecraft.nbt.CompoundTag;
+                public class Sink { void emit(CompoundTag tag) { } }
+                """);
+        write(shared, "m/module/Mod.java", """
+                package m.module;
+                import net.minecraft.nbt.CompoundTag;
+                public class Mod { CompoundTag data; }
+                """);
+
+        ImportResult result = scanTags(shared, dir.resolve("line"));
+
+        assertEquals(List.of("shared/m/module/Mod.java  net.minecraft.nbt.CompoundTag"), baseline(result));
+        assertTrue(onlyOffender(result).problem().contains("persistence packages"), result.offenders()::toString);
+        assertEquals(2, result.platformClasses());
+    }
+
+    @Test
+    void a_fully_qualified_compound_tag_in_the_code_counts_as_an_import(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/module/Mod.java", """
+                package m.module;
+                public class Mod { net.minecraft.nbt.CompoundTag data = new net.minecraft.nbt.CompoundTag(); }
+                """);
+
+        assertEquals("net.minecraft.nbt.CompoundTag", onlyOffender(scanTags(shared, dir.resolve("line"))).imported());
+    }
+
+    @Test
+    void a_subpackage_of_an_allowed_package_is_not_allowed(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/persistence/deep/Deep.java", """
+                package m.persistence.deep;
+                import net.minecraft.nbt.CompoundTag;
+                public class Deep { CompoundTag data; }
+                """);
+
+        assertEquals(List.of("shared/m/persistence/deep/Deep.java  net.minecraft.nbt.CompoundTag"),
+                baseline(scanTags(shared, dir.resolve("line"))));
+    }
+
+    @Test
+    void only_shared_roots_are_read_for_a_compound_tag(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        Path line = dir.resolve("line");
+        write(shared, "m/persistence/Sink.java", """
+                package m.persistence;
+                import net.minecraft.nbt.CompoundTag;
+                public class Sink { CompoundTag data; }
+                """);
+        write(line, "m/module/Platform.java", """
+                package m.module;
+                import net.minecraft.nbt.CompoundTag;
+                public class Platform { CompoundTag data; }
+                """);
+
+        ImportResult result = scanTags(shared, line);
+
+        assertTrue(result.offenders().isEmpty(), result.offenders()::toString);
+        assertEquals(1, result.platformClasses());
+    }
+
+    @Test
+    void another_nbt_class_and_a_mention_in_a_comment_are_not_a_compound_tag(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/module/Mod.java", """
+                package m.module;
+                import net.minecraft.nbt.Tag;
+                // A CompoundTag is not named here, only mentioned: net.minecraft.nbt.CompoundTag
+                public class Mod { Tag tag; }
+                """);
+
+        ImportResult result = scanTags(shared, dir.resolve("line"));
+
+        assertTrue(result.offenders().isEmpty(), result.offenders()::toString);
+        assertEquals(0, result.platformClasses());
+    }
+
+    /* ------------------------------------------------------------
      * The baseline and the list
      * --------------------------------------------------------- */
 

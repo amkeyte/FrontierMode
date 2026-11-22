@@ -132,7 +132,7 @@ final class LevelHealthCheck {
 
     /**
      * Unlike {@link MobHealthCheck}'s check, {@code LevelJig} teardown isn't <i>inferred</i> from
-     * a poll -- {@code ServerForgeIngress#onLevelUnload} is the only place that calls {@code
+     * a poll -- {@code ServerLifecycle#levelUnloaded} is the only place that calls {@code
      * tryRemoveSource(level)}, and it only runs from a real {@code LevelEvent.Unload}. So the
      * violation this check catches isn't "is the dimension actually gone" (trivially true given
      * how teardown is wired today) but "did teardown get triggered for a dimension that's still
@@ -147,7 +147,7 @@ final class LevelHealthCheck {
      * {@code LevelEvent.Unload} -> this handler) always runs on the server thread, so a
      * same-instant check would false-positive on every legitimate unload too. Queuing onto {@link
      * SatchelHealth#defer}, drained once per server tick from a genuinely later
-     * call chain ({@code ServerForgeIngress#onExecutionPulse}, the next tick's execution pulse),
+     * call chain ({@code ServerLifecycle#tick}, the next tick's execution pulse),
      * is what makes the check observe the real post-unload state. On final process shutdown
      * specifically, the tick loop has already stopped before {@code stopServer()} fires this
      * event, so the queue is never pumped again and the check is silently abandoned rather than
@@ -185,7 +185,7 @@ final class LevelHealthCheck {
                             + "server's actively-registered level instance for that dimension "
                             + "key one tick later. Teardown should only ever follow a real "
                             + "LevelEvent.Unload for this exact level (see "
-                            + "ServerForgeIngress#onLevelUnload) -- something called "
+                            + "ServerLifecycle#levelUnloaded) -- something called "
                             + "tryRemoveSource for a level that never actually unloaded.";
                     SatchelHealth.violation(message);
                     return;

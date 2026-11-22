@@ -95,7 +95,7 @@ public class SatchelMod {
 
             // SAT_093: Tunables load once per game, here -- before any world exists, so a Tunable
             // read during world creation (the new-world spawn search) sees the CSV, and a bad row
-            // is a mod-loading error. ServerForgeIngress re-reads them before each server starts
+            // is a mod-loading error. ServerLifecycle re-reads them before each server starts
             // and saves them as it stops.
             TunableManager.load();
         });

@@ -281,17 +281,21 @@ public class MobJig extends ASatchelJig<MobScope> {
      * a normally loading scope is {@code LOADED} with its Trinkets attached.
      *
      * <p>
-     * Builds only for a mob that has joined the level and is not removed: Forge sets {@code
-     * isAddedToWorld()} after the join, and posts the mob's own {@code EntityJoinLevelEvent} before it,
-     * where the join can still be cancelled or refused for a duplicate UUID, so a scope built then
-     * could exist for a mob that never joined. Nor does it build while the UUID's scope is unloading
-     * or the jig is resetting.
+     * Builds only for a mob that has joined the level and is not removed: the mob has joined when the
+     * egress finds this very object in its level under its UUID, the same lookup {@link #resolve}
+     * makes. The mob's own {@code EntityJoinLevelEvent} is posted before the level indexes it, where
+     * the join can still be cancelled or refused for a duplicate UUID, so a scope built then could
+     * exist for a mob that never joined; the lookup finds nothing for a cancelled join, and for a
+     * duplicate UUID finds the other entity, not this one. Nor does it build while the UUID's scope is
+     * unloading or the jig is resetting.
      */
     private Optional<ScopeInfoImpl> introduce(JigInfo info, Mob mob) {
         Optional<ScopeInfoImpl> existing = info.scopeInfo(mob.getUUID());
         if (existing.isPresent()) return existing;
         if (blocked(mob.getUUID())) return Optional.empty();
-        if (!mob.isAddedToWorld() || mob.isRemoved()) return Optional.empty();
+        if (mob.isRemoved()) return Optional.empty();
+        Optional<Entity> inLevel = info.foundation().egress().getEntity(mob.level(), mob.getUUID());
+        if (inLevel.isEmpty() || inLevel.get() != mob) return Optional.empty();
 
         return Optional.of(build(info, mob));
     }

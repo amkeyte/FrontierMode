@@ -16,7 +16,6 @@ import com.arryn.satchel.server.persistence.ParcelEgressSink;
 import com.arryn.satchel.server.persistence.SavedDataEgressSink;
 import com.arryn.satchel.server.persistence.SavedDataHydrationSource;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -344,7 +343,7 @@ public final class ScopeEngine_Server implements ScopeEngine {
                 // (ERROR) rejected outright instead of papered over. Not a raw FixtureHydrator
                 // call -- that class explicitly documents itself as performing no lifecycle
                 // transitions; bundle.hydrateFrom(...) is the real entry point (see SAT_061).
-                NbtFixtureHydrationSource fallback = new NbtFixtureHydrationSource(new CompoundTag());
+                NbtFixtureHydrationSource fallback = NbtFixtureHydrationSource.empty();
 
                 JigPolicies.MissingDataPolicy policy = info.policies().persistence().missingPolicy();
 

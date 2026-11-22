@@ -13,7 +13,6 @@ import com.arryn.satchel.common.util.MobData;
 import com.arryn.satchel.common.util.MobDataStore;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -120,20 +119,12 @@ final class MobDataHealthCheck {
             expect(mob, false, "after a write of an empty compound");
 
             MobData.write(mob, NAMESPACE, data);
-            CompoundTag saved = new CompoundTag();
-            mob.saveWithoutId(saved);
-            CompoundTag container = saved.getCompound("ForgeCaps").getCompound(MobDataStore.ID.toString());
-            if (!container.contains(NAMESPACE.toString(), Tag.TAG_COMPOUND)) {
-                violation("could not stage the saved-data case: the mob's save does not carry what was written");
-            } else {
-                container.put(NAMESPACE.toString(), new CompoundTag());
-                mob.load(saved);
-                expect(mob, false, "for an empty compound loaded under the namespace");
-                if (!MobData.writeIfAbsent(mob, NAMESPACE, data)) {
-                    violation("left writeIfAbsent refusing a namespace that holds nothing");
-                }
-                expect(mob, true, "after writeIfAbsent over an empty compound");
+            MobDataStore.reloadWithEmptyCompound(mob, NAMESPACE);
+            expect(mob, false, "for an empty compound loaded under the namespace");
+            if (!MobData.writeIfAbsent(mob, NAMESPACE, data)) {
+                violation("left writeIfAbsent refusing a namespace that holds nothing");
             }
+            expect(mob, true, "after writeIfAbsent over an empty compound");
 
             // ---- Satchel's own namespace ----
             try {

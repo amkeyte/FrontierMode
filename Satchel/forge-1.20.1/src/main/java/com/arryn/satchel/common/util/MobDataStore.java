@@ -101,6 +101,30 @@ public final class MobDataStore {
         return data.copy();
     }
 
+    /**
+     * For the {@code MobData.has} health probe (SAT_179): puts {@code mob} in the state a saved mob is
+     * in when its {@code namespace} compound came back empty. Saves the mob, replaces that namespace's
+     * compound in the saved copy of this container with an empty one, and loads the copy back. Where the
+     * capability's data sits in the entity's saved tag is known here and nowhere else, so the probe does
+     * not name it.
+     *
+     * @throws IllegalStateException if the mob's save does not carry what was written under {@code
+     *                               namespace}: the probe wrote it first, so the layout is not what
+     *                               this method reads
+     */
+    public static void reloadWithEmptyCompound(Mob mob, ResourceLocation namespace) {
+        CompoundTag saved = new CompoundTag();
+        mob.saveWithoutId(saved);
+        CompoundTag container = saved.getCompound("ForgeCaps").getCompound(ID.toString());
+        String key = namespace.toString();
+        if (!container.contains(key, Tag.TAG_COMPOUND)) {
+            throw new IllegalStateException("The save of " + mob + " does not carry what was written under " + key
+                    + " in the " + ID + " container, so its empty-compound case cannot be staged");
+        }
+        container.put(key, new CompoundTag());
+        mob.load(saved);
+    }
+
     private record Provider(MobDataStore store) implements ICapabilitySerializable<CompoundTag> {
 
         @Override

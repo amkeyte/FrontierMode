@@ -51,8 +51,8 @@ public final class LogicalFoundation {
      * each feature reinventing its own "am I too early" logic.
      *
      * <p>
-     * Server: trivially true once this instance exists. {@code ServerForgeIngress} binds the
-     * world-identity token synchronously, before introducing any source, in the same handler that
+     * Server: trivially true once this instance exists. {@code ServerLifecycle} binds the
+     * world-identity token synchronously, before introducing any source, in the same method that
      * is this foundation's first real opportunity to do anything -- there's no observable window
      * where a server foundation exists but isn't fully ready.
      *

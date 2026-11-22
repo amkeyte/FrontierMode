@@ -55,7 +55,7 @@ net.minecraft.world.entity.Entity  # common to both sides; the handle a lookup a
 
 # ---- Saved state ----
 
-net.minecraft.nbt.CompoundTag  # judgment call: the NBT API is where a version change lands (stack data's move to components), so a CompoundTag stays inside the class that owns the data, a fixture or a module's namespace class over MobData and StackData, and never appears in a signature, a module event's context or a record (SAT_156); the import is free, that condition is not checked by the scan
+net.minecraft.nbt.CompoundTag  # judgment call: the NBT API is where a version change lands (stack data's move to components), so in a module a CompoundTag stays inside the class that owns the data, a fixture or the module's namespace class over MobData and StackData, and never appears in a signature, a module event's context or a record (SAT_156); Satchel's own persistence layer (fixtures and bundles, hydration sources, egress sinks, MobData and StackData) owns tags too and is not bound by that condition (owner, 2026-11-21); that reading is for the two lines Satchel has, and a further line may change it; the import is free, and the scan reads one part of the condition (in shared, an import sits only in the persistence packages and the SatchelHealth probes), the rest is review
 
 
 # ---- Plain base classes (Code Conventions: the Free tier) ----

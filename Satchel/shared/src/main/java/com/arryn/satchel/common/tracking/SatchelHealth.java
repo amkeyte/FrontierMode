@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * package actually calls: {@link #init()}, the {@link #watch}/{@link #unwatch}/{@link
  * #currentInterests} surface {@code MobTrackCommands} uses, and the {@link
  * #defer}/{@link #pumpPendingHealthChecks} deferred-check queue {@code
- * LevelHealthCheck}/{@code PlayerHealthCheck} enqueue onto and {@code ServerForgeIngress} drains.
+ * LevelHealthCheck}/{@code PlayerHealthCheck} enqueue onto and {@code ServerLifecycle} drains.
  * Same package, same conceptual "one home" as before the split -- just not one literal file.
  *
  * <p><b>MobJig, LevelJig, and PlayerJig are not the same shape underneath, and their checks
@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * scope can outlive its mob if both miss it, which is exactly the kind of failure that can go
  * unseen (RM_SAT_022's whole premise). LevelJig and PlayerJig's teardown is <i>authoritative</i>
  * -- {@code
- * ServerForgeIngress}/{@code ClientForgeIngress} call {@code tryRemoveSource} from exactly one
+ * ServerLifecycle}/{@code ClientLifecycle} call {@code tryRemoveSource} from exactly one
  * real Forge event each ({@code LevelEvent.Unload}, {@code PlayerLoggedOutEvent}), never inferred.
  * So their violation checks aren't "is the backing thing still there" (Mob's shape) but "did
  * teardown get triggered while the backing thing is still demonstrably live" -- catching a future
@@ -50,7 +50,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * MinecraftServer#getLevel} to ask whether the dimension is still actively registered. There's no
  * client-side equivalent here -- the only clean signal would be {@code
  * Minecraft.getInstance().level}, and per this project's Forge Integration & Sidedness Contract,
- * {@code ClientForgeIngress} is the only class meant to touch client-engine state directly; adding
+ * {@code ClientLifecycle} and {@code ClientForgeEgress} are the only classes meant to touch client-engine state directly; adding
  * that reference here would break that boundary for a check whose value hasn't been weighed
  * against the cost. {@code LevelJig}'s config is still widened to {@code BOTH}, so the client-side
  * load/tick/unload path is genuinely exercised -- an exception anywhere in it still crashes loudly
@@ -210,7 +210,7 @@ public final class SatchelHealth {
     // =================================================================
     // Deferred violation checks -- LevelHealthCheck/PlayerHealthCheck defer onto the server's
     // HealthState from their own onXScopeUnloaded handlers; drained once per real server tick from
-    // ServerForgeIngress#onExecutionPulse, a genuinely later call chain than the one that queued
+    // ServerLifecycle#tick, a genuinely later call chain than the one that queued
     // each check. Plain ArrayDeque, not a concurrent collection: every defer happens from a Forge
     // event fired on the server thread, and the only drain point also runs on the server thread.
     // =================================================================
@@ -220,7 +220,7 @@ public final class SatchelHealth {
     }
 
     /**
-     * Called once per server tick by {@code ServerForgeIngress#onExecutionPulse}. Drains and runs
+     * Called once per server tick by {@code ServerLifecycle#tick}. Drains and runs
      * every check queued since the last pump. Drains the whole queue every call rather than just
      * the head -- these checks are cheap (a single map/list lookup each) and there's no reason to
      * spread them across multiple ticks.

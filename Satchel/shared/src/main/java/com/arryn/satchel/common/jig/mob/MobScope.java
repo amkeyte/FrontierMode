@@ -1,13 +1,9 @@
 package com.arryn.satchel.common.jig.mob;
 
-import com.arryn.satchel.common.identity.BundleKey;
 import com.arryn.satchel.common.jig.guts.ASatchelScope;
-import com.arryn.satchel.common.stitch.PersistStitch;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Mob;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -23,7 +19,7 @@ import java.util.UUID;
  *   live directly on this class instead.</li>
  * </ul>
  */
-public class MobScope extends ASatchelScope implements PersistStitch {
+public class MobScope extends ASatchelScope {
 
     private final Mob mob;
 
@@ -88,10 +84,5 @@ public class MobScope extends ASatchelScope implements PersistStitch {
             return null;
         }
         return new MobScope(mob);
-    }
-
-    @Override
-    public Optional<CompoundTag> loadBundleTag(BundleKey<?> key) {
-        return Optional.empty();
     }
 }

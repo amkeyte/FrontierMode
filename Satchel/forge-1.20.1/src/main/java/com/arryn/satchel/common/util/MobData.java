@@ -244,13 +244,11 @@ public final class MobData {
         }
         CompoundTag scales = data.getCompound(STATS_KEY).getCompound(MAX_HEALTH);
         for (String key : scales.getAllKeys()) {
-            ResourceLocation id = ResourceLocation.tryParse(key);
-            if (id != null) scaleMaxHealth(to, id, scales.getDouble(key));
+            Ids.parse(key).ifPresent(id -> scaleMaxHealth(to, id, scales.getDouble(key)));
         }
         CompoundTag ranges = data.getCompound(STATS_KEY).getCompound(FOLLOW_RANGE);
         for (String key : ranges.getAllKeys()) {
-            ResourceLocation id = ResourceLocation.tryParse(key);
-            if (id != null) setFollowRange(to, id, ranges.getDouble(key));
+            Ids.parse(key).ifPresent(id -> setFollowRange(to, id, ranges.getDouble(key)));
         }
     }
 

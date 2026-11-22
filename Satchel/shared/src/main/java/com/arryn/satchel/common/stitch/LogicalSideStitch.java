@@ -8,7 +8,7 @@ package com.arryn.satchel.common.stitch;
  * <p>Currently has zero implementers in either repo. Its only reference point,
  * {@link com.arryn.satchel.common.bundle.SatchelBundle#sideString()}, is itself never called
  * anywhere -- so the {@code instanceof} check against this interface never actually executes in
- * practice, not just "always evaluates false." Unlike PersistStitch and CreateAtHydrateStitch,
+ * practice, not just "always evaluates false." Unlike CreateAtHydrateStitch,
  * this interface isn't named in any ticket -- it's undocumented dead surface, not a tracked
  * cleanup item.
  *

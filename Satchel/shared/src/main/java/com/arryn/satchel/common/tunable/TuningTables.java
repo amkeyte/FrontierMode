@@ -1,6 +1,7 @@
 package com.arryn.satchel.common.tunable;
 
 import com.arryn.satchel.common.platform.SatchelEnvironment;
+import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.resources.ResourceLocation;
 
@@ -126,8 +127,7 @@ public final class TuningTables {
         if (target == null) {
             selected.addAll(DEFINED.values());
         } else {
-            ResourceLocation id = ResourceLocation.tryParse(target);
-            TuningTable table = id == null ? null : DEFINED.get(id);
+            TuningTable table = Ids.parse(target).map(DEFINED::get).orElse(null);
             if (table == null) return TunableOutcome.unknownTable(target);
             selected.add(table);
         }

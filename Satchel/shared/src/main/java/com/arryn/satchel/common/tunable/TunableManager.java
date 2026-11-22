@@ -23,9 +23,9 @@ import java.util.TreeSet;
 /**
  * Registry + persistence for {@link Tunable}. Touches no Forge event itself (SAT_093): {@link
  * #load} runs from Satchel's common setup -- once per game, before any world exists, so a {@code
- * Tunable} read during world creation sees the CSV -- and again from {@code ServerForgeIngress}
+ * Tunable} read during world creation sees the CSV -- and again from {@code ServerLifecycle}
  * just before each server starts, so a CSV edited between two worlds of one game isn't overwritten;
- * {@code ServerForgeIngress} calls {@link #save} as each server stops. The file is instance-wide
+ * {@code ServerLifecycle} calls {@link #save} as each server stops. The file is instance-wide
  * ({@code config/}), not per world.
  *
  * <p>

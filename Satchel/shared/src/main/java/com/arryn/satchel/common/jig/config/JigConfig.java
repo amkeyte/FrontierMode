@@ -10,8 +10,7 @@ import com.arryn.satchel.common.jig.guts.SatchelScope;
  * <p>
  * This class owns the preset tree and exposes category lenses.
  * It contains no engine logic, no lifecycle execution, and no validation.
- *
- * Categories may be migrated out of the top-level config incrementally.
+  * Categories may be migrated out of the top-level config incrementally.
  */
 public abstract class JigConfig<S extends SatchelScope, SRC> {
 

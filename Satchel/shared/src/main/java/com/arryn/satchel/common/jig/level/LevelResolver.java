@@ -26,10 +26,10 @@ public final class LevelResolver {
         // "unrecognized source" contract rather than let determineUUID() throw
         // SatchelException.NotReady; introduceSource() treats a null resolveScope result as "no
         // jig recognizes this source," the right degraded behavior for this window --
-        // ClientForgeIngress's tick pulse re-triggers introduceSource() once ready (see
+        // ClientLifecycle.tick re-triggers introduceSource() once ready (see
         // reannounceLevelIfTokenJustArrived).
         //
-        // Server never actually returns null here: ServerForgeIngress binds the token before
+        // Server never actually returns null here: ServerLifecycle.levelLoaded binds the token before
         // introducing any source, so isReady() is always true by the time this runs server-side.
         if (!Satchel.isReady()) {
             return null;

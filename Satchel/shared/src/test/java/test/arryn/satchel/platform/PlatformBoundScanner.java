@@ -792,6 +792,51 @@ public final class PlatformBoundScanner {
         return offenders;
     }
 
+    // =================================================================
+    // Usage: where a CompoundTag is imported
+    // =================================================================
+
+    private static final String COMPOUND_TAG = "net.minecraft.nbt.CompoundTag";
+
+    private static final String COMPOUND_TAG_PROBLEM =
+            "in shared a CompoundTag is imported only in Satchel's persistence packages, so a version that changes "
+                    + "how data is saved edits those and no other; a module keeps one inside its fixture or its "
+                    + "namespace class";
+
+    /**
+     * Where {@code net.minecraft.nbt.CompoundTag} is named in the {@link Rule#SHARED} roots of {@code roots}, set
+     * against {@code allowedPackages}, the packages (exact names, no subpackages) where it may be. The list's entry for
+     * {@code CompoundTag} is free to import on the condition that a module keeps a tag inside the class that owns its
+     * data and that Satchel's own persistence layer owns tags too; this reads the part of that a scan can: which
+     * package a file naming the class sits in. It does not read whether a signature carries one. A root with another
+     * rule is not read, since a line folder is platform code. A fully qualified name in the code counts as an import.
+     *
+     * @param roots           the roots; only {@code SHARED} ones are read
+     * @param allowedPackages the packages whose files may name the class
+     * @return the files that name it outside those packages, and in {@code platformClasses} how many files name it at
+     *         all, allowed or not; a caller asserts that is not zero, so a scan that read nothing cannot pass
+     */
+    public static ImportResult scanCompoundTagRoots(List<Root> roots, Set<String> allowedPackages) {
+        List<ImportOffender> offenders = new ArrayList<>();
+        int files = 0;
+        for (Root root : roots) {
+            if (root.rule() != Rule.SHARED) continue;
+            for (Map.Entry<String, String> source : readTree(root.path()).entrySet()) {
+                String name = root.label().isEmpty() ? source.getKey() : root.label() + "/" + source.getKey();
+                Unit unit = unit(name, source.getValue(), root.rule());
+                for (PlatformUse use : unit.uses) {
+                    if (!use.imported().equals(COMPOUND_TAG)) continue;
+                    files++;
+                    if (!allowedPackages.contains(unit.pkg)) {
+                        offenders.add(new ImportOffender(unit.name, lineOf(unit.source, use.offset()),
+                                use.imported(), COMPOUND_TAG_PROBLEM));
+                    }
+                }
+            }
+        }
+        return new ImportResult(offenders, files);
+    }
+
     // -----------------------------------------------------------------
     // One file, read for the second rule
     // -----------------------------------------------------------------

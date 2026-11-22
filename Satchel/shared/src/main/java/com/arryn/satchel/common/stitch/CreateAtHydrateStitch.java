@@ -15,9 +15,9 @@ package com.arryn.satchel.common.stitch;
  * itself is never called anywhere in either repo either — so the entire mechanism is doubly inert
  * right now (no implementer to make the flag true, and no caller of the method the flag would affect).
  *
- * <p>This interface is explicitly named in ticket {@code SAT_053} ("Redesign engine-level lifecycle
- * promotion / hydration coupling") as a flagged-for-removal housekeeping item alongside
- * {@link com.arryn.satchel.common.stitch.PersistStitch}, but has not yet been deleted.
+ * <p>Ticket {@code SAT_053} ("Redesign engine-level lifecycle promotion / hydration coupling") flags this
+ * interface for removal as a housekeeping item. It is still here; {@code PersistStitch}, flagged with it,
+ * was deleted on 2026-11-21.
  */
 public interface CreateAtHydrateStitch {
 
