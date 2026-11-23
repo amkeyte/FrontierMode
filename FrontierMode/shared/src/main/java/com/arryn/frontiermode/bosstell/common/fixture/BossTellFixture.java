@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.bosstell.common.fixture;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BorderCurve;
@@ -74,7 +74,7 @@ public final class BossTellFixture extends SatchelFixture {
     // round-robin ambient tell sounds,
     // per-boss (not one shared global rotation across every boss -- project owner's explicit
     // call), so two different bosses can be on different tracks at once. All 5 slots are now real
-    // project-owner-supplied clips (FrontierMode.BOSS_TELL_1..5) -- 1 was converted here via
+    // project-owner-supplied clips (FrontierRegisters.BOSS_TELL_1..5) -- 1 was converted here via
     // ffmpeg from a stereo source; 2-5 arrived as ready-to-use mono OGG Vorbis and were copied in
     // byte-for-byte with no re-encoding (bitrate/sample rate deliberately left unstandardized
     // across the 5, per project owner -- Minecraft's sound engine doesn't care).
@@ -83,7 +83,7 @@ public final class BossTellFixture extends SatchelFixture {
     // RegistryObject into a field evaluated at class-load time risks the same class of bug
     // Rendering.java's own bordersRenderer() doc already documents in this codebase (an eager
     // static initializer touching something not guaranteed ready yet -- there it was dist-loading
-    // order crashing a dedicated server's first tick; here it would be FrontierMode.BOSS_TELL_n
+    // order crashing a dedicated server's first tick; here it would be FrontierRegisters.BOSS_TELL_n
     // .get() potentially running before Forge's registry event populates it). A vanilla
     // SoundEvents.* constant is always safe eagerly; a custom RegistryObject is not.
     private static List<SoundEvent> tellSounds;
@@ -91,11 +91,11 @@ public final class BossTellFixture extends SatchelFixture {
     private static List<SoundEvent> tellSounds() {
         if (tellSounds == null) {
             tellSounds = List.of(
-                    FrontierMode.BOSS_TELL_1.get(),
-                    FrontierMode.BOSS_TELL_2.get(),
-                    FrontierMode.BOSS_TELL_3.get(),
-                    FrontierMode.BOSS_TELL_4.get(),
-                    FrontierMode.BOSS_TELL_5.get()
+                    FrontierRegisters.BOSS_TELL_1.get(),
+                    FrontierRegisters.BOSS_TELL_2.get(),
+                    FrontierRegisters.BOSS_TELL_3.get(),
+                    FrontierRegisters.BOSS_TELL_4.get(),
+                    FrontierRegisters.BOSS_TELL_5.get()
             );
         }
         return tellSounds;

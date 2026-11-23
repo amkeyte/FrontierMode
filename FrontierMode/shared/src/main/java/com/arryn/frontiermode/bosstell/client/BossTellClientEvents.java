@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.bosstell.client;
 
-import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.bosstell.BossTellRegisters;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraftforge.api.distmarker.Dist;
@@ -15,7 +15,7 @@ import net.minecraftforge.fml.common.Mod;
  * client class loads on a dedicated server.
  */
 @PlatformBound(reason = "render")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class BossTellClientEvents {
 
     private BossTellClientEvents() {
@@ -24,7 +24,7 @@ public final class BossTellClientEvents {
     /** Scale 1.0 and full bright, the arguments vanilla registers for its own Eye of Ender. */
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerEntityRenderer(BossTellModule.AMETHYST_EYE_ENTITY.get(),
+        event.registerEntityRenderer(BossTellRegisters.AMETHYST_EYE_ENTITY.get(),
                 context -> new ThrownItemRenderer<>(context, 1.0F, true));
     }
 }

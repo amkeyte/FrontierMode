@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.structure;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.effects.EffectsAPI;
 import com.arryn.frontiermode.structure.common.fixture.CairnFixture;
@@ -97,7 +97,7 @@ public final class CairnPulse {
     static void fire(Level level, BlockPos capPos, BlockPos target) {
         Vec3 start = new Vec3(capPos.getX() + 0.5, capPos.getY() + 1.0, capPos.getZ() + 0.5);
 
-        EffectsAPI.broadcastSound(level, start.x, start.y, start.z, FrontierMode.CAIRN_PING.get(),
+        EffectsAPI.broadcastSound(level, start.x, start.y, start.z, FrontierRegisters.CAIRN_PING.get(),
                 SoundSource.BLOCKS, CairnRules.pingVolume(), CairnRules.pingPitch());
 
         double launchHeight = roll(CairnRules.launchHeightMin(), CairnRules.launchHeightMax());

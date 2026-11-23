@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.boss;
 
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
@@ -25,7 +26,7 @@ import java.util.Optional;
 @PlatformBound(reason = "mob data namespace")
 public final class BossData {
 
-    public static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "boss");
+    public static final ResourceLocation NAMESPACE = FrontierIds.of("boss");
 
     private static final String KEY_PLAYER_DAMAGE = "playerDamage";
     private static final String KEY_ARMOR_CAPABILITY = "armorCapability";

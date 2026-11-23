@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.bosstell.common;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.StackData;
 import net.minecraft.core.BlockPos;
@@ -35,7 +35,7 @@ import java.util.UUID;
 public final class CompassAttunement {
 
     private static final ResourceLocation NAMESPACE =
-            ResourceLocation.fromNamespaceAndPath(FrontierMode.MODID, "compass");
+            FrontierIds.of("compass");
     private static final String KEY_BOSS_ID = "bossId";
     private static final String KEY_FROZEN_POS = "frozenPos";
     private static final String KEY_ADMIN = "admin";

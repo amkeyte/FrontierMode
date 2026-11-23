@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.core.client;
 
-import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.core.EntityScales;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLivingEvent;
@@ -19,7 +19,7 @@ import net.minecraftforge.fml.common.Mod;
  * scale only the model.
  */
 @PlatformBound(reason = "render")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID, value = Dist.CLIENT)
 public final class ScaleRenderEvents {
 
     private ScaleRenderEvents() {

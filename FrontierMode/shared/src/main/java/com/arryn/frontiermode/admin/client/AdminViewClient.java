@@ -1,10 +1,10 @@
 package com.arryn.frontiermode.admin.client;
 
-import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.admin.common.DebugViewTick;
 import com.arryn.frontiermode.admin.common.Role;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.boss.BossMarkers;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.sentinel.SentinelMarkers;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -53,7 +53,7 @@ import java.util.Set;
  * ({@code Dist.CLIENT}).
  */
 @PlatformBound(reason = "commands")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID, value = Dist.CLIENT)
 public final class AdminViewClient {
 
     private AdminViewClient() {

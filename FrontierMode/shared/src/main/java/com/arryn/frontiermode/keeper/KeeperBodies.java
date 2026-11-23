@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.keeper;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.difficulty.DifficultyAPI;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.CellType;
@@ -99,7 +99,7 @@ public final class KeeperBodies {
     }
 
     private static ResourceLocation tableId(String name) {
-        return new ResourceLocation(FrontierMode.MODID, name);
+        return FrontierIds.of(name);
     }
 
     private static TuningTable keeperBodiesTable() {

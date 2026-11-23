@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.boss.server.commands;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.FrontierRegisters;
 import com.google.gson.JsonObject;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
@@ -10,7 +10,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Forge registry glue for {@link BossSelectorArgumentType} -- mirrors
  * {@code BorderSelectorArgumentTypeInfo} exactly (registration lives on
- * {@code FrontierMode.BOSS_SELECTOR}).
+ * {@code FrontierRegisters.BOSS_SELECTOR}).
  */
 public final class BossSelectorArgumentTypeInfo
         implements ArgumentTypeInfo<BossSelectorArgumentType, BossSelectorArgumentTypeInfo.Template> {
@@ -45,7 +45,7 @@ public final class BossSelectorArgumentTypeInfo
         @Override
         public @NotNull ArgumentTypeInfo<BossSelectorArgumentType, ?> type() {
             return (ArgumentTypeInfo<BossSelectorArgumentType, ?>)
-                    FrontierMode.BOSS_SELECTOR.get();
+                    FrontierRegisters.BOSS_SELECTOR.get();
         }
     }
 }

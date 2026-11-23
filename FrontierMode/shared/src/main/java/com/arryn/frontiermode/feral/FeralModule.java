@@ -6,7 +6,8 @@ import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Entry point for Feral -- corrupted hostile mobs native to the Wilds, as tough
@@ -25,7 +26,7 @@ import net.minecraftforge.event.RegisterCommandsEvent;
  *
  * <p>The module is a root: the ingress ({@link FeralIngress}), the two Trinkets ({@link FeralPresence}
  * and {@link FeralPlayerTick}) and command registration, which is Feral's one direct Forge touch
- * ({@link #onRegisterCommands}, a permanently-accepted exception per
+ * ({@link #registerCommands}, a permanently-accepted exception per
  * wiki/satchel/spec/forge-integration.md). It registers no jig. The two entry points
  * {@code SpawnCoordinator} calls are {@link FeralAPI}.
  */
@@ -43,7 +44,7 @@ public final class FeralModule {
                 FeralPlayerTick.class, () -> new FeralPlayerTick());
     }
 
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        FeralCommands.register(event.getDispatcher());
+    public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
+        FeralCommands.register(dispatcher);
     }
 }

@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.diorite;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
@@ -12,7 +12,7 @@ import net.minecraftforge.fml.common.Mod;
  * Striker under Tools and Utilities beside flint and steel (diorite-tools.md § Module shape).
  */
 @PlatformBound(reason = "registration")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public final class DioriteCreativeTabs {
 
     private DioriteCreativeTabs() {
@@ -21,11 +21,11 @@ public final class DioriteCreativeTabs {
     @SubscribeEvent
     public static void onBuildCreativeModeTabContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
-            event.accept(DioriteItems.DIORITE_DUST);
-            event.accept(DioriteItems.DIORITE_SHARD);
+            event.accept(DioriteRegisters.DIORITE_DUST);
+            event.accept(DioriteRegisters.DIORITE_SHARD);
         } else if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            event.accept(DioriteItems.DIORITE_STRIKER);
-            event.accept(DioriteItems.EDGE_STONE);
+            event.accept(DioriteRegisters.DIORITE_STRIKER);
+            event.accept(DioriteRegisters.EDGE_STONE);
         }
     }
 }

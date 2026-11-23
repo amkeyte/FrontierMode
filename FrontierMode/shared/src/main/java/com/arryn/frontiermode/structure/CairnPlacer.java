@@ -143,6 +143,6 @@ final class CairnPlacer {
         }
         level.setBlock(ground.above(1), Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
         level.setBlock(ground.above(2), Blocks.MOSSY_COBBLESTONE.defaultBlockState(), 2);
-        level.setBlock(ground.above(PILLAR_HEIGHT), StructureModule.CAIRN_CAP.get().defaultBlockState(), 2);
+        level.setBlock(ground.above(PILLAR_HEIGHT), StructureRegisters.CAIRN_CAP.get().defaultBlockState(), 2);
     }
 }

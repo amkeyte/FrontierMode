@@ -6,7 +6,7 @@ import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.frontiermode.boss.server.commands.BossSelector;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorResult;
-import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.bosstell.BossTellRegisters;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
 
 import com.mojang.brigadier.CommandDispatcher;
@@ -96,7 +96,7 @@ public final class BossTellCommands {
             return 0;
         }
 
-        ItemStack stack = new ItemStack(BossTellModule.AMETHYST_COMPASS.get());
+        ItemStack stack = new ItemStack(BossTellRegisters.AMETHYST_COMPASS.get());
         CompassAttunement.setLive(stack, record.bossId(), sp.getUUID(), true,
                 KeeperAPI.pathPositionOf(keeperOpt.get()));
 

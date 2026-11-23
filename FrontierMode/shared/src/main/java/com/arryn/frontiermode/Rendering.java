@@ -3,6 +3,7 @@ package com.arryn.frontiermode;
 import com.arryn.frontiermode.admin.client.AdminViewMarkers;
 import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
@@ -20,7 +21,7 @@ import net.minecraftforge.fml.common.Mod;
  */
 @PlatformBound(reason = "render")
 @Mod.EventBusSubscriber(
-        modid = FrontierMode.MODID,
+        modid = FrontierIds.MOD_ID,
         value = Dist.CLIENT
 )
 public final class Rendering {

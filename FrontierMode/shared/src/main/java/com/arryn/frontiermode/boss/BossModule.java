@@ -6,7 +6,8 @@ import com.arryn.frontiermode.boss.server.commands.BossCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Entry point for initializing and hooking the Boss subsystem. Depends on Border -- must be
@@ -34,7 +35,7 @@ public final class BossModule {
     }
 
     /** Registers {@code /boss} commands. */
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        BossCommands.register(event.getDispatcher());
+    public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
+        BossCommands.register(dispatcher);
     }
 }

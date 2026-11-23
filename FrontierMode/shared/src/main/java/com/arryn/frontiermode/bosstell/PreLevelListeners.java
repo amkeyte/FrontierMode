@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.bosstell;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.event.village.VillagerTradesEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -16,7 +16,7 @@ import net.minecraftforge.fml.common.Mod;
  * <p>Each handler is one line delegating into Forge-free logic.
  */
 @PlatformBound(reason = "pre-level-listeners")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID)
 public final class PreLevelListeners {
 
     private PreLevelListeners() {

@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.keeper.client;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.keeper.common.BossMobTypes;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.out.OUT;
@@ -26,7 +26,7 @@ import net.minecraftforge.fml.common.Mod;
  * so none of these client classes are ever loaded on a dedicated server.
  */
 @PlatformBound(reason = "render")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class BossClientEvents {
 
     private BossClientEvents() {
@@ -51,7 +51,7 @@ public final class BossClientEvents {
             OUT.warn("[Boss] No renderer for " + type + " -- boss eyes not added for it.");
             return;
         }
-        ResourceLocation texture = new ResourceLocation(FrontierMode.MODID, "textures/entity/boss_eyes/" + textureName + ".png");
+        ResourceLocation texture = FrontierIds.of("textures/entity/boss_eyes/" + textureName + ".png");
         if (Minecraft.getInstance().getResourceManager().getResource(texture).isEmpty()) {
             throw new IllegalStateException("Boss-eligible type " + type + " has no eye texture at " + texture);
         }

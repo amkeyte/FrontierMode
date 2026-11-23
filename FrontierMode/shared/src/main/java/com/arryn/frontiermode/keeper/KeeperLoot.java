@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.keeper;
 
-import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.keeper.common.KeeperLootTables;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -129,7 +129,7 @@ public final class KeeperLoot {
     }
 
     private static LootTable tableFor(ServerLevel level, String name) {
-        ResourceLocation id = new ResourceLocation(FrontierMode.MODID, "keeper/" + name);
+        ResourceLocation id = FrontierIds.of("keeper/" + name);
         LootTable table = level.getServer().getLootData().getLootTable(id);
         if (table == LootTable.EMPTY) {
             OUT.warn("[Boss] KeeperLoot.pay(): no loot table " + id + " -- nothing dropped for it.");

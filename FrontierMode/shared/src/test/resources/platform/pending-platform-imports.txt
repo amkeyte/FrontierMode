@@ -20,7 +20,7 @@ com/arryn/frontiermode/admin/AdminToolHandlers.java  net.minecraft.world.entity.
 com/arryn/frontiermode/admin/AdminToolHandlers.java  net.minecraft.world.item.ItemStack
 com/arryn/frontiermode/admin/AdminTools.java  net.minecraft.world.item.ItemStack
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraft.world.item.enchantment.Enchantment
-com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.event.RegisterCommandsEvent
+com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.registries.DeferredRegister
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.registries.ForgeRegistries
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.registries.RegistryObject
@@ -36,7 +36,7 @@ com/arryn/frontiermode/admin/server/commands/AdminCommands.java  net.minecraft.w
 com/arryn/frontiermode/admin/server/commands/AdminCommands.java  net.minecraft.world.item.Items
 com/arryn/frontiermode/admin/server/commands/AdminCommands.java  net.minecraft.world.item.enchantment.Enchantment
 com/arryn/frontiermode/border/BorderAPI.java  net.minecraft.server.level.ServerPlayer
-com/arryn/frontiermode/border/BorderModule.java  net.minecraftforge.event.RegisterCommandsEvent
+com/arryn/frontiermode/border/BorderModule.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/border/common/fixture/BordersCrudFacet.java  net.minecraft.world.level.border.WorldBorder
 com/arryn/frontiermode/border/server/BorderIngress.java  net.minecraftforge.event.entity.player.PlayerEvent
 com/arryn/frontiermode/border/server/commands/BorderCommandHandler.java  net.minecraft.commands.CommandSourceStack
@@ -53,7 +53,7 @@ com/arryn/frontiermode/border/server/player/SickWildlife.java  net.minecraft.wor
 com/arryn/frontiermode/boss/BossIngress.java  net.minecraftforge.event.entity.EntityMountEvent
 com/arryn/frontiermode/boss/BossIngress.java  net.minecraftforge.event.entity.living.LivingDamageEvent
 com/arryn/frontiermode/boss/BossIngress.java  net.minecraftforge.eventbus.api.EventPriority
-com/arryn/frontiermode/boss/BossModule.java  net.minecraftforge.event.RegisterCommandsEvent
+com/arryn/frontiermode/boss/BossModule.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/boss/server/commands/BossCommandHandler.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/boss/server/commands/BossCommands.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/boss/server/commands/BossCommands.java  net.minecraft.commands.Commands
@@ -63,7 +63,7 @@ com/arryn/frontiermode/boss/server/commands/BossSelectorArgumentTypeInfo.java  n
 com/arryn/frontiermode/boss/server/commands/BossSelectorArgumentTypeInfo.java  net.minecraft.network.FriendlyByteBuf
 com/arryn/frontiermode/bosstell/BossTellIngress.java  net.minecraftforge.event.entity.player.EntityItemPickupEvent
 com/arryn/frontiermode/bosstell/BossTellModule.java  net.minecraft.world.item.enchantment.Enchantment
-com/arryn/frontiermode/bosstell/BossTellModule.java  net.minecraftforge.event.RegisterCommandsEvent
+com/arryn/frontiermode/bosstell/BossTellModule.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/bosstell/BossTellModule.java  net.minecraftforge.registries.DeferredRegister
 com/arryn/frontiermode/bosstell/BossTellModule.java  net.minecraftforge.registries.ForgeRegistries
 com/arryn/frontiermode/bosstell/BossTellModule.java  net.minecraftforge.registries.RegistryObject
@@ -117,12 +117,6 @@ com/arryn/frontiermode/difficulty/DifficultyIngress.java  net.minecraft.world.en
 com/arryn/frontiermode/difficulty/DifficultyIngress.java  net.minecraftforge.event.entity.EntityJoinLevelEvent
 com/arryn/frontiermode/difficulty/DifficultyIngress.java  net.minecraftforge.event.entity.living.AnimalTameEvent
 com/arryn/frontiermode/difficulty/DifficultyIngress.java  net.minecraftforge.event.entity.living.LivingHurtEvent
-com/arryn/frontiermode/diorite/DioriteEntities.java  net.minecraftforge.registries.DeferredRegister
-com/arryn/frontiermode/diorite/DioriteEntities.java  net.minecraftforge.registries.ForgeRegistries
-com/arryn/frontiermode/diorite/DioriteEntities.java  net.minecraftforge.registries.RegistryObject
-com/arryn/frontiermode/diorite/DioriteItems.java  net.minecraftforge.registries.DeferredRegister
-com/arryn/frontiermode/diorite/DioriteItems.java  net.minecraftforge.registries.ForgeRegistries
-com/arryn/frontiermode/diorite/DioriteItems.java  net.minecraftforge.registries.RegistryObject
 com/arryn/frontiermode/diorite/common/entities/EdgeStone.java  net.minecraft.core.particles.ItemParticleOption
 com/arryn/frontiermode/diorite/common/entities/EdgeStone.java  net.minecraft.world.entity.LivingEntity
 com/arryn/frontiermode/diorite/common/entities/EdgeStone.java  net.minecraft.world.entity.projectile.ThrowableItemProjectile
@@ -158,7 +152,7 @@ com/arryn/frontiermode/feral/FeralIngress.java  net.minecraftforge.event.entity.
 com/arryn/frontiermode/feral/FeralIngress.java  net.minecraftforge.event.entity.living.LivingDropsEvent
 com/arryn/frontiermode/feral/FeralIngress.java  net.minecraftforge.event.entity.living.LivingExperienceDropEvent
 com/arryn/frontiermode/feral/FeralIngress.java  net.minecraftforge.event.entity.living.MobSpawnEvent
-com/arryn/frontiermode/feral/FeralModule.java  net.minecraftforge.event.RegisterCommandsEvent
+com/arryn/frontiermode/feral/FeralModule.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/feral/FeralPackSpawner.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/feral/FeralPackSpawner.java  net.minecraft.world.effect.MobEffectInstance
 com/arryn/frontiermode/feral/FeralPackSpawner.java  net.minecraft.world.effect.MobEffects
@@ -173,9 +167,6 @@ com/arryn/frontiermode/keeper/KeeperIngress.java  net.minecraftforge.event.entit
 com/arryn/frontiermode/keeper/KeeperIngress.java  net.minecraftforge.event.entity.living.LivingConversionEvent
 com/arryn/frontiermode/keeper/KeeperItems.java  net.minecraft.world.item.ItemStack
 com/arryn/frontiermode/keeper/KeeperItems.java  net.minecraft.world.item.enchantment.Enchantments
-com/arryn/frontiermode/keeper/KeeperItems.java  net.minecraftforge.registries.DeferredRegister
-com/arryn/frontiermode/keeper/KeeperItems.java  net.minecraftforge.registries.ForgeRegistries
-com/arryn/frontiermode/keeper/KeeperItems.java  net.minecraftforge.registries.RegistryObject
 com/arryn/frontiermode/keeper/KeeperKind.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/keeper/KeeperLoot.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/keeper/KeeperLoot.java  net.minecraft.world.Containers
@@ -207,11 +198,7 @@ com/arryn/frontiermode/siting/StartingSiteHandlers.java  net.minecraft.server.le
 com/arryn/frontiermode/siting/StartingSiteHandlers.java  net.minecraft.world.level.levelgen.feature.ConfiguredFeature
 com/arryn/frontiermode/siting/common/SitingRules.java  net.minecraft.core.Direction
 com/arryn/frontiermode/structure/StructureIngress.java  net.minecraftforge.event.level.BlockEvent
-com/arryn/frontiermode/structure/StructureModule.java  net.minecraft.world.level.block.state.BlockBehaviour
-com/arryn/frontiermode/structure/StructureModule.java  net.minecraftforge.event.RegisterCommandsEvent
-com/arryn/frontiermode/structure/StructureModule.java  net.minecraftforge.registries.DeferredRegister
-com/arryn/frontiermode/structure/StructureModule.java  net.minecraftforge.registries.ForgeRegistries
-com/arryn/frontiermode/structure/StructureModule.java  net.minecraftforge.registries.RegistryObject
+com/arryn/frontiermode/structure/StructureModule.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft.world.InteractionHand
 com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft.world.InteractionResult
 com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft.world.level.block.state.BlockState

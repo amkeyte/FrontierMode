@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.MobSpawns;
 import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.common.util.MobData;
@@ -36,7 +37,7 @@ final class FeralPackSpawner {
 
     // The MobData key that owns a pack member's raised follow range: one modifier per key.
     private static final ResourceLocation PACK_FOLLOW_RANGE_KEY =
-            new ResourceLocation("frontiermode", "feral_pack_follow_range");
+            FrontierIds.of("feral_pack_follow_range");
 
     private FeralPackSpawner() {
     }

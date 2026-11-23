@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.bosstell.common.entities;
 
-import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.bosstell.BossTellRegisters;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -30,7 +30,7 @@ public final class AmethystEye extends EyeOfEnder {
      * {@code EntityType.EYE_OF_ENDER}, so this one binds the Amethyst Eye's own type.
      */
     public AmethystEye(Level level, double x, double y, double z) {
-        this(BossTellModule.AMETHYST_EYE_ENTITY.get(), level);
+        this(BossTellRegisters.AMETHYST_EYE_ENTITY.get(), level);
         setPos(x, y, z);
     }
 

@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.difficulty;
 
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
 import net.minecraft.nbt.CompoundTag;
@@ -19,7 +20,7 @@ import java.util.OptionalDouble;
 @PlatformBound(reason = "mob data namespace")
 final class Ladder {
 
-    static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "ladder");
+    static final ResourceLocation NAMESPACE = FrontierIds.of("ladder");
 
     static final String RUNG_ORDINARY = "ordinary";
     static final String RUNG_ALLY = "ally";

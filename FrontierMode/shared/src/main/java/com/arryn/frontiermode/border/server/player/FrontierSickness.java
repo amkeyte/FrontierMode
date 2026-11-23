@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.server.player;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
 import com.arryn.frontiermode.effects.EffectsAPI;
@@ -32,9 +32,9 @@ public final class FrontierSickness {
         boolean isOutside = next.frontierDistance() > 0;
 
         if (isOutside && !wasOutside) {
-            // FrontierMode.ENTRY_CUE: assets/frontiermode/sounds/entry_cue.ogg, already tuned, so full speed.
+            // FrontierRegisters.ENTRY_CUE: assets/frontiermode/sounds/entry_cue.ogg, already tuned, so full speed.
             EffectsAPI.sendSoundToPlayer(
-                    player, FrontierMode.ENTRY_CUE.get(), SoundSource.AMBIENT,
+                    player, FrontierRegisters.ENTRY_CUE.get(), SoundSource.AMBIENT,
                     player.getX(), player.getY(), player.getZ(), 0.6f, 1.0f);
         }
 

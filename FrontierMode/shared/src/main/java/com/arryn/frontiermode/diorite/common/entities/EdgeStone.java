@@ -1,9 +1,8 @@
 package com.arryn.frontiermode.diorite.common.entities;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.diorite.DioriteEntities;
-import com.arryn.frontiermode.diorite.DioriteItems;
+import com.arryn.frontiermode.diorite.DioriteRegisters;
 import com.arryn.frontiermode.diorite.common.DioriteRules;
 import com.arryn.frontiermode.effects.EffectsAPI;
 import net.minecraft.core.particles.ItemParticleOption;
@@ -37,12 +36,12 @@ public final class EdgeStone extends ThrowableItemProjectile {
     }
 
     public EdgeStone(Level level, LivingEntity thrower) {
-        super(DioriteEntities.EDGE_STONE.get(), thrower, level);
+        super(DioriteRegisters.EDGE_STONE_ENTITY.get(), thrower, level);
     }
 
     @Override
     protected Item getDefaultItem() {
-        return DioriteItems.EDGE_STONE.get();
+        return DioriteRegisters.EDGE_STONE.get();
     }
 
     @Override
@@ -63,7 +62,7 @@ public final class EdgeStone extends ThrowableItemProjectile {
         EffectsAPI.broadcastParticle(level, ParticleTypes.POOF, getX(), getY(), getZ(),
                 DioriteRules.edgeStonePoofParticles(), 0.2, 0.2, 0.2, 0.02);
         EffectsAPI.broadcastSound(level, getX(), getY(), getZ(),
-                FrontierMode.EDGE_STONE.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
+                FrontierRegisters.EDGE_STONE.get(), SoundSource.NEUTRAL, 1.0F, 1.0F);
         discard();
     }
 

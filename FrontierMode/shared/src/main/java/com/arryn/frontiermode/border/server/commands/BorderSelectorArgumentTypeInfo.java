@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.border.server.commands;
 
-import com.arryn.frontiermode.FrontierMode;
+import com.arryn.frontiermode.FrontierRegisters;
 import com.google.gson.JsonObject;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
@@ -41,7 +41,7 @@ public final class BorderSelectorArgumentTypeInfo
         @Override
         public @NotNull ArgumentTypeInfo<BorderSelectorArgumentType, ?> type() {
             return (ArgumentTypeInfo<BorderSelectorArgumentType, ?>)
-                    FrontierMode.BORDER_SELECTOR.get();
+                    FrontierRegisters.BORDER_SELECTOR.get();
         }
     }
 }

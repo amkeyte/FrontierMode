@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.sentinel;
 
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.WriteOutcome;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
@@ -25,7 +26,7 @@ import java.util.UUID;
 @PlatformBound(reason = "mob data namespace")
 public final class SentinelData {
 
-    public static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "sentinel");
+    public static final ResourceLocation NAMESPACE = FrontierIds.of("sentinel");
 
     private static final String KEY_BOSS_ID = "bossId";
     private static final String KEY_SCALE = "scale";

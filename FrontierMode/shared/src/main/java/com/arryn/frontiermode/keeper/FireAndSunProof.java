@@ -31,7 +31,7 @@ final class FireAndSunProof implements Trinket {
             mob.addEffect(new MobEffectInstance(
                     MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
         }
-        if (!mob.getItemBySlot(EquipmentSlot.HEAD).is(KeeperItems.SUN_WARD.get())) {
+        if (!mob.getItemBySlot(EquipmentSlot.HEAD).is(KeeperRegisters.SUN_WARD.get())) {
             KeeperItems.equipSunWard(mob);
         }
     }

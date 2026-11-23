@@ -1,16 +1,17 @@
 package com.arryn.frontiermode.admin;
 
-import com.arryn.frontiermode.FrontierMode;
 import com.arryn.frontiermode.admin.common.DebugViewTick;
 import com.arryn.frontiermode.admin.common.SoulboundStash;
 import com.arryn.frontiermode.admin.common.enchantments.DeathTouchEnchantment;
 import com.arryn.frontiermode.admin.common.enchantments.InspectEnchantment;
 import com.arryn.frontiermode.admin.server.commands.AdminCommands;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.trinket.Order;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -29,7 +30,7 @@ public final class AdminToolsModule {
     }
 
     public static final DeferredRegister<Enchantment> ENCHANTMENTS =
-            DeferredRegister.create(ForgeRegistries.ENCHANTMENTS, FrontierMode.MODID);
+            DeferredRegister.create(ForgeRegistries.ENCHANTMENTS, FrontierIds.MOD_ID);
 
     public static final RegistryObject<Enchantment> DEATH_TOUCH =
             ENCHANTMENTS.register("death_touch", DeathTouchEnchantment::new);
@@ -45,7 +46,7 @@ public final class AdminToolsModule {
                 DebugViewTick.class, () -> new DebugViewTick());
     }
 
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        AdminCommands.register(event.getDispatcher());
+    public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
+        AdminCommands.register(dispatcher);
     }
 }

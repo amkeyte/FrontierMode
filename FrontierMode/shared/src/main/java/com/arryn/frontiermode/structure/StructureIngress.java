@@ -29,7 +29,7 @@ final class StructureIngress {
      * of their own.
      */
     private static Optional<BlockPos> resolveCap(BlockEvent.BreakEvent event) {
-        if (event.getState().is(StructureModule.CAIRN_CAP.get())) {
+        if (event.getState().is(StructureRegisters.CAIRN_CAP.get())) {
             return Optional.of(event.getPos());
         }
         return Optional.empty();

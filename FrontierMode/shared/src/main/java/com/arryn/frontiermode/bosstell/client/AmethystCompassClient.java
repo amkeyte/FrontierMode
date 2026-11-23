@@ -1,12 +1,11 @@
 package com.arryn.frontiermode.bosstell.client;
 
-import com.arryn.frontiermode.FrontierMode;
-import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.bosstell.BossTellRegisters;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.StackData;
 import net.minecraft.client.renderer.item.CompassItemPropertyFunction;
 import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
@@ -46,7 +45,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
  * registration is needed at all -- only the "angle" property below applies.
  */
 @PlatformBound(reason = "registration")
-@Mod.EventBusSubscriber(modid = FrontierMode.MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@Mod.EventBusSubscriber(modid = FrontierIds.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class AmethystCompassClient {
 
     private AmethystCompassClient() {
@@ -55,8 +54,8 @@ public final class AmethystCompassClient {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         ItemProperties.register(
-                BossTellModule.AMETHYST_COMPASS.get(),
-                ResourceLocation.withDefaultNamespace("angle"),
+                BossTellRegisters.AMETHYST_COMPASS.get(),
+                FrontierIds.of("minecraft", "angle"),
                 new CompassItemPropertyFunction((level, stack, entity) ->
                         StackData.lodestonePosition(stack).orElse(null))
         );
@@ -73,8 +72,8 @@ public final class AmethystCompassClient {
     @SubscribeEvent
     public static void onBuildCreativeModeTabContents(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-            event.accept(BossTellModule.AMETHYST_COMPASS);
-            event.accept(BossTellModule.AMETHYST_EYE);
+            event.accept(BossTellRegisters.AMETHYST_COMPASS);
+            event.accept(BossTellRegisters.AMETHYST_EYE);
         }
     }
 }

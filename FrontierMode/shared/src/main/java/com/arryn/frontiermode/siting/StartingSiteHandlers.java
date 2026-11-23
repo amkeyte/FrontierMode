@@ -1,10 +1,10 @@
 package com.arryn.frontiermode.siting;
 
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 
@@ -19,7 +19,7 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 final class StartingSiteHandlers {
 
     private static final ResourceKey<ConfiguredFeature<?, ?>> BONUS_CHEST =
-            ResourceKey.create(Registries.CONFIGURED_FEATURE, new ResourceLocation("minecraft", "bonus_chest"));
+            ResourceKey.create(Registries.CONFIGURED_FEATURE, FrontierIds.of("minecraft", "bonus_chest"));
 
     private StartingSiteHandlers() {
     }

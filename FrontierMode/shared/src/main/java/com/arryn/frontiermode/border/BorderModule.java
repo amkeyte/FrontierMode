@@ -5,7 +5,8 @@ import com.arryn.frontiermode.border.server.commands.BorderCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraftforge.event.RegisterCommandsEvent;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 
 /**
  * Entry point for the Border module (wiki/frontiermode/architecture/border.md): the foundation every other
@@ -23,7 +24,7 @@ public final class BorderModule {
         Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> BorderPlayerJig.build());
     }
 
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
-        BorderCommands.register(event.getDispatcher());
+    public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher) {
+        BorderCommands.register(dispatcher);
     }
 }

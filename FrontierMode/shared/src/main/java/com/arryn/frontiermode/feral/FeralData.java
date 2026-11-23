@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.feral;
 
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.WriteOutcome;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.util.MobData;
@@ -29,7 +30,7 @@ import java.util.Optional;
 @PlatformBound(reason = "mob data namespace")
 public final class FeralData {
 
-    public static final ResourceLocation NAMESPACE = new ResourceLocation("frontiermode", "feral");
+    public static final ResourceLocation NAMESPACE = FrontierIds.of("feral");
 
     private static final String KEY_DISTANCE = "distance";
     private static final String KEY_PACK = "pack";

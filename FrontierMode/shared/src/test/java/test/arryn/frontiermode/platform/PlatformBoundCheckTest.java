@@ -103,12 +103,20 @@ class PlatformBoundCheckTest {
         }
     }
 
-    /** Gradle runs a test in the project directory; an IDE may run it from the repository root. */
+    /**
+     * FrontierMode's source lives in {@code shared}, which sits beside each line folder. Gradle runs a test in the
+     * line project's directory ({@code forge-1.20.1}), so {@code shared} is its sibling; an IDE may run it from
+     * {@code shared} itself or from the repository root. A missing {@code shared} fails here, so the check cannot
+     * pass by reading nothing.
+     */
     private static Path sourceRoot() {
         Path here = Path.of("").toAbsolutePath();
-        for (Path candidate : List.of(here.resolve("src/main/java"), here.resolve("FrontierMode/src/main/java"))) {
+        for (Path candidate : List.of(
+                here.resolveSibling("shared").resolve("src/main/java"),
+                here.resolve("src/main/java"),
+                here.resolve("FrontierMode/shared/src/main/java"))) {
             if (Files.isDirectory(candidate)) return candidate;
         }
-        throw new IllegalStateException("Cannot find FrontierMode's src/main/java from " + here);
+        throw new IllegalStateException("Cannot find FrontierMode's shared src/main/java from " + here);
     }
 }
