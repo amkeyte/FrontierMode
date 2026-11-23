@@ -2,6 +2,7 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.core.FrontierIds;
+import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.keeper.common.KeeperLootTables;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -21,6 +22,7 @@ import net.minecraft.world.entity.player.Player;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -47,14 +49,12 @@ public final class KeeperLoot {
     public static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, Player credited) {
         int waveLength = BorderAPI.waveLength();
         double lootStep = new Tunable("keeperLootStep", 0f, 2f, 0.3f).floatValue();
-        LootParams params = new LootParams.Builder(level)
+        LootParams.Builder builder = new LootParams.Builder(level)
                 .withParameter(LootContextParams.THIS_ENTITY, boss)
                 .withParameter(LootContextParams.ORIGIN, boss.position())
                 .withParameter(LootContextParams.DAMAGE_SOURCE, boss.damageSources().playerAttack(credited))
-                .withOptionalParameter(LootContextParams.KILLER_ENTITY, credited)
-                .withOptionalParameter(LootContextParams.DIRECT_KILLER_ENTITY, credited)
-                .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, credited)
-                .create(LootContextParamSets.ENTITY);
+                .withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, credited);
+        LootParams params = FrontierLine.withKiller(builder, credited).create(LootContextParamSets.ENTITY);
         // The record's own path position, not KeeperAPI.pathPositionOf: that falls back to the layer for an
         // off-path Keeper, which would hand it a multiplier the table choice (wave_1) never gave it.
         double multiplier = KeeperLootTables.multiplier(keeper.pathPosition(), waveLength, lootStep);
@@ -130,11 +130,11 @@ public final class KeeperLoot {
 
     private static LootTable tableFor(ServerLevel level, String name) {
         ResourceLocation id = FrontierIds.of("keeper/" + name);
-        LootTable table = level.getServer().getLootData().getLootTable(id);
-        if (table == LootTable.EMPTY) {
+        Optional<LootTable> table = FrontierLine.lootTable(level, id);
+        if (table.isEmpty()) {
             OUT.warn("[Boss] KeeperLoot.pay(): no loot table " + id + " -- nothing dropped for it.");
         }
-        return table;
+        return table.orElse(LootTable.EMPTY);
     }
 
     private static ItemStack copyOf(ItemStack stack, int count) {

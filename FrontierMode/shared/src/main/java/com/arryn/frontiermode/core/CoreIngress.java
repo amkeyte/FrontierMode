@@ -57,7 +57,7 @@ final class CoreIngress {
             // 1-block-wide, 2-tall body. The step also drives pathfinding, so a big mob plans over taller
             // steps too. Never lowers one, so it is safe on every dimension refresh. It is not saved and
             // is not a jump: vanilla has no jump-height attribute for mobs.
-            entity.setMaxUpStep(Math.max(entity.maxUpStep(), VANILLA_STEP_HEIGHT * scale));
+            FrontierLine.raiseStepHeight(entity, VANILLA_STEP_HEIGHT * scale);
         }
     }
 }

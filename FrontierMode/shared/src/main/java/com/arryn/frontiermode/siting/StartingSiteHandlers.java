@@ -1,12 +1,11 @@
 package com.arryn.frontiermode.siting;
 
 import com.arryn.frontiermode.core.FrontierIds;
+import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 
 /**
  * The starting-site consumer (siting.md § When it runs): once, as a brand-new Overworld picks its spawn
@@ -18,8 +17,7 @@ import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
  */
 final class StartingSiteHandlers {
 
-    private static final ResourceKey<ConfiguredFeature<?, ?>> BONUS_CHEST =
-            ResourceKey.create(Registries.CONFIGURED_FEATURE, FrontierIds.of("minecraft", "bonus_chest"));
+    private static final ResourceLocation BONUS_CHEST = FrontierIds.of("minecraft", "bonus_chest");
 
     private StartingSiteHandlers() {
     }
@@ -39,9 +37,9 @@ final class StartingSiteHandlers {
     }
 
     private static void placeBonusChest(ServerLevel level, BlockPos site) {
-        level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE).getHolder(BONUS_CHEST)
+        FrontierLine.configuredFeature(level, BONUS_CHEST)
                 .ifPresentOrElse(
-                        feature -> feature.value().place(
+                        feature -> feature.place(
                                 level, level.getChunkSource().getGenerator(), level.getRandom(), site),
                         () -> OUT.warn("[Siting] no bonus_chest feature registered -- the bonus chest is skipped."));
     }

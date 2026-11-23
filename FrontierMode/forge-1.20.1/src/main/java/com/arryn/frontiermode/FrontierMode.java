@@ -2,8 +2,10 @@ package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.admin.AdminToolsModule;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.core.ForgeLineSource;
 import com.arryn.frontiermode.core.ForgeRegistrarSource;
 import com.arryn.frontiermode.core.FrontierIds;
+import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.common.MinecraftForge;
@@ -31,6 +33,9 @@ public final class FrontierMode {
         ForgeRegistrarSource registrar = new ForgeRegistrarSource();
         FrontierRegistrar.install(registrar);
         registrar.register(modBus);
+
+        // The calls into Minecraft whose form differs by line.
+        FrontierLine.install(new ForgeLineSource());
 
         // The enchantments are registered apart from the registrar: a register needs the mod bus instance, which
         // only exists in this constructor.

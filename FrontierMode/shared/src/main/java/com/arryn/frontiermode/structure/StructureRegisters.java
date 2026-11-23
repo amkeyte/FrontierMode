@@ -1,11 +1,11 @@
 package com.arryn.frontiermode.structure;
 
+import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
 import com.arryn.frontiermode.structure.common.blocks.CairnCapBlock;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockBehaviour;
 
 import java.util.function.Supplier;
 
@@ -25,5 +25,5 @@ public final class StructureRegisters {
 
     public static final Supplier<Block> CAIRN_CAP =
             FrontierRegistrar.block("cairn_cap", () -> new CairnCapBlock(
-                    BlockBehaviour.Properties.copy(Blocks.CHISELED_STONE_BRICKS).noLootTable()));
+                    FrontierLine.copyProperties(Blocks.CHISELED_STONE_BRICKS).noLootTable()));
 }

@@ -95,7 +95,6 @@ com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.core.Direction
 com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.world.entity.EntityDimensions
 com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.world.entity.MobSpawnType
-com/arryn/frontiermode/core/MobSpawns.java  net.minecraftforge.event.ForgeEventFactory
 com/arryn/frontiermode/core/WidePathing.java  net.minecraft.world.level.pathfinder.Path
 com/arryn/frontiermode/difficulty/DifficultyAPI.java  net.minecraft.server.MinecraftServer
 com/arryn/frontiermode/difficulty/DifficultyAPI.java  net.minecraft.world.entity.animal.IronGolem
@@ -192,10 +191,7 @@ com/arryn/frontiermode/siting/StartingSite.java  net.minecraft.server.level.Serv
 com/arryn/frontiermode/siting/StartingSite.java  net.minecraft.tags.BiomeTags
 com/arryn/frontiermode/siting/StartingSite.java  net.minecraft.tags.BlockTags
 com/arryn/frontiermode/siting/StartingSite.java  net.minecraft.world.level.biome.Biome
-com/arryn/frontiermode/siting/StartingSiteHandlers.java  net.minecraft.core.registries.Registries
-com/arryn/frontiermode/siting/StartingSiteHandlers.java  net.minecraft.resources.ResourceKey
 com/arryn/frontiermode/siting/StartingSiteHandlers.java  net.minecraft.server.level.ServerLevel
-com/arryn/frontiermode/siting/StartingSiteHandlers.java  net.minecraft.world.level.levelgen.feature.ConfiguredFeature
 com/arryn/frontiermode/siting/common/SitingRules.java  net.minecraft.core.Direction
 com/arryn/frontiermode/structure/StructureIngress.java  net.minecraftforge.event.level.BlockEvent
 com/arryn/frontiermode/structure/StructureModule.java  net.minecraft.commands.CommandSourceStack

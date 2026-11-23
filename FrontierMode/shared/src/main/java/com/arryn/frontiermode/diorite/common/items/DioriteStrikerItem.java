@@ -3,6 +3,7 @@ package com.arryn.frontiermode.diorite.common.items;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
+import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.diorite.common.DioriteRules;
 import com.arryn.frontiermode.diorite.common.StrikerMath;
 import com.arryn.frontiermode.effects.EffectsAPI;
@@ -64,7 +65,7 @@ public final class DioriteStrikerItem extends Item {
             // No source entity: vanilla's explosion skips its own source when gathering what to hurt,
             // so naming the player as the source would spare them.
             level.explode(null, x, y, z, DioriteRules.strikerBlastPower(), Level.ExplosionInteraction.NONE);
-            stack.hurtAndBreak(DioriteRules.strikerBlastDurability(), player, p -> p.broadcastBreakEvent(context.getHand()));
+            FrontierLine.damageItem(stack, DioriteRules.strikerBlastDurability(), player, context.getHand());
             return InteractionResult.sidedSuccess(false);
         }
 
@@ -74,7 +75,7 @@ public final class DioriteStrikerItem extends Item {
         } else {
             spark(level, relevant, face, x, y, z);
         }
-        stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(context.getHand()));
+        FrontierLine.damageItem(stack, 1, player, context.getHand());
         return InteractionResult.sidedSuccess(false);
     }
 

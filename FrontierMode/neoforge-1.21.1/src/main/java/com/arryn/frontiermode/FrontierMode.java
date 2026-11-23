@@ -1,6 +1,10 @@
 package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.core.FrontierIds;
+import com.arryn.frontiermode.core.FrontierLine;
+import com.arryn.frontiermode.core.FrontierRegistrar;
+import com.arryn.frontiermode.core.NeoForgeLineSource;
+import com.arryn.frontiermode.core.NeoForgeRegistrarSource;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -17,6 +21,14 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 public final class FrontierMode {
 
     public FrontierMode(IEventBus modBus) {
+
+        // First: installs the registrar every registers class registers through, and puts its registers on the bus.
+        NeoForgeRegistrarSource registrar = new NeoForgeRegistrarSource();
+        FrontierRegistrar.install(registrar);
+        registrar.register(modBus);
+
+        // The calls into Minecraft whose form differs by line.
+        FrontierLine.install(new NeoForgeLineSource());
 
         // Hook lifecycle events
         modBus.addListener(this::commonSetup);

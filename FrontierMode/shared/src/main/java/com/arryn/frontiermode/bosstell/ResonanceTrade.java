@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.bosstell;
 
+import com.arryn.frontiermode.core.FrontierLine;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.VillagerProfession;
@@ -58,9 +59,8 @@ public final class ResonanceTrade {
         public MerchantOffer getOffer(@NotNull Entity trader, @NotNull RandomSource rng) {
             ItemStack book = EnchantedBookItem.createForEnchantment(
                     new EnchantmentInstance(BossTellModule.RESONANCE.get(), 1));
-            return new MerchantOffer(
+            return FrontierLine.merchantOffer(
                     new ItemStack(Items.EMERALD, EMERALD_COST),
-                    ItemStack.EMPTY,
                     book,
                     MAX_USES,
                     VILLAGER_XP,

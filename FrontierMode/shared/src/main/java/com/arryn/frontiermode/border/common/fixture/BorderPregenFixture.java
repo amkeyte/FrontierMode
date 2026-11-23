@@ -4,6 +4,7 @@ import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.border.common.BorderRules;
 import com.arryn.frontiermode.border.common.bundle.BordersBundle;
 import com.arryn.frontiermode.border.common.BorderPregenLogic;
+import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -17,7 +18,6 @@ import net.minecraft.nbt.Tag;
 //import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkStatus;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -347,7 +347,7 @@ public final class BorderPregenFixture extends SatchelFixture {
             // better. It does not consult the disk, so a chunk generated earlier and unloaded since
             // answers null, the same as one never generated.
             ChunkAccess existing =
-                    level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+                    FrontierLine.fullChunkIfLoaded(level, chunkX, chunkZ);
             if (existing != null) {
                 resident++;
             } else {
@@ -362,7 +362,7 @@ public final class BorderPregenFixture extends SatchelFixture {
                 // against a failure mode nobody's actually hit -- crash loudly instead so a
                 // pathological seed or extreme biome surfaces immediately as a bug report, not a
                 // silently incomplete disk.
-                if (level.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false) == null) {
+                if (FrontierLine.fullChunkIfLoaded(level, chunkX, chunkZ) == null) {
                     throw new IllegalStateException(
                             "[BorderPregen] Border " + record.borderId()
                                     + " chunk (" + chunkX + ", " + chunkZ + ") at cursor " + i

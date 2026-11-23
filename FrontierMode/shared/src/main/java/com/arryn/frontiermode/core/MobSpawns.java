@@ -11,7 +11,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.ForgeEventFactory;
 
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -27,11 +26,11 @@ public final class MobSpawns {
     /** Which spawn setup {@link #spawn} runs on the new mob. */
     public enum Setup {
         /**
-         * Forge's finalize-spawn event, then vanilla's setup. Every module's spawn fan-out treats
+         * The loader's finalize-spawn event, then vanilla's setup. Every module's spawn fan-out treats
          * the mob as a spawn.
          */
         DISPATCHED,
-        /** Vanilla's {@code Mob#finalizeSpawn} only: no Forge event, so no module sees the spawn. */
+        /** Vanilla's {@code Mob#finalizeSpawn} only: no loader event, so no module sees the spawn. */
         VANILLA
     }
 
@@ -79,14 +78,8 @@ public final class MobSpawns {
         });
     }
 
-    @SuppressWarnings("deprecation")
     private static void runSetup(Mob mob, ServerLevel level, BlockPos pos, Setup setup) {
-        switch (setup) {
-            case DISPATCHED -> ForgeEventFactory.onFinalizeSpawn(
-                    mob, level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null, null);
-            case VANILLA -> mob.finalizeSpawn(
-                    level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null, null);
-        }
+        FrontierLine.finalizeSpawn(mob, level, pos, setup);
     }
 
     /**
