@@ -1,41 +1,32 @@
 package com.arryn.frontiermode.core;
 
-import com.arryn.frontiermode.FrontierKeys;
-import com.arryn.satchel.common.ingress.IngressConfig;
+import com.arryn.satchel.common.ingress.GlobalConsumers;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraftforge.event.entity.EntityEvent;
 
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * The holder class for {@code core}'s ingress: the hitbox-scale module event and its one consumer, which scales the new
- * size of an entity a {@link ScaleSource} claims (wiki/frontiermode/architecture/core.md § Registration).
- * {@link CoreModule#init()} registers {@link #build()} through a lambda, once for each side. The render scale is not
+ * {@code core}'s global consumers, written once for both lines: the hitbox-scale consumer, which scales the new size of
+ * an entity a {@link ScaleSource} claims (wiki/frontiermode/architecture/core.md § Registration). Each line's
+ * {@code CoreIngress} translates the loader's event to {@link HitboxResize} and installs these. The render scale is not
  * here: it is a {@code PoseStack} scale around the vanilla render, a direct touch on the render events.
  */
-final class CoreIngress {
+public final class CoreConsumers {
 
     // Vanilla's mob step height, in blocks.
     private static final float VANILLA_STEP_HEIGHT = 0.6F;
 
-    private CoreIngress() {
+    private CoreConsumers() {
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(FrontierKeys.CORE_INGRESS);
+    /** A fresh set of consumers: build one in the ingress's side-keyed factory. */
+    public static GlobalConsumers declare() {
+        GlobalConsumers declared = new GlobalConsumers();
         AtomicBoolean logged = new AtomicBoolean();
-        ingress.translate(EntityEvent.Size.class, CoreIngress::resolveScalable, HitboxResize::new);
-        ingress.listenForAll(HitboxResize.class, event -> onResize(event, logged));
-        return ingress;
-    }
-
-    /** The cheap filter: an ordinary entity bounces here, before anything is built. */
-    private static Optional<Entity> resolveScalable(EntityEvent.Size event) {
-        Entity entity = event.getEntity();
-        return EntityScales.canBeScaled(entity) ? Optional.of(entity) : Optional.empty();
+        declared.listenForAll(HitboxResize.class, event -> onResize(event, logged));
+        return declared;
     }
 
     /**
@@ -55,8 +46,8 @@ final class CoreIngress {
         if (scale > 1.0F) {
             // A mob that is bigger should clear what its size clears: vanilla's 0.6 step height is for a
             // 1-block-wide, 2-tall body. The step also drives pathfinding, so a big mob plans over taller
-            // steps too. Never lowers one, so it is safe on every dimension refresh. It is not saved and
-            // is not a jump: vanilla has no jump-height attribute for mobs.
+            // steps too. Never lowers one, so it is safe on every dimension refresh. It is not a jump: vanilla has no
+            // jump-height attribute for mobs.
             FrontierLine.raiseStepHeight(entity, VANILLA_STEP_HEIGHT * scale);
         }
     }

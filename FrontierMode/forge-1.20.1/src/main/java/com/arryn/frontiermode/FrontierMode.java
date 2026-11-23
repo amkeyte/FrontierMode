@@ -4,9 +4,12 @@ import com.arryn.frontiermode.admin.AdminToolsModule;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.core.ForgeLineSource;
 import com.arryn.frontiermode.core.ForgeRegistrarSource;
+import com.arryn.frontiermode.core.CoreIngress;
 import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
+import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
@@ -49,6 +52,15 @@ public final class FrontierMode {
         MinecraftForge.EVENT_BUS.register(this);
 
         FrontierBoot.init();
+        registerIngresses();
+    }
+
+    /**
+     * Registers each module's ingress at the side the module's page gives, in the order of the module inits
+     * (Module Graph). An ingress is the line's own: it translates the loader's events to the module events.
+     */
+    private static void registerIngresses() {
+        Satchel.registerIngress(JigPolicies.SideApplicability.BOTH, () -> CoreIngress.build());
     }
 
     // Common Setup (runs once on both sides)

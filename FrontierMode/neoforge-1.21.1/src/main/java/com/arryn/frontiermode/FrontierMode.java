@@ -1,10 +1,13 @@
 package com.arryn.frontiermode;
 
+import com.arryn.frontiermode.core.CoreIngress;
 import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
 import com.arryn.frontiermode.core.NeoForgeLineSource;
 import com.arryn.frontiermode.core.NeoForgeRegistrarSource;
+import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -37,6 +40,15 @@ public final class FrontierMode {
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
 
         FrontierBoot.init();
+        registerIngresses();
+    }
+
+    /**
+     * Registers each module's ingress at the side the module's page gives, in the order of the module inits
+     * (Module Graph). An ingress is the line's own: it translates the loader's events to the module events.
+     */
+    private static void registerIngresses() {
+        Satchel.registerIngress(JigPolicies.SideApplicability.BOTH, () -> CoreIngress.build());
     }
 
     // Common Setup (runs once on both sides)

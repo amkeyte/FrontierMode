@@ -90,7 +90,6 @@ com/arryn/frontiermode/bosstell/server/commands/BossTellCommands.java  net.minec
 com/arryn/frontiermode/coordination/SpawnCoordinator.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/coordination/SpawnCoordinator.java  net.minecraft.world.entity.MobSpawnType
 com/arryn/frontiermode/coordination/SpawnIngress.java  net.minecraftforge.event.entity.living.MobSpawnEvent
-com/arryn/frontiermode/core/CoreIngress.java  net.minecraftforge.event.entity.EntityEvent
 com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.core.Direction
 com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/core/MobSpawns.java  net.minecraft.world.entity.EntityDimensions
