@@ -292,3 +292,6 @@ tasks.matching { it.name == 'runServer' }.configureEach {
 
 // World control for the dedicated server (reset / switch world) -- see gradle/server-world.gradle
 apply from: '../gradle/server-world.gradle'
+
+// Tunables dev sync: copy a run's tuned values back to the seed in shared. forge-1.20.1 only -- see gradle/tunables-sync.gradle
+apply from: '../gradle/tunables-sync.gradle'
