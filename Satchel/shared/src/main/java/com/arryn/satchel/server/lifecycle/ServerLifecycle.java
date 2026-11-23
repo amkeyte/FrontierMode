@@ -54,8 +54,12 @@ public final class ServerLifecycle {
      * Bootstrap
      * ========================================================== */
 
-    /** A server level has begun to load: bind the thread and install the foundation, once. */
+    /**
+     * A server level has begun to load: bind the thread and install the foundation, once. SatchelHealth reads
+     * what the loader posted before the first level, first, while nothing is bound.
+     */
     public static void firstLevelLoad() {
+        SatchelHealth.onServerFirstLevelLoad();
         BOOTER.bindFoundation();
         ensureInstalled();
     }

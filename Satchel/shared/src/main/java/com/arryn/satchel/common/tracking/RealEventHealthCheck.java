@@ -24,22 +24,26 @@ import com.arryn.satchel.common.util.out.OUT;
  *   the first on each thread logs the thread's name and that it was not delivered: a spawn finalized at chunk
  *   generation is that case. A firing on a bound thread whose foundation is not ready is the other way a firing is
  *   dropped, and is counted apart;</li>
- *   <li><b>A pre-level event is not delivered.</b> The trades event is posted from the loader's own about-to-start
- *   listener, before the server's first level loads, so no side is bound and no foundation is ready. A probe ingress
- *   on it receives nothing, on the first server of a session and on a second in the same session. (On the first server
- *   the ingress is not even installed yet: a server foundation is booted by the first level load.) This documents the
- *   gap SAT_133 closes, and its expectation flips when that is built.</li>
+ *   <li><b>A pre-level event is not delivered.</b> The loader posts the trades event before the server's first level
+ *   loads, so no side is bound and no foundation is ready. A probe ingress on it receives nothing, on the first server
+ *   of a session and on a second in the same session. (On the first server the ingress is not even installed yet: a
+ *   server foundation is booted by the first level load.) This documents the gap SAT_133 left open on purpose: a
+ *   module takes the event by its own direct listener, not through the ingress. Where the loader posts the event
+ *   differs by line: before the server's about-to-start event, or during it. A loader that posts it again while the
+ *   server runs (a data reload) may do so on a bound thread, where the ingress delivers it; the probe reads before
+ *   the first level, so it does not see that.</li>
  * </ul>
  *
  * <p>
  * The counts live in {@link RealEventTally}, not a {@link HealthState}: a chunk-generation worker and the
- * about-to-start event have no world identity to find a {@code HealthState} by.
+ * trades event a loader posts before the first level have no world identity to find a {@code HealthState} by.
  *
  * <p>
  * The check is shared. Each line's {@code RealEventIngress} implements the two event interfaces on its loader's
  * finalize-spawn and trades events, installs {@link RealEventHealthCheck#consumers()}, and registers the raw controls,
- * which call {@link RealEventHealthCheck#onRawFinalizeSpawn()}, {@link RealEventHealthCheck#onRawTrades()} and, after
- * every other listener of the server's about-to-start event, {@link RealEventHealthCheck#onAboutToStartDone()}.
+ * which call {@link RealEventHealthCheck#onRawFinalizeSpawn()} and {@link RealEventHealthCheck#onRawTrades()}. The
+ * trades probe is read from shared code, not a line's listener: {@code ServerLifecycle.firstLevelLoad()} calls
+ * {@link SatchelHealth#onServerFirstLevelLoad()} as a server's first level begins to load.
  */
 final class RealEventHealthCheck {
 
@@ -147,7 +151,7 @@ final class RealEventHealthCheck {
     }
 
     // =================================================================
-    // Probe 6: the trades event at server start
+    // Probe 6: the trades event before the first level
     // =================================================================
 
     /** The raw control, called by the line's plain listener for every trades firing. */
@@ -156,26 +160,30 @@ final class RealEventHealthCheck {
     }
 
     /**
-     * Called after every other listener of the server's about-to-start event, including the loader's own that posts
-     * the trades. Reports what reached the ingress.
+     * Called as a server's first level begins to load, before any level exists: by then the loader has posted the
+     * trades event, in a listener of the server's about-to-start event or earlier. The trades counts are cleared when a
+     * server stops, not when one starts ({@link RealEventTally}), so an early firing is still counted. Reports what
+     * reached the ingress, once per server: a server loads a level for each dimension.
      */
-    static void onAboutToStartDone() {
+    static void onServerFirstLevel() {
+        if (!RealEventTally.firstTime("trades:read")) return;
+
         long raw = RealEventTally.tradesRawCount();
         long onBound = RealEventTally.tradesOnBoundThreadCount();
         long delivered = RealEventTally.tradesDeliveredCount();
 
         if (delivered != 0) {
-            violation("the trades event reached the ingress " + delivered + " time(s) during the server's "
-                    + "about-to-start event, before any level exists. SAT_133 is meant to change this: "
-                    + "update the probe with it.");
+            violation("the trades event reached the ingress " + delivered + " time(s) before the server's first "
+                    + "level, where no level exists. SAT_133 keeps it out of the ingress: a module takes it by "
+                    + "a direct listener.");
         }
         if (raw == 0) {
-            OUT.warn("[SatchelHealth] Pre-level probe: the loader did not post the trades event during the server's "
-                    + "about-to-start event, so the probe observed nothing (see SAT_133)");
+            OUT.warn("[SatchelHealth] Pre-level probe: the loader did not post the trades event before the server's "
+                    + "first level, so the probe observed nothing (see SAT_133)");
             return;
         }
-        OUT.info("[SatchelHealth] Pre-level probe: the trades event was posted " + raw + " time(s) during the "
-                + "server's about-to-start event (" + onBound + " on a bound thread) and " + delivered
-                + " reached the ingress, as expected until SAT_133");
+        OUT.info("[SatchelHealth] Pre-level probe: the trades event was posted " + raw + " time(s) before the "
+                + "server's first level (" + onBound + " on a bound thread) and " + delivered
+                + " reached the ingress, as expected: it stays out of the ingress (SAT_133)");
     }
 }

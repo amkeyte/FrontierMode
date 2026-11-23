@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+// Unchanged from the Forge line so the jar is Satchel-<version>.jar on both.
+rootProject.name = "Satchel"

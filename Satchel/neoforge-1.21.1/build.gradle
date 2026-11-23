@@ -1,0 +1,202 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+// The mod's shared source folder, compiled by this line project together with its own src (PORT_002).
+// Tree shape: <mod>/shared and <mod>/<line>/. Same text as forge-1.20.1/build.gradle.
+def sharedDir = file("${projectDir}/../shared")
+// The line is this project's folder name (forge-1.20.1, neoforge-1.21.1).
+def lineName = projectDir.name
+
+// ------------------------------------------------------------
+// Java. NeoForge 1.21.1 needs JDK 21 to compile and run (its dependencies are Java 21 only, so options.release = 17
+// does not resolve here). shared stays Java 17 syntax because forge-1.20.1 compiles it on JDK 17.
+// ------------------------------------------------------------
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+println "Java: ${System.getProperty('java.version')}, JVM: ${System.getProperty('java.vm.version')} (${System.getProperty('java.vendor')}), Arch: ${System.getProperty('os.arch')}"
+
+// ------------------------------------------------------------
+// ModDevGradle / NeoForge
+// ------------------------------------------------------------
+neoForge {
+    version = project.neo_version
+
+    // The tests use Minecraft and NeoForge classes, as on the Forge line, so the source set gets them too.
+    addModdingDependenciesTo(sourceSets.test)
+
+    runs {
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+
+        client {
+            client()
+            gameDirectory.set(project.file('run'))
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            // Own working dir so a concurrently-running client doesn't collide with the server's saves/,
+            // logs/, server.properties, eula.txt.
+            gameDirectory.set(project.file('run-server'))
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument '--nogui'
+        }
+    }
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Source sets: this line's own src plus the mod's shared folder
+// ------------------------------------------------------------
+sourceSets.main {
+    java {
+        srcDir 'src/main/java'
+        srcDir "${sharedDir}/src/main/java"
+    }
+    resources {
+        srcDir 'src/main/resources'
+        srcDir "${sharedDir}/src/main/resources"      // last, so a line's own file comes first
+    }
+}
+sourceSets.test {
+    java.srcDir "${sharedDir}/src/test/java"
+    resources.srcDir "${sharedDir}/src/test/resources"
+}
+
+// Gradle silently skips a source folder that does not exist, so a wrong path would build a jar with no shared code.
+tasks.named('compileJava') {
+    doFirst {
+        if (!sharedDir.isDirectory()) {
+            throw new GradleException("Missing shared source folder ${sharedDir}: expected it beside the line folder.")
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Repositories (ModDevGradle adds the NeoForged Maven itself)
+// ------------------------------------------------------------
+repositories {
+    mavenCentral()
+}
+
+// ------------------------------------------------------------
+// Dependencies
+// ------------------------------------------------------------
+dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    // Gradle 9 no longer supplies the JUnit Platform launcher itself.
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// ------------------------------------------------------------
+// Resource processing: expand ${...} keys in the mod file and pack.mcmeta from gradle.properties
+// ------------------------------------------------------------
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    def replaceProperties = [
+            minecraft_version       : minecraft_version,
+            minecraft_version_range : minecraft_version_range,
+            neo_version             : neo_version,
+            neo_version_range       : neo_version_range,
+            loader_version_range    : loader_version_range,
+            mod_id                  : mod_id,
+            mod_name                : mod_name,
+            mod_version             : project.version,
+            mod_authors             : mod_authors,
+            mod_description         : mod_description,
+            mod_license             : mod_license
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+// ------------------------------------------------------------
+// Jar. NeoForge 1.21.1 runs on official names, so there is no reobfuscation step here.
+// ------------------------------------------------------------
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes(
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        )
+    }
+
+    // License and credits ship inside the jar: CREDITS_<mod_id>.md from the mod's folder, and the repo-root
+    // MIT LICENSE renamed to LICENSE_<mod_id>. Gradle silently skips a missing `from` source, so doFirst fails
+    // the build instead of shipping a jar without them.
+    def creditsFile = file("${projectDir}/../CREDITS_${mod_id}.md")
+    def licenseFile = file("${projectDir}/../../LICENSE")
+    from(creditsFile)
+    from(licenseFile) { rename('^LICENSE$', "LICENSE_${mod_id}") }
+    doFirst {
+        [creditsFile, licenseFile].each {
+            if (!it.exists()) {
+                throw new GradleException("Missing file for the jar's license/credits: ${it}")
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+// ------------------------------------------------------------
+// Release: copy the jar to <repo root>/Release/<version>/<line>/
+// Run: ./gradlew release
+// ------------------------------------------------------------
+tasks.register('release', Copy) {
+    group = 'satchel'
+    description = "Copies the jar to <repo root>/Release/${mod_version}/${lineName}/ for GitHub upload."
+    dependsOn tasks.named('jar')
+
+    def releaseDir = file("${projectDir}/../../Release/${mod_version}/${lineName}")
+
+    doFirst {
+        releaseDir.mkdirs()
+    }
+
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into releaseDir
+}
+
+// Gradle's JavaExec doesn't forward stdin to the child process by default, so console
+// commands typed into the IntelliJ Run window (stop, op, etc.) silently go nowhere even
+// though the server is alive and listening. This wires it through. Same fix as the Forge line.
+tasks.matching { it.name == 'runServer' }.configureEach {
+    standardInput = System.in
+}
+
+// World control for the dedicated server (reset / switch world) -- see ../gradle/server-world.gradle
+apply from: '../gradle/server-world.gradle'

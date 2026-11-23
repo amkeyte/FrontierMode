@@ -8,7 +8,6 @@ import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
-import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.village.VillagerTradesEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 
@@ -32,9 +31,6 @@ public final class RealEventIngress {
                 RealEventIngress::onRawFinalizeSpawn);
         MinecraftForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, VillagerTradesEvent.class,
                 RealEventIngress::onRawTrades);
-        // Last, so every listener of the event (Forge's own trades loader included) has run.
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, false, ServerAboutToStartEvent.class,
-                RealEventIngress::onAboutToStartDone);
     }
 
     private static void onRawFinalizeSpawn(MobSpawnEvent.FinalizeSpawn e) {
@@ -43,10 +39,6 @@ public final class RealEventIngress {
 
     private static void onRawTrades(VillagerTradesEvent e) {
         RealEventHealthCheck.onRawTrades();
-    }
-
-    private static void onAboutToStartDone(ServerAboutToStartEvent e) {
-        RealEventHealthCheck.onAboutToStartDone();
     }
 
     static final class ForgeSpawnFinalized extends ModuleSignal<MobSpawnEvent.FinalizeSpawn, Void>

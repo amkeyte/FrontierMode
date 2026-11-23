@@ -7,15 +7,19 @@ import java.util.concurrent.atomic.LongAdder;
 
 /**
  * What {@link RealEventHealthCheck} counts on threads that have no {@link HealthState} to count in: a
- * chunk-generation worker Satchel never bound, and the server-about-to-start event that fires before
- * the first level (and so before any world identity) exists. A {@code HealthState} is found through
- * the world-identity token of the calling thread's side, which neither has.
+ * chunk-generation worker Satchel never bound, and the trades event the loader posts before the first
+ * level (and so before any world identity) exists. A {@code HealthState} is found through the
+ * world-identity token of the calling thread's side, which neither has.
  *
  * <p>
- * The one anchor in SatchelHealth besides its map of {@code HealthState}s, and cleared at the same
- * two points: {@link SatchelHealth#onServerAboutToStart()} and {@link SatchelHealth#onServerStopped()},
- * so a second integrated server in one JVM never inherits the first's counts. Every member is
- * thread-safe, since the worker threads write while the server thread reads.
+ * The one anchor in SatchelHealth besides its map of {@code HealthState}s. It is cleared when a server
+ * stops, {@link SatchelHealth#onServerStopped()}, so a second integrated server in one JVM never
+ * inherits the first's counts. The spawn counts are cleared at server start too ({@link
+ * SatchelHealth#onServerAboutToStart()}), through {@link #resetForServerStart()}; the trades counts are
+ * not, because a loader may post the trades event before the server's about-to-start event, and a
+ * clear there would wipe the firing before the probe reads it. A server that ended without a stop
+ * event (a crash) leaves its trades counts behind. Every member is thread-safe, since the worker
+ * threads write while the server thread reads.
  */
 final class RealEventTally {
 
@@ -39,14 +43,20 @@ final class RealEventTally {
 
     private static final Set<String> LOGGED = ConcurrentHashMap.newKeySet();
 
+    /** Everything: for a server that has stopped. */
     static void reset() {
+        resetForServerStart();
+        TRADES_RAW.reset();
+        TRADES_ON_BOUND_THREAD.reset();
+        TRADES_DELIVERED.reset();
+    }
+
+    /** All but the trades counts, which a loader may already have filled before the server's about-to-start event. */
+    static void resetForServerStart() {
         SPAWN_EXPECTED.reset();
         SPAWN_DELIVERED.reset();
         SPAWN_NOT_READY.reset();
         SPAWN_UNBOUND.clear();
-        TRADES_RAW.reset();
-        TRADES_ON_BOUND_THREAD.reset();
-        TRADES_DELIVERED.reset();
         LOGGED.clear();
     }
 

@@ -102,15 +102,25 @@ public final class SatchelHealth {
 
     /**
      * Called before a server creates any level. Only one server runs per JVM, so anything still
-     * held is the leftover of one that ended without a stop event (a crash).
+     * held is the leftover of one that ended without a stop event (a crash). The trades counts are not
+     * cleared here: the loader may have posted the trades event already ({@link RealEventTally}).
      */
     public static void onServerAboutToStart() {
         STATES.clear();
-        RealEventTally.reset();
+        RealEventTally.resetForServerStart();
 
         // If an earlier server ran and stopped in this JVM, nothing of its mob scopes or interest may
         // have carried over.
         MobHealthCheck.checkNothingCarriedOver();
+    }
+
+    /**
+     * Called as a server's first level begins to load, before any level exists and before anything is bound: reads
+     * the probe on what the loader posted before the first level. Called for every level the server loads; the
+     * probe reads once per server.
+     */
+    public static void onServerFirstLevelLoad() {
+        RealEventHealthCheck.onServerFirstLevel();
     }
 
     /**
