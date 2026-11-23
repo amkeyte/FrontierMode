@@ -11,3 +11,7 @@ pluginManagement {
 plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
 }
+
+// Unchanged from before the tree move (it was the folder name FrontierMode), so project.name in the jar manifest
+// stays FrontierMode. The jar's file name comes from base.archivesName = mod_id.
+rootProject.name = 'FrontierMode'
