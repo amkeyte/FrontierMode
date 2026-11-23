@@ -18,7 +18,6 @@ com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraft.commands.Comma
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.registries.DeferredRegister
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.registries.ForgeRegistries
 com/arryn/frontiermode/admin/AdminToolsModule.java  net.minecraftforge.registries.RegistryObject
-com/arryn/frontiermode/admin/client/AdminViewMarkers.java  net.minecraft.util.Mth
 com/arryn/frontiermode/admin/common/enchantments/DeathTouchEnchantment.java  net.minecraft.world.entity.MobType
 com/arryn/frontiermode/admin/common/enchantments/DeathTouchEnchantment.java  net.minecraft.world.item.enchantment.Enchantment
 com/arryn/frontiermode/admin/common/enchantments/DeathTouchEnchantment.java  net.minecraft.world.item.enchantment.EnchantmentCategory
@@ -69,7 +68,6 @@ com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minec
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.InteractionResult
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.item.CompassItem
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.item.ItemStack
-com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.item.TooltipFlag
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.item.context.UseOnContext
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.item.enchantment.Enchantment
 com/arryn/frontiermode/bosstell/common/items/AmethystCompassItem.java  net.minecraft.world.item.enchantment.EnchantmentCategory
@@ -153,7 +151,6 @@ com/arryn/frontiermode/keeper/KeeperLoot.java  net.minecraft.world.level.storage
 com/arryn/frontiermode/keeper/KeeperSetup.java  net.minecraft.server.level.ServerLevel
 com/arryn/frontiermode/keeper/KeeperSetup.java  net.minecraft.world.entity.ai.attributes.Attributes
 com/arryn/frontiermode/keeper/KeeperSetup.java  net.minecraft.world.entity.animal.Rabbit
-com/arryn/frontiermode/keeper/client/BossEyesLayer.java  net.minecraft.world.entity.LivingEntity
 com/arryn/frontiermode/sentinel/common/goals/SentinelAllyTargetGoal.java  net.minecraft.world.entity.LivingEntity
 com/arryn/frontiermode/sentinel/common/goals/SentinelAllyTargetGoal.java  net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal
 com/arryn/frontiermode/sentinel/SentinelModule.java  net.minecraft.server.level.ServerLevel
@@ -176,7 +173,5 @@ com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft
 com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft.world.level.block.state.properties.BlockStateProperties
 com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft.world.level.block.state.properties.BooleanProperty
 com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraft.world.phys.BlockHitResult
-com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraftforge.api.distmarker.Dist
-com/arryn/frontiermode/structure/common/blocks/CairnCapBlock.java  net.minecraftforge.api.distmarker.OnlyIn
 com/arryn/frontiermode/structure/server/commands/StructureCommands.java  net.minecraft.commands.CommandSourceStack
 com/arryn/frontiermode/structure/server/commands/StructureCommands.java  net.minecraft.commands.Commands

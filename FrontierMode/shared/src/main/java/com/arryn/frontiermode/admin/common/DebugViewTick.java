@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.admin.common;
 
-import com.arryn.frontiermode.admin.client.AdminViewClient;
+import com.arryn.frontiermode.admin.client.AdminView;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.host.HostJigs;
@@ -90,6 +90,6 @@ public final class DebugViewTick implements Ticking {
             OUT.debug("[Admin] onTickAfter(): view turned off, the player no longer has permission level 2");
             return;
         }
-        AdminViewClient.mark(player.level(), marked, touched);
+        AdminView.mark(player.level(), marked, touched);
     }
 }

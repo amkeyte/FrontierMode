@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityAttachment;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -15,7 +16,7 @@ import org.joml.Matrix4f;
 import java.util.Map;
 
 /**
- * The debug view's marker: a coloured diamond drawn above every mob {@link AdminViewClient} is
+ * The debug view's marker: a coloured diamond drawn above every mob {@link AdminView} is
  * marking, seen through walls, so a playtester can find a tracked mob and tell what it's there for
  *. Gold for a boss, purple for a sentinel, green for a Feral.
  *
@@ -37,8 +38,14 @@ public final class AdminViewMarkers {
     private AdminViewMarkers() {
     }
 
+    /** Where the name tag sits above the mob: 1.21 keeps it as an attachment point of the entity type. */
+    private static double nameTagHeight(Mob mob) {
+        Vec3 tag = mob.getAttachments().getNullable(EntityAttachment.NAME_TAG, 0, mob.getYRot());
+        return tag != null ? tag.y : mob.getBbHeight() + 0.5;
+    }
+
     public static void render(PoseStack pose, Camera camera, float partialTick) {
-        Map<Mob, Role> marked = AdminViewClient.marked();
+        Map<Mob, Role> marked = AdminView.marked();
         if (marked.isEmpty()) {
             return;
         }
@@ -54,7 +61,7 @@ public final class AdminViewMarkers {
             }
             double x = Mth.lerp(partialTick, mob.xOld, mob.getX());
             double y = Mth.lerp(partialTick, mob.yOld, mob.getY())
-                    + mob.getNameTagOffsetY() + (role.tagged() ? ABOVE_TAG : 0.0);
+                    + nameTagHeight(mob) + (role.tagged() ? ABOVE_TAG : 0.0);
             double z = Mth.lerp(partialTick, mob.zOld, mob.getZ());
             pose.pushPose();
             pose.translate(x - cam.x, y - cam.y, z - cam.z);

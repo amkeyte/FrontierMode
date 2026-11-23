@@ -2,6 +2,7 @@ package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
 import com.arryn.frontiermode.keeper.KeeperKind;
+import com.arryn.frontiermode.keeper.common.EyeBrightness;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.EntityModel;
@@ -11,6 +12,7 @@ import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FastColor;
 import net.minecraft.world.entity.LivingEntity;
 
 /**
@@ -25,13 +27,10 @@ import net.minecraft.world.entity.LivingEntity;
  * kind's bosses, are untouched.
  *
  * <p>The eyes show how hurt the Keeper is (keeper.md § Client-side eyes and flash): the brightness scales with the
- * body's health over its maximum, both of which the client already holds, down to {@link #BRIGHTNESS_FLOOR} so a
- * hurt Keeper stays findable.
+ * body's health over its maximum, both of which the client already holds, down to a floor so a hurt Keeper stays
+ * findable. The brightness is {@link EyeBrightness}'s; how it becomes the draw call's colour is this line's.
  */
 public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
-
-    // How bright the eyes are at no health: they never go fully dark. Set by eye.
-    private static final float BRIGHTNESS_FLOOR = 0.25F;
 
     private final RenderType renderType;
 
@@ -48,9 +47,9 @@ public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T
             return;
         }
         VertexConsumer vc = buffer.getBuffer(renderType);
-        float fraction = Math.max(0.0F, Math.min(1.0F, entity.getHealth() / entity.getMaxHealth()));
-        float brightness = BRIGHTNESS_FLOOR + (1.0F - BRIGHTNESS_FLOOR) * fraction;
+        float brightness = EyeBrightness.of(entity.getHealth(), entity.getMaxHealth());
+        // 1.21's draw call takes one packed colour, not four floats.
         getParentModel().renderToBuffer(pose, vc, 15728640, OverlayTexture.NO_OVERLAY,
-                brightness, brightness, brightness, 1.0F);
+                FastColor.ARGB32.colorFromFloat(1.0F, brightness, brightness, brightness));
     }
 }

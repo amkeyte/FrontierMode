@@ -16,7 +16,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CompassItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentCategory;
@@ -24,7 +23,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -349,13 +347,13 @@ public class AmethystCompassItem extends CompassItem {
     /**
      * {@code Amethyst Keeper, level N}, the same on both compasses (special-compass.md § Tooltip),
      * with no boss id. Runs on the client, where boss records don't exist, so it reads
-     * only what attunement wrote onto the stack. No line for an unattuned compass.
+     * only what attunement wrote onto the stack. No line for an unattuned compass. Each line's tooltip listener adds
+     * it: the item overrides no tooltip method, whose form differs by line.
      */
-    @Override
-    public void appendHoverText(@NotNull ItemStack stack, Level level, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
-
-        CompassAttunement.bossLevel(stack).ifPresent(bossLevel ->
-                tooltip.add(Component.literal(KeeperAPI.BOSS_NAME + ", level " + bossLevel)));
+    public static Optional<Component> tooltipLine(ItemStack stack) {
+        java.util.OptionalInt bossLevel = CompassAttunement.bossLevel(stack);
+        return bossLevel.isPresent()
+                ? Optional.of(Component.literal(KeeperAPI.BOSS_NAME + ", level " + bossLevel.getAsInt()))
+                : Optional.empty();
     }
 }

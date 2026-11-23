@@ -14,8 +14,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -49,21 +47,39 @@ public class CairnCapBlock extends Block {
 
     /**
      * The ambient signal: vanilla calls this on the client, at a random rate, for blocks near the
-     * player. The drawing is {@code CairnAmbientClient}, a client class only ever reached from here.
+     * player. The drawing is {@code CairnAmbientClient}, a client class only ever reached from here. No side annotation:
+     * vanilla calls it on the client only.
      */
     @Override
-    @OnlyIn(Dist.CLIENT)
     public void animateTick(@NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull RandomSource random) {
         if (level.isClientSide) {
             CairnAmbientClient.emit(level, pos, random);
         }
     }
 
-    @Override
+    /**
+     * The right-click in the {@code forge-1.20.1} form. It carries no {@code @Override}: on {@code neoforge-1.21.1} the
+     * method is gone, and this stays an unused method there, while {@link #useWithoutItem} is the one that applies.
+     */
     public @NotNull InteractionResult use(
             @NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player,
             @NotNull InteractionHand hand, @NotNull BlockHitResult hit
     ) {
+        return pulseOnUse(level, pos);
+    }
+
+    /**
+     * The right-click in the {@code neoforge-1.21.1} form, with no {@code @Override} for the same reason: on
+     * {@code forge-1.20.1} it is a method nothing calls. Both forms call the same shared method.
+     */
+    public @NotNull InteractionResult useWithoutItem(
+            @NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player,
+            @NotNull BlockHitResult hit
+    ) {
+        return pulseOnUse(level, pos);
+    }
+
+    private static InteractionResult pulseOnUse(Level level, BlockPos pos) {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }

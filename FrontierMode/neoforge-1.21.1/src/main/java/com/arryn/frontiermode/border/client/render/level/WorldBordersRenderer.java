@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.border.client.render.level;
 
+import com.arryn.frontiermode.border.client.ClientBorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Camera;
@@ -9,9 +10,6 @@ import net.minecraft.client.renderer.RenderType;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
-import java.util.Objects;
-import java.util.function.BooleanSupplier;
-
 public final class WorldBordersRenderer {
 
     private static final int SEGMENTS = 128;
@@ -19,23 +17,13 @@ public final class WorldBordersRenderer {
     /** Total radial thickness = 0.3m */
     private static final float RING_HALF_THICKNESS = 0.15f;
 
-    // Whether the rings draw is the debug view's call (admin-tools.md, Debug view): a deliberate player choice,
-    // not a data-readiness check, which is RenderContext.standby()'s. Border never imports Admin, so the admin
-    // client registers this supplier once at startup (AdminViewStartup). Until then, and by default, nothing draws.
-    private static BooleanSupplier visibleWhen = () -> false;
-
-    public static void setVisibleWhen(BooleanSupplier supplier) {
-        visibleWhen = Objects.requireNonNull(supplier, "supplier");
-    }
-
-
-
     // ---------------------------------------------------------------------
     // Public entry point
     // ---------------------------------------------------------------------
 
     public void render(PoseStack poseStack) {
-        if (!visibleWhen.getAsBoolean()) return;
+        // Whether the rings draw is the debug view's call, held on ClientBorderAPI (admin-tools.md, Debug view).
+        if (!ClientBorderAPI.ringsVisible()) return;
 
         // The client-only reads are here, not in RenderContext, which a dedicated server constructs too.
         // The level is null after a disconnect, while Minecraft's fields are already cleared.
@@ -161,8 +149,8 @@ public final class WorldBordersRenderer {
             float z,
             Vector3f color
     ) {
-        vc.vertex(matrix, x, y, z)
-                .color(color.x(), color.y(), color.z(), 1.0f)
-                .endVertex();
+        // 1.21's vertex builder: addVertex and setColor, with no endVertex.
+        vc.addVertex(matrix, x, y, z)
+                .setColor(color.x(), color.y(), color.z(), 1.0f);
     }
 }
