@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.core;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -30,6 +31,7 @@ import net.neoforged.neoforge.event.EventHooks;
 import java.util.Optional;
 
 /** {@code neoforge-1.21.1}'s {@link FrontierLine.Source}: each call as Minecraft 1.21.1 and NeoForge 21.1 have it. */
+@PlatformBound(reason = "vanilla calls that differ by line")
 public final class NeoForgeLineSource implements FrontierLine.Source {
 
     @Override

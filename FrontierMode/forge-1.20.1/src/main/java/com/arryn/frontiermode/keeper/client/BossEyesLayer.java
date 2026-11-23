@@ -3,6 +3,7 @@ package com.arryn.frontiermode.keeper.client;
 import com.arryn.frontiermode.boss.BossMarkers;
 import com.arryn.frontiermode.keeper.KeeperKind;
 import com.arryn.frontiermode.keeper.common.EyeBrightness;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.EntityModel;
@@ -29,6 +30,7 @@ import net.minecraft.world.entity.LivingEntity;
  * body's health over its maximum, both of which the client already holds, down to a floor so a hurt Keeper stays
  * findable. The brightness is {@link EyeBrightness}'s; how it becomes the draw call's colour is this line's.
  */
+@PlatformBound(reason = "render")
 public final class BossEyesLayer<T extends LivingEntity, M extends EntityModel<T>> extends RenderLayer<T, M> {
 
     private final RenderType renderType;

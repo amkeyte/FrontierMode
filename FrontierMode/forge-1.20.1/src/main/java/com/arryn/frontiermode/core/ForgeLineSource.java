@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.core;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -26,6 +27,7 @@ import net.minecraftforge.event.ForgeEventFactory;
 import java.util.Optional;
 
 /** {@code forge-1.20.1}'s {@link FrontierLine.Source}: each call as Minecraft 1.20.1 and Forge 47 have it. */
+@PlatformBound(reason = "vanilla calls that differ by line")
 public final class ForgeLineSource implements FrontierLine.Source {
 
     @Override

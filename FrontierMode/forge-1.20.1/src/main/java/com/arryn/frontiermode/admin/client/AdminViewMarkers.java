@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.admin.client;
 
 import com.arryn.frontiermode.admin.common.Role;
+import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -24,6 +25,7 @@ import java.util.Map;
  * size in the world, so it shrinks with distance -- its size reads as how far away the mob is.
  * Called from {@code Rendering}'s existing {@code RenderLevelStageEvent} subscriber.
  */
+@PlatformBound(reason = "render")
 public final class AdminViewMarkers {
 
     private static final String GLYPH = "◆";

@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.core;
 
+import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundEvent;
@@ -17,6 +18,7 @@ import java.util.function.Supplier;
  * mod registers. {@code FrontierMode} installs it and puts the registers on the mod bus. The holder each returns
  * ({@code DeferredHolder}) is a {@link Supplier}.
  */
+@PlatformBound(reason = "registration")
 public final class NeoForgeRegistrarSource implements FrontierRegistrar.Source {
 
     private final DeferredRegister<Item> items = DeferredRegister.create(BuiltInRegistries.ITEM, FrontierIds.MOD_ID);
