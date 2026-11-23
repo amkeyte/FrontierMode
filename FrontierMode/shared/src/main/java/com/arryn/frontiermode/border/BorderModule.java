@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.border;
 
-import com.arryn.frontiermode.border.server.BorderIngress;
 import com.arryn.frontiermode.border.server.commands.BorderCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
@@ -19,7 +18,6 @@ public final class BorderModule {
 
     public static void init() {
         OUT.info("[Border] init(): Module initiating.");
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BorderIngress.build());
         Satchel.registerJig(JigPolicies.SideApplicability.BOTH, () -> BorderJig.build());
         Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> BorderPlayerJig.build());
     }

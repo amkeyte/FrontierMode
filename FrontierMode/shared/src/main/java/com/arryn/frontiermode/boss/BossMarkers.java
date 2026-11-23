@@ -1,8 +1,11 @@
 package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.BossKinds;
+import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.core.ClientFixtureCache;
 import com.arryn.satchel.Satchel;
+import com.arryn.satchel.common.ingress.Scopes;
+import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
 import com.arryn.satchel.common.lifecycle.ScopeEvent;
 import net.minecraft.world.entity.Entity;
@@ -25,6 +28,18 @@ public final class BossMarkers {
     private static final ClientFixtureCache<BossRoster> CLIENT_ROSTER = new ClientFixtureCache<>(BossAPI::roster);
 
     private BossMarkers() {
+    }
+
+    /**
+     * The entity's scope on the boss mob jig, for an entity whose type some boss can have as its body; empty for any
+     * other, or when the scope is not ready. The cheap filter the boss module's events share: they fire for every
+     * entity, so a type no boss can be bounces first.
+     */
+    public static Optional<ScopeInfo> bossScope(Entity entity) {
+        if (entity == null || !isEligible(entity)) {
+            return Optional.empty();
+        }
+        return Scopes.of(FrontierKeys.BOSS_MOB_JIG, entity);
     }
 
     // level() can be null for an entity built off-world (dimension queries, registry probes) -- the

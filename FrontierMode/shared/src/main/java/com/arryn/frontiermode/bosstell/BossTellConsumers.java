@@ -1,34 +1,29 @@
 package com.arryn.frontiermode.bosstell;
 
-import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
 import com.arryn.frontiermode.bosstell.common.fixture.BossTellFixture;
-import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
 import com.arryn.frontiermode.keeper.KeeperCreated;
-import com.arryn.satchel.common.ingress.IngressConfig;
+import com.arryn.satchel.common.ingress.GlobalConsumers;
 import com.arryn.satchel.common.util.out.OUT;
-import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The holder class for the bosstell ingress: the compass pickup, and the Tell module's consumer of the Keeper's
- * {@link KeeperCreated}. {@link BossTellModule#init()} registers {@link #build()} through a lambda, so this class
- * loads when the server side boots.
+ * The Tell module's global consumers, written once for both lines: the consumer of {@link CompassPickup}, and the
+ * consumer of the Keeper's {@link KeeperCreated}. Each line's {@code BossTellIngress} installs these.
  */
-final class BossTellIngress {
+public final class BossTellConsumers {
 
-    private BossTellIngress() {
+    private BossTellConsumers() {
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(FrontierKeys.BOSSTELL_INGRESS);
-        ingress.translate(EntityItemPickupEvent.class, BossTellIngress::resolvePicker, CompassPickup::new);
-        ingress.listenForAll(CompassPickup.class, BossTellIngress::onPickup);
-        ingress.listenForAll(KeeperCreated.class, BossTellIngress::onKeeperCreated);
-        return ingress;
+    /** A fresh set of consumers: build one in the ingress's side-keyed factory. */
+    public static GlobalConsumers declare() {
+        GlobalConsumers declared = new GlobalConsumers();
+        declared.listenForAll(CompassPickup.class, BossTellConsumers::onPickup);
+        declared.listenForAll(KeeperCreated.class, BossTellConsumers::onKeeperCreated);
+        return declared;
     }
 
     /**
@@ -38,17 +33,6 @@ final class BossTellIngress {
     private static void onKeeperCreated(KeeperCreated created) {
         OUT.debug("[BossTell] KeeperCreated reached its consumer");
         BossTellFixture.createTellCurveIfAbsent(created.level(), created.borderId());
-    }
-
-    /**
-     * The cheap filter: a pickup fires for every item a player walks over, so only a compass stack
-     * gets an event built, with the picking player as its context.
-     */
-    private static Optional<Player> resolvePicker(EntityItemPickupEvent event) {
-        if (event.getItem().getItem().getItem() instanceof AmethystCompassItem) {
-            return Optional.of(event.getEntity());
-        }
-        return Optional.empty();
     }
 
     /**

@@ -1,12 +1,11 @@
 package com.arryn.frontiermode.sentinel;
 
-import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.frontiermode.keeper.KeeperCreated;
 import com.arryn.frontiermode.keeper.KeeperDefeated;
 import com.arryn.frontiermode.keeper.KeeperHit;
-import com.arryn.satchel.common.ingress.IngressConfig;
+import com.arryn.satchel.common.ingress.GlobalConsumers;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Mob;
@@ -14,39 +13,33 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 /**
- * The holder class for the Sentinel module's ingress (wiki/frontiermode/architecture/sentinels.md § Class map): the three
- * consumers of the Keeper's events ({@link KeeperCreated}, {@link KeeperHit}, {@link KeeperDefeated}; keeper.md §
- * Keeper events), the consumer of the Info report's {@link InfoRequest}, which adds the {@code sentinel:} line, and
- * the module event {@link SentinelTakingDamage} with its one consumer, which lets a hit on a Sentinel land at one over
- * its Keeper's armor multiplier, and the four module events the Sentinel handlers hear: {@link SentinelJoining},
- * {@link SentinelPlacementCheck}, {@link SentinelPositionCheck} and {@link SentinelConverting}.
- * {@link SentinelModule#init()} registers {@link #build()} through a lambda, so this class loads when the server side
- * boots.
+ * The Sentinel module's global consumers (wiki/frontiermode/architecture/sentinels.md § Class map), written once for
+ * both lines: the three consumers of the Keeper's events ({@link KeeperCreated}, {@link KeeperHit},
+ * {@link KeeperDefeated}; keeper.md § Keeper events), the consumer of the Info report's {@link InfoRequest}, which adds
+ * the {@code sentinel:} line, {@link SentinelTakingDamage}'s one consumer, which lets a hit on a Sentinel land at one over
+ * its Keeper's armor multiplier, and one consumer for each of the four events the Sentinel handlers hear:
+ * {@link SentinelJoining}, {@link SentinelPlacementCheck}, {@link SentinelPositionCheck} and
+ * {@link SentinelConverting}. Each line's {@code SentinelIngress} installs these.
  */
-final class SentinelIngress {
+public final class SentinelConsumers {
 
-    private SentinelIngress() {
+    private SentinelConsumers() {
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(FrontierKeys.SENTINEL_INGRESS);
-        ingress.listenForAll(KeeperCreated.class, SentinelIngress::onKeeperCreated);
-        ingress.listenForAll(KeeperHit.class, SentinelIngress::onKeeperHit);
-        ingress.listenForAll(KeeperDefeated.class, SentinelIngress::onKeeperDefeated);
-        ingress.listenForAll(InfoRequest.class, SentinelIngress::onInfo);
-        ingress.translate(SentinelTakingDamage.NATIVE, SentinelTakingDamage::resolve, SentinelTakingDamage::new);
-        ingress.listenForAll(SentinelTakingDamage.class, SentinelIngress::onSentinelTakingDamage);
-        ingress.translate(SentinelJoining.NATIVE, SentinelJoining::resolve, SentinelJoining::new);
-        ingress.translate(SentinelPlacementCheck.NATIVE, SentinelPlacementCheck::resolve, SentinelPlacementCheck::new);
-        ingress.translate(SentinelPositionCheck.NATIVE, SentinelPositionCheck::resolve, SentinelPositionCheck::new);
-        ingress.translate(SentinelConverting.NATIVE, SentinelConverting::resolve, SentinelConverting::new);
-        ingress.listenForAll(SentinelJoining.class, SentinelJigHandlers::onSentinelJoining);
-        ingress.listenForAll(SentinelPlacementCheck.class, SentinelJigHandlers::onSpawnPlacementCheck);
-        ingress.listenForAll(SentinelPositionCheck.class, SentinelJigHandlers::onSpawnPositionCheck);
-        ingress.listenForAll(SentinelConverting.class, SentinelJigHandlers::onSentinelConverting);
-        return ingress;
+    /** A fresh set of consumers: build one in the ingress's side-keyed factory. */
+    public static GlobalConsumers declare() {
+        GlobalConsumers declared = new GlobalConsumers();
+        declared.listenForAll(KeeperCreated.class, SentinelConsumers::onKeeperCreated);
+        declared.listenForAll(KeeperHit.class, SentinelConsumers::onKeeperHit);
+        declared.listenForAll(KeeperDefeated.class, SentinelConsumers::onKeeperDefeated);
+        declared.listenForAll(InfoRequest.class, SentinelConsumers::onInfo);
+        declared.listenForAll(SentinelTakingDamage.class, SentinelConsumers::onSentinelTakingDamage);
+        declared.listenForAll(SentinelJoining.class, SentinelJigHandlers::onSentinelJoining);
+        declared.listenForAll(SentinelPlacementCheck.class, SentinelJigHandlers::onSpawnPlacementCheck);
+        declared.listenForAll(SentinelPositionCheck.class, SentinelJigHandlers::onSpawnPositionCheck);
+        declared.listenForAll(SentinelConverting.class, SentinelJigHandlers::onSentinelConverting);
+        return declared;
     }
-
 
     /**
      * A Keeper was created for a Border (keeper.md § Keeper events): the Border gets its two Sentinel curves if it

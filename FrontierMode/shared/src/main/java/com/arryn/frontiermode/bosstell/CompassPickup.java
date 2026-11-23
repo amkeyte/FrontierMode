@@ -1,43 +1,36 @@
 package com.arryn.frontiermode.bosstell;
 
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 
 /**
- * A player is about to pick up an Amethyst Compass: the module's event for Forge's
- * {@link EntityItemPickupEvent}. Its context is the picking player. The ingress's resolver passes only a
- * stack of an {@code AmethystCompassItem}, so every other pickup is dropped before an event is built.
- * {@link BossTellIngress} holds its one consumer.
+ * A player is about to pick up an Amethyst Compass: the module's event for the loader's item-pickup event, on both lines.
+ * Its context is the picking player. Each line's resolver passes only a stack that {@link #passes}, so every other pickup
+ * is dropped before an event is built. {@link BossTellConsumers} holds its one consumer.
  *
- * <p>Valid only during dispatch: after the consumer returns, a read of the native event throws, and the
- * stack taken at construction stays readable.
+ * <p>Valid only during dispatch: after the consumer returns, a read of the native event throws, and the stack taken at
+ * construction stays readable.
  */
-public final class CompassPickup extends ModuleSignal<EntityItemPickupEvent, Player> {
+public interface CompassPickup extends ModuleEvent<Player> {
 
-    private final ItemStack stack;
-
-    CompassPickup(EntityItemPickupEvent forgeEvent, Player picker) {
-        super(forgeEvent, picker);
-        this.stack = forgeEvent.getItem().getItem();
+    /** The resolver's test: a pickup pays one event only for a stack of an {@code AmethystCompassItem}. */
+    static boolean passes(ItemStack stack) {
+        return stack.getItem() instanceof AmethystCompassItem;
     }
 
     /** The player picking the compass up. */
-    public Player picker() {
+    default Player picker() {
         return context();
     }
 
     /** The compass stack on the ground. */
-    public ItemStack stack() {
-        return stack;
-    }
+    ItemStack stack();
 
     /**
-     * Cancels the pickup. The compass stays exactly where it is, still pickable on a later attempt;
-     * nothing is removed or destroyed.
+     * Blocks the pickup. The compass stays exactly where it is, still pickable on a later attempt; nothing is removed or
+     * destroyed.
      */
-    public void blockPickup() {
-        nativeEvent().setCanceled(true);
-    }
+    void blockPickup();
 }

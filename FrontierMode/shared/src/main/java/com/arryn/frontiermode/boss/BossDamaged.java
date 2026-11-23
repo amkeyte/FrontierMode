@@ -1,35 +1,24 @@
 package com.arryn.frontiermode.boss;
 
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
 
 /**
- * A boss is about to take damage, after armor, protection and absorption: the module's event for Forge's
- * {@link LivingDamageEvent}, server only, at the lowest Forge priority so the amount is what other listeners left. It
- * is the later of the module's two stages on that event: {@link BossTakingDamage} comes first, at the normal priority,
- * and may change the amount. Its context is the boss's mob scope. It is built only for a boss, so the ingress's resolver is the cheap filter.
- * {@code CreditTally} reads it to tally the damage players deal (boss.md § Player credit and non-player death).
+ * A boss has taken damage, and the amount is what every other listener left: the module's event for the loader's
+ * damage event at its last stage (Two Lines § Damage stages on each line), server only. It is the later of the module's
+ * two stages: {@link BossTakingDamage} comes first and may change the amount. Its context is the boss's mob scope. It is
+ * built only for a boss, so each line's resolver is the cheap filter. {@code CreditTally} reads it to tally the damage
+ * players deal (boss.md § Player credit and non-player death).
  */
-public final class BossDamaged extends ModuleSignal<LivingDamageEvent, ScopeInfo> {
-
-    BossDamaged(LivingDamageEvent forgeEvent, ScopeInfo bossScope) {
-        super(forgeEvent, bossScope);
-    }
+public interface BossDamaged extends ModuleEvent<ScopeInfo> {
 
     /** What the damage came from. */
-    public DamageSource source() {
-        return nativeEvent().getSource();
-    }
+    DamageSource source();
 
     /**
-     * The health this hit actually removes: the amount about to come off, capped at the boss's current health. Forge
-     * does not cap it, so overkill is left uncounted here (MobData § Combat events).
+     * The health this hit actually removes: the amount that came off, capped at the boss's health before the hit, so
+     * overkill is left uncounted here (MobData § Combat events).
      */
-    public float healthRemoved() {
-        LivingEntity entity = nativeEvent().getEntity();
-        return Math.max(0f, Math.min(nativeEvent().getAmount(), entity.getHealth()));
-    }
+    float healthRemoved();
 }

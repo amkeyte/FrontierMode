@@ -1,13 +1,24 @@
 package com.arryn.frontiermode;
 
+import com.arryn.frontiermode.admin.AdminIngress;
 import com.arryn.frontiermode.admin.AdminToolsModule;
+import com.arryn.frontiermode.border.server.BorderIngress;
+import com.arryn.frontiermode.boss.BossIngress;
+import com.arryn.frontiermode.bosstell.BossTellIngress;
 import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.coordination.SpawnIngress;
+import com.arryn.frontiermode.core.CoreIngress;
 import com.arryn.frontiermode.core.ForgeLineSource;
 import com.arryn.frontiermode.core.ForgeRegistrarSource;
-import com.arryn.frontiermode.core.CoreIngress;
 import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
+import com.arryn.frontiermode.difficulty.DifficultyIngress;
+import com.arryn.frontiermode.feral.FeralIngress;
+import com.arryn.frontiermode.keeper.KeeperIngress;
+import com.arryn.frontiermode.sentinel.SentinelIngress;
+import com.arryn.frontiermode.siting.SitingIngress;
+import com.arryn.frontiermode.structure.StructureIngress;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.platform.PlatformBound;
@@ -61,6 +72,17 @@ public final class FrontierMode {
      */
     private static void registerIngresses() {
         Satchel.registerIngress(JigPolicies.SideApplicability.BOTH, () -> CoreIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BorderIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SitingIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> DifficultyIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> KeeperIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SentinelIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> BossTellIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> StructureIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> FeralIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> AdminIngress.build());
+        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SpawnIngress.build());
     }
 
     // Common Setup (runs once on both sides)

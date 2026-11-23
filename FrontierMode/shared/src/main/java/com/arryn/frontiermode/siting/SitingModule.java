@@ -17,6 +17,5 @@ public final class SitingModule {
 
     public static void init() {
         OUT.info("[Siting] init(): Module initiating.");
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SitingIngress.build());
     }
 }

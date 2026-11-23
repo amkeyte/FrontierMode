@@ -29,7 +29,6 @@ public final class SpawnCoordinator {
     }
 
     public static void init() {
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> SpawnIngress.build());
     }
 
     /**

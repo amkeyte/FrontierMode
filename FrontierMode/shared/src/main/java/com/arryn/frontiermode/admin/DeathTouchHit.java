@@ -1,32 +1,31 @@
 package com.arryn.frontiermode.admin;
 
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.ModuleEvent;
+import com.arryn.satchel.common.util.StackData;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraft.world.item.ItemStack;
 
 /**
- * A hit is about to be applied by an attacker whose main-hand stack carries Death Touch: the module's
- * event for Forge's {@link LivingHurtEvent}. Its context is the attacker. {@code LivingHurtEvent} fires for
- * every hit on every living thing, so the ingress's resolver is the cheap filter and an event is built only
- * for a Death Touch hit.
+ * A hit is about to be applied by an attacker whose main-hand stack carries Death Touch: the module's event for the
+ * loader's damage event at the stage before armor (Two Lines § Damage stages on each line), on both lines. Its context
+ * is the attacker. That event fires for every hit on every living thing, so each line's resolver is the cheap filter and
+ * an event is built only for a hit whose attacker's main hand {@link #passes}.
  */
-public final class DeathTouchHit extends ModuleSignal<LivingHurtEvent, LivingEntity> {
+public interface DeathTouchHit extends ModuleEvent<LivingEntity> {
 
-    DeathTouchHit(LivingHurtEvent forgeEvent, LivingEntity attacker) {
-        super(forgeEvent, attacker);
+    /** The resolver's test: the main-hand stack carries Death Touch. */
+    static boolean passes(ItemStack mainHand) {
+        return StackData.enchantmentLevel(mainHand, AdminToolsModule.DEATH_TOUCH.get()) > 0;
     }
 
     /** The attacker holding the Death Touch weapon. */
-    public LivingEntity attacker() {
+    default LivingEntity attacker() {
         return context();
     }
 
     /**
-     * Raises the damage amount to {@code Float.MAX_VALUE} rather than killing the target from here, so the
-     * kill still runs through the normal, already-in-progress damage pipeline (armor, absorption, death
-     * handling).
+     * Raises the damage amount to {@code Float.MAX_VALUE} rather than killing the target from here, so the kill still
+     * runs through the normal, already-in-progress damage pipeline (armor, absorption, death handling).
      */
-    public void overwhelm() {
-        nativeEvent().setAmount(Float.MAX_VALUE);
-    }
+    void overwhelm();
 }

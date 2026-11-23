@@ -30,7 +30,6 @@ public final class StructureModule {
     public static void init() {
         OUT.info("[Structure] init(): Module initiating.");
         Satchel.registerJig(JigPolicies.SideApplicability.SERVER, () -> StructureJigConfig.build());
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> StructureIngress.build());
         BossPositionListeners.register(StructureBossHandlers::onBossPositioned);
     }
 

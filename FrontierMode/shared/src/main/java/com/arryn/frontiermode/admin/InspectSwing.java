@@ -1,40 +1,32 @@
 package com.arryn.frontiermode.admin;
 
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.ModuleEvent;
+import com.arryn.satchel.common.util.StackData;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraft.world.item.ItemStack;
 
 /**
- * A player holding the Inspect Stick swings at an entity: the module's event for Forge's
- * {@link AttackEntityEvent}. Its context is the swinging player, and the ingress's resolver passes only a
- * player whose main-hand stack carries Inspect, so every other swing in the game is dropped before an
- * event is built. It fires at the first line of {@code Player#attack}, before anything of the hit happens.
+ * A player holding the Inspect Stick swings at an entity: the module's event for the loader's attack-entity event, on
+ * both lines. Its context is the swinging player, and each line's resolver passes only a player whose main-hand stack
+ * {@link #passes}, so every other swing in the game is dropped before an event is built. It fires at the first line of
+ * {@code Player#attack}, before anything of the hit happens.
  */
-public final class InspectSwing extends ModuleSignal<AttackEntityEvent, Player> {
+public interface InspectSwing extends ModuleEvent<Player> {
 
-    private final Entity target;
-
-    InspectSwing(AttackEntityEvent forgeEvent, Player player) {
-        super(forgeEvent, player);
-        this.target = forgeEvent.getTarget();
+    /** The resolver's test: the main-hand stack carries Inspect. */
+    static boolean passes(ItemStack mainHand) {
+        return StackData.enchantmentLevel(mainHand, AdminToolsModule.INSPECT.get()) > 0;
     }
 
     /** The player holding the stick. */
-    public Player player() {
+    default Player player() {
         return context();
     }
 
     /** The entity swung at. */
-    public Entity target() {
-        return target;
-    }
+    Entity target();
 
-    /**
-     * Stops the whole attack: no damage, knockback, aggro, sweep, durability or hunger, and no kill-credit
-     * window.
-     */
-    public void stopAttack() {
-        nativeEvent().setCanceled(true);
-    }
+    /** Stops the whole attack: no damage, knockback, aggro, sweep, durability or hunger, and no kill-credit window. */
+    void stopAttack();
 }

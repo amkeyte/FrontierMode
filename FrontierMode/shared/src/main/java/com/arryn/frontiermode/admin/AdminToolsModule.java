@@ -39,7 +39,6 @@ public final class AdminToolsModule {
             ENCHANTMENTS.register("inspect", InspectEnchantment::new);
 
     public static void init() {
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> AdminIngress.build());
         Satchel.contributePlayerTrinket("frontiermode:admin", JigPolicies.SideApplicability.SERVER, Order.NORMAL,
                 SoulboundStash.class, () -> new SoulboundStash());
         Satchel.contributePlayerTrinket("frontiermode:admin", JigPolicies.SideApplicability.CLIENT, Order.NORMAL,
