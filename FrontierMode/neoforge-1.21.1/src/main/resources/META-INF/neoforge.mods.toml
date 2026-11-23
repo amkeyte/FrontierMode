@@ -1,0 +1,40 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+issueTrackerURL="https://www.curseforge.com/minecraft/mc-mods/frontier-mode/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="Frontier Mode"
+authors="${mod_authors}"
+credits="Sound and art credits: see CREDITS_frontiermode.md"
+displayURL="https://www.curseforge.com/minecraft/mc-mods/frontier-mode"
+description='''
+Frontier Mode: Gameplay and world-tuning modifications for Minecraft.
+'''
+
+# -------------------------------------------------
+# Dependencies
+# -------------------------------------------------
+
+[[dependencies.frontiermode]]
+modId="neoforge"
+type="required"
+versionRange="${neo_version_range}"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.frontiermode]]
+modId="minecraft"
+type="required"
+versionRange="${minecraft_version_range}"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.frontiermode]]
+modId="satchel_ecosystem"
+type="required"
+versionRange="[${satchel_min_version},${satchel_max_version})"
+ordering="AFTER"
+side="BOTH"

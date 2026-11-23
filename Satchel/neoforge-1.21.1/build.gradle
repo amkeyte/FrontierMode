@@ -173,6 +173,43 @@ test {
 }
 
 // ------------------------------------------------------------
+// Deploy the jar into the sibling FrontierMode project's same line, for local multi-mod testing (FRO_383).
+// As on forge-1.20.1; there is no dev/release jar split here, because the NeoForge line has no reobfuscation step.
+// ------------------------------------------------------------
+tasks.register('copyToFrontierMode', Copy) {
+    group = 'satchel'
+    description = "Copies the jar into FrontierMode's run/mods and run-server/mods, removing stale Satchel jars first."
+
+    def frontierRoot = file("${projectDir}/../../FrontierMode/${lineName}")   // the same line's FrontierMode project
+    // client and dedicated server run out of separate working dirs, so both need their own copy of the Satchel jar
+    // on the mod-loading path.
+    def frontierModsDirs = [file("${frontierRoot}/run/mods"), file("${frontierRoot}/run-server/mods")]
+
+    dependsOn tasks.named('jar')
+
+    doFirst {
+        if (!frontierRoot.exists()) {
+            throw new GradleException("FrontierMode project not found at ${frontierRoot} -- expected it as a sibling of Satchel.")
+        }
+        frontierModsDirs.each { dir ->
+            dir.mkdirs()
+            dir.listFiles({ f -> f.name.startsWith('Satchel') && f.name.endsWith('.jar') } as FileFilter)?.each { it.delete() }
+        }
+    }
+
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into frontierModsDirs[0]
+    doLast {
+        frontierModsDirs.tail().each { dir ->
+            copy {
+                from tasks.named('jar').flatMap { it.archiveFile }
+                into dir
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------
 // Release: copy the jar to <repo root>/Release/<version>/<line>/
 // Run: ./gradlew release
 // ------------------------------------------------------------

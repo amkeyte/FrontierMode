@@ -1,0 +1,325 @@
+plugins {
+    id 'java-library'
+    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.148'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+// The mod's shared source folder, compiled by this line project together with its own src (RM_PORT_011, FRO_383).
+// Tree shape: <mod>/shared and <mod>/<line>/. Same text as forge-1.20.1/build.gradle.
+def sharedDir = file("${projectDir}/../shared")
+// The line is this project's folder name (forge-1.20.1, neoforge-1.21.1).
+def lineName = projectDir.name
+
+// ------------------------------------------------------------
+// Java. NeoForge 1.21.1 needs JDK 21 to compile and run (its dependencies are Java 21 only, so options.release = 17
+// does not resolve here). shared stays Java 17 syntax because forge-1.20.1 compiles it on JDK 17.
+// ------------------------------------------------------------
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+println "Java: ${System.getProperty('java.version')}, JVM: ${System.getProperty('java.vm.version')} (${System.getProperty('java.vendor')}), Arch: ${System.getProperty('os.arch')}"
+
+// ------------------------------------------------------------
+// ModDevGradle / NeoForge
+// ------------------------------------------------------------
+neoForge {
+    version = project.neo_version
+
+    // The tests use Minecraft and NeoForge classes, as on the Forge line, so the source set gets them too.
+    addModdingDependenciesTo(sourceSets.test)
+
+    runs {
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+
+        client {
+            client()
+            gameDirectory.set(project.file('run'))
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        server {
+            server()
+            // Own working dir so a concurrently-running client doesn't collide with the server's saves/,
+            // logs/, server.properties, eula.txt.
+            gameDirectory.set(project.file('run-server'))
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument '--nogui'
+        }
+    }
+
+    mods {
+        "${project.mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Source sets: this line's own src plus the mod's shared folder
+// ------------------------------------------------------------
+sourceSets.main {
+    java {
+        srcDir 'src/main/java'
+        srcDir "${sharedDir}/src/main/java"
+    }
+    resources {
+        srcDir 'src/main/resources'
+        srcDir "${sharedDir}/src/main/resources"      // last, so a line's own file comes first
+    }
+}
+sourceSets.test {
+    java.srcDir "${sharedDir}/src/test/java"
+    resources.srcDir "${sharedDir}/src/test/resources"
+}
+
+// Gradle silently skips a source folder that does not exist, so a wrong path would build a jar with no shared code.
+tasks.named('compileJava') {
+    doFirst {
+        if (!sharedDir.isDirectory()) {
+            throw new GradleException("Missing shared source folder ${sharedDir}: expected it beside the line folder.")
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Repositories (ModDevGradle adds the NeoForged Maven itself)
+// ------------------------------------------------------------
+repositories {
+    mavenCentral()
+}
+
+// ------------------------------------------------------------
+// Satchel: FrontierMode compiles against Satchel's built NeoForge jar, sibling-relative, so a clone or move of the
+// whole repo works. Same fail-fast as forge-1.20.1, pointed at Satchel's neoforge-1.21.1 project.
+// ------------------------------------------------------------
+def satchelLibDir = file("${projectDir}/../../Satchel/${lineName}/build/libs")
+
+def satchelJar = satchelLibDir.exists()
+        ? satchelLibDir.listFiles()
+                ?.findAll { it.name.startsWith("Satchel-") && it.name.endsWith(".jar") }
+                ?.max { it.lastModified() }
+        : null
+
+if (satchelJar == null) {
+    throw new GradleException(
+            "No Satchel-*.jar found in ${satchelLibDir}.\n" +
+            "FrontierMode depends on Satchel's built output (neoforge.mods.toml declares it as a " +
+            "required dependency). Build Satchel first:\n" +
+            "    cd ../../Satchel/${lineName} && ./gradlew build\n" +
+            "then re-run this build."
+    )
+}
+
+// ------------------------------------------------------------
+// Dependencies
+// ------------------------------------------------------------
+dependencies {
+    compileOnly files(satchelJar)
+
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    // Gradle 9 no longer supplies the JUnit Platform launcher itself.
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    // PlatformBoundCheckTest looks for src/main/java under its working directory. The source lives in shared,
+    // so the tests run there, as on forge-1.20.1 (FRO_381).
+    workingDir = sharedDir
+}
+
+// ------------------------------------------------------------
+// The @PlatformBound check runs over FrontierMode's source with Satchel's own scanner and authorized-classes list,
+// pulled from Satchel/shared/src/test into build/generated/platformcheck on every test build, as on forge-1.20.1.
+// ------------------------------------------------------------
+def platformCheckDir = layout.buildDirectory.dir('generated/platformcheck').get().asFile
+def satchelTestDir = file("${projectDir}/../../Satchel/shared/src/test")
+
+def syncPlatformCheck = tasks.register('syncPlatformCheck', Sync) {
+    group = 'verification'
+    description = "Pulls Satchel's PlatformBoundScanner and authorized-classes.txt into build/generated for the platform check."
+
+    from("${satchelTestDir}/java/test/arryn/satchel/platform") {
+        include 'PlatformBoundScanner.java'
+        into 'java/test/arryn/satchel/platform'
+    }
+    from("${satchelTestDir}/resources/platform") {
+        include 'authorized-classes.txt'
+        into 'resources/platform'
+    }
+    into platformCheckDir
+
+    // Gradle silently skips a missing `from` source, which would leave the test without its scanner.
+    doFirst {
+        [file("${satchelTestDir}/java/test/arryn/satchel/platform/PlatformBoundScanner.java"),
+         file("${satchelTestDir}/resources/platform/authorized-classes.txt")].each {
+            if (!it.exists()) {
+                throw new GradleException("Missing ${it} -- the platform check reads it from Satchel, expected as a sibling of FrontierMode.")
+            }
+        }
+    }
+}
+
+sourceSets.test {
+    java.srcDir "${platformCheckDir}/java"
+    resources.srcDir "${platformCheckDir}/resources"
+}
+tasks.named('compileTestJava') { dependsOn syncPlatformCheck }
+tasks.named('processTestResources') { dependsOn syncPlatformCheck }
+
+// ------------------------------------------------------------
+// Resource processing: expand ${...} keys in the mod file and pack.mcmeta from gradle.properties.
+// Satchel interop line: while the version is 0.x.y, x is Satchel's interop version and any module sharing that x
+// works with it. satchel_min_version is the floor; the ceiling is derived, the first release of the next line, with
+// -alpha so a prerelease of it sorts below. Same rule as forge-1.20.1.
+// ------------------------------------------------------------
+def satchelFloor = satchel_min_version.tokenize('-')[0].tokenize('.')
+if (satchelFloor[0] != '0') {
+    throw new GradleException("satchel_min_version ${satchel_min_version} is past 0.x: update the interop-line rule in build.gradle (see the versioning page).")
+}
+def satchelMaxVersion = "0.${satchelFloor[1].toInteger() + 1}.0-alpha"
+
+tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    def replaceProperties = [
+            minecraft_version       : minecraft_version,
+            minecraft_version_range : minecraft_version_range,
+            neo_version             : neo_version,
+            neo_version_range       : neo_version_range,
+            loader_version_range    : loader_version_range,
+            mod_id                  : mod_id,
+            mod_name                : mod_name,
+            mod_version             : project.version,
+            mod_authors             : mod_authors,
+            mod_description         : mod_description,
+            mod_license             : mod_license,
+            satchel_min_version     : satchel_min_version,
+            satchel_max_version     : satchelMaxVersion
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties
+    }
+}
+
+// ------------------------------------------------------------
+// Jar. NeoForge 1.21.1 runs on official names, so there is no reobfuscation step here.
+// ------------------------------------------------------------
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes(
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : mod_authors,
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        )
+    }
+
+    // License and credits ship inside the jar: CREDITS_<mod_id>.md from the mod's folder, and the repo-root
+    // MIT LICENSE renamed to LICENSE_<mod_id>. Gradle silently skips a missing `from` source, so doFirst fails
+    // the build instead of shipping a jar without them.
+    def creditsFile = file("${projectDir}/../CREDITS_${mod_id}.md")
+    def licenseFile = file("${projectDir}/../../LICENSE")
+    from(creditsFile)
+    from(licenseFile) { rename('^LICENSE$', "LICENSE_${mod_id}") }
+    doFirst {
+        [creditsFile, licenseFile].each {
+            if (!it.exists()) {
+                throw new GradleException("Missing file for the jar's license/credits: ${it}")
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // javac stops printing at 100 errors. While this line does not compile yet (FRO_384), -PallErrors lifts the cap
+    // so the whole error list can be read: ./gradlew compileJava -PallErrors
+    if (project.hasProperty('allErrors')) {
+        options.compilerArgs += ['-Xmaxerrs', '100000']
+    }
+}
+
+// ------------------------------------------------------------
+// Release: copy the jar to <repo root>/Release/<version>/<line>/
+// Run: ./gradlew release
+// ------------------------------------------------------------
+tasks.register('release', Copy) {
+    group = 'frontiermode'
+    description = "Copies the jar to <repo root>/Release/${mod_version}/${lineName}/ for GitHub upload."
+    dependsOn tasks.named('jar')
+
+    def releaseDir = file("${projectDir}/../../Release/${mod_version}/${lineName}")
+
+    doFirst {
+        releaseDir.mkdirs()
+    }
+
+    from tasks.named('jar').flatMap { it.archiveFile }
+    into releaseDir
+}
+
+// ------------------------------------------------------------
+// Chain: rebuild + deploy Satchel before launching FrontierMode. A separate Gradle invocation (not includeBuild):
+// FrontierMode and Satchel are deliberately independent projects. Satchel's neoforge-1.21.1 copyToFrontierMode puts
+// its jar in this project's run/mods and run-server/mods.
+// ------------------------------------------------------------
+tasks.register('buildSatchel', Exec) {
+    group = 'satchel'
+    description = 'Rebuilds Satchel and deploys its jar into run/mods via a separate Gradle invocation.'
+
+    def satchelDir = file("${projectDir}/../../Satchel/${lineName}")
+    workingDir satchelDir
+
+    def isWindows = System.getProperty('os.name').toLowerCase().contains('windows')
+    commandLine isWindows
+            ? ['cmd', '/c', 'gradlew.bat', 'copyToFrontierMode']
+            : ['./gradlew', 'copyToFrontierMode']
+
+    doFirst {
+        if (!satchelDir.exists()) {
+            throw new GradleException("Satchel project not found at ${satchelDir} -- expected it as a sibling of FrontierMode.")
+        }
+    }
+}
+
+tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEach {
+    dependsOn tasks.named('buildSatchel')
+}
+
+// compileJava reads the Satchel jar's bytes (compileOnly files(satchelJar)); make sure the rebuild finishes before
+// compilation, not just "sometime before runClient".
+tasks.named('compileJava').configure {
+    mustRunAfter tasks.named('buildSatchel')
+}
+
+// Gradle's JavaExec doesn't forward stdin to the child process by default, so console
+// commands typed into the IntelliJ Run window (stop, op, etc.) silently go nowhere even
+// though the server is alive and listening. This wires it through. Same fix as the Forge line.
+tasks.matching { it.name == 'runServer' }.configureEach {
+    standardInput = System.in
+}
+
+// World control for the dedicated server (reset / switch world) -- see ../gradle/server-world.gradle
+apply from: '../gradle/server-world.gradle'
+
+// No tunables or tuning-tables copy-back here: tunables are tuned on forge-1.20.1 only (Port Strategy, Versions and
+// releases), and the tables follow them. forge-1.20.1 applies tunables-sync.gradle and tuning-tables-sync.gradle.

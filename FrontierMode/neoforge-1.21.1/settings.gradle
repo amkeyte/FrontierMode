@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+// Same as forge-1.20.1, so the jar is frontiermode-<version>.jar and project.name stays FrontierMode on both lines.
+rootProject.name = 'FrontierMode'
