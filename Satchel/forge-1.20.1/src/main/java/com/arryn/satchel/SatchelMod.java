@@ -6,7 +6,15 @@ import com.arryn.satchel.common.net.SatchelNetwork;
 import com.arryn.satchel.common.platform.ForgeEnvironment;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.platform.SatchelEnvironment;
+import com.arryn.satchel.common.tracking.CanaryEventIngress;
+import com.arryn.satchel.common.tracking.HotEventIngress;
+import com.arryn.satchel.common.tracking.MobJoinIngress;
+import com.arryn.satchel.common.tracking.ModuleEventIngress;
+import com.arryn.satchel.common.tracking.PlayerLifeIngress;
+import com.arryn.satchel.common.tracking.RealEventIngress;
+import com.arryn.satchel.common.tracking.ResultIngress;
 import com.arryn.satchel.common.tracking.SatchelHealth;
+import com.arryn.satchel.common.tracking.SpawnGateIngress;
 import com.arryn.satchel.common.tunable.TunableManager;
 import com.arryn.satchel.common.util.MobDataStore;
 import com.arryn.satchel.common.util.out.OUT;
@@ -92,6 +100,9 @@ public class SatchelMod {
             SatchelHealth.init();
             // The probes that need the server's own classes (server/tracking), after the shared ones.
             ServerHealth.init();
+            // This line's half of the probes: the ingress that turns Forge's events into their event
+            // interfaces, and the loader calls two of them make (SAT_189).
+            registerHealthIngress();
 
             // SAT_093: Tunables load once per game, here -- before any world exists, so a Tunable
             // read during world creation (the new-world spawn search) sees the CSV, and a bad row
@@ -99,5 +110,23 @@ public class SatchelMod {
             // and saves them as it stops.
             TunableManager.load();
         });
+    }
+
+    /**
+     * Forge's adapters for SatchelHealth's probes, whose checks are shared: each registers its ingress, and the
+     * spawn-gate and result adapters also hand their checks Forge's calls. Under the same switch as
+     * {@code SatchelHealth.init()}.
+     */
+    private static void registerHealthIngress() {
+        if (!SatchelConfig.HEALTH_ENABLED.get()) return;
+
+        MobJoinIngress.register();
+        PlayerLifeIngress.register();
+        ModuleEventIngress.register();
+        ResultIngress.register();
+        HotEventIngress.register();
+        CanaryEventIngress.register();
+        RealEventIngress.register();
+        SpawnGateIngress.register();
     }
 }

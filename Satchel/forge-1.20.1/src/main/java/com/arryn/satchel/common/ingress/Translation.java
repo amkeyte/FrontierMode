@@ -16,8 +16,10 @@ import java.util.function.Function;
  *   Optional<C>}); an empty answer ends the firing before anything is built or posted. A
  *   registration with no context has no resolver.</li>
  *   <li><b>Cheap rejection before allocation.</b> The module event is built only if something on the
- *   bus will receive it: a global subscriber, or one filed under this firing's context. The event's
- *   class is learned from the first one built, so the first firing builds once regardless.</li>
+ *   bus will receive it: a global subscriber, or one filed under this firing's context. A registration
+ *   that names the module's event interface posts under it and checks it before building anything; one
+ *   that does not learns the event's class from the first one built, so its first firing builds once
+ *   regardless.</li>
  * </ol>
  * Then the event is bound to the native event's cancel state, and to its result if the native event
  * carries one ({@code @HasResult}), and posted, and closed after the last consumer returns.
@@ -29,20 +31,28 @@ final class Translation<N extends Event, C, S extends ModuleSignal<N, C>> extend
     private final BiFunction<N, C, S> scopedCtor;
     private final Function<N, S> unscopedCtor;
 
-    /** Learned from the first event built; null until then. */
+    /** The module's event interface the event is posted as, or null to post it as its own class. */
+    private final Class<? extends ModuleEvent<?>> declaredType;
+
+    /** The type posted under: the declared interface, or the class learned from the first event built. */
     private Class<?> eventType;
 
     /** A scoped translation. */
-    Translation(Class<N> nativeType, Function<N, Optional<C>> resolver, BiFunction<N, C, S> ctor) {
+    Translation(Class<N> nativeType, Class<? extends ModuleEvent<?>> declaredType,
+                Function<N, Optional<C>> resolver, BiFunction<N, C, S> ctor) {
         super(nativeType);
+        this.declaredType = declaredType;
+        this.eventType = declaredType;
         this.resolver = resolver;
         this.scopedCtor = ctor;
         this.unscopedCtor = null;
     }
 
     /** An unscoped translation, with no context to resolve. */
-    Translation(Class<N> nativeType, Function<N, S> ctor) {
+    Translation(Class<N> nativeType, Class<? extends ModuleEvent<?>> declaredType, Function<N, S> ctor) {
         super(nativeType);
+        this.declaredType = declaredType;
+        this.eventType = declaredType;
         this.resolver = null;
         this.scopedCtor = null;
         this.unscopedCtor = ctor;
@@ -64,13 +74,21 @@ final class Translation<N extends Event, C, S extends ModuleSignal<N, C>> extend
         }
 
         S signal = resolver != null ? scopedCtor.apply(event, context) : unscopedCtor.apply(event);
+        if (declaredType != null && !declaredType.isInstance(signal)) {
+            throw new IllegalStateException(signal.getClass().getName() + " was built for a registration posted as "
+                    + declaredType.getName() + ", which it does not implement");
+        }
         signal.bindCancelState(event::isCanceled);
         if (event.hasResult()) {
             signal.bindResult(() -> verdictOf(event.getResult()), v -> event.setResult(resultOf(v)));
         }
-        eventType = signal.getClass();
 
-        post(signal);
+        if (declaredType != null) {
+            post(signal, declaredType);
+        } else {
+            eventType = signal.getClass();
+            post(signal);
+        }
     }
 
     private static ModuleSignal.Verdict verdictOf(Event.Result result) {

@@ -1,5 +1,7 @@
 package test.arryn.satchel.event;
 
+import com.arryn.satchel.common.ingress.GlobalConsumers;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 import com.arryn.satchel.common.lifecycle.SatchelEventBus.Priority;
@@ -15,8 +17,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * The bus's own rules (SAT_111): priority order, scoped dispatch merged into one order,
- * receiveCancelled, removal, the nesting-depth guard and failure. Plain JUnit on a bus, no Minecraft
- * or Forge classes.
+ * receiveCancelled, removal, the nesting-depth guard and failure; and a module event posted as the
+ * module's interface, with global consumers declared in shared (SAT_188). Plain JUnit on a bus, no
+ * Minecraft or Forge classes.
  */
 class SatchelEventBusTest {
 
@@ -38,6 +41,27 @@ class SatchelEventBusTest {
     static final class Tick extends ModuleSignal<String, Void> {
         Tick() {
             super("native", null);
+        }
+    }
+
+    /** A module's event interface, as written in shared for an event that runs on two lines. */
+    interface Struck extends ModuleEvent<Integer> {
+        /** A live read: the line's class reads it from the native event when asked. */
+        String live();
+    }
+
+    /** One line's class for it, on that line's native event (a string here). */
+    static final class LineStruck extends ModuleSignal<String, Integer> implements Struck {
+        final AtomicBoolean cancelled = new AtomicBoolean();
+
+        LineStruck(int context) {
+            super("line native", context);
+            bindCancelState(cancelled::get);
+        }
+
+        @Override
+        public String live() {
+            return nativeEvent();
         }
     }
 
@@ -215,5 +239,105 @@ class SatchelEventBusTest {
         assertTrue(hit.isCanceled());
         hit.cancelled.set(false);   // the native event changing afterward is no longer read
         assertTrue(hit.isCanceled());
+    }
+
+    // =================================================================
+    // A module event posted as the module's interface (SAT_188)
+    // =================================================================
+
+    @Test
+    void an_event_posted_as_its_interface_reaches_the_interface_consumers_and_not_its_class() {
+        List<String> order = new ArrayList<>();
+        bus.subscribe(Struck.class, null, Priority.NORMAL, false, "t", e -> order.add("interface:" + e.live()));
+        bus.subscribe(LineStruck.class, null, Priority.NORMAL, false, "t", e -> order.add("class"));
+
+        bus.post(new LineStruck(1), Struck.class);
+        assertEquals(List.of("interface:line native"), order);
+
+        // Posted as its own class, as before, it reaches only the class's consumers.
+        order.clear();
+        bus.post(new LineStruck(1));
+        assertEquals(List.of("class"), order);
+    }
+
+    @Test
+    void scoped_dispatch_and_cancel_state_hold_under_the_declared_type() {
+        List<String> order = new ArrayList<>();
+        bus.subscribe(Struck.class, null, Priority.HIGH, false, "t", e -> ((LineStruck) e).cancelled.set(true));
+        bus.subscribe(Struck.class, 4, Priority.NORMAL, false, "t", e -> order.add("skipped"));
+        bus.subscribe(Struck.class, 4, Priority.NORMAL, true, "t", e -> order.add("ctx-4"));
+        bus.subscribe(Struck.class, 5, Priority.NORMAL, true, "t", e -> order.add("ctx-5"));
+
+        LineStruck struck = new LineStruck(4);
+        bus.post(struck, Struck.class);
+
+        assertEquals(List.of("ctx-4"), order);
+        assertTrue(struck.isCanceled());
+        assertTrue(bus.hasSubscribers(Struck.class, 5));
+        assertFalse(bus.hasSubscribers(LineStruck.class, 4));
+    }
+
+    @Test
+    void a_live_read_through_the_interface_throws_after_dispatch() {
+        List<Struck> kept = new ArrayList<>();
+        bus.subscribe(Struck.class, null, Priority.NORMAL, false, "t", kept::add);
+
+        LineStruck struck = new LineStruck(2);
+        bus.post(struck, Struck.class);
+        struck.close();
+
+        assertThrows(IllegalStateException.class, kept.get(0)::live);
+        assertEquals(2, kept.get(0).context());   // the context stays readable
+    }
+
+    @Test
+    void posting_as_a_type_the_event_is_not_is_a_programming_error() {
+        assertThrows(IllegalArgumentException.class, () -> bus.post(new Tick(), Struck.class));
+    }
+
+    // =================================================================
+    // Global consumers declared in shared (SAT_188)
+    // =================================================================
+
+    @Test
+    void declared_consumers_install_on_a_bus_in_priority_order_with_their_options() {
+        List<String> order = new ArrayList<>();
+        GlobalConsumers declared = new GlobalConsumers();
+        declared.listenForAll(Struck.class, e -> order.add("normal"));
+        declared.listenForAll(Struck.class, e -> order.add("low-tally")).priority(Priority.LOW).receiveCancelled();
+        declared.listenForAll(Struck.class, e -> {
+            order.add("high-veto");
+            ((LineStruck) e).cancelled.set(true);
+        }).priority(Priority.HIGH);
+
+        declared.install(bus, "module");
+        bus.post(new LineStruck(1), Struck.class);
+
+        // The veto skips the NORMAL consumer, which did not opt in; the LOW one did.
+        assertEquals(List.of("high-veto", "low-tally"), order);
+        assertEquals(3, bus.listenerCount(Struck.class));
+    }
+
+    @Test
+    void declared_consumers_install_on_each_bus_they_are_handed_to() {
+        AtomicInteger heard = new AtomicInteger();
+        GlobalConsumers declared = new GlobalConsumers();
+        declared.listenForAll(Struck.class, e -> heard.incrementAndGet());
+        SatchelEventBus other = new SatchelEventBus();
+
+        declared.install(bus, "module");
+        declared.install(other, "module");
+        bus.post(new LineStruck(1), Struck.class);
+        other.post(new LineStruck(1), Struck.class);
+
+        assertEquals(2, heard.get());
+    }
+
+    @Test
+    void a_consumer_declared_after_install_is_a_programming_error() {
+        GlobalConsumers declared = new GlobalConsumers();
+        declared.install(bus, "module");
+
+        assertThrows(IllegalStateException.class, () -> declared.listenForAll(Struck.class, e -> {}));
     }
 }

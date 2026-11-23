@@ -1,15 +1,15 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.ingress.IngressConfig;
-import com.arryn.satchel.common.ingress.IngressKey;
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.GlobalConsumers;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.LogicalSide;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.level.LevelScope;
+import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
@@ -17,28 +17,32 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The canary's pair of module events, end to end (SAT_113) -- see {@link SatchelHealth} and the
- * health-canary example. Both are server only, on real Forge events:
+ * The canary's pair of module events, end to end (SAT_113) -- see {@link SatchelHealth} and the health-canary
+ * example. Both are server only, on real loader events:
  * <ul>
- *   <li><b>A scoped event, {@code CanaryHurt}</b> on {@code LivingHurtEvent}, resolved with {@code
- *   Scopes.of} on the health mob jig, which admits only the canary. The canary's mob-scope Trinket
- *   hears it with {@code info.listenFor}. The probe hurts the canary once for no damage, after the
- *   other probes have finished with it, and expects exactly one built and one delivered to the canary's
- *   own scope. One built for any other scope, in any hurt, is a violation;</li>
- *   <li><b>An unscoped event, {@code CanaryNamespaceDied}</b> on {@code LivingDeathEvent}, which tests
- *   whether the mob carries the canary's {@code MobData} namespace ({@link CanaryData}). The probe adds
- *   two throwaway bats, one marked and one not, and kills each in the same call, so the next canary
- *   check cannot discard them first. The marked one must arrive as a canary and the other not. The
- *   canary itself is never killed.</li>
+ *   <li><b>A scoped event, {@link CanaryHurt}</b> on the hurt event, resolved with {@code Scopes.of} on the health mob
+ *   jig, which admits only the canary. The canary's mob-scope Trinket hears it with {@code info.listenFor}. The probe
+ *   hurts the canary once for no damage, after the other probes have finished with it, and expects exactly one built
+ *   and one delivered to the canary's own scope. One built for any other scope, in any hurt, is a violation. Its
+ *   amount is read live (SAT_189): a consumer ahead of the canary's changes it, the canary's consumer reads the change,
+ *   a consumer after both puts it back, and a read after dispatch throws;</li>
+ *   <li><b>An unscoped event, {@link CanaryNamespaceDied}</b> on the death event, which tests whether the mob carries
+ *   the canary's {@code MobData} namespace ({@link CanaryData}). The probe adds two throwaway bats, one marked and one
+ *   not, and kills each in the same call, so the next canary check cannot discard them first. The marked one must
+ *   arrive as a canary and the other not. The canary itself is never killed.</li>
  * </ul>
  * One line per world.
+ *
+ * <p>
+ * The check is shared. Each line's {@code CanaryEventIngress} implements the two event interfaces on its loader's
+ * hurt and death events, resolves the hurt with {@link CanaryEventHealthCheck#resolveHurt(Entity)}, calls
+ * {@link CanaryEventHealthCheck#onHurtBuilt(ScopeInfo)} from its hurt event's constructor, and installs
+ * {@link CanaryEventHealthCheck#consumers()}.
  */
 final class CanaryEventHealthCheck {
 
@@ -46,10 +50,11 @@ final class CanaryEventHealthCheck {
 
     private static final String MODULE = "satchel_health";
 
-    private static final IngressKey INGRESS = new IngressKey("satchelhealth:canary_events");
+    /** The amount the first consumer sets on every canary hurt, which the canary's consumer must read. */
+    private static final float MARK = 0.25F;
 
+    /** Contributes the driver. Each line registers the ingress. */
     static void register() {
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> build());
         Satchel.contributeLevelTrinket(MODULE, JigPolicies.SideApplicability.SERVER, Order.LATE,
                 EventDriver.class, EventDriver::new);
     }
@@ -59,76 +64,93 @@ final class CanaryEventHealthCheck {
     }
 
     // =================================================================
-    // The module events
+    // The module events, and what a line's adapter calls
     // =================================================================
 
-    /** Scoped: resolved to the canary's mob scope, so only the canary ever reaches it. */
-    static final class CanaryHurt extends ModuleSignal<LivingHurtEvent, ScopeInfo> {
-        CanaryHurt(LivingHurtEvent e, ScopeInfo canary) {
-            super(e, canary);
-            SatchelHealth.state().canaryHurtBuilt.incrementAndGet();
+    /**
+     * Scoped: resolved to the canary's mob scope, so only the canary ever reaches it.
+     * Fires before armor, where a consumer may change the damage.
+     */
+    interface CanaryHurt extends ModuleEvent<ScopeInfo> {
 
-            UUID known = SatchelHealth.canaryUuid().orElse(null);
-            if (!ScopeInfoImpl.of(canary).scopeId().equals(known)) {
-                violation("a CanaryHurt was built for " + canary.debugName() + ", which is not the canary");
-            }
-        }
-
-        ScopeInfo canary() {
+        default ScopeInfo canary() {
             return context();
         }
+
+        /** The damage the hurt deals, read live: a consumer before this one may have changed it. */
+        float amount();
+
+        /** Changes the damage the hurt deals. */
+        void setAmount(float amount);
     }
 
     /** Unscoped: any mob carrying the canary's namespace, with no scope to resolve to. */
-    static final class CanaryNamespaceDied extends ModuleSignal<LivingDeathEvent, Void> {
-        private final UUID mob;          // fact, copied
-        private final boolean canary;    // fact, copied
+    interface CanaryNamespaceDied extends ModuleEvent<Void> {
 
-        CanaryNamespaceDied(LivingDeathEvent e) {
-            super(e, null);
-            mob = e.getEntity().getUUID();
-            canary = CanaryData.isCanary(e.getEntity());
-        }
+        /** The mob that died, copied when the event was built. */
+        UUID mob();
 
-        UUID mob() {
-            return mob;
-        }
-
-        boolean isCanary() {
-            return canary;
-        }
+        /** Whether it carried the canary's mark, copied when the event was built. */
+        boolean isCanary();
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(INGRESS);
+    /** The resolver of {@link CanaryHurt}: counts the firing and finds the hurt mob's scope on the health mob jig. */
+    static Optional<ScopeInfo> resolveHurt(Entity hurt) {
+        SatchelHealth.state().canaryHurtFired.incrementAndGet();
+        return Scopes.of(MobHealthCheck.MOB_JIG, hurt);
+    }
 
-        ingress.translate(LivingHurtEvent.class, e -> {
-            SatchelHealth.state().canaryHurtFired.incrementAndGet();
-            return Scopes.of(MobHealthCheck.MOB_JIG, e.getEntity());
-        }, CanaryHurt::new);
+    /** From a {@link CanaryHurt}'s constructor: counts it, and checks it was built for the canary. */
+    static void onHurtBuilt(ScopeInfo canary) {
+        SatchelHealth.state().canaryHurtBuilt.incrementAndGet();
 
-        ingress.translate(LivingDeathEvent.class, CanaryNamespaceDied::new);
-        ingress.listenForAll(CanaryNamespaceDied.class, d -> {
-            HealthState state = SatchelHealth.state();
-            if (state.deathWatch.contains(d.mob())) state.deathSeen.put(d.mob(), d.isCanary());
-        });
-
-        return ingress;
+        UUID known = SatchelHealth.canaryUuid().orElse(null);
+        if (!ScopeInfoImpl.of(canary).scopeId().equals(known)) {
+            violation("a CanaryHurt was built for " + canary.debugName() + ", which is not the canary");
+        }
     }
 
     /**
-     * Called by the canary's mob-scope Trinket as it attaches: the scope-bound consumer of {@code
-     * CanaryHurt}, removed when the scope unloads. The event is server only, so a client has none.
+     * The global consumers each line's ingress installs: the unscoped death's consumer, and the two that bracket the
+     * canary's own consumer of a hurt to show its amount is read live.
+     */
+    static GlobalConsumers consumers() {
+        GlobalConsumers consumers = new GlobalConsumers();
+
+        consumers.listenForAll(CanaryHurt.class, e -> {
+            SatchelHealth.state().canaryHurtAmountBefore = e.amount();
+            e.setAmount(MARK);
+        }).priority(SatchelEventBus.Priority.HIGH);
+        consumers.listenForAll(CanaryHurt.class, e -> e.setAmount(SatchelHealth.state().canaryHurtAmountBefore))
+                .priority(SatchelEventBus.Priority.LOW);
+
+        consumers.listenForAll(CanaryNamespaceDied.class, d -> {
+            HealthState state = SatchelHealth.state();
+            if (state.deathWatch.contains(d.mob())) state.deathSeen.put(d.mob(), d.isCanary());
+        });
+        return consumers;
+    }
+
+    /**
+     * Called by the canary's mob-scope Trinket as it attaches: the scope-bound consumer of {@link CanaryHurt}, removed
+     * when the scope unloads. The event is server only, so a client has none. It runs between the two global consumers
+     * above, so the amount it reads is the one the first set.
      */
     static void listen(ScopeInfoImpl info) {
         if (info.jigInfo().side() != LogicalSide.SERVER) return;
 
         info.listenFor(CanaryHurt.class, e -> {
-            SatchelHealth.state().canaryHurtDelivered.incrementAndGet();
+            HealthState state = SatchelHealth.state();
+            state.canaryHurtDelivered.incrementAndGet();
             if (e.canary() != info) {
                 violation("a CanaryHurt resolved to " + e.canary().debugName() + " reached the consumer of "
                         + info.debugName());
             }
+            if (e.amount() != MARK) {
+                violation("the canary's consumer read an amount of " + e.amount() + " after an earlier consumer "
+                        + "set " + MARK + ", so the amount was not read live");
+            }
+            state.canaryHurtKept = e;
         });
     }
 
@@ -137,8 +159,8 @@ final class CanaryEventHealthCheck {
     // =================================================================
 
     /**
-     * On the server's level host, in the Overworld: once the hot-event and unload probes have finished
-     * with the canary, hurts it once for no damage and checks the scoped event, then kills the two
+     * On the server's level host, in the Overworld: once the hot-event and unload probes have finished with the
+     * canary, hurts it once for no damage and checks the scoped event and its live amount, then kills the two
      * throwaway bats and checks the unscoped one.
      */
     public static final class EventDriver implements Ticking {
@@ -177,13 +199,14 @@ final class CanaryEventHealthCheck {
             long firedBefore = state.canaryHurtFired.get();
             long builtBefore = state.canaryHurtBuilt.get();
             long deliveredBefore = state.canaryHurtDelivered.get();
+            state.canaryHurtKept = null;
 
             living.hurt(level.damageSources().generic(), 0.0F);
 
             if (state.canaryHurtFired.get() == firedBefore) {
                 if (attempts >= MAX_ATTEMPTS) {
                     OUT.warn("[SatchelHealth] Canary-event probe: " + MAX_ATTEMPTS + " hurts of the canary never "
-                            + "reached LivingHurtEvent, so the scoped event was not exercised");
+                            + "reached the hurt event, so the scoped event was not exercised");
                 }
                 return;
             }
@@ -193,15 +216,29 @@ final class CanaryEventHealthCheck {
                 violation("one hurt of the canary built " + built + " and delivered " + delivered
                         + " CanaryHurt(s) to its scope, expected exactly 1 of each");
             }
+            expectClosed(state.canaryHurtKept);
 
             killTwoBats(level, state);
 
             if (state.logged.add("canaryevents:done")) {
-                OUT.info("[SatchelHealth] Canary-event probe: a LivingHurtEvent resolved with Scopes.of on the mob "
-                        + "jig built and delivered exactly 1 CanaryHurt, to the canary's own scope; a bat carrying the "
-                        + "canary's MobData namespace died as a canary and one without it as not, through the "
-                        + "unscoped event");
+                OUT.info("[SatchelHealth] Canary-event probe: a hurt event resolved with Scopes.of on the mob jig "
+                        + "built and delivered exactly 1 CanaryHurt, to the canary's own scope, and its consumer read "
+                        + "the amount an earlier consumer set, live, which threw when read after dispatch; a bat "
+                        + "carrying the canary's MobData namespace died as a canary and one without it as not, "
+                        + "through the unscoped event");
             }
+        }
+
+        /** The hurt the canary's consumer kept: dispatch has ended, so its live read must throw. */
+        private static void expectClosed(CanaryHurt kept) {
+            if (kept == null) return;   // not delivered: already a violation above
+            boolean threw = false;
+            try {
+                kept.amount();
+            } catch (IllegalStateException expected) {
+                threw = true;
+            }
+            if (!threw) violation("a CanaryHurt kept past its dispatch still read its amount");
         }
 
         private static void killTwoBats(Level level, HealthState state) {

@@ -200,7 +200,6 @@ public final class SatchelHealth {
         PlayerLifeHealthCheck.register();
         RegistrationHealthCheck.register();
         ModuleEventHealthCheck.register();
-        ResultHealthCheck.register();
         HotEventHealthCheck.register();
         CanaryEventHealthCheck.register();
         RealEventHealthCheck.register();

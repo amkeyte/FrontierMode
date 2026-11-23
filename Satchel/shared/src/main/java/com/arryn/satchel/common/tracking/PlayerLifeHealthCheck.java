@@ -1,9 +1,7 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.ingress.IngressConfig;
-import com.arryn.satchel.common.ingress.IngressKey;
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -11,32 +9,33 @@ import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.host.HostJigs;
 import com.arryn.satchel.common.jig.player.PlayerScope;
 import com.arryn.satchel.common.trinket.Order;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 
 import java.util.Optional;
 
 /**
- * A player scope across death, respawn and a dimension change (SAT_131 probes 3 and 4) -- see {@link
- * SatchelHealth}. {@code PlayerList.respawn} replaces the {@code ServerPlayer} instance for a
- * connection, and a player scope outlives that: it is made at login and unloaded at logout. A
- * server-only player-host Trinket attached before the death confirms, on a real death and respawn
- * (passive, or {@code /kill}):
+ * A player scope across death, respawn and a dimension change (SAT_131 probes 3 and 4) -- see {@link SatchelHealth}.
+ * {@code PlayerList.respawn} replaces the {@code ServerPlayer} instance for a connection, and a player scope outlives
+ * that: it is made at login and unloaded at logout. A server-only player-host Trinket attached before the death
+ * confirms, on a real death and respawn (passive, or {@code /kill}):
  * <ul>
- *   <li><b>the same Trinket</b> -- no detach and no second attach (the {@link HostProbe} checks), it
- *   keeps ticking afterwards, and {@code PlayerScope.player()} returns the respawned instance, not the
- *   dead one;</li>
- *   <li><b>a scoped event after the respawn</b> -- a module event resolved with {@code
- *   Scopes.of(HostJigs.PLAYER_HOST, respawnedPlayer)} reaches the consumer the Trinket holds through
+ *   <li><b>the same Trinket</b> -- no detach and no second attach (the {@link HostProbe} checks), it keeps ticking
+ *   afterwards, and {@code PlayerScope.player()} returns the respawned instance, not the dead one;</li>
+ *   <li><b>a scoped event after the respawn</b> -- a module event resolved with
+ *   {@code Scopes.of(HostJigs.PLAYER_HOST, respawnedPlayer)} reaches the consumer the Trinket holds through
  *   {@code info.listenFor};</li>
- *   <li><b>a scoped event for a dying player</b> -- a module event on {@code LivingDropsEvent},
- *   resolved to the player's scope, reaches the Trinket's consumer during the death, while the player
- *   is dead and not yet respawned. FRO_256's soulbound stash depends on the scope still being ready
- *   then;</li>
+ *   <li><b>a scoped event for a dying player</b> -- a module event on the death-drops event, resolved to the player's
+ *   scope, reaches the Trinket's consumer during the death, while the player is dead and not yet respawned. FRO_256's
+ *   soulbound stash depends on the scope still being ready then;</li>
  *   <li><b>a dimension change</b> -- the same Trinket survives it and keeps ticking.</li>
  * </ul>
  * One line per kind of event, per world.
+ *
+ * <p>
+ * The check is shared. Each line's {@code PlayerLifeIngress} implements the three event interfaces on its loader's
+ * respawn, dimension-change and death-drops events, with {@link PlayerLifeHealthCheck#resolvePlayer(Entity)} as the
+ * resolver of each.
  */
 final class PlayerLifeHealthCheck {
 
@@ -44,67 +43,49 @@ final class PlayerLifeHealthCheck {
 
     private static final String MODULE = "satchel_health";
 
-    private static final IngressKey INGRESS = new IngressKey("satchelhealth:player_life");
-
+    /** Contributes the probe. Each line registers the ingress. */
     static void register() {
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> build());
         Satchel.contributePlayerTrinket(MODULE, JigPolicies.SideApplicability.SERVER, Order.NORMAL,
                 LifeProbe.class, LifeProbe::new);
     }
 
     // =================================================================
-    // The module events: scoped to the player host's scope for the player
+    // The module events, scoped to the player host's scope for the player, and the resolver
     // =================================================================
 
     /** A player was recreated after a death (or the End's exit). */
-    static final class Respawned extends ModuleSignal<PlayerEvent.PlayerRespawnEvent, ScopeInfo> {
-        final Player player;          // fact, copied: the respawned instance
-        final boolean endConquered;   // fact, copied
+    interface Respawned extends ModuleEvent<ScopeInfo> {
 
-        Respawned(PlayerEvent.PlayerRespawnEvent e, ScopeInfo scope) {
-            super(e, scope);
-            player = e.getEntity();
-            endConquered = e.isEndConquered();
-        }
+        /** The respawned instance, copied when the event was built. */
+        Player player();
+
+        /** Whether this was the End's exit rather than a death, copied when the event was built. */
+        boolean endConquered();
     }
 
     /** A player arrived in another dimension. */
-    static final class ChangedDimension extends ModuleSignal<PlayerEvent.PlayerChangedDimensionEvent, ScopeInfo> {
-        ChangedDimension(PlayerEvent.PlayerChangedDimensionEvent e, ScopeInfo scope) {
-            super(e, scope);
-        }
+    interface ChangedDimension extends ModuleEvent<ScopeInfo> {
     }
 
     /** A player's death drops: fired from {@code die}, so the player is dead and not yet respawned. */
-    static final class DyingDrops extends ModuleSignal<LivingDropsEvent, ScopeInfo> {
-        final Player player;        // fact, copied
-        final boolean dead;         // fact, copied: as of the event
-        final boolean removed;      // fact, copied: as of the event
+    interface DyingDrops extends ModuleEvent<ScopeInfo> {
 
-        DyingDrops(LivingDropsEvent e, ScopeInfo scope) {
-            super(e, scope);
-            player = (Player) e.getEntity();
-            dead = e.getEntity().isDeadOrDying();
-            removed = e.getEntity().isRemoved();
-        }
+        /** The dying player, copied when the event was built. */
+        Player player();
+
+        /** Whether the player was dead or dying when the event was built. */
+        boolean dead();
+
+        /** Whether the player had been removed when the event was built. */
+        boolean removed();
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(INGRESS);
-
-        // Registered across three natives; what each proves is in the class doc. A drops event is
-        // fired for every living thing that dies, so its resolver is a type test before the lookup.
-        ingress.translate(PlayerEvent.PlayerRespawnEvent.class,
-                e -> Scopes.of(HostJigs.PLAYER_HOST, e.getEntity()), Respawned::new);
-        ingress.translate(PlayerEvent.PlayerChangedDimensionEvent.class,
-                e -> Scopes.of(HostJigs.PLAYER_HOST, e.getEntity()), ChangedDimension::new);
-        ingress.translate(LivingDropsEvent.class,
-                e -> e.getEntity() instanceof Player player
-                        ? Scopes.of(HostJigs.PLAYER_HOST, player)
-                        : Optional.<ScopeInfo>empty(),
-                DyingDrops::new);
-
-        return ingress;
+    /**
+     * The resolver of all three: the player host's scope for a player, else empty. A drops event is fired for every
+     * living thing that dies, so this is a type test before the lookup.
+     */
+    static Optional<ScopeInfo> resolvePlayer(Entity entity) {
+        return entity instanceof Player player ? Scopes.of(HostJigs.PLAYER_HOST, player) : Optional.empty();
     }
 
     // =================================================================
@@ -112,8 +93,8 @@ final class PlayerLifeHealthCheck {
     // =================================================================
 
     /**
-     * On the player host, server only. Holds three scope-bound consumers from {@code onAttach}, and
-     * the facts they compare across a death.
+     * On the player host, server only. Holds three scope-bound consumers from {@code onAttach}, and the facts they
+     * compare across a death.
      */
     public static final class LifeProbe extends HostProbe {
 
@@ -172,25 +153,25 @@ final class PlayerLifeHealthCheck {
 
         private void onDrops(ScopeInfo info, DyingDrops e) {
             Player scoped = ((PlayerScope) info.scope()).player();
-            if (!e.dead) violation("the scope's consumer got the drops event for a player that is not dead: "
+            if (!e.dead()) violation("the scope's consumer got the drops event for a player that is not dead: "
                     + info.debugName());
-            if (e.removed) violation("the drops event reached the consumer after the dying player was removed: "
+            if (e.removed()) violation("the drops event reached the consumer after the dying player was removed: "
                     + info.debugName());
-            if (scoped != e.player) violation("the scope resolved a different player than the dying one while "
+            if (scoped != e.player()) violation("the scope resolved a different player than the dying one while "
                     + "its drops event was delivered: " + info.debugName());
             if (!info.isReady()) violation("the scope was not ready while its dying player's drops event was "
                     + "delivered: " + info.debugName());
 
             dropsThisLife = true;
             SatchelHealth.logOnce("life:drops", "[SatchelHealth] Player-life probe: a scoped event on "
-                    + "LivingDropsEvent reached the player scope's consumer during the death, with the player dead "
-                    + "and not yet respawned (" + info.debugName() + ")");
+                    + "the death-drops event reached the player scope's consumer during the death, with the player "
+                    + "dead and not yet respawned (" + info.debugName() + ")");
         }
 
         private void onRespawn(ScopeInfo info, Respawned e) {
             Player scoped = ((PlayerScope) info.scope()).player();
 
-            if (scoped != e.player) violation("PlayerScope.player() did not return the respawned instance: "
+            if (scoped != e.player()) violation("PlayerScope.player() did not return the respawned instance: "
                     + info.debugName());
             if (lastSeen != null && scoped == lastSeen) violation("PlayerScope.player() still returns the "
                     + "instance from before the respawn: " + info.debugName());
@@ -198,7 +179,7 @@ final class PlayerLifeHealthCheck {
                     + detaches() + " time(s) across a respawn, expected 1 and 0: " + info.debugName());
 
             // A death drops the player's loot unless they were a spectator; the End's exit is no death.
-            if (!e.endConquered && diedThisLife && !diedAsSpectator && !dropsThisLife) {
+            if (!e.endConquered() && diedThisLife && !diedAsSpectator && !dropsThisLife) {
                 violation("a player died and respawned but their drops event never reached the scope's consumer: "
                         + info.debugName());
             }

@@ -1,9 +1,8 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.ingress.IngressConfig;
-import com.arryn.satchel.common.ingress.IngressKey;
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.GlobalConsumers;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
@@ -14,24 +13,29 @@ import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * A resolver on a hot event (SAT_134 probe 4) -- see {@link SatchelHealth}. {@code LivingHurtEvent}
- * fires for every hit on every living thing, so a module registers it behind a resolver that is a
- * cheap filter, and the module event is built only when the resolver answers. Two registrations on it:
+ * A resolver on a hot event (SAT_134 probe 4) -- see {@link SatchelHealth}. The hurt event fires for every hit on
+ * every living thing, so a module registers it behind a resolver that is a cheap filter, and the module event is built
+ * only when the resolver answers. Two registrations on it:
  * <ul>
- *   <li><b>a resolver that answers empty for everything</b>, with a subscriber on its event, so the
- *   resolver and not the no-subscriber check is what keeps the constructor from running. A constructor
- *   counter stays at 0 across live play, however many hurts the resolver sees;</li>
- *   <li><b>a resolver that answers for one tagged probe entity</b>, which builds exactly one event
- *   and delivers it once per hurt the probe makes.</li>
+ *   <li><b>a resolver that answers empty for everything</b>, with a subscriber on its event, so the resolver and not
+ *   the no-subscriber check is what keeps the constructor from running. A constructor counter stays at 0 across live
+ *   play, however many hurts the resolver sees;</li>
+ *   <li><b>a resolver that answers for one tagged probe entity</b>, which builds exactly one event and delivers it once
+ *   per hurt the probe makes.</li>
  * </ul>
- * The tagged entity is the canary, hurt once by the probe for no damage: the event fires before Forge
- * discards a zero amount. One line per world.
+ * The tagged entity is the canary, hurt once by the probe for no damage. One line per world.
+ *
+ * <p>
+ * The check is shared. Each line's {@code HotEventIngress} translates its loader's hurt event into {@link HurtNever}
+ * and {@link HurtTagged}, with {@link HotEventHealthCheck#resolveNothing()} and
+ * {@link HotEventHealthCheck#resolveTagged(Entity)} as the resolvers, calls {@link HotEventHealthCheck#onNeverBuilt()}
+ * and {@link HotEventHealthCheck#onTaggedBuilt()} from its events' constructors, and installs
+ * {@link HotEventHealthCheck#consumers()}.
  */
 final class HotEventHealthCheck {
 
@@ -39,13 +43,11 @@ final class HotEventHealthCheck {
 
     private static final String MODULE = "satchel_health";
 
-    private static final IngressKey INGRESS = new IngressKey("satchelhealth:hot_events");
-
     /** The scoreboard tag the probe puts on the entity it hurts. */
     private static final String TAG = "satchelhealth_hurt_probe";
 
+    /** Contributes the driver. Each line registers the ingress. */
     static void register() {
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> build());
         Satchel.contributeLevelTrinket(MODULE, JigPolicies.SideApplicability.SERVER, Order.LATE,
                 HurtDriver.class, HurtDriver::new);
     }
@@ -55,45 +57,52 @@ final class HotEventHealthCheck {
     }
 
     // =================================================================
-    // The module events
+    // The module events, and what a line's adapter calls
     // =================================================================
 
-    /** Scoped to a context nothing resolves: must never be built. */
-    static final class HurtNever extends ModuleSignal<LivingHurtEvent, Integer> {
-        HurtNever(LivingHurtEvent e, Integer context) {
-            super(e, context);
-            SatchelHealth.state().hurtNeverBuilt.incrementAndGet();
-            violation("an event whose resolver answered empty was built anyway");
-        }
+    /**
+     * Scoped to a context nothing resolves: must never be built.
+     * Fires before armor; a consumer only reacts.
+     */
+    interface HurtNever extends ModuleEvent<Integer> {
     }
 
-    /** The context is the tagged entity's UUID: a plain value, since the resolver is only a filter. */
-    static final class HurtTagged extends ModuleSignal<LivingHurtEvent, UUID> {
-        HurtTagged(LivingHurtEvent e, UUID context) {
-            super(e, context);
-            SatchelHealth.state().hurtTaggedBuilt.incrementAndGet();
-        }
+    /**
+     * The context is the tagged entity's UUID: a plain value, since the resolver is only a filter.
+     * Fires before armor; a consumer only reacts.
+     */
+    interface HurtTagged extends ModuleEvent<UUID> {
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(INGRESS);
+    /** The resolver of {@link HurtNever}: counts the firing and answers empty. */
+    static Optional<Integer> resolveNothing() {
+        SatchelHealth.state().hurtResolved.incrementAndGet();
+        return Optional.empty();
+    }
 
-        // Registered across two natives' worth of firings; what each proves is in the class doc.
-        ingress.receiveCancelled().translate(LivingHurtEvent.class, e -> {
-            SatchelHealth.state().hurtResolved.incrementAndGet();
-            return Optional.<Integer>empty();
-        }, HurtNever::new);
-        ingress.listenForAll(HurtNever.class, e -> { }).receiveCancelled();
+    /** The resolver of {@link HurtTagged}: the hurt entity's UUID if the probe tagged it, else empty. */
+    static Optional<UUID> resolveTagged(Entity hurt) {
+        return hurt.getTags().contains(TAG) ? Optional.of(hurt.getUUID()) : Optional.empty();
+    }
 
-        ingress.receiveCancelled().translate(LivingHurtEvent.class,
-                e -> e.getEntity().getTags().contains(TAG)
-                        ? Optional.of(e.getEntity().getUUID())
-                        : Optional.<UUID>empty(),
-                HurtTagged::new);
-        ingress.listenForAll(HurtTagged.class, e -> SatchelHealth.state().hurtTaggedDelivered.incrementAndGet())
+    /** From a {@link HurtNever}'s constructor, which must never run. */
+    static void onNeverBuilt() {
+        SatchelHealth.state().hurtNeverBuilt.incrementAndGet();
+        violation("an event whose resolver answered empty was built anyway");
+    }
+
+    /** From a {@link HurtTagged}'s constructor. */
+    static void onTaggedBuilt() {
+        SatchelHealth.state().hurtTaggedBuilt.incrementAndGet();
+    }
+
+    /** The global consumers each line's ingress installs. */
+    static GlobalConsumers consumers() {
+        GlobalConsumers consumers = new GlobalConsumers();
+        consumers.listenForAll(HurtNever.class, e -> { }).receiveCancelled();
+        consumers.listenForAll(HurtTagged.class, e -> SatchelHealth.state().hurtTaggedDelivered.incrementAndGet())
                 .receiveCancelled();
-
-        return ingress;
+        return consumers;
     }
 
     // =================================================================
@@ -101,9 +110,9 @@ final class HotEventHealthCheck {
     // =================================================================
 
     /**
-     * On the server's level host, in the Overworld: once the canary exists, tags it and hurts it for
-     * zero damage, then checks that the tagged resolver built and delivered exactly one event and the
-     * empty one built none. Afterwards it keeps checking that none is ever built.
+     * On the server's level host, in the Overworld: once the canary exists, tags it and hurts it for zero damage, then
+     * checks that the tagged resolver built and delivered exactly one event and the empty one built none. Afterwards it
+     * keeps checking that none is ever built.
      */
     public static final class HurtDriver implements Ticking {
 
@@ -155,7 +164,7 @@ final class HotEventHealthCheck {
                 // later, and say so once if it never does.
                 if (attempts >= MAX_ATTEMPTS) {
                     OUT.warn("[SatchelHealth] Hot-event probe: " + MAX_ATTEMPTS + " hurts of the canary never "
-                            + "reached LivingHurtEvent, so the tagged resolver was not exercised");
+                            + "reached the hurt event, so the tagged resolver was not exercised");
                 }
                 return;
             }
@@ -165,7 +174,7 @@ final class HotEventHealthCheck {
             }
 
             if (state.logged.add("hurt:done")) {
-                OUT.info("[SatchelHealth] Hot-event probe: a LivingHurtEvent resolver for one tagged entity built "
+                OUT.info("[SatchelHealth] Hot-event probe: a hurt-event resolver for one tagged entity built "
                         + "and delivered exactly 1 event for 1 hurt, and the resolver that answers empty "
                         + "built " + state.hurtNeverBuilt.get() + " across " + state.hurtResolved.get()
                         + " firing(s) (it keeps counting; any build is a violation)");

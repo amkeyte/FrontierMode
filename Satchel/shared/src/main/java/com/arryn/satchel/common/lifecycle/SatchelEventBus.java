@@ -15,8 +15,9 @@ import java.util.function.Consumer;
  *
  * <p>
  * One per foundation, so one per side. Dispatch is synchronous, depth-first and by exact event class,
- * like Forge's. If an event is posted here, all invariants have already been enforced: the bus does
- * not filter, infer or check lifecycle.
+ * like Forge's: the event's own class, or the type it is posted as ({@link #post(Object, Class)}), which
+ * is how a line's module event reaches the consumers of the module's interface. If an event is posted
+ * here, all invariants have already been enforced: the bus does not filter, infer or check lifecycle.
  *
  * <ul>
  *   <li><b>Priority.</b> A subscription has a {@link Priority}; consumers of an event run in priority
@@ -225,8 +226,30 @@ public final class SatchelEventBus {
      */
     public <E> void post(E event) {
         Objects.requireNonNull(event, "event");
+        dispatch(event, event.getClass());
+    }
 
-        Subs subs = byType.get(event.getClass());
+    /**
+     * {@link #post(Object)} to the consumers of {@code as} instead of the event's own class: exactly
+     * {@code as}, which the event must be an instance of. A module event that runs on two lines is posted
+     * as the module's interface, so a consumer of the interface hears whichever line's class built it.
+     *
+     * @throws IllegalArgumentException if {@code event} is not an instance of {@code as}: a programming
+     *                                  error
+     * @throws IllegalStateException    if dispatches nest deeper than {@value #MAX_DEPTH}
+     */
+    public void post(Object event, Class<?> as) {
+        Objects.requireNonNull(event, "event");
+        Objects.requireNonNull(as, "as");
+        if (!as.isInstance(event)) {
+            throw new IllegalArgumentException(event.getClass().getName() + " was posted as "
+                    + as.getName() + ", which it is not an instance of");
+        }
+        dispatch(event, as);
+    }
+
+    private void dispatch(Object event, Class<?> type) {
+        Subs subs = byType.get(type);
         if (subs == null) return;
 
         ModuleSignal<?, ?> signal = event instanceof ModuleSignal<?, ?> ms ? ms : null;
@@ -243,7 +266,7 @@ public final class SatchelEventBus {
         if (depth >= MAX_DEPTH) {
             throw new IllegalStateException(
                     "Event dispatch nested deeper than " + MAX_DEPTH + " while posting "
-                            + event.getClass().getSimpleName()
+                            + type.getSimpleName()
                             + " -- a consumer is triggering its own event recursively.");
         }
         depth++;

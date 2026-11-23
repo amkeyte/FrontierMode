@@ -1,9 +1,8 @@
 package com.arryn.satchel.common.tracking;
 
 import com.arryn.satchel.Satchel;
-import com.arryn.satchel.common.ingress.IngressConfig;
-import com.arryn.satchel.common.ingress.IngressKey;
-import com.arryn.satchel.common.ingress.ModuleSignal;
+import com.arryn.satchel.common.ingress.GlobalConsumers;
+import com.arryn.satchel.common.ingress.ModuleEvent;
 import com.arryn.satchel.common.ingress.Scopes;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.guts.JigInfo;
@@ -11,43 +10,42 @@ import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.guts.ScopeInfoImpl;
 import com.arryn.satchel.common.jig.mob.MobJig;
 import com.arryn.satchel.common.jig.mob.MobScope;
-import com.arryn.satchel.common.platform.PlatformBound;
 import com.arryn.satchel.common.trinket.Order;
 import com.arryn.satchel.common.trinket.Ticking;
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * A scope is built only for a mob that has joined the level (SAT_135) -- see {@link SatchelHealth}. Forge
- * posts a mob's own {@code EntityJoinLevelEvent} before the mob is in the level, where the join can
- * still be cancelled, so a module event on it resolved with {@code Scopes.of} on a mob jig must
- * find no scope for the mob. The server probe adds a synthetic mob of its own, once per world, to the
- * health mob jig's interest and checks, with a listener that cancels the join after the module event
- * has been resolved:
+ * A scope is built only for a mob that has joined the level (SAT_135) -- see {@link SatchelHealth}. The loader posts
+ * a mob's own join event before the mob is in the level, where the join can still be cancelled, so a module event on it
+ * resolved with {@code Scopes.of} on a mob jig must find no scope for the mob. The server probe adds a synthetic mob of
+ * its own, once per world, to the health mob jig's interest and checks, with a listener that cancels the join after the
+ * module event has been resolved:
  * <ul>
- *   <li><b>a cancelled join</b> -- no scope is built during the join (the module event is never
- *   delivered), and none exists after it;</li>
+ *   <li><b>a cancelled join</b> -- no scope is built during the join (the module event is never delivered), and none
+ *   exists after it;</li>
  *   <li><b>an allowed join</b> -- no scope during the join either, and the scope is there as soon as
  *   {@code addFreshEntity} has returned;</li>
- *   <li><b>a copy with the same UUID</b> -- asked for a scope, it gets the original's, the dimension
- *   change case, and the original's leave unloads it.</li>
+ *   <li><b>a copy with the same UUID</b> -- asked for a scope, it gets the original's, the dimension change case, and
+ *   the original's leave unloads it.</li>
  * </ul>
+ *
+ * <p>
+ * The check is shared. Each line's {@code MobJoinIngress} translates its loader's join event into
+ * {@link JoinedProbeMob} with {@link MobJoinHealthCheck#resolveJoin(Entity)} as the resolver, first among the
+ * listeners, installs {@link MobJoinHealthCheck#consumers()}, and cancels a join last among the listeners when
+ * {@link MobJoinHealthCheck#refusesJoin(Entity)} says to.
  */
-@PlatformBound(reason = "health-probe")
 final class MobJoinHealthCheck {
 
     private MobJoinHealthCheck() {}
 
     private static final String MODULE = "satchel_health";
-
-    private static final IngressKey INGRESS = new IngressKey("satchelhealth:mob_join");
 
     /** Marks a mob the probe made, so the resolver and the canceller leave every other mob alone. */
     private static final String TAG = "satchelhealth_join_probe";
@@ -58,44 +56,42 @@ final class MobJoinHealthCheck {
     /** Ticks the probe waits after the Overworld scope is ticking, so the world is settled. */
     private static final int RUN_AFTER_TICKS = 100;
 
+    /** Contributes the probe. Each line registers the ingress and the canceller. */
     static void register() {
-        Satchel.registerIngress(JigPolicies.SideApplicability.SERVER, () -> build());
         Satchel.contributeLevelTrinket(MODULE, JigPolicies.SideApplicability.SERVER, Order.LATE,
                 JoinProbe.class, JoinProbe::new);
-
-        // The spawn blocker: last among the listeners, so the module event below has been resolved first.
-        MinecraftForge.EVENT_BUS.addListener(EventPriority.LOWEST, false, EntityJoinLevelEvent.class,
-                MobJoinHealthCheck::onRawJoin);
     }
 
     private static void violation(String message) {
         SatchelHealth.violation("[SatchelHealth] VIOLATION: Mob join " + message);
     }
 
-    private static void onRawJoin(EntityJoinLevelEvent e) {
-        if (e.getEntity().getTags().contains(CANCEL_TAG)) e.setCanceled(true);
-    }
+    // =================================================================
+    // The module event, and what a line's adapter calls
+    // =================================================================
 
     /** Scoped to the mob jig's scope for a probe mob: must never be built, since the mob has not joined. */
-    static final class JoinedProbeMob extends ModuleSignal<EntityJoinLevelEvent, ScopeInfo> {
-        JoinedProbeMob(EntityJoinLevelEvent e, ScopeInfo scope) {
-            super(e, scope);
-        }
+    interface JoinedProbeMob extends ModuleEvent<ScopeInfo> {
     }
 
-    static IngressConfig build() {
-        IngressConfig ingress = new IngressConfig(INGRESS);
+    /** The resolver of {@link JoinedProbeMob}: the health mob jig's scope for a probe mob, else empty. */
+    static Optional<ScopeInfo> resolveJoin(Entity joined) {
+        return joined instanceof Mob mob && mob.getTags().contains(TAG)
+                ? Scopes.of(MobHealthCheck.MOB_JIG, mob)
+                : Optional.empty();
+    }
 
-        // First among the listeners: the join is still open to cancellation when this resolver runs.
-        ingress.priority(EventPriority.HIGHEST).translate(EntityJoinLevelEvent.class,
-                e -> e.getEntity() instanceof Mob mob && mob.getTags().contains(TAG)
-                        ? Scopes.of(MobHealthCheck.MOB_JIG, mob)
-                        : Optional.<ScopeInfo>empty(),
-                JoinedProbeMob::new);
-        ingress.listenForAll(JoinedProbeMob.class, e -> SatchelHealth.state().joinDelivered.incrementAndGet())
+    /** Whether the canceller refuses this join: only the probe mob marked for it. */
+    static boolean refusesJoin(Entity joining) {
+        return joining.getTags().contains(CANCEL_TAG);
+    }
+
+    /** The global consumers each line's ingress installs. */
+    static GlobalConsumers consumers() {
+        GlobalConsumers consumers = new GlobalConsumers();
+        consumers.listenForAll(JoinedProbeMob.class, e -> SatchelHealth.state().joinDelivered.incrementAndGet())
                 .receiveCancelled();
-
-        return ingress;
+        return consumers;
     }
 
     // =================================================================

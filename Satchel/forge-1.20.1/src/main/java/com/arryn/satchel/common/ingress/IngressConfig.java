@@ -1,7 +1,6 @@
 package com.arryn.satchel.common.ingress;
 
 import com.arryn.satchel.common.jig.guts.LogicalFoundation;
-import com.arryn.satchel.common.lifecycle.SatchelEventBus;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.Event;
@@ -29,10 +28,14 @@ import java.util.function.Function;
  * <ul>
  *   <li>{@link #translate(Class, Function, BiFunction)} turns a Forge event into a module event with
  *   a resolved context; {@link #translate(Class, Function)} does so with none.</li>
+ *   <li>For a module event that runs on two lines, {@link #translate(Class, Class, Function, BiFunction)}
+ *   and {@link #translate(Class, Class, Function)} name the module's event interface in {@code shared},
+ *   which this line's class implements, and post the event as it.</li>
  *   <li>{@link #handler(SatchelEventHandler)} registers a handler that does more than translate.</li>
  *   <li>{@link #priority} and {@link #receiveCancelled} set the Forge listener priority and
  *   cancelled-event delivery of the <i>next</i> subscription; they do not carry over past it.</li>
- *   <li>{@link #listenForAll} is a global consumer of a module event, owned by this config.</li>
+ *   <li>{@link #listenForAll} is a global consumer of a module event, owned by this config;
+ *   {@link #consumers} installs the ones a module declared in {@code shared}.</li>
  * </ul>
  *
  * <p>
@@ -114,7 +117,33 @@ public final class IngressConfig {
         Objects.requireNonNull(resolver, "resolver");
         Objects.requireNonNull(ctor, "ctor");
 
-        subscribe(nativeType, owner -> new Translation<>(nativeType, resolver, ctor));
+        subscribe(nativeType, owner -> new Translation<>(nativeType, null, resolver, ctor));
+        return this;
+    }
+
+    /**
+     * {@link #translate(Class, Function, BiFunction)} for a module event that runs on two lines: the
+     * event is posted as {@code eventType}, the module's interface in {@code shared}, which the event
+     * {@code ctor} builds must implement. A consumer of the interface hears it whichever line built it,
+     * and nothing is built while the interface has no subscriber.
+     *
+     * @param eventType the module's event interface
+     * @param ctor      this line's class that implements it, usually {@code LineClass::new}
+     * @throws IllegalArgumentException if {@code eventType} is not an interface
+     */
+    public <N extends Event, C, E extends ModuleEvent<C>, S extends ModuleSignal<N, C>> IngressConfig translate(
+            Class<N> nativeType,
+            Class<E> eventType,
+            Function<N, Optional<C>> resolver,
+            BiFunction<N, C, S> ctor
+    ) {
+        requireOpen();
+        Objects.requireNonNull(nativeType, "nativeType");
+        requireInterface(eventType);
+        Objects.requireNonNull(resolver, "resolver");
+        Objects.requireNonNull(ctor, "ctor");
+
+        subscribe(nativeType, owner -> new Translation<>(nativeType, eventType, resolver, ctor));
         return this;
     }
 
@@ -130,8 +159,36 @@ public final class IngressConfig {
         Objects.requireNonNull(nativeType, "nativeType");
         Objects.requireNonNull(ctor, "ctor");
 
-        subscribe(nativeType, owner -> new Translation<>(nativeType, ctor));
+        subscribe(nativeType, owner -> new Translation<>(nativeType, null, ctor));
         return this;
+    }
+
+    /**
+     * {@link #translate(Class, Function)} for an unscoped module event that runs on two lines, posted as
+     * {@code eventType}, the module's interface in {@code shared}.
+     *
+     * @throws IllegalArgumentException if {@code eventType} is not an interface
+     */
+    public <N extends Event, E extends ModuleEvent<Void>, S extends ModuleSignal<N, Void>> IngressConfig translate(
+            Class<N> nativeType,
+            Class<E> eventType,
+            Function<N, S> ctor
+    ) {
+        requireOpen();
+        Objects.requireNonNull(nativeType, "nativeType");
+        requireInterface(eventType);
+        Objects.requireNonNull(ctor, "ctor");
+
+        subscribe(nativeType, owner -> new Translation<>(nativeType, eventType, ctor));
+        return this;
+    }
+
+    private static void requireInterface(Class<?> eventType) {
+        Objects.requireNonNull(eventType, "eventType");
+        if (!eventType.isInterface()) {
+            throw new IllegalArgumentException(eventType.getName()
+                    + " is not an interface: a module event is posted as the module's interface in shared");
+        }
     }
 
     /**
@@ -169,40 +226,28 @@ public final class IngressConfig {
     /**
      * Hears a module event for every firing, owned by this config: installed on each side's bus at
      * foundation boot and kept for the JVM. No jig is needed. Set its bus priority and
-     * cancelled-event delivery on the returned handle.
+     * cancelled-event delivery on the returned handle. A module on two lines declares its consumers in
+     * {@code shared} instead and hands them over with {@link #consumers}.
      */
-    public <S> Listening listenForAll(Class<S> type, Consumer<? super S> handler) {
+    public <S> GlobalConsumers.Listening listenForAll(Class<S> type, Consumer<? super S> handler) {
         requireOpen();
-        Objects.requireNonNull(type, "type");
-        Objects.requireNonNull(handler, "handler");
-
-        Listening listening = new Listening();
-        subscriptions.add((foundation, owner) -> foundation.eventBus().subscribe(
-                type, null, listening.priority, listening.receiveCancelled, owner, handler));
+        GlobalConsumers one = new GlobalConsumers();
+        GlobalConsumers.Listening listening = one.listenForAll(type, handler);
+        consumers(one);
         return listening;
     }
 
     /**
-     * The options of one {@link #listenForAll} consumer: its place among the consumers of the event
-     * (bus priority), and whether it hears an event a consumer before it cancelled.
+     * Installs {@code declared}, global consumers a module declared in {@code shared}, with this config,
+     * owned by it: on each side's bus at foundation boot, in the order they were handed over among this
+     * config's own {@link #listenForAll} consumers.
      */
-    public static final class Listening {
+    public IngressConfig consumers(GlobalConsumers declared) {
+        requireOpen();
+        Objects.requireNonNull(declared, "declared");
 
-        private SatchelEventBus.Priority priority = SatchelEventBus.Priority.NORMAL;
-        private boolean receiveCancelled;
-
-        private Listening() {
-        }
-
-        public Listening priority(SatchelEventBus.Priority priority) {
-            this.priority = Objects.requireNonNull(priority, "priority");
-            return this;
-        }
-
-        public Listening receiveCancelled() {
-            this.receiveCancelled = true;
-            return this;
-        }
+        subscriptions.add((foundation, owner) -> declared.install(foundation.eventBus(), owner));
+        return this;
     }
 
     /* =============================================================

@@ -97,6 +97,22 @@ public abstract class SatchelEventHandler<N> {
     }
 
     /**
+     * {@link #post(ModuleSignal)} as the module's event interface {@code as}, which {@code signal}
+     * implements, so the consumers of the interface hear it whichever line's class built it.
+     *
+     * @throws IllegalArgumentException if {@code signal} does not implement {@code as}: a programming
+     *                                  error
+     */
+    protected final void post(ModuleSignal<?, ?> signal, Class<? extends ModuleEvent<?>> as) {
+        Objects.requireNonNull(signal, "signal");
+        try {
+            foundation.eventBus().post(signal, as);
+        } finally {
+            signal.close();
+        }
+    }
+
+    /**
      * The foundation's event bus, for the no-subscriber check.
      */
     final com.arryn.satchel.common.lifecycle.SatchelEventBus bus() {

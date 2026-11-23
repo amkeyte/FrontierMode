@@ -74,6 +74,16 @@ final class HealthState {
     final AtomicLong canaryHurtDelivered = new AtomicLong();
 
     /**
+     * The canary hurt's amount before the probe's first consumer changed it, put back by its last, and the last hurt
+     * the canary's own consumer heard, read after dispatch to show the read throws (SAT_189). Server-thread only.
+     */
+    volatile float canaryHurtAmountBefore;
+    volatile CanaryEventHealthCheck.CanaryHurt canaryHurtKept;
+
+    /** The spawn-gate probe's window for the call it is making (SAT_115). */
+    final SpawnGateHealthCheck.Window spawnGate = new SpawnGateHealthCheck.Window();
+
+    /**
      * The mobs the canary-event probe is about to kill, and what the unscoped consumer saw for each
      * (whether it carried the canary mark). Only these are recorded, so the map does not grow with
      * every death in the world.
@@ -90,12 +100,14 @@ final class HealthState {
     /**
      * The module-event probe's tallies (SAT_113), one entry per side because an integrated server's two
      * sides share this state: the last unscoped event seen, the firings seen, the firings a resolver that
-     * always answers empty bounced, and the events built for the one nobody subscribes to.
+     * always answers empty bounced, and the events built for the two nobody subscribes to, one registered
+     * with no interface and one posted as its interface.
      */
     final Map<LogicalSide, ModuleEventHealthCheck.JoinAny> previousJoin = new ConcurrentHashMap<>();
     final Map<LogicalSide, Integer> joinFirings = new ConcurrentHashMap<>();
     final Map<LogicalSide, Integer> joinBounced = new ConcurrentHashMap<>();
     final Map<LogicalSide, Integer> unwatchedBuilt = new ConcurrentHashMap<>();
+    final Map<LogicalSide, Integer> unwatchedDeclaredBuilt = new ConcurrentHashMap<>();
 
     /**
      * The UUIDs of the canary scopes attached on each side right now, so a second scope for the same

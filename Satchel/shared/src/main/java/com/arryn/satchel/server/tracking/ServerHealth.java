@@ -14,7 +14,6 @@ public final class ServerHealth {
     public static void init() {
         if (!SatchelConfig.HEALTH_ENABLED.get()) return;
 
-        SpawnGateHealthCheck.register();
         CanaryCleanupHealthCheck.register();
     }
 }

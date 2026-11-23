@@ -34,10 +34,17 @@ import java.util.function.Supplier;
  *   An event nobody touches keeps the native event's default.</li>
  * </ul>
  *
+ *
+ * <p>
+ * <b>On two lines</b> the module's consumers name an interface it writes in {@code shared}, extending
+ * {@link ModuleEvent}; each line's class extends this base on its own native event and implements that
+ * interface, reading the native event as above, and is registered with the {@code translate} form that
+ * names the interface. The class is then the only place a line's event types appear.
+ *
  * @param <N> the native event type, unconstrained here
  * @param <C> the resolved context
  */
-public abstract class ModuleSignal<N, C> {
+public abstract class ModuleSignal<N, C> implements ModuleEvent<C> {
 
     /**
      * The result of a native event that carries one, in Satchel's own terms: {@code DEFAULT} leaves
@@ -84,6 +91,7 @@ public abstract class ModuleSignal<N, C> {
     /**
      * The context the registration resolved, or null for an unscoped event.
      */
+    @Override
     public final C context() {
         return context;
     }
@@ -92,6 +100,7 @@ public abstract class ModuleSignal<N, C> {
      * Whether the native event has been canceled, by this or an earlier listener. After dispatch it
      * answers the state the event ended with.
      */
+    @Override
     public final boolean isCanceled() {
         if (closed) return closedCanceled;
         return canceled != null && canceled.getAsBoolean();
