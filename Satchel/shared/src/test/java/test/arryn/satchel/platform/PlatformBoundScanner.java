@@ -530,6 +530,12 @@ public final class PlatformBoundScanner {
      * on the list, not under a marker, not for a class that extends a Satchel type, and a marker excuses nothing else
      * either. The extension of a Satchel type still passes a Minecraft class.
      *
+     * <p>
+     * A module's own {@code shared} takes {@link Rule#MODULE_SHARED}, the same without the list: a loader class is never
+     * allowed there either, a class of one side is allowed only in a package of that side whatever the file extends
+     * (a Satchel supertype excuses nothing there, unlike in Satchel's own {@code shared}, where a facade is a named
+     * home for side classes), and every other Minecraft class passes, since the compile of each line holds it.
+     *
      * @param file    the source file, relative to the scanned root, with forward slashes
      * @param line     the line of the first import or use of the class
      * @param imported the platform class ({@code net.minecraft.world.entity.Mob}), or the package import as written
@@ -571,13 +577,19 @@ public final class PlatformBoundScanner {
      * <ul>
      *   <li>{@code LINE}: a line folder, where a file may name the loader. A marker with a reason, or a class that
      *   extends a Satchel type, passes every import of the file.</li>
-     *   <li>{@code SHARED}: the folder every line compiles. A loader class is never allowed, and a marker excuses
-     *   nothing; a Minecraft class must be on the list, in a side package of its own side, or in a file with a
+     *   <li>{@code SHARED}: Satchel's own folder every line compiles. A loader class is never allowed, and a marker
+     *   excuses nothing; a Minecraft class must be on the list, in a side package of its own side, or in a file with a
      *   class that extends a Satchel type.</li>
+     *   <li>{@code MODULE_SHARED}: a module's folder every line compiles. A loader class is never allowed, and a
+     *   marker excuses nothing, as in {@code SHARED}; a class of one side ({@code net.minecraft.server} or
+     *   {@code net.minecraft.client}) is allowed only in a package of its own side, whatever the file extends, so
+     *   a Satchel supertype excuses nothing here. Any other Minecraft class passes, on the list or off it and marked or not: whether
+     *   it compiles on every line is for each line's compile to say, which is how a module's {@code shared} is
+     *   held (Port Strategy, Port Readiness Plan § What common means).</li>
      * </ul>
      */
     public enum Rule {
-        LINE, SHARED
+        LINE, SHARED, MODULE_SHARED
     }
 
     /**
@@ -598,6 +610,14 @@ public final class PlatformBoundScanner {
     private static final String SHARED_PROBLEM =
             "not on the authorized list, and in shared a marker does not excuse it and the file does not extend a "
                     + "Satchel type; the class belongs in the line folders";
+
+    private static final String SERVER_CLASS_PROBLEM =
+            "a server-only class, which a client does not have, so it is named only in a package with a server "
+                    + "segment; move the file there or put the call behind a seam";
+
+    private static final String CLIENT_CLASS_PROBLEM =
+            "a client-only class, which a dedicated server does not have, so it is named only in a package with a "
+                    + "client segment; move the file there or put the call behind a seam";
 
     /** Where a Satchel type lives. */
     private static final String SATCHEL_PACKAGE = "com.arryn.satchel.";
@@ -662,7 +682,8 @@ public final class PlatformBoundScanner {
         for (Unit unit : units) {
             platformClasses += unit.uses.size();
 
-            boolean shared = unit.rule == Rule.SHARED;
+            boolean module = unit.rule == Rule.MODULE_SHARED;
+            boolean shared = unit.rule != Rule.LINE;
             boolean extendsSatchel = unit.declared.stream().anyMatch(hierarchy::extendsSatchel);
             // What the file's own standing excuses, for a Minecraft class: in a line folder a marker or a Satchel
             // supertype excuses every import; in shared only the Satchel supertype does, and never a loader class.
@@ -675,6 +696,13 @@ public final class PlatformBoundScanner {
                 int line = lineOf(unit.source, use.offset());
                 if (shared && isLoader(use.imported())) {
                     offenders.add(new ImportOffender(unit.name, line, use.imported(), LOADER_IN_SHARED_PROBLEM));
+                } else if (module) {
+                    // A module's shared has no list and no excuse: only a class of one side, outside its own side's
+                    // package, is refused, whatever the file extends. Any other Minecraft class passes.
+                    if (isSideClass(use.imported()) && !namesOwnSide(unit.pkg, use.imported())) {
+                        offenders.add(new ImportOffender(unit.name, line, use.imported(),
+                                use.imported().startsWith(SERVER_CLASSES) ? SERVER_CLASS_PROBLEM : CLIENT_CLASS_PROBLEM));
+                    }
                 } else if (excused) {
                     continue;
                 } else if (use.packageImport()) {
@@ -811,7 +839,7 @@ public final class PlatformBoundScanner {
      * package a file naming the class sits in. It does not read whether a signature carries one. A root with another
      * rule is not read, since a line folder is platform code. A fully qualified name in the code counts as an import.
      *
-     * @param roots           the roots; only {@code SHARED} ones are read
+     * @param roots           the roots; the {@code SHARED} and {@code MODULE_SHARED} ones are read
      * @param allowedPackages the packages whose files may name the class
      * @return the files that name it outside those packages, and in {@code platformClasses} how many files name it at
      *         all, allowed or not; a caller asserts that is not zero, so a scan that read nothing cannot pass
@@ -820,7 +848,7 @@ public final class PlatformBoundScanner {
         List<ImportOffender> offenders = new ArrayList<>();
         int files = 0;
         for (Root root : roots) {
-            if (root.rule() != Rule.SHARED) continue;
+            if (root.rule() == Rule.LINE) continue;
             for (Map.Entry<String, String> source : readTree(root.path()).entrySet()) {
                 String name = root.label().isEmpty() ? source.getKey() : root.label() + "/" + source.getKey();
                 Unit unit = unit(name, source.getValue(), root.rule());
@@ -939,6 +967,11 @@ public final class PlatformBoundScanner {
     /** A loader class: Forge's or NeoForge's. */
     private static boolean isLoader(String name) {
         return name.startsWith("net.minecraftforge.") || name.startsWith("net.neoforged.");
+    }
+
+    /** Whether {@code imported} is a Minecraft class of one side: under {@code net.minecraft.server} or {@code net.minecraft.client}. */
+    private static boolean isSideClass(String imported) {
+        return imported.startsWith(SERVER_CLASSES) || imported.startsWith(CLIENT_CLASSES);
     }
 
     /**

@@ -556,6 +556,148 @@ class PlatformImportScannerTest {
                 List.of(new Root("", shared, Rule.SHARED)), AUTHORIZED)).imported());
     }
 
+    /* ------------------------------------------------------------
+     * A module's shared folder (SAT_197)
+     * --------------------------------------------------------- */
+
+    private static ImportResult scanModuleShared(Path shared) {
+        return PlatformBoundScanner.scanImportRoots(List.of(new Root("", shared, Rule.MODULE_SHARED)), AUTHORIZED);
+    }
+
+    @Test
+    void a_modules_shared_passes_a_minecraft_class_off_the_list_with_no_marker(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/Game.java", """
+                package m;
+                import net.minecraft.core.BlockPos;
+                import net.minecraft.world.entity.monster.Zombie;
+                import net.minecraft.world.entity.*;
+                public class Game { }
+                """);
+
+        ImportResult module = scanModuleShared(shared);
+
+        assertTrue(module.offenders().isEmpty(), module.offenders()::toString);
+        assertEquals(3, module.platformClasses());
+
+        // Satchel's own shared holds the same file to the list: the class off it and the package import fail.
+        assertEquals(List.of("m/Game.java  net.minecraft.world.entity.monster.Zombie",
+                        "m/Game.java  net.minecraft.world.entity.*"),
+                baseline(PlatformBoundScanner.scanImportRoots(
+                        List.of(new Root("", shared, Rule.SHARED)), AUTHORIZED)));
+    }
+
+    @Test
+    void a_modules_shared_still_refuses_a_loader_class_marked_extending_or_not(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/Marked.java", """
+                package m;
+                import net.minecraftforge.event.TickEvent;
+                @PlatformBound(reason = "ingress")
+                public class Marked { }
+                """);
+        write(shared, "m/Extending.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                import net.neoforged.bus.api.Event;
+                public class Extending extends SatchelFixture { }
+                """);
+        write(shared, "m/Plain.java", """
+                package m;
+                import net.minecraftforge.event.*;
+                public class Plain { }
+                """);
+
+        ImportResult result = scanModuleShared(shared);
+
+        assertEquals(List.of(
+                        "m/Extending.java  net.neoforged.bus.api.Event",
+                        "m/Marked.java  net.minecraftforge.event.TickEvent",
+                        "m/Plain.java  net.minecraftforge.event.*"),
+                baseline(result).stream().sorted().toList());
+        assertTrue(result.offenders().stream().allMatch(o -> o.problem().contains("cannot be named in shared")),
+                result.offenders()::toString);
+    }
+
+    @Test
+    void a_modules_shared_keeps_the_side_test(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        // A class of one side in a package of that side passes, a package import included.
+        write(shared, "m/server/Side.java", """
+                package m.server;
+                import net.minecraft.server.level.ServerLevel;
+                import net.minecraft.server.level.*;
+                public class Side { }
+                """);
+        write(shared, "m/client/Screen.java", """
+                package m.client;
+                import net.minecraft.client.Minecraft;
+                public class Screen { }
+                """);
+        // Anywhere else it fails, and a side's package does not take the other side's classes.
+        write(shared, "m/Common.java", """
+                package m;
+                import net.minecraft.server.level.ServerLevel;
+                import net.minecraft.client.Minecraft;
+                public class Common { }
+                """);
+        write(shared, "m/Wild.java", """
+                package m;
+                import net.minecraft.server.level.*;
+                public class Wild { }
+                """);
+        write(shared, "m/server/Wrong.java", """
+                package m.server;
+                import net.minecraft.client.gui.*;
+                public class Wrong { }
+                """);
+
+        ImportResult result = scanModuleShared(shared);
+
+        assertEquals(List.of(
+                        "m/Common.java  net.minecraft.client.Minecraft",
+                        "m/Common.java  net.minecraft.server.level.ServerLevel",
+                        "m/Wild.java  net.minecraft.server.level.*",
+                        "m/server/Wrong.java  net.minecraft.client.gui.*"),
+                baseline(result).stream().sorted().toList());
+        assertTrue(result.offenders().stream().filter(o -> o.imported().contains(".client."))
+                .allMatch(o -> o.problem().contains("client-only")), result.offenders()::toString);
+        assertTrue(result.offenders().stream().filter(o -> o.imported().contains(".server."))
+                .allMatch(o -> o.problem().contains("server-only")), result.offenders()::toString);
+    }
+
+    @Test
+    void a_satchel_supertype_excuses_no_side_class_in_a_modules_shared_but_does_in_satchels(@TempDir Path dir)
+            throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/Presence.java", """
+                package m;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                import net.minecraft.client.Minecraft;
+                import net.minecraft.server.level.ServerLevel;
+                public class Presence extends SatchelFixture { }
+                """);
+        // The same file in its own side's package passes either way.
+        write(shared, "m/server/Home.java", """
+                package m.server;
+                import com.arryn.satchel.common.fixture.SatchelFixture;
+                import net.minecraft.server.level.ServerLevel;
+                public class Home extends SatchelFixture { }
+                """);
+
+        ImportResult module = scanModuleShared(shared);
+
+        assertEquals(List.of(
+                        "m/Presence.java  net.minecraft.client.Minecraft",
+                        "m/Presence.java  net.minecraft.server.level.ServerLevel"),
+                baseline(module).stream().sorted().toList());
+
+        // Satchel's own shared keeps the exemption: a facade there is a named home for side classes.
+        assertTrue(PlatformBoundScanner.scanImportRoots(List.of(new Root("", shared, Rule.SHARED)), AUTHORIZED)
+                .offenders().isEmpty());
+    }
+
     @Test
     void the_roots_are_read_together_and_a_report_names_a_file_by_its_root(@TempDir Path dir) throws IOException {
         Path shared = dir.resolve("shared");
@@ -724,6 +866,21 @@ class PlatformImportScannerTest {
 
         assertEquals(List.of("shared/m/persistence/deep/Deep.java  net.minecraft.nbt.CompoundTag"),
                 baseline(scanTags(shared, dir.resolve("line"))));
+    }
+
+    @Test
+    void a_modules_shared_is_read_for_a_compound_tag_too(@TempDir Path dir) throws IOException {
+        Path shared = dir.resolve("shared");
+        write(shared, "m/module/Mod.java", """
+                package m.module;
+                import net.minecraft.nbt.CompoundTag;
+                public class Mod { CompoundTag data; }
+                """);
+
+        ImportResult result = PlatformBoundScanner.scanCompoundTagRoots(
+                List.of(new Root("shared", shared, Rule.MODULE_SHARED)), Set.of());
+
+        assertEquals(List.of("shared/m/module/Mod.java  net.minecraft.nbt.CompoundTag"), baseline(result));
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -14,8 +15,10 @@ import net.minecraft.world.item.component.LodestoneTracker;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.level.Level;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -46,7 +49,11 @@ import java.util.Optional;
  *
  * <p>
  * Enchantments are data-driven registry entries on 1.21: a caller holds a {@code Holder<Enchantment>},
- * got from a registry reached through the level's {@code RegistryAccess}.
+ * got from a registry reached through the level's {@code RegistryAccess}. Shared module code names an
+ * enchantment by id ({@link #enchantmentLevel(ItemStack, ResourceLocation)},
+ * {@link #enchant(ItemStack, Level, ResourceLocation, int)}, {@link #enchantmentsById},
+ * {@link #setEnchantmentsById}), the same on every line, and these do the lookup; the forms that take a
+ * {@link Holder} are this line's, for a class in its line folder.
  *
  * <p>
  * Side-agnostic: client code reads stacks too. Pure static utility -- no fixture, no bundle, no
@@ -172,6 +179,75 @@ public final class StackData {
             throw new IllegalArgumentException("level must be >= 1, was " + level);
         }
         EnchantmentHelper.updateEnchantments(stack, list -> list.set(enchantment, level));
+    }
+
+    /* -------------------------------------------------------------
+     * Enchantments by id (SAT_196): the forms shared module code calls. The same four signatures are on
+     * every line, because the Holder forms above differ by line (an Enchantment on 1.20.1).
+     * ---------------------------------------------------------- */
+
+    /**
+     * The stack's level of the enchantment with id {@code enchantment}, 0 if the stack lacks it or no
+     * enchantment has that id. Needs no level: an enchantment's id is read off the stack's holders, not
+     * looked up.
+     */
+    public static int enchantmentLevel(ItemStack stack, ResourceLocation enchantment) {
+        Objects.requireNonNull(stack, "stack");
+        Objects.requireNonNull(enchantment, "enchantment");
+        ItemEnchantments held = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+        for (Holder<Enchantment> holder : held.keySet()) {
+            if (holder.is(enchantment)) {
+                return held.getLevel(holder);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Every enchantment on the stack as its id and level, in a fresh map the caller may change freely. The
+     * same enchantments {@link #enchantments} holds; one whose holder has no id (a direct one) is left out.
+     */
+    public static Map<ResourceLocation, Integer> enchantmentsById(ItemStack stack) {
+        Objects.requireNonNull(stack, "stack");
+        Map<ResourceLocation, Integer> result = new LinkedHashMap<>();
+        enchantments(stack).forEach((holder, level) ->
+                holder.unwrapKey().ifPresent(key -> result.put(key.location(), level)));
+        return result;
+    }
+
+    /**
+     * Replaces the stack's whole enchantment list with {@code enchantments}, each an id and a level; an empty
+     * map removes every enchantment. The ids are looked up in {@code level}'s registries, which is why a
+     * level is passed: an enchantment is a registry entry here.
+     *
+     * @throws IllegalArgumentException if no enchantment has one of the ids; the stack is left as it was.
+     */
+    public static void setEnchantmentsById(ItemStack stack, Level level, Map<ResourceLocation, Integer> enchantments) {
+        Objects.requireNonNull(stack, "stack");
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(enchantments, "enchantments");
+        Map<Holder<Enchantment>, Integer> resolved = new LinkedHashMap<>();
+        enchantments.forEach((id, enchantLevel) -> resolved.put(resolve(level, id), enchantLevel));
+        setEnchantments(stack, resolved);
+    }
+
+    /**
+     * Sets the enchantment with id {@code enchantment} on the stack to {@code enchantLevel}, replacing any level
+     * it already has. The id is looked up in {@code level}'s registries, which is why a level is passed.
+     *
+     * @throws IllegalArgumentException if no enchantment has that id, or if {@code enchantLevel} is below 1 --
+     *                                  use {@link #setEnchantmentsById} to remove one.
+     */
+    public static void enchant(ItemStack stack, Level level, ResourceLocation enchantment, int enchantLevel) {
+        Objects.requireNonNull(stack, "stack");
+        Objects.requireNonNull(level, "level");
+        enchant(stack, resolve(level, enchantment), enchantLevel);
+    }
+
+    private static Holder<Enchantment> resolve(Level level, ResourceLocation id) {
+        Objects.requireNonNull(id, "enchantment");
+        return level.registryAccess().registryOrThrow(Registries.ENCHANTMENT).getHolder(id)
+                .orElseThrow(() -> new IllegalArgumentException("No enchantment has the id " + id));
     }
 
     /* =============================================================

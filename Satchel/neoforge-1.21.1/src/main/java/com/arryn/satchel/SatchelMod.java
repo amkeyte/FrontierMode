@@ -13,6 +13,7 @@ import com.arryn.satchel.common.tracking.ModuleEventIngress;
 import com.arryn.satchel.common.tracking.PlayerLifeIngress;
 import com.arryn.satchel.common.tracking.RealEventIngress;
 import com.arryn.satchel.common.tracking.ResultIngress;
+import com.arryn.satchel.common.tracking.StackDataHealthAdapter;
 import com.arryn.satchel.common.tracking.SatchelHealth;
 import com.arryn.satchel.common.tracking.SpawnGateIngress;
 import com.arryn.satchel.common.tunable.TunableManager;
@@ -114,5 +115,6 @@ public class SatchelMod {
         CanaryEventIngress.register();
         RealEventIngress.register();
         SpawnGateIngress.register();
+        StackDataHealthAdapter.register();
     }
 }
