@@ -1,9 +1,6 @@
 package com.arryn.frontiermode.border.common;
 
 import com.arryn.frontiermode.border.BorderAPI;
-import com.arryn.frontiermode.border.common.BorderConstants;
-import com.arryn.frontiermode.border.common.BorderMath;
-import com.arryn.frontiermode.border.common.BorderMathLogic;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.satchel.common.tunable.Tunable;
 import net.minecraft.core.BlockPos;

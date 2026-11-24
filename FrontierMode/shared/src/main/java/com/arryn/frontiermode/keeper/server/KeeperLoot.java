@@ -14,6 +14,7 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
@@ -47,7 +48,10 @@ public final class KeeperLoot {
      * last standing on its border; never from {@code BossAPI.forceDefeat} (an admin command
      * force-defeating bosses for loot is the riskless exploit this reward shouldn't have).
      */
-    public static void pay(ServerLevel level, Mob boss, KeeperRecord keeper, Player credited) {
+    public static void pay(Level side, Mob boss, KeeperRecord keeper, Player credited) {
+        // Only reached on the server, from a counted defeat; a cast, not a type guard (Code Conventions, The side
+        // check is Satchel's, not a type guard).
+        ServerLevel level = (ServerLevel) side;
         int waveLength = BorderAPI.waveLength();
         double lootStep = new Tunable("keeperLootStep", 0f, 2f, 0.3f).floatValue();
         LootParams.Builder builder = new LootParams.Builder(level)

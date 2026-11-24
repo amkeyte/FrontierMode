@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.keeper.server.KeeperKind;
+import com.arryn.frontiermode.effects.EffectsMod;
+import com.arryn.frontiermode.keeper.KeeperKind;
 import com.arryn.frontiermode.effects.client.ClientEffectsAPI;
-import com.arryn.frontiermode.effects.server.EffectsAPI;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -87,7 +87,7 @@ public final class BossFlashClient {
                 double[] p = pointOutside(box, random);
                 ClientEffectsAPI.spawnParticleOnParity(
                         clientLevel, boss.getUUID(), mote, CHECKPOINT_INTERVAL, PROBABILITY,
-                        EffectsAPI.AMETHYST_DUST, p[0], p[1], p[2], 0.0, 0.0, 0.0);
+                        EffectsMod.AMETHYST_DUST, p[0], p[1], p[2], 0.0, 0.0, 0.0);
             }
         }
     }

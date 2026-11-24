@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.feral.server;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.frontiermode.feral.common.FeralRules;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
@@ -83,7 +84,7 @@ public final class FeralPlayerTick implements Ticking {
         if (random.nextDouble() < FeralRules.tellParticleChance()) {
             // The same poison-green dust as WildsTellFixture's tell.
             EffectsAPI.sendParticleToPlayer(
-                    player, EffectsAPI.POISON_DUST,
+                    player, EffectsMod.POISON_DUST,
                     pos.x, pos.y + monster.getBbHeight() * 0.5, pos.z,
                     6, 0.2, 0.2, 0.2, 0.01);
         }

@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.sentinel.client;
 
+import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.effects.client.ClientEffectsAPI;
-import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.frontiermode.sentinel.common.fixture.SentinelFixture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -81,7 +81,7 @@ public final class SentinelTrailClient {
                 m -> fixture.isSentinel(m.getUUID()))) {
             if (mob.distanceToSqr(player) <= radiusSq) {
                 ClientEffectsAPI.spawnParticleWithLifetime(
-                        level, EffectsAPI.AMETHYST_DUST, mob.getX(), mob.getY(), mob.getZ(), lifetime);
+                        level, EffectsMod.AMETHYST_DUST, mob.getX(), mob.getY(), mob.getZ(), lifetime);
             }
         }
     }

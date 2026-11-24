@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.core.server;
 
-import com.arryn.frontiermode.core.server.MobSpawns;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;

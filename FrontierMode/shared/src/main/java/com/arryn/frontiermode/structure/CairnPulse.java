@@ -2,6 +2,7 @@ package com.arryn.frontiermode.structure;
 
 import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.boss.BossAPI;
+import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.frontiermode.structure.common.fixture.CairnFixture;
 import com.arryn.frontiermode.structure.common.fixture.CairnRecord;
@@ -112,7 +113,7 @@ public final class CairnPulse {
         ).normalize();
 
         for (Vec3 point : arc(start, launchHeight, direction, streamLength)) {
-            EffectsAPI.broadcastParticle(level, EffectsAPI.AMETHYST_DUST, point.x, point.y, point.z, 1, 0, 0, 0, 0);
+            EffectsAPI.broadcastParticle(level, EffectsMod.AMETHYST_DUST, point.x, point.y, point.z, 1, 0, 0, 0, 0);
         }
     }
 

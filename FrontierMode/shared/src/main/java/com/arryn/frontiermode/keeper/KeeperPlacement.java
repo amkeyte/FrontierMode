@@ -2,7 +2,6 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
-import com.arryn.frontiermode.keeper.server.KeeperKind;
 import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;

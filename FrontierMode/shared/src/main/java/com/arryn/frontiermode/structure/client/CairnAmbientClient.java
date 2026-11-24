@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.structure.client;
 
-import com.arryn.frontiermode.effects.server.EffectsAPI;
+import com.arryn.frontiermode.effects.EffectsMod;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -44,7 +44,7 @@ public final class CairnAmbientClient {
             return;
         }
         for (int i = 0; i < MOTES; i++) {
-            level.addParticle(EffectsAPI.AMETHYST_DUST,
+            level.addParticle(EffectsMod.AMETHYST_DUST,
                     x + (random.nextDouble() * 2.0 - 1.0) * SPREAD,
                     capPos.getY() + 1.0 + random.nextDouble() * RISE,
                     z + (random.nextDouble() * 2.0 - 1.0) * SPREAD,

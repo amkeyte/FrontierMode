@@ -1,6 +1,8 @@
 package com.arryn.frontiermode.effects;
 
 import com.arryn.satchel.common.util.out.OUT;
+import net.minecraft.core.particles.DustParticleOptions;
+import org.joml.Vector3f;
 
 /**
  * Entry point for the Effects module -- cross-cutting particle/sound dispatch that other modules
@@ -21,6 +23,18 @@ public final class EffectsMod {
 
     private EffectsMod() {
     }
+
+    /**
+     * The shared amethyst particle until a custom type is registered: vanilla dust in an amethyst
+     * purple, so every consumer (a sentinel's trail, Cairn, the boss's flash) draws the same colour.
+     * Dust has no gravity, so a consumer that wants it to stay put can zero its speed.
+     */
+    public static final DustParticleOptions AMETHYST_DUST =
+            new DustParticleOptions(new Vector3f(0.65F, 0.45F, 0.9F), 1.0F);
+
+    /** The Wilds' colour, as {@link #AMETHYST_DUST} is the boss's: vanilla dust in the colour of the poison effect. */
+    public static final DustParticleOptions POISON_DUST =
+            new DustParticleOptions(new Vector3f(0.31F, 0.58F, 0.19F), 1.0F);
 
     public static void init() {
         OUT.info("[Effects] init(): Module initiating.");

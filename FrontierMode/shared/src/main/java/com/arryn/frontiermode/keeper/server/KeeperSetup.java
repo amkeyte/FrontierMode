@@ -42,7 +42,7 @@ public final class KeeperSetup {
      * <p>Deliberately does not look up the mob's scope or touch {@code BossFixture} -- both are Satchel
      * wiring concerns owned by the roster, not a "boss design" decision.
      */
-    static Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper) {
+    public static Optional<Mob> materialize(Level level, BlockPos position, KeeperRecord keeper) {
         // Border Pregeneration: position was already validated (flatness/hazard-scored) against
         // real, pregenerated terrain when choosePosition() chose it -- no in-place Y-resolution
         // or liquid-column check left to do here. See border-pregeneration.md's "Worked example:

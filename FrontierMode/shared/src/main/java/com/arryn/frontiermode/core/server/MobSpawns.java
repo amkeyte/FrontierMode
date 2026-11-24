@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.core.server;
 
-import com.arryn.frontiermode.core.server.FrontierServerLine;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;

@@ -4,6 +4,7 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
 import com.arryn.frontiermode.border.common.fixture.BordersCrudFacet;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
+import com.arryn.frontiermode.effects.EffectsMod;
 import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.fixture.SatchelFixture;
@@ -110,7 +111,7 @@ public final class WildsTellFixture extends SatchelFixture {
             if (RNG.nextDouble() < PlayerRules.WILDLIFE_TELL_PARTICLE_CHANCE) {
                 // The Wilds' tell is poison green, clear of the boss family's amethyst purple.
                 EffectsAPI.sendParticleToPlayer(
-                        player, EffectsAPI.POISON_DUST,
+                        player, EffectsMod.POISON_DUST,
                         pos.x, pos.y + animal.getBbHeight() * 0.5, pos.z,
                         6, 0.2, 0.2, 0.2, 0.01);
             }

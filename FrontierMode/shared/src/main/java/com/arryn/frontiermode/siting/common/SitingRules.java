@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.siting.common;
 
-import com.arryn.frontiermode.siting.common.SitingMath;
 import com.arryn.satchel.common.tunable.Tunable;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;

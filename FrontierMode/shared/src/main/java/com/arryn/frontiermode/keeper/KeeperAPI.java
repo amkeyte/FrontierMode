@@ -11,7 +11,6 @@ import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
-import com.arryn.frontiermode.keeper.server.KeeperKind;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.SatchelException;
 import com.arryn.satchel.common.jig.level.LevelJig;

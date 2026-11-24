@@ -1,6 +1,5 @@
 package com.arryn.frontiermode.effects.client;
 
-import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.satchel.common.util.SimParity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -12,7 +11,7 @@ import net.minecraft.sounds.SoundSource;
 import java.util.UUID;
 
 /**
- * Client-derived (parity) counterpart to {@link EffectsAPI}'s server-broadcast methods -- every
+ * Client-derived (parity) counterpart to {@code EffectsAPI}'s server-broadcast methods -- every
  * client that calls these computes the same fire/no-fire answer independently, off state it
  * already has synced (a stable id and the world's own {@code GameTime}), with no packet involved.
  * Valid only when an effect's occurrence can be expressed as a pure function of already-synced
@@ -27,7 +26,7 @@ import java.util.UUID;
  *
  * <p>A sound or particle gated on server-only state (attunement, team membership, anything a
  * client isn't told) can't be derived client-side at all -- that case always belongs on
- * {@link EffectsAPI}'s server-broadcast methods instead, never here.
+ * {@code EffectsAPI}'s server-broadcast methods instead, never here.
  */
 public final class ClientEffectsAPI {
 

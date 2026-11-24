@@ -1,4 +1,4 @@
-package com.arryn.frontiermode.keeper.server;
+package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
@@ -26,20 +26,13 @@ import com.arryn.frontiermode.boss.common.Spawned;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
-import com.arryn.frontiermode.keeper.AllyTruce;
-import com.arryn.frontiermode.keeper.Defense;
-import com.arryn.frontiermode.keeper.FireAndSunProof;
-import com.arryn.frontiermode.keeper.KeeperAPI;
-import com.arryn.frontiermode.keeper.KeeperBodies;
-import com.arryn.frontiermode.keeper.KeeperCreated;
-import com.arryn.frontiermode.keeper.KeeperDefeated;
-import com.arryn.frontiermode.keeper.KeeperPlacement;
-import com.arryn.frontiermode.keeper.NoConvert;
 import com.arryn.frontiermode.keeper.common.BossMobTypes;
 import com.arryn.frontiermode.keeper.common.BossPlatform;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperCreation;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
+import com.arryn.frontiermode.keeper.server.KeeperLoot;
+import com.arryn.frontiermode.keeper.server.KeeperSetup;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.trinket.DynamicTrinket;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -47,7 +40,6 @@ import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
@@ -415,9 +407,7 @@ public final class KeeperKind implements BossKind {
     private static void grantDefeatLoot(KeeperRecord keeper, Player credited, Mob mob, Level level) {
         OUT.debug("[Keeper] grantDefeatLoot(): paying " + credited.getGameProfile().getName()
                 + " for bossId=" + Ids.shortId(keeper.bossId()));
-        if (level instanceof ServerLevel serverLevel) {
-            KeeperLoot.pay(serverLevel, mob, keeper, credited);
-        }
+        KeeperLoot.pay(level, mob, keeper, credited);
     }
 
     private static Optional<KeeperRecord> keeper(Level level, UUID bossId) {
