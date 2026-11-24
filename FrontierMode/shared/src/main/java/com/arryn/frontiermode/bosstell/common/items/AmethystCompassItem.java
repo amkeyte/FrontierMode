@@ -4,21 +4,20 @@ import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.bosstell.common.CompassAttunement;
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.bosstell.BossTellModule;
+import com.arryn.frontiermode.bosstell.BossTellRegisters;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.satchel.common.util.StackData;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CompassItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentCategory;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.NotNull;
@@ -53,19 +52,11 @@ import java.util.UUID;
 public class AmethystCompassItem extends CompassItem {
 
     /**
-     * shared by Intuition and Resonance, restricting both to this item class only --
-     * not compasses generically, not any other item, per special-compass.md's "Intuition and
-     * Resonance" section.
-     */
-    public static final EnchantmentCategory ENCHANT_CATEGORY =
-            EnchantmentCategory.create("amethyst_compass", item -> item instanceof AmethystCompassItem);
-
-    /**
      * The enchanting table gates the whole item slot on {@code ItemStack.isEnchantable()} (via
      * {@code EnchantmentMenu.slotsChanged}), which calls {@code Item.isEnchantable(ItemStack)};
      * the default there is {@code getMaxStackSize()==1 && isDamageable()}, and this item is neither
      * (no durability ever set), so the table would reject it before reaching
-     * {@link #ENCHANT_CATEGORY}'s own check. This overrides it the same way vanilla's own
+     * the line's own check of what the enchantments may go on. This overrides it the same way vanilla's own
      * {@code BookItem} does (also not damageable): the damageable requirement is dropped
      * entirely. The anvil's own book-combine path is unaffected -- it checks {@code
      * EnchantmentCategory.canEnchant} directly, independent of {@code isEnchantable()}.
@@ -144,10 +135,10 @@ public class AmethystCompassItem extends CompassItem {
             return;
         }
 
-        enforceSingleEnchant(stack);
+        enforceSingleEnchant(stack, level);
 
-        int intuitionLevel = StackData.enchantmentLevel(stack, BossTellModule.INTUITION.get());
-        int resonanceLevel = StackData.enchantmentLevel(stack, BossTellModule.RESONANCE.get());
+        int intuitionLevel = StackData.enchantmentLevel(stack, BossTellRegisters.INTUITION);
+        int resonanceLevel = StackData.enchantmentLevel(stack, BossTellRegisters.RESONANCE);
         // Mutually exclusive by checkCompatibility(); Resonance wins if somehow both are present.
         int currentCode = resonanceLevel > 0 ? RESONANCE_CODE : intuitionLevel;
 
@@ -182,27 +173,27 @@ public class AmethystCompassItem extends CompassItem {
      * hand-authored {@code /give} data bypass the anvil's own merge): keeps exactly one -- Resonance
      * over Intuition, matching {@link #refreshOrRelock}'s own precedence, or the highest level if
      * somehow more than one of the same kind is present -- and rewrites the whole enchantment list
-     * through {@link StackData#setEnchantments}. That rewrite runs whenever anything is present, not
+     * through {@link StackData#setEnchantmentsById}. That rewrite runs whenever anything is present, not
      * only when the map looks wrong: the map collapses two raw entries for the same enchantment into
      * one key, so its size can't reveal a same-enchantment duplicate, but rebuilding the list clears it.
      */
-    private static void enforceSingleEnchant(ItemStack stack) {
-        Map<Enchantment, Integer> current = StackData.enchantments(stack);
+    private static void enforceSingleEnchant(ItemStack stack, Level level) {
+        Map<ResourceLocation, Integer> current = StackData.enchantmentsById(stack);
         if (current.isEmpty()) {
             return;
         }
 
-        Enchantment keep = null;
+        ResourceLocation keep = null;
         int keepLevel = 0;
-        for (Map.Entry<Enchantment, Integer> entry : current.entrySet()) {
-            if (entry.getKey() == BossTellModule.RESONANCE.get()) {
+        for (Map.Entry<ResourceLocation, Integer> entry : current.entrySet()) {
+            if (entry.getKey().equals(BossTellRegisters.RESONANCE)) {
                 keep = entry.getKey();
                 keepLevel = entry.getValue();
                 break;
             }
         }
         if (keep == null) {
-            for (Map.Entry<Enchantment, Integer> entry : current.entrySet()) {
+            for (Map.Entry<ResourceLocation, Integer> entry : current.entrySet()) {
                 if (entry.getValue() > keepLevel) {
                     keep = entry.getKey();
                     keepLevel = entry.getValue();
@@ -210,7 +201,7 @@ public class AmethystCompassItem extends CompassItem {
             }
         }
 
-        StackData.setEnchantments(stack, keep == null ? Map.of() : Map.of(keep, keepLevel));
+        StackData.setEnchantmentsById(stack, level, keep == null ? Map.of() : Map.of(keep, keepLevel));
     }
 
     /**

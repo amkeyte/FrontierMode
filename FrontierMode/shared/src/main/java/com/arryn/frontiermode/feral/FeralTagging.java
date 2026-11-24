@@ -3,7 +3,8 @@ package com.arryn.frontiermode.feral;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.core.Adoption;
 import com.arryn.frontiermode.core.WriteOutcome;
-import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
+import com.arryn.frontiermode.feral.server.FeralPresence;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -16,7 +17,7 @@ import net.minecraft.world.level.Level;
  * decision to tag is {@link #onHostileJoining}. There is no name, no scoreboard team and no marker: a
  * Feral mob's only in-world sign is the cosmetic tell.
  */
-final class FeralTagging {
+public final class FeralTagging {
 
     private FeralTagging() {
     }

@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.core.FrontierIds;
-import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
 import com.arryn.satchel.common.tunable.CellType;
 import com.arryn.satchel.common.tunable.Tunable;
@@ -25,7 +25,7 @@ public final class KeeperBodies {
 
     // Path positions 1-20 are hand-authored per stat; past 20 the body is rolled and the stats follow
     // a formula.
-    static final int AUTHORED_THROUGH = 20;
+    public static final int AUTHORED_THROUGH = 20;
 
     /** The rows a fresh {@code keeper-bodies} table starts with, and what the seed formulas read. */
     private record BodyDefault(String name, EntityType<?> type, float referenceHit, float sizePast20,
@@ -158,17 +158,17 @@ public final class KeeperBodies {
     }
 
     /** The {@code keeper-bodies} row for {@code bodyName}. */
-    static TuningTable.Row body(String bodyName) {
+    public static TuningTable.Row body(String bodyName) {
         return KEEPER_BODIES.row(bodyName);
     }
 
     /** The {@code keeper-health} table's value for an authored path position (1 through {@link #AUTHORED_THROUGH}). */
-    static float authoredHealth(int pathPosition) {
+    public static float authoredHealth(int pathPosition) {
         return KEEPER_HEALTH.row(pathPosition).getFloat("value");
     }
 
     /** The {@code keeper-damage} table's value for an authored path position (1 through {@link #AUTHORED_THROUGH}). */
-    static float authoredDamage(int pathPosition) {
+    public static float authoredDamage(int pathPosition) {
         return KEEPER_DAMAGE.row(pathPosition).getFloat("value");
     }
 
@@ -180,7 +180,7 @@ public final class KeeperBodies {
      * {@code poolWeight} among the rows with no {@code eggChance}. A row with an {@code eggChance} is never in the
      * weighted pool, so a leftover pool weight in a live config can't give it a second chance.
      */
-    static String chooseBody(int pathPosition) {
+    public static String chooseBody(int pathPosition) {
         int p = Math.max(pathPosition, 1);
         if (p <= AUTHORED_THROUGH) {
             return KEEPER_BODY.row(p).getString("value");

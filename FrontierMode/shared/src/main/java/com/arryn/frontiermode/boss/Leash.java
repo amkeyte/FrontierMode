@@ -2,7 +2,7 @@ package com.arryn.frontiermode.boss;
 
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
 import com.arryn.frontiermode.core.WidePathing;
-import com.arryn.frontiermode.effects.EffectsAPI;
+import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.mob.MobScope;

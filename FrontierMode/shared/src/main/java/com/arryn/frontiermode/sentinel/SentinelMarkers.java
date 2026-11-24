@@ -88,7 +88,7 @@ public final class SentinelMarkers {
      * {@code BossAPI.roster} it never logs: "not ready yet" is the normal state for the first moments after
      * joining a world, and this is called from render and tick paths.
      */
-    static Optional<SentinelFixture> fixture(Level level) {
+    public static Optional<SentinelFixture> fixture(Level level) {
         if (!Satchel.isReady()) {
             return Optional.empty();
         }

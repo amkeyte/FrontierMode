@@ -1,0 +1,21 @@
+{
+  "anvil_cost": 4,
+  "description": {
+    "translate": "enchantment.frontiermode.resonance"
+  },
+  "exclusive_set": "frontiermode:intuition",
+  "max_cost": {
+    "base": 75,
+    "per_level_above_first": 25
+  },
+  "max_level": 1,
+  "min_cost": {
+    "base": 25,
+    "per_level_above_first": 25
+  },
+  "slots": [
+    "hand"
+  ],
+  "supported_items": "#frontiermode:amethyst_compass",
+  "weight": 2
+}

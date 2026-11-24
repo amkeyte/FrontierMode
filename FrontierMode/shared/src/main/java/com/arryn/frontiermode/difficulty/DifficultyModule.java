@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.difficulty;
 
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.util.out.OUT;

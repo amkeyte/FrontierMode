@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.coordination;
 
+import com.arryn.frontiermode.coordination.server.SpawnCoordinator;
 import com.arryn.satchel.common.ingress.ModuleEvent;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;

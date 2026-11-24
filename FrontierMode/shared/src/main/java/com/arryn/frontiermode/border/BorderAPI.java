@@ -34,7 +34,6 @@ import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.player.Player;
@@ -96,7 +95,7 @@ public final class BorderAPI {
 
     /**
      * the {@code PlayerJig} analogue of {@link #levelJig()} above -- backs
-     * {@link #playerStatus(ServerPlayer)}/{@link #getRelevant(ServerPlayer)} below.
+     * {@link #playerStatus(Player)}/{@link #getRelevant(Player)} below.
      */
     public static PlayerJig playerJig() {
         return (PlayerJig)
@@ -274,8 +273,8 @@ public final class BorderAPI {
      * wiki/frontiermode/architecture/border-curve.md#query-surface -- resolves a held
      * {@link BorderCurve} record back to the border geometry (center, radius) it applies to.
      * Implemented here rather than on {@link BorderCurveFixture} itself, composing
-     * {@link #border(Level, UUID)} the same way {@link #getRelevant(ServerPlayer)} already
-     * composes {@link #playerStatus(ServerPlayer)} with a border lookup -- cross-facet
+     * {@link #border(Level, UUID)} the same way {@link #getRelevant(Player)} already
+     * composes {@link #playerStatus(Player)} with a border lookup -- cross-facet
      * composition lives at this API layer, not inside one fixture reaching into a sibling.
      */
     public static Optional<Border> borderOf(Level level, BorderCurve curve) {
@@ -355,7 +354,7 @@ public final class BorderAPI {
      * own doc for why this is the real fix (death/respawn otherwise leave that stateful climb
      * untouched, so it just keeps decaying from wherever it was at death, re-triggering the
      * debuff regardless of the new respawn position). Same resolution chain as
-     * {@link #playerStatus(ServerPlayer)}, just reaching the mutable fixture instead of its
+     * {@link #playerStatus(Player)}, just reaching the mutable fixture instead of its
      * read-only snapshot.
      *
      * <p>Does nothing while Satchel or the player's scope is not ready.
@@ -383,7 +382,7 @@ public final class BorderAPI {
      * The border {@code player}'s live {@link BorderPlayerStatus} considers nearest, resolved
      * back to a real {@link Border} in their current level. Backs {@code @relevant} in
      * {@link com.arryn.frontiermode.border.server.commands.BorderSelector}. Empty whenever
-     * {@link #playerStatus(ServerPlayer)} is empty (not ready yet), or when it's present but
+     * {@link #playerStatus(Player)} is empty (not ready yet), or when it's present but
      * genuinely has no nearest border (empty dimension, or the player hasn't ticked since
      * entering one) -- {@code nearestBorderId} is null in that case per
      * {@code BorderPlayerLogic.evaluate}'s own no-borders branch.

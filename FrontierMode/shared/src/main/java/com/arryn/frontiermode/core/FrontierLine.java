@@ -1,12 +1,9 @@
 package com.arryn.frontiermode.core;
 
 import com.arryn.satchel.common.platform.PlatformBound;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.trading.MerchantOffer;
@@ -14,12 +11,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.LootTable;
 
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * The calls into Minecraft that shared logic makes and whose form differs by line (Two Lines § The vanilla calls that
@@ -37,21 +31,17 @@ public final class FrontierLine {
 
         ChunkAccess fullChunkIfLoaded(Level level, int chunkX, int chunkZ);
 
-        void finalizeSpawn(Mob mob, ServerLevel level, BlockPos pos, MobSpawns.Setup setup);
-
         void raiseStepHeight(Entity entity, float height);
 
-        Optional<LootTable> lootTable(ServerLevel level, ResourceLocation id);
-
         LootParams.Builder withKiller(LootParams.Builder params, Entity killer);
-
-        Optional<ConfiguredFeature<?, ?>> configuredFeature(ServerLevel level, ResourceLocation id);
 
         MerchantOffer merchantOffer(ItemStack cost, ItemStack result, int maxUses, int xp, float priceMultiplier);
 
         BlockBehaviour.Properties copyProperties(Block block);
 
         void damageItem(ItemStack stack, int amount, Player player, InteractionHand hand);
+
+        ItemStack enchantedBook(Level level, ResourceLocation enchantment, int enchantLevel);
     }
 
     private static volatile Source source;
@@ -76,32 +66,14 @@ public final class FrontierLine {
         return required().fullChunkIfLoaded(level, chunkX, chunkZ);
     }
 
-    /**
-     * Runs {@code setup} on a mob that has been created and placed: the loader's finalize-spawn event and then the
-     * vanilla setup for {@link MobSpawns.Setup#DISPATCHED}, the vanilla setup alone for {@code VANILLA}.
-     */
-    public static void finalizeSpawn(Mob mob, ServerLevel level, BlockPos pos, MobSpawns.Setup setup) {
-        required().finalizeSpawn(mob, level, pos, setup);
-    }
-
     /** Raises {@code entity}'s step height to at least {@code height}. It never lowers one. */
     public static void raiseStepHeight(Entity entity, float height) {
         required().raiseStepHeight(entity, height);
     }
 
-    /** The loot table {@code id} names, or empty if the server has none. */
-    public static Optional<LootTable> lootTable(ServerLevel level, ResourceLocation id) {
-        return required().lootTable(level, id);
-    }
-
     /** Adds {@code killer} as both the killer and the direct killer of the loot parameters. */
     public static LootParams.Builder withKiller(LootParams.Builder params, Entity killer) {
         return required().withKiller(params, killer);
-    }
-
-    /** The configured feature {@code id} names, or empty if none is registered. */
-    public static Optional<ConfiguredFeature<?, ?>> configuredFeature(ServerLevel level, ResourceLocation id) {
-        return required().configuredFeature(level, id);
     }
 
     /** A trade of {@code cost} for {@code result}, with no second cost. */
@@ -118,6 +90,11 @@ public final class FrontierLine {
     /** Wears {@code stack} by {@code amount} for {@code player} using it in {@code hand}, breaking it at zero. */
     public static void damageItem(ItemStack stack, int amount, Player player, InteractionHand hand) {
         required().damageItem(stack, amount, player, hand);
+    }
+
+    /** An enchanted book holding {@code enchantment} at {@code enchantLevel}. The id must name an enchantment. */
+    public static ItemStack enchantedBook(Level level, ResourceLocation enchantment, int enchantLevel) {
+        return required().enchantedBook(level, enchantment, enchantLevel);
     }
 
     private static Source required() {

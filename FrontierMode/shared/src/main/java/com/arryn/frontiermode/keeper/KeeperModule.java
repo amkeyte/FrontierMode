@@ -6,6 +6,7 @@ import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.BossPositionListeners;
 import com.arryn.frontiermode.boss.common.BossKinds;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.server.KeeperKind;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.util.out.OUT;

@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.feral.server.commands;
 
-import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.core.server.MobSpawns;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;

@@ -1,9 +1,9 @@
 package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.keeper.KeeperKind;
+import com.arryn.frontiermode.keeper.server.KeeperKind;
 import com.arryn.frontiermode.effects.client.ClientEffectsAPI;
-import com.arryn.frontiermode.effects.EffectsAPI;
+import com.arryn.frontiermode.effects.server.EffectsAPI;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;

@@ -15,7 +15,7 @@ public interface DeathTouchHit extends ModuleEvent<LivingEntity> {
 
     /** The resolver's test: the main-hand stack carries Death Touch. */
     static boolean passes(ItemStack mainHand) {
-        return StackData.enchantmentLevel(mainHand, AdminToolsModule.DEATH_TOUCH.get()) > 0;
+        return StackData.enchantmentLevel(mainHand, AdminToolsRegisters.DEATH_TOUCH) > 0;
     }
 
     /** The attacker holding the Death Touch weapon. */

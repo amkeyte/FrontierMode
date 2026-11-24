@@ -3,6 +3,7 @@ package com.arryn.frontiermode.sentinel;
 import com.arryn.frontiermode.FrontierKeys;
 import com.arryn.frontiermode.sentinel.common.bundle.SentinelBundle;
 import com.arryn.frontiermode.sentinel.common.fixture.SentinelFixture;
+import com.arryn.frontiermode.sentinel.server.SentinelPresence;
 import com.arryn.satchel.common.jig.config.JigBundles;
 import com.arryn.satchel.common.jig.config.JigPolicies;
 import com.arryn.satchel.common.jig.level.LevelJigConfig;

@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.border.server.commands;
 
 import com.arryn.frontiermode.border.server.player.SwitchSet;
-import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.core.server.MobSpawns;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.server.player.SicknessSwitch;
 import com.arryn.frontiermode.border.common.fixture.Border;

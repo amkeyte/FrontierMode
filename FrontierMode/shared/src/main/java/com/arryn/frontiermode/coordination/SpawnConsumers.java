@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.coordination;
 
+import com.arryn.frontiermode.coordination.server.SpawnCoordinator;
 import com.arryn.satchel.common.ingress.GlobalConsumers;
 
 /**

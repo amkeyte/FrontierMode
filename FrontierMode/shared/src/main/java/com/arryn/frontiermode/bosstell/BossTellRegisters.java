@@ -3,8 +3,10 @@ package com.arryn.frontiermode.bosstell;
 import com.arryn.frontiermode.bosstell.common.entities.AmethystEye;
 import com.arryn.frontiermode.bosstell.common.items.AmethystCompassItem;
 import com.arryn.frontiermode.bosstell.common.items.AmethystEyeItem;
+import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.FrontierRegistrar;
 import com.arryn.satchel.common.platform.PlatformBound;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.Item;
@@ -13,8 +15,8 @@ import java.util.function.Supplier;
 
 /**
  * What the Amethyst compass module registers: the compass, the Amethyst Eye and its thrown entity, each through
- * {@link FrontierRegistrar} (special-compass.md § Registration). The module's enchantments are registered apart, on
- * {@link BossTellModule}.
+ * {@link FrontierRegistrar}, and the ids of its two enchantments, which each line registers in its own form
+ * (special-compass.md, Registration).
  */
 @PlatformBound(reason = "registration")
 public final class BossTellRegisters {
@@ -25,6 +27,12 @@ public final class BossTellRegisters {
     /** Loads this class, which registers on load. {@code FrontierBoot} calls it once the registrar is installed. */
     public static void load() {
     }
+
+    /** Intuition, I to III. */
+    public static final ResourceLocation INTUITION = FrontierIds.of("intuition");
+
+    /** Resonance, a flat single level. */
+    public static final ResourceLocation RESONANCE = FrontierIds.of("resonance");
 
     public static final Supplier<Item> AMETHYST_COMPASS =
             FrontierRegistrar.item("amethyst_compass", () -> new AmethystCompassItem(new Item.Properties()));

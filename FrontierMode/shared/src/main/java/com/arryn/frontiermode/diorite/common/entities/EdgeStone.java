@@ -4,7 +4,7 @@ import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.diorite.DioriteRegisters;
 import com.arryn.frontiermode.diorite.common.DioriteRules;
-import com.arryn.frontiermode.effects.EffectsAPI;
+import com.arryn.frontiermode.effects.server.EffectsAPI;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;

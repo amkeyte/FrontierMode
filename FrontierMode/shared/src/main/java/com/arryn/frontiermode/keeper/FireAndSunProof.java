@@ -20,7 +20,7 @@ import net.minecraft.world.entity.Mob;
  *   doesn't visibly burn in daylight.</li>
  * </ul>
  */
-final class FireAndSunProof implements Trinket {
+public final class FireAndSunProof implements Trinket {
 
     @Override
     public void onAttach(ScopeInfo info) {

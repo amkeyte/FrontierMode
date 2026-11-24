@@ -5,6 +5,7 @@ import com.arryn.frontiermode.core.InfoRequest;
 import com.arryn.frontiermode.keeper.KeeperCreated;
 import com.arryn.frontiermode.keeper.KeeperDefeated;
 import com.arryn.frontiermode.keeper.KeeperHit;
+import com.arryn.frontiermode.sentinel.server.SentinelPresence;
 import com.arryn.satchel.common.ingress.GlobalConsumers;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;

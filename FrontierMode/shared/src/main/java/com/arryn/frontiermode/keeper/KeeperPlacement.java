@@ -2,6 +2,7 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.keeper.server.KeeperKind;
 import com.arryn.frontiermode.siting.SitingAPI;
 import com.arryn.satchel.common.util.Ids;
 import com.arryn.satchel.common.util.out.OUT;
@@ -15,7 +16,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
  * sampled in, the snap to a chunk center, the fixed-height fallback, and the call to Siting that scores each
  * candidate. Called by {@link KeeperKind#positionReady} only once the home Border's pregeneration is ready.
  */
-final class KeeperPlacement {
+public final class KeeperPlacement {
 
     // Border Pregeneration: how many candidate chunk-center positions choosePosition() scores
     // before picking a winner -- a tuning number, not tuned against play and not settled by
@@ -54,7 +55,7 @@ final class KeeperPlacement {
      *
      * <p>[Arryn] Review this. It may need reworked for NPE and algorithm robustness.
      */
-    static BlockPos choosePosition(Level level, Border border) {
+    public static BlockPos choosePosition(Level level, Border border) {
         BlockPos bestSafe = null;
         double bestSafeScore = Double.NEGATIVE_INFINITY;
         BlockPos bestAny = null;

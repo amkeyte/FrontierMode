@@ -22,7 +22,6 @@ import com.arryn.satchel.common.util.out.OUT;
 import com.arryn.satchel.common.util.schedule.SchedulerClock;
 import com.arryn.satchel.common.util.schedule.TickDelay;
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.player.Player;
@@ -518,11 +517,10 @@ public final class Boss implements Leaving {
      * other level and dismiss it.
      */
     private void dismissCopyElsewhere(Mob original, Level originLevel) {
-        MinecraftServer server = original.getServer();
-        if (server == null) {
+        if (original.getServer() == null) {
             return;
         }
-        for (Level other : server.getAllLevels()) {
+        for (Level other : original.getServer().getAllLevels()) {
             if (other == originLevel) {
                 continue;
             }

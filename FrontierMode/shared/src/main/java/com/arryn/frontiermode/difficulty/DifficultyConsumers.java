@@ -1,6 +1,8 @@
 package com.arryn.frontiermode.difficulty;
 
 import com.arryn.frontiermode.core.InfoRequest;
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.server.DifficultyHandlers;
 import com.arryn.satchel.common.ingress.GlobalConsumers;
 import com.arryn.satchel.common.util.out.OUT;
 import net.minecraft.world.entity.Mob;

@@ -1,0 +1,105 @@
+package com.arryn.frontiermode.diorite.server;
+
+import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.border.common.fixture.Border;
+import com.arryn.frontiermode.border.common.fixture.BordersPathFacet;
+import com.arryn.frontiermode.diorite.common.DioriteRules;
+import com.arryn.frontiermode.diorite.common.StrikerMath;
+import com.arryn.frontiermode.effects.server.EffectsAPI;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.TickTask;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
+import org.joml.Vector3f;
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * The Diorite Striker's sparks: the work that reaches the server's tick queue ({@code MinecraftServer.tell}),
+ * so each spark after the first can fire a tick later than the one before it.
+ */
+public final class StrikerSparks {
+
+    private StrikerSparks() {
+    }
+
+    /** The Wilds: a few grey smoke particles and a fizzle, no color and no count. */
+    public static void sputter(Level level, double x, double y, double z) {
+        EffectsAPI.broadcastParticle(level, ParticleTypes.SMOKE, x, y, z, 6, 0.1, 0.1, 0.1, 0.02);
+        EffectsAPI.broadcastSound(level, x, y, z, SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.6F, 1.0F);
+    }
+
+    /**
+     * {@code count} separate colored sparks in a circle, each one countable (diorite-tools.md § The
+     * sparks): one single-particle broadcast apiece, on a circle of {@code strikerCircleRadius} in the
+     * plane of the struck face, evenly spaced -- one, two opposite, five a pentagon -- firing clockwise
+     * as seen from outside, the whole ring turned to a random angle each strike so it doesn't land in
+     * the same places every time. An off-path Relevant Border gives color only, a few sparks on the
+     * same circle.
+     */
+    public static void spark(Level level, Border relevant, Direction face,
+                             double x, double y, double z) {
+        Optional<BordersPathFacet> path = BorderAPI.PATH(level);
+
+        int difficulty = BorderAPI.layerToDifficulty(relevant.layer());
+        int tipDifficulty = path.flatMap(BordersPathFacet::tip)
+                .map(tip -> BorderAPI.layerToDifficulty(tip.layer()))
+                .orElse(1);
+        float[] rgb = StrikerMath.color(StrikerMath.heat(difficulty, tipDifficulty));
+
+        int pathIndex = path.map(p -> p.indexOf(relevant.id())).orElse(-1);
+        int count = pathIndex >= 0 ? BorderAPI.waveStep(pathIndex + 1) : DioriteRules.strikerColorOnlySparks();
+
+        DustParticleOptions dust = new DustParticleOptions(new Vector3f(rgb[0], rgb[1], rgb[2]), DioriteRules.strikerSparkSize());
+        // The face's own axes: the normal, "top" (world up on a wall, north on a floor or ceiling) and the
+        // viewer's right as seen from outside the face (top x normal).
+        double nx = face.getStepX();
+        double ny = face.getStepY();
+        double nz = face.getStepZ();
+        double ux = 0.0;
+        double uy = face.getAxis() == Direction.Axis.Y ? 0.0 : 1.0;
+        double uz = face.getAxis() == Direction.Axis.Y ? -1.0 : 0.0;
+        double rx = uy * nz - uz * ny;
+        double ry = uz * nx - ux * nz;
+        double rz = ux * ny - uy * nx;
+        double radius = DioriteRules.strikerCircleRadius();
+        int delay = DioriteRules.strikerSparkDelayTicks();
+        // spark is server work, reached after useOn's client check, so the server is there.
+        MinecraftServer server = Objects.requireNonNull(level.getServer(), "server");
+        // The sparks stay evenly spaced, so the count still reads, but the whole ring starts at a random
+        // angle each strike, so they don't land in the same places every time. They fire clockwise.
+        double phase = level.getRandom().nextDouble() * 2.0 * Math.PI;
+        for (int i = 0; i < count; i++) {
+            double angle = phase + 2.0 * Math.PI * i / count;
+            double sin = Math.sin(angle);
+            double cos = Math.cos(angle);
+            double ox = rx * sin + ux * cos;
+            double oy = ry * sin + uy * cos;
+            double oz = rz * sin + uz * cos;
+            double px = x + ox * radius;
+            double py = y + oy * radius;
+            double pz = z + oz * radius;
+            // Out along the normal, with a small push away from the centre so the circle opens as it rises.
+            double vx = nx * 0.25 + ox * 0.06;
+            double vy = ny * 0.25 + oy * 0.06;
+            double vz = nz * 0.25 + oz * 0.06;
+            Runnable fire = () -> {
+                // Count 0 makes the offsets a velocity.
+                EffectsAPI.broadcastParticle(level, dust, px, py, pz, 0, vx, vy, vz, 1.0);
+                // A click per spark, so the count can be heard as well as seen.
+                EffectsAPI.broadcastSound(level, px, py, pz, SoundEvents.FLINTANDSTEEL_USE, SoundSource.PLAYERS,
+                        0.6F, level.getRandom().nextFloat() * 0.4F + 0.8F);
+            };
+            if (i == 0 || delay <= 0) {
+                fire.run();
+            } else {
+                // Staggered in time: one spark, then the next, rather than a single burst.
+                server.tell(new TickTask(server.getTickCount() + i * delay, fire));
+            }
+        }
+    }
+}

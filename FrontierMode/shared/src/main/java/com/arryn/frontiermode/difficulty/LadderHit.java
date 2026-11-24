@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.difficulty;
 
+import com.arryn.frontiermode.difficulty.server.DifficultyHandlers;
 import com.arryn.satchel.common.ingress.ModuleEvent;
 
 /**

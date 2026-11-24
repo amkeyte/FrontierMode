@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.sentinel.client;
 
 import com.arryn.frontiermode.effects.client.ClientEffectsAPI;
-import com.arryn.frontiermode.effects.EffectsAPI;
+import com.arryn.frontiermode.effects.server.EffectsAPI;
 import com.arryn.frontiermode.sentinel.common.fixture.SentinelFixture;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;

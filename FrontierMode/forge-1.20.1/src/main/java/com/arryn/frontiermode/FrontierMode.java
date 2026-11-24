@@ -1,18 +1,18 @@
 package com.arryn.frontiermode;
 
 import com.arryn.frontiermode.admin.AdminIngress;
-import com.arryn.frontiermode.admin.AdminToolsModule;
 import com.arryn.frontiermode.border.server.BorderIngress;
 import com.arryn.frontiermode.boss.BossIngress;
 import com.arryn.frontiermode.bosstell.BossTellIngress;
-import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.coordination.SpawnIngress;
 import com.arryn.frontiermode.core.CoreIngress;
+import com.arryn.frontiermode.core.ForgeEnchantments;
 import com.arryn.frontiermode.core.ForgeLineSource;
 import com.arryn.frontiermode.core.ForgeRegistrarSource;
 import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
+import com.arryn.frontiermode.core.server.FrontierServerLine;
 import com.arryn.frontiermode.difficulty.DifficultyIngress;
 import com.arryn.frontiermode.feral.FeralIngress;
 import com.arryn.frontiermode.keeper.KeeperIngress;
@@ -49,12 +49,13 @@ public final class FrontierMode {
         registrar.register(modBus);
 
         // The calls into Minecraft whose form differs by line.
-        FrontierLine.install(new ForgeLineSource());
+        ForgeLineSource line = new ForgeLineSource();
+        FrontierLine.install(line);
+        FrontierServerLine.install(line);
 
         // The enchantments are registered apart from the registrar: a register needs the mod bus instance, which
         // only exists in this constructor.
-        BossTellModule.ENCHANTMENTS.register(modBus);
-        AdminToolsModule.ENCHANTMENTS.register(modBus);
+        ForgeEnchantments.register(modBus);
 
         // Hook lifecycle events
         modBus.addListener(this::commonSetup);

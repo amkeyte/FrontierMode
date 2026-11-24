@@ -1,7 +1,7 @@
 package com.arryn.frontiermode.keeper.client;
 
 import com.arryn.frontiermode.boss.BossMarkers;
-import com.arryn.frontiermode.keeper.KeeperKind;
+import com.arryn.frontiermode.keeper.server.KeeperKind;
 import com.arryn.frontiermode.keeper.common.EyeBrightness;
 import com.arryn.satchel.common.platform.PlatformBound;
 import com.mojang.blaze3d.vertex.PoseStack;

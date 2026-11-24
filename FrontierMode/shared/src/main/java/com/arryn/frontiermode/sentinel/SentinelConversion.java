@@ -7,13 +7,14 @@ import com.arryn.frontiermode.border.common.fixture.BorderCurveFixture;
 import com.arryn.frontiermode.border.common.fixture.Shape;
 import com.arryn.frontiermode.boss.common.fixture.BossFixture;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
-import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
 import com.arryn.frontiermode.keeper.KeeperAPI;
 import com.arryn.frontiermode.keeper.KeeperItems;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperFixture;
 import com.arryn.frontiermode.keeper.common.fixture.KeeperRecord;
-import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.core.server.MobSpawns;
 import com.arryn.frontiermode.sentinel.common.SentinelRules;
+import com.arryn.frontiermode.sentinel.server.SentinelPresence;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
@@ -31,7 +32,7 @@ import java.util.UUID;
  * what is counted, queued or lifted is {@link SentinelPresence}'s. The bodies were {@code BossSentinelsFixture}'s
  * and moved here unchanged with node G.
  */
-final class SentinelConversion {
+public final class SentinelConversion {
 
     private static final String PURPOSE_PLACEMENT = "placement";
     private static final String PURPOSE_DIFFICULTY = "difficulty";
@@ -46,7 +47,7 @@ final class SentinelConversion {
     private static final RandomSource RNG = RandomSource.create();
 
     /** What one spawn position resolves to: its nearest boss and Keeper record, that boss's border, and the two curves. */
-    record Nearby(BossRecord boss, KeeperRecord keeper, double radius, BorderCurve placement,
+    public record Nearby(BossRecord boss, KeeperRecord keeper, double radius, BorderCurve placement,
                   BorderCurve difficulty, double distanceToBoss) {
     }
 
@@ -60,7 +61,7 @@ final class SentinelConversion {
      * helmet check so the sun ward can't protect it; and Slime and MagmaCube, which split on death and would crowd the
      * hostile cap.
      */
-    static boolean canBeSentinel(EntityType<?> type) {
+    public static boolean canBeSentinel(EntityType<?> type) {
         return type.getCategory() == MobCategory.MONSTER
                 && type != EntityType.PHANTOM
                 && type != EntityType.SLIME
@@ -104,7 +105,7 @@ final class SentinelConversion {
      * boss placement is biased toward the border's outer edge, so a center-measured distance
      * under-reports intensity near the boss.
      */
-    static Optional<Nearby> resolveNearby(Level level, BossFixture bossFixture,
+    public static Optional<Nearby> resolveNearby(Level level, BossFixture bossFixture,
                                           BorderCurveFixture curves, BlockPos pos) {
         Optional<KeeperFixture> keepersOpt = KeeperAPI.keepers(level);
         if (keepersOpt.isEmpty()) {
@@ -160,7 +161,7 @@ final class SentinelConversion {
      * it holds now: 0 when the Keeper's path position is below {@code sentinelFirstPathPosition} or the level is at
      * {@code sentinelMaxPerLevel}, so a result of 1 or more passes both gates.
      */
-    static int conversionRoom(KeeperRecord keeper, int sentinelCount) {
+    public static int conversionRoom(KeeperRecord keeper, int sentinelCount) {
         if (KeeperAPI.pathPositionOf(keeper) < SentinelRules.sentinelFirstPathPosition()) {
             return 0;
         }
@@ -172,7 +173,7 @@ final class SentinelConversion {
      * sentinelPlacementRadiusFraction)}, so the ramp is concentrated in a ring around the boss;
      * beyond that fraction the LINEAR curve reads 0 and nothing converts.
      */
-    static boolean rollPlacement(Nearby nearby) {
+    public static boolean rollPlacement(Nearby nearby) {
         double placementRadius = nearby.radius() * SentinelRules.sentinelPlacementRadiusFraction();
         double normalized = placementRadius > 0.0 ? nearby.distanceToBoss() / placementRadius : 1.0;
         double intensity = BorderAPI.MATH.intensityAt(nearby.placement(), normalized);
@@ -186,7 +187,7 @@ final class SentinelConversion {
      * Difficulty reads the full border radius, not the placement fraction: toughness ramps across the whole
      * border.
      */
-    static double difficultyIntensity(Nearby nearby) {
+    public static double difficultyIntensity(Nearby nearby) {
         return BorderAPI.MATH.intensityAt(
                 nearby.difficulty(), nearby.radius() > 0.0 ? nearby.distanceToBoss() / nearby.radius() : 1.0);
     }
@@ -196,7 +197,7 @@ final class SentinelConversion {
      * mob's position, stepping down from that ceiling by {@code sentinelFitStep} toward 1.0. Scale 1.0
      * needs no test: a natural spawn's spot has already passed vanilla's fit check for the unscaled mob.
      */
-    static float fitScale(Level level, Mob mob, double target) {
+    public static float fitScale(Level level, Mob mob, double target) {
         double ceiling = Math.min(target, SentinelRules.sentinelMaxScale());
         double step = SentinelRules.sentinelFitStep();
         BlockPos pos = mob.blockPosition();
@@ -214,7 +215,7 @@ final class SentinelConversion {
      * to {@code sentinelMaxAddsPerSpawn} and to {@code roomForAdds}, the room left under
      * {@code sentinelMaxPerLevel} after this conversion. 0 when there is nothing left to spend.
      */
-    static int addCount(double target, float size, int roomForAdds) {
+    public static int addCount(double target, float size, int roomForAdds) {
         double leftover = (target - 1.0) - (size - 1.0);
         double cost = SentinelRules.sentinelAddCost();
         if (leftover <= 0.0 || cost <= 0.0 || roomForAdds <= 0) {
@@ -225,7 +226,7 @@ final class SentinelConversion {
     }
 
     /** Conversion's treatment: the Sentinel rung of the stat ladder, and the sun ward. */
-    static void applyConversion(Mob mob, int keeperPathPosition, double difficultyIntensity) {
+    public static void applyConversion(Mob mob, int keeperPathPosition, double difficultyIntensity) {
         DifficultyAPI.applySentinelRung(mob, keeperPathPosition, difficultyIntensity);
         // Before vanilla's own setup, which only fills empty equipment slots.
         KeeperItems.equipSunWard(mob);

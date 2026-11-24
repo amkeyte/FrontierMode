@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.keeper;
 
-import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.trinket.Trinket;
 
@@ -11,7 +11,7 @@ import com.arryn.satchel.common.trinket.Trinket;
  * so it is built only when the new target is a boss; cancelling keeps the ally's current target, which covers a golem's
  * own scan, being hit, and a wolf following its owner. The credit rule is the backstop for help this doesn't reach.
  */
-final class AllyTruce implements Trinket {
+public final class AllyTruce implements Trinket {
 
     @Override
     public void onAttach(ScopeInfo info) {

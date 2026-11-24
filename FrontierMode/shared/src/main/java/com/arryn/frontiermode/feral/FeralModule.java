@@ -1,6 +1,9 @@
 package com.arryn.frontiermode.feral;
 
 import com.arryn.frontiermode.border.BorderAPI;
+import com.arryn.frontiermode.feral.server.FeralAPI;
+import com.arryn.frontiermode.feral.server.FeralPlayerTick;
+import com.arryn.frontiermode.feral.server.FeralPresence;
 import com.arryn.frontiermode.feral.server.commands.FeralCommands;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.config.JigPolicies;

@@ -9,7 +9,7 @@ import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentType;
 import com.arryn.frontiermode.boss.server.commands.BossSelectorArgumentTypeInfo;
 import com.arryn.frontiermode.bosstell.BossTellModule;
 import com.arryn.frontiermode.bosstell.BossTellRegisters;
-import com.arryn.frontiermode.coordination.SpawnCoordinator;
+import com.arryn.frontiermode.coordination.server.SpawnCoordinator;
 import com.arryn.frontiermode.core.CoreModule;
 import com.arryn.frontiermode.difficulty.DifficultyModule;
 import com.arryn.frontiermode.diorite.DioriteRegisters;

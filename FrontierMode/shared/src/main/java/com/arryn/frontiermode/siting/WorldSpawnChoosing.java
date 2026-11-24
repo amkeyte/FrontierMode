@@ -1,5 +1,6 @@
 package com.arryn.frontiermode.siting;
 
+import com.arryn.frontiermode.siting.server.StartingSiteHandlers;
 import com.arryn.satchel.common.ingress.ModuleEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;

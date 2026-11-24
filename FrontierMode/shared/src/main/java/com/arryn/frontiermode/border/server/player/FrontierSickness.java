@@ -3,7 +3,7 @@ package com.arryn.frontiermode.border.server.player;
 import com.arryn.frontiermode.FrontierRegisters;
 import com.arryn.frontiermode.border.common.player.BorderPlayerStatus;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
-import com.arryn.frontiermode.effects.EffectsAPI;
+import com.arryn.frontiermode.effects.server.EffectsAPI;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;

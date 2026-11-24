@@ -11,6 +11,7 @@ import com.arryn.frontiermode.core.FrontierLine;
 import com.arryn.frontiermode.core.FrontierRegistrar;
 import com.arryn.frontiermode.core.NeoForgeLineSource;
 import com.arryn.frontiermode.core.NeoForgeRegistrarSource;
+import com.arryn.frontiermode.core.server.FrontierServerLine;
 import com.arryn.frontiermode.difficulty.DifficultyIngress;
 import com.arryn.frontiermode.feral.FeralIngress;
 import com.arryn.frontiermode.keeper.KeeperIngress;
@@ -42,7 +43,9 @@ public final class FrontierMode {
         registrar.register(modBus);
 
         // The calls into Minecraft whose form differs by line.
-        FrontierLine.install(new NeoForgeLineSource());
+        NeoForgeLineSource line = new NeoForgeLineSource();
+        FrontierLine.install(line);
+        FrontierServerLine.install(line);
 
         // Hook lifecycle events
         modBus.addListener(this::commonSetup);

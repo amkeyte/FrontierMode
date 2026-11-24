@@ -1,6 +1,7 @@
 package com.arryn.frontiermode.sentinel;
 
 import com.arryn.frontiermode.sentinel.client.SentinelTrailClient;
+import com.arryn.frontiermode.sentinel.server.SentinelPresence;
 import com.arryn.satchel.Satchel;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import com.arryn.satchel.common.jig.level.LevelScope;
@@ -18,7 +19,7 @@ import java.util.WeakHashMap;
  * its synced scale. The factory runs once per side and the Trinket exists on both, so it acts on the client only; its
  * server twin is {@link SentinelPresence}.
  */
-final class SentinelClient implements Ticking {
+public final class SentinelClient implements Ticking {
 
     // The scale each Sentinel's client dimensions were last refreshed at. Weak, so an entry ends with its entity; a
     // field of the Trinket, so it ends with the world (new-module-checklist.md item 14).

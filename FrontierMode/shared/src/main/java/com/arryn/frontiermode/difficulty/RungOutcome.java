@@ -1,5 +1,7 @@
 package com.arryn.frontiermode.difficulty;
 
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
+
 /**
  * Outcome of putting a mob on a rung of the stat ladder ({@link DifficultyAPI#applyFeralRung},
  * {@link DifficultyAPI#applyKeeperRung} and {@link DifficultyAPI#applySentinelRung}). The ways it can fail to apply

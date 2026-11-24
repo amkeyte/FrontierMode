@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.sentinel.common.goals;
 
-import com.arryn.frontiermode.difficulty.DifficultyAPI;
+import com.arryn.frontiermode.difficulty.server.DifficultyAPI;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;

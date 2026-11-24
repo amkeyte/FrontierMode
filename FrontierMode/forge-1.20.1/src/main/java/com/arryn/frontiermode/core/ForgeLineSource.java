@@ -1,5 +1,7 @@
 package com.arryn.frontiermode.core;
 
+import com.arryn.frontiermode.core.server.FrontierServerLine;
+import com.arryn.frontiermode.core.server.MobSpawns;
 import com.arryn.satchel.common.platform.PlatformBound;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -11,7 +13,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -23,12 +28,13 @@ import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraftforge.event.ForgeEventFactory;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Optional;
 
-/** {@code forge-1.20.1}'s {@link FrontierLine.Source}: each call as Minecraft 1.20.1 and Forge 47 have it. */
+/** {@code forge-1.20.1}'s {@link FrontierLine.Source} and {@link FrontierServerLine.Source}: each call as Minecraft 1.20.1 and Forge 47 have it. */
 @PlatformBound(reason = "vanilla calls that differ by line")
-public final class ForgeLineSource implements FrontierLine.Source {
+public final class ForgeLineSource implements FrontierLine.Source, FrontierServerLine.Source {
 
     @Override
     public ChunkAccess fullChunkIfLoaded(Level level, int chunkX, int chunkZ) {
@@ -84,5 +90,14 @@ public final class ForgeLineSource implements FrontierLine.Source {
     @Override
     public void damageItem(ItemStack stack, int amount, Player player, InteractionHand hand) {
         stack.hurtAndBreak(amount, player, p -> p.broadcastBreakEvent(hand));
+    }
+
+    @Override
+    public ItemStack enchantedBook(Level level, ResourceLocation enchantment, int enchantLevel) {
+        Enchantment found = ForgeRegistries.ENCHANTMENTS.getValue(enchantment);
+        if (found == null) {
+            throw new IllegalArgumentException("No enchantment is registered as " + enchantment);
+        }
+        return EnchantedBookItem.createForEnchantment(new EnchantmentInstance(found, enchantLevel));
     }
 }

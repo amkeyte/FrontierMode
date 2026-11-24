@@ -16,14 +16,14 @@ import net.minecraft.world.entity.player.Player;
  * <p>Its one field is the boss's last-seen hurt timestamp, seeded at attach so a hit from before the attach never
  * counts. The hit is announced as a {@link KeeperHit} on Satchel's bus, which the Sentinel module answers.
  */
-final class Defense implements Ticking {
+public final class Defense implements Ticking {
 
     private final Boss boss;
 
     // The boss's last-hurt timestamp as last seen, so each hit is noticed once.
     private int lastSeenHurtTimestamp;
 
-    Defense(Boss boss) {
+    public Defense(Boss boss) {
         this.boss = boss;
     }
 

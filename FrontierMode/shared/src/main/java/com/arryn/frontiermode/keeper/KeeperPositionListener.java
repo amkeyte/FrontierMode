@@ -2,6 +2,7 @@ package com.arryn.frontiermode.keeper;
 
 import com.arryn.frontiermode.boss.BossAPI;
 import com.arryn.frontiermode.boss.common.fixture.BossRecord;
+import com.arryn.frontiermode.keeper.server.KeeperKind;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
 

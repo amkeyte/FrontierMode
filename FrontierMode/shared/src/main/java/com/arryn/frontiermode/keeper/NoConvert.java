@@ -11,7 +11,7 @@ import com.arryn.satchel.common.trinket.Trinket;
  * module event scoped to the Keeper's mob scope. A conversion that skips Forge's Pre check (a Skeleton freezing into a
  * Stray) is not covered.
  */
-final class NoConvert implements Trinket {
+public final class NoConvert implements Trinket {
 
     @Override
     public void onAttach(ScopeInfo info) {

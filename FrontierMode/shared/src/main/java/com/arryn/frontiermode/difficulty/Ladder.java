@@ -18,16 +18,16 @@ import java.util.OptionalDouble;
  * the namespace's tag is touched: what leaves it is a rung, a step, a multiplier or a line of text, never the tag.
  */
 @PlatformBound(reason = "mob data namespace")
-final class Ladder {
+public final class Ladder {
 
     static final ResourceLocation NAMESPACE = FrontierIds.of("ladder");
 
-    static final String RUNG_ORDINARY = "ordinary";
-    static final String RUNG_ALLY = "ally";
-    static final String RUNG_FERAL = "feral";
-    static final String RUNG_SENTINEL = "sentinel";
-    static final String RUNG_KEEPER = "keeper";
-    static final String RUNG_KEEPER_SUMMON = "keeper_summon";
+    public static final String RUNG_ORDINARY = "ordinary";
+    public static final String RUNG_ALLY = "ally";
+    public static final String RUNG_FERAL = "feral";
+    public static final String RUNG_SENTINEL = "sentinel";
+    public static final String RUNG_KEEPER = "keeper";
+    public static final String RUNG_KEEPER_SUMMON = "keeper_summon";
 
     private static final String KEY_RUNG = "rung";
     // Which step of the ladder the mob was put on (the Difficulty, a Keeper's path position, or the path
@@ -40,7 +40,7 @@ final class Ladder {
     }
 
     /** True if some rung has already reached this mob ("the first rung to reach a mob wins"). */
-    static boolean claimed(Mob mob) {
+    public static boolean claimed(Mob mob) {
         return !MobData.read(mob, NAMESPACE).isEmpty();
     }
 
@@ -50,7 +50,7 @@ final class Ladder {
      * claimed and is left alone. {@code step} is what the mob's level was read as (0 if the rung has none, like
      * a Keeper's summoned vex): kept so the Info report can show it.
      */
-    static RungOutcome apply(Mob mob, String rung, int step, double healthMultiplier, double damageMultiplier) {
+    public static RungOutcome apply(Mob mob, String rung, int step, double healthMultiplier, double damageMultiplier) {
         CompoundTag tag = new CompoundTag();
         tag.putString(KEY_RUNG, rung);
         tag.putInt(KEY_STEP, step);
@@ -70,7 +70,7 @@ final class Ladder {
      * One line for the Info report: the mob's level, its rung and its two multipliers; empty if no rung
      * has reached it.
      */
-    static java.util.Optional<String> describe(Mob mob) {
+    public static java.util.Optional<String> describe(Mob mob) {
         CompoundTag tag = MobData.read(mob, NAMESPACE);
         if (tag.isEmpty()) {
             return java.util.Optional.empty();
@@ -82,7 +82,7 @@ final class Ladder {
     }
 
     /** The rung that reached {@code mob}, or {@code ""} if none has. */
-    static String rungOf(Mob mob) {
+    public static String rungOf(Mob mob) {
         return MobData.read(mob, NAMESPACE).getString(KEY_RUNG);
     }
 

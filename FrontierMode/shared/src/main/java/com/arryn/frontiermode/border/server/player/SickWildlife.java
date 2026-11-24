@@ -3,7 +3,7 @@ package com.arryn.frontiermode.border.server.player;
 import com.arryn.frontiermode.border.BorderAPI;
 import com.arryn.frontiermode.border.common.FrontierSicknessLogic;
 import com.arryn.frontiermode.border.server.rules.PlayerRules;
-import com.arryn.frontiermode.core.MobSpawns;
+import com.arryn.frontiermode.core.server.MobSpawns;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;

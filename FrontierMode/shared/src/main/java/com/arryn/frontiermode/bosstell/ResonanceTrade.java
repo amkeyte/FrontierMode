@@ -5,10 +5,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.VillagerTrades;
-import net.minecraft.world.item.EnchantedBookItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.trading.MerchantOffer;
 import org.jetbrains.annotations.NotNull;
 
@@ -57,8 +55,7 @@ public final class ResonanceTrade {
     private static final class ResonanceListing implements VillagerTrades.ItemListing {
         @Override
         public MerchantOffer getOffer(@NotNull Entity trader, @NotNull RandomSource rng) {
-            ItemStack book = EnchantedBookItem.createForEnchantment(
-                    new EnchantmentInstance(BossTellModule.RESONANCE.get(), 1));
+            ItemStack book = FrontierLine.enchantedBook(trader.level(), BossTellRegisters.RESONANCE, 1);
             return FrontierLine.merchantOffer(
                     new ItemStack(Items.EMERALD, EMERALD_COST),
                     book,

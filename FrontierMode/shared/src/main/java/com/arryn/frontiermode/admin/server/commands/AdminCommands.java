@@ -1,6 +1,6 @@
 package com.arryn.frontiermode.admin.server.commands;
 
-import com.arryn.frontiermode.admin.AdminToolsModule;
+import com.arryn.frontiermode.admin.AdminToolsRegisters;
 import com.arryn.satchel.common.util.StackData;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
@@ -8,9 +8,9 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.entity.player.Player;
 
 /**
@@ -28,18 +28,18 @@ public final class AdminCommands {
                 Commands.literal("admin")
                         .requires(src -> src.hasPermission(2))
                         .then(Commands.literal("deathstick")
-                                .executes(ctx -> giveStick(ctx, AdminToolsModule.DEATH_TOUCH.get(), "Death Stick")))
+                                .executes(ctx -> giveStick(ctx, AdminToolsRegisters.DEATH_TOUCH, "Death Stick")))
                         .then(Commands.literal("inspectstick")
-                                .executes(ctx -> giveStick(ctx, AdminToolsModule.INSPECT.get(), "Inspect Stick")))
+                                .executes(ctx -> giveStick(ctx, AdminToolsRegisters.INSPECT, "Inspect Stick")))
         );
     }
 
-    private static int giveStick(CommandContext<CommandSourceStack> ctx, Enchantment enchantment, String name)
+    private static int giveStick(CommandContext<CommandSourceStack> ctx, ResourceLocation enchantment, String name)
             throws CommandSyntaxException {
         Player player = ctx.getSource().getPlayerOrException();
 
         ItemStack stick = new ItemStack(Items.STICK);
-        StackData.enchant(stick, enchantment, 1);
+        StackData.enchant(stick, player.level(), enchantment, 1);
         StackData.setCustomName(stick, Component.literal(name));
 
         if (!player.getInventory().add(stick)) {

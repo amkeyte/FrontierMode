@@ -14,7 +14,7 @@ public final class AdminTools {
     }
 
     public static boolean isAdminTool(ItemStack stack) {
-        return StackData.enchantmentLevel(stack, AdminToolsModule.DEATH_TOUCH.get()) > 0
-                || StackData.enchantmentLevel(stack, AdminToolsModule.INSPECT.get()) > 0;
+        return StackData.enchantmentLevel(stack, AdminToolsRegisters.DEATH_TOUCH) > 0
+                || StackData.enchantmentLevel(stack, AdminToolsRegisters.INSPECT) > 0;
     }
 }

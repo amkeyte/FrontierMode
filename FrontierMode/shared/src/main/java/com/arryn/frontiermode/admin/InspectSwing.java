@@ -16,7 +16,7 @@ public interface InspectSwing extends ModuleEvent<Player> {
 
     /** The resolver's test: the main-hand stack carries Inspect. */
     static boolean passes(ItemStack mainHand) {
-        return StackData.enchantmentLevel(mainHand, AdminToolsModule.INSPECT.get()) > 0;
+        return StackData.enchantmentLevel(mainHand, AdminToolsRegisters.INSPECT) > 0;
     }
 
     /** The player holding the stick. */
