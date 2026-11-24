@@ -5,6 +5,7 @@ import com.arryn.frontiermode.border.client.render.level.WorldBordersRenderer;
 
 import com.arryn.frontiermode.core.FrontierIds;
 import com.arryn.satchel.common.platform.PlatformBound;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -49,11 +50,17 @@ public final class Rendering {
         // No side check: this method is reached only through Forge's Dist-gated @SubscribeEvent dispatch, and
         // RenderLevelStageEvent never fires on a dedicated server.
 
-        // Render border rings
+        // The border rings
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
-            bordersRenderer().render(event.getPoseStack());
-            // The debug view's markers; draws nothing while the view is off.
-            AdminViewMarkers.render(event.getPoseStack(), event.getCamera(),
+            // The chunk-layer stages carry no pose stack on 1.21.1 (the camera is in the model-view matrix
+            // already), so a fresh one stands in.
+            PoseStack pose = event.getPoseStack() != null ? event.getPoseStack() : new PoseStack();
+            bordersRenderer().render(pose);
+        }
+        // The debug view's markers, drawn where vanilla draws entity text (name tags); nothing while the view is off.
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_ENTITIES) {
+            PoseStack pose = event.getPoseStack() != null ? event.getPoseStack() : new PoseStack();
+            AdminViewMarkers.render(pose, event.getCamera(),
                     event.getPartialTick().getGameTimeDeltaPartialTick(true));
         }
     }

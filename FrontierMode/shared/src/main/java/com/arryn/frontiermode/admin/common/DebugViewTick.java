@@ -34,6 +34,8 @@ public final class DebugViewTick implements Ticking {
     // Whether the view is on. Default off, and a field of this Trinket, so it is not persisted and ends with the scope.
     private boolean on;
 
+    private int ticksOn;
+
     // Entities this view has shown a name tag on, weakly held, so turning it off can put them back.
     private final Set<Entity> touched = Collections.newSetFromMap(new WeakHashMap<>());
 
@@ -59,6 +61,7 @@ public final class DebugViewTick implements Ticking {
     /** Turns the view on or off; the next tick notices an off. */
     public void set(boolean value) {
         on = value;
+        ticksOn = 0;
     }
 
     /** The mobs to mark this frame and their roles; empty while the view is off. */
@@ -91,5 +94,8 @@ public final class DebugViewTick implements Ticking {
             return;
         }
         AdminView.mark(player.level(), marked, touched);
+        if (++ticksOn % 100 == 1) {
+            OUT.debug("[Admin] DebugViewTick: " + marked.size() + " mob(s) marked on " + player.level().getClass().getSimpleName());
+        }
     }
 }

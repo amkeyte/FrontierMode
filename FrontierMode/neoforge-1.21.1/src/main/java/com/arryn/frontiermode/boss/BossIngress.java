@@ -5,12 +5,15 @@ import com.arryn.satchel.common.ingress.IngressConfig;
 import com.arryn.satchel.common.ingress.ModuleSignal;
 import com.arryn.satchel.common.jig.guts.ScopeInfo;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.neoforge.event.entity.EntityMountEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.WeakHashMap;
 
 /**
  * {@code neoforge-1.21.1}'s ingress for the boss module: NeoForge's mount, damage and death events translated to
@@ -21,6 +24,12 @@ import java.util.Optional;
  * boots.
  */
 public final class BossIngress {
+
+    /**
+     * Each boss's health as {@code Pre} saw it, taken by the {@code Post} that follows on the same thread. Weak, so an
+     * entity whose hit never reached {@code Post} (a cancelled hit) leaves nothing behind.
+     */
+    private static final Map<LivingEntity, Float> HEALTH_BEFORE = new WeakHashMap<>();
 
     private BossIngress() {
     }
@@ -44,8 +53,17 @@ public final class BossIngress {
                 .or(() -> BossMarkers.bossScope(event.getEntityBeingMounted()));
     }
 
+    /**
+     * The boss's scope for a hit about to land. It also carries the boss's health to the {@code Post} that follows,
+     * which does not have it (PORT_011): the resolver runs on every firing, whether or not anything listens to
+     * {@link BossTakingDamage}, so the health is carried for a boss with credit and no armor answer too.
+     */
     private static Optional<ScopeInfo> resolveDamagingBoss(LivingDamageEvent.Pre event) {
-        return BossMarkers.bossScope(event.getEntity());
+        Optional<ScopeInfo> scope = BossMarkers.bossScope(event.getEntity());
+        if (scope.isPresent()) {
+            HEALTH_BEFORE.put(event.getEntity(), event.getEntity().getHealth());
+        }
+        return scope;
     }
 
     private static Optional<ScopeInfo> resolveDamagedBoss(LivingDamageEvent.Post event) {
@@ -106,8 +124,15 @@ public final class BossIngress {
     static final class ForgeBossDamaged extends ModuleSignal<LivingDamageEvent.Post, ScopeInfo>
             implements BossDamaged {
 
+        private final float healthBefore;
+
         ForgeBossDamaged(LivingDamageEvent.Post forgeEvent, ScopeInfo bossScope) {
             super(forgeEvent, bossScope);
+            Float carried = HEALTH_BEFORE.remove(forgeEvent.getEntity());
+            if (carried == null) {
+                throw new IllegalStateException("A boss's damage reached Post with no Pre before it (PORT_011)");
+            }
+            healthBefore = carried;
         }
 
         @Override
@@ -116,17 +141,12 @@ public final class BossIngress {
         }
 
         /**
-         * The event fires after the health changed. A hit that left the boss alive removed exactly the new damage. On
-         * a killing blow the health before the hit is not on the event, so the capped amount is {@code TBD.}
-         * ({@code PORT_011}); until it is answered a killing blow throws, so the gap cannot pass unseen.
+         * The event fires after the health changed, so the health before the hit is the one {@code Pre} carried
+         * (PORT_011): the smaller of that and the damage that reached the health.
          */
         @Override
         public float healthRemoved() {
-            if (nativeEvent().getEntity().getHealth() <= 0f) {
-                throw new UnsupportedOperationException(
-                        "BossDamaged.healthRemoved on a killing blow is TBD on neoforge-1.21.1 (PORT_011)");
-            }
-            return Math.max(0f, nativeEvent().getNewDamage());
+            return Math.max(0f, Math.min(healthBefore, nativeEvent().getNewDamage()));
         }
     }
 
