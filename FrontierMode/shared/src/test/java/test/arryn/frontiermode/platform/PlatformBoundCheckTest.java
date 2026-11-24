@@ -37,14 +37,16 @@ class PlatformBoundCheckTest {
 
         List<Offender> offenders = new ArrayList<>();
         List<String> listeners = new ArrayList<>();
-        for (Path root : List.of(roots.shared(), roots.line())) {
+        List<Path> all = new ArrayList<>(roots.lines());
+        all.add(0, roots.shared());
+        for (Path root : all) {
             Result result = PlatformBoundScanner.scanAll(root);
             offenders.addAll(result.offenders());
             listeners.addAll(result.listenerClasses());
         }
 
-        assertFalse(listeners.isEmpty(), "the scan found no class with a listener under " + roots.shared() + " or "
-                + roots.line() + ", so it checked nothing");
+        assertFalse(listeners.isEmpty(), "the scan found no class with a listener under " + all
+                + ", so it checked nothing");
         assertTrue(offenders.isEmpty(), () -> "These classes hold a direct loader listener and need "
                 + "@PlatformBound(reason = \"...\") (Platform-Bound Code, The check):\n"
                 + offenders.stream().map(Object::toString).collect(Collectors.joining("\n")));
@@ -54,41 +56,63 @@ class PlatformBoundCheckTest {
     void every_import_passes_the_rule_of_the_folder_it_is_in() {
         Roots roots = roots();
 
-        ImportResult result = PlatformBoundScanner.scanImportRoots(
-                List.of(new Root("shared", roots.shared(), Rule.MODULE_SHARED),
-                        new Root(roots.lineName(), roots.line(), Rule.LINE)),
-                PlatformBoundScanner.authorizedClasses());
+        List<Root> scan = new ArrayList<>();
+        scan.add(new Root("shared", roots.shared(), Rule.MODULE_SHARED));
+        for (Path line : roots.lines()) {
+            scan.add(new Root(line.getParent().getParent().getParent().getFileName().toString(), line, Rule.LINE));
+        }
+        ImportResult result = PlatformBoundScanner.scanImportRoots(scan, PlatformBoundScanner.authorizedClasses());
 
-        assertTrue(result.platformClasses() > 0, "the scan found no platform import under " + roots.shared() + " or "
-                + roots.line() + ", so it checked nothing");
+        assertTrue(result.platformClasses() > 0, "the scan found no platform import under " + scan
+                + ", so it checked nothing");
         assertTrue(result.offenders().isEmpty(), () -> "These imports break the rule of their folder (Platform-Bound "
                 + "Code, The check). In shared, name no loader class and, outside a server or client package, no "
-                + "net.minecraft.server or net.minecraft.client class; in " + roots.lineName() + ", a Minecraft or "
+                + "net.minecraft.server or net.minecraft.client class; in a line folder, a Minecraft or "
                 + "loader class is on the authorized list or its file carries @PlatformBound with a reason:\n"
                 + result.offenders().stream().map(o -> o.baselineLine() + "    # line " + o.line())
                         .collect(Collectors.joining("\n")));
     }
 
-    /** The two source roots of the tree: {@code shared}, and the line folder this test runs in. */
-    private record Roots(Path shared, Path line, String lineName) {
+    /** The tree's source roots: {@code shared}, and every line folder beside it. */
+    private record Roots(Path shared, List<Path> lines) {
     }
 
     /**
-     * Gradle runs a test in the project directory, which is a line folder ({@code forge-1.20.1} or
-     * {@code neoforge-1.21.1}); {@code shared} sits beside it. Both must exist: a missing {@code shared} would leave
-     * the check reading one root and passing, so it fails here instead.
+     * Gradle runs a test in a project directory: a line folder ({@code forge-1.20.1}) or {@code shared} itself, so
+     * {@code shared} is found from either, and an IDE may run it from the repository root. Every line folder beside
+     * {@code shared} is checked, whichever line runs the test. A missing {@code shared} or a tree with no line fails
+     * here, so the check cannot pass by reading nothing.
      */
     private static Roots roots() {
-        Path project = Path.of("").toAbsolutePath();
-        Path line = project.resolve("src/main/java");
-        Path shared = project.resolveSibling("shared").resolve("src/main/java");
-        if (!Files.isDirectory(line)) {
-            throw new IllegalStateException("Cannot find the line folder's src/main/java from " + project
-                    + ": run the test from the line project's directory");
+        Path here = Path.of("").toAbsolutePath();
+        Path shared = null;
+        for (Path candidate : List.of(
+                here.resolveSibling("shared").resolve("src/main/java"),
+                here.resolve("src/main/java"),
+                here.resolve("FrontierMode/shared/src/main/java"))) {
+            if (Files.isDirectory(candidate) && candidate.getParent().getParent().getParent().getFileName().toString().equals("shared")) {
+                shared = candidate;
+                break;
+            }
         }
-        if (!Files.isDirectory(shared)) {
-            throw new IllegalStateException("Cannot find FrontierMode's shared src/main/java at " + shared);
+        if (shared == null) {
+            throw new IllegalStateException("Cannot find FrontierMode's shared src/main/java from " + here);
         }
-        return new Roots(shared, line, project.getFileName().toString());
+        Path tree = shared.getParent().getParent().getParent().getParent();
+        List<Path> lines = new ArrayList<>();
+        try (var siblings = Files.list(tree)) {
+            siblings.filter(Files::isDirectory)
+                    .filter(dir -> !dir.getFileName().toString().equals("shared"))
+                    .map(dir -> dir.resolve("src/main/java"))
+                    .filter(Files::isDirectory)
+                    .sorted()
+                    .forEach(lines::add);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+        if (lines.isEmpty()) {
+            throw new IllegalStateException("Cannot find a line folder's src/main/java beside " + shared);
+        }
+        return new Roots(shared, lines);
     }
 }
