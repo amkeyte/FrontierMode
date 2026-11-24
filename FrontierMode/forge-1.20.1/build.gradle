@@ -395,6 +395,14 @@ tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEac
     dependsOn tasks.named('buildSatchel')
 }
 
+// IntelliJ's generated run configurations (runClient / runServer) are Application configurations, not the Gradle
+// runClient/runServer tasks above: their before-launch step is Make plus :prepareRunClientCompile or
+// :prepareRunServerCompile. Hang the same Satchel rebuild + deploy off those, so launching from the IDE also puts a
+// fresh dev Satchel jar into run/mods and run-server/mods instead of whatever was left there.
+tasks.matching { it.name == 'prepareRunClientCompile' || it.name == 'prepareRunServerCompile' }.configureEach {
+    dependsOn tasks.named('buildSatchel')
+}
+
 // compileJava reads the Satchel jar's bytes (compileOnly files(satchelJar)); make sure the
 // rebuild finishes before compilation, not just "sometime before runClient".
 tasks.named('compileJava').configure {

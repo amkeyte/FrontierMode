@@ -305,6 +305,16 @@ tasks.matching { it.name == 'runClient' || it.name == 'runServer' }.configureEac
     dependsOn tasks.named('buildSatchel')
 }
 
+// The IntelliJ run configurations ModDevGradle writes on sync (Client, Server) are Application configurations whose
+// before-launch step is only Make, so the dependsOn above never fires for them. taskBefore adds the same rebuild +
+// deploy as a Gradle before-launch step on those configurations (it takes effect at the next Gradle sync).
+neoForge {
+    runs {
+        client { taskBefore tasks.named('buildSatchel') }
+        server { taskBefore tasks.named('buildSatchel') }
+    }
+}
+
 // compileJava reads the Satchel jar's bytes (compileOnly files(satchelJar)); make sure the rebuild finishes before
 // compilation, not just "sometime before runClient".
 tasks.named('compileJava').configure {
