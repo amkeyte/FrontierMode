@@ -7,12 +7,25 @@
 // One copy task per run task, each copying only its own live file; last run to stop wins.
 // The seed path is relative to the applying line project (forge-1.20.1); shared is its sibling.
 // Applied via `apply from:`, so file()/tasks/logger resolve against forge-1.20.1.
-// A finalizer runs when Gradle ends the run task; Satchel only writes the live file on a clean
-// server stop, so a killed run leaves nothing new to copy.
+// When the copy happens (FRO_389): a run through Gradle copies when the run task ends; an IntelliJ launch
+// copies at the START of the next launch of the same side (client or server). To copy at once, run
+// syncTunablesFromClient / syncTunablesFromServer. Satchel writes the live file on a clean server stop and on
+// `/satchel tunables write`, so a killed run leaves only what was last written.
 // ------------------------------------------------------------
 def tunablesSeedFile = file("${projectDir}/../shared/src/main/resources/satchel-tunables.csv")
 def tunablesHeader = 'name,type,min,max,default,value,shipped'
 def tunablesLegacyHeader = 'name,type,min,max,default,value'
+
+// Rows by name, each as its seven columns (a legacy six-column row gets a blank `shipped`).
+def tunablesRows = { String text ->
+    def rows = [:]
+    text.readLines().drop(1).findAll { !it.trim().isEmpty() }.each { String line ->
+        List cols = line.split(',', -1) as List
+        while (cols.size() < 7) cols << ''
+        rows[cols[0]] = cols
+    }
+    return rows
+}
 
 def syncTunablesToSeed = { File live ->
     // Fresh clone: give the seed its header so nothing downstream trips on a missing file.
@@ -43,7 +56,28 @@ def syncTunablesToSeed = { File live ->
         logger.warn("Tunables sync skipped: ${live} doesn't end with a newline (looks truncated).")
         return
     }
-    if (tunablesSeedFile.exists() && Arrays.equals(tunablesSeedFile.bytes, bytes)) return   // already identical
+    if (tunablesSeedFile.exists()) {
+        def seedRows = tunablesRows(tunablesSeedFile.getText('UTF-8'))
+        def liveRows = tunablesRows(text)
+        // Nothing tuned: every column but `shipped` matches, so leave the seed file alone.
+        if (liveRows.keySet() == seedRows.keySet()
+                && seedRows.every { name, row -> liveRows[name][1..5] == row[1..5] }) return
+
+        // Stale live file: copying it would take back a seed value it never saw (a pull, or the other run's
+        // tune copied back). `shipped` is the seed value the row was last merged against, so a differing value
+        // is a real tune only if `shipped` matches the seed as it is now. A seed row the live file lacks is
+        // also one it never saw. The next run that starts and stops cleanly merges the file and clears this.
+        def stale = seedRows.findAll { name, row ->
+            def mine = liveRows[name]
+            mine == null || (mine[5] != row[5] && mine[6] != row[5])
+        }.keySet() as List
+        if (stale && !project.hasProperty('forceCopyBack')) {
+            logger.warn("Tunables copy-back skipped: ${live} is older than the seed on ${stale.size()} row(s) "
+                    + "(${stale.take(3).join(', ')}${stale.size() > 3 ? ', ...' : ''}). It clears after that run "
+                    + "starts and stops cleanly. -PforceCopyBack copies it anyway.")
+            return
+        }
+    }
 
     // Write beside the seed then move, so a failure can't leave a half-written seed behind.
     def tmp = new File(tunablesSeedFile.parentFile, tunablesSeedFile.name + '.tmp')
@@ -67,3 +101,19 @@ tasks.register('syncTunablesFromClient') {
 
 tasks.matching { it.name == 'runServer' }.configureEach { finalizedBy tasks.named('syncTunablesFromServer') }
 tasks.matching { it.name == 'runClient' }.configureEach { finalizedBy tasks.named('syncTunablesFromClient') }
+
+// IntelliJ launches (FRO_389). The IDE's runClient / runServer configurations are Application configurations: they
+// run only :prepareRun<Side>Compile before the game and nothing in Gradle after it, so the finalizers above never
+// fire. The same guarded copy therefore also runs on the prepare step, picking up what the PREVIOUS run of that
+// side wrote, ahead of the jar build so the new jar carries it. These are separate tasks because one task cannot
+// be both a prerequisite of a launch and its finalizer.
+['Client': 'run', 'Server': 'run-server'].each { side, dir ->
+    def beforeLaunch = tasks.register("syncTunablesBefore${side}Launch") {
+        description = "Copy-back of the previous ${side.toLowerCase()} run's tunables, before an IDE launch (guarded)."
+        doLast { syncTunablesToSeed(project.file("${dir}/config/satchel-tunables.csv")) }
+    }
+    tasks.matching { it.name == "prepareRun${side}Compile" }.configureEach { dependsOn beforeLaunch }
+    tasks.matching { it.name == 'buildSatchel' || it.name == 'processResources' }.configureEach {
+        mustRunAfter beforeLaunch
+    }
+}

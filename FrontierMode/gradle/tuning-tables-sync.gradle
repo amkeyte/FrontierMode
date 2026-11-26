@@ -80,3 +80,34 @@ tasks.register('syncTuningTablesFromClient') {
 
 tasks.matching { it.name == 'runServer' }.configureEach { finalizedBy tasks.named('syncTuningTablesFromServer') }
 tasks.matching { it.name == 'runClient' }.configureEach { finalizedBy tasks.named('syncTuningTablesFromClient') }
+
+// IntelliJ launches (FRO_389) never run the finalizers above (see tunables-sync.gradle). Unlike the tunables, the
+// tables are NOT copied on the launch prepare step: a live table records nothing about which shipped table it was
+// run against, and Satchel's merge keeps a live value over a changed shipped one, so a copy before a launch could
+// not tell a tune from a stale file and could take back a pulled change. The prepare step only reports the live
+// tables that differ; after tuning one from an IDE run, run syncTuningTablesFromClient / FromServer.
+def reportTableDifferences = { File sourceDir, String syncTask ->
+    if (!sourceDir.isDirectory()) return
+    def differing = []
+    sourceDir.eachFileRecurse(groovy.io.FileType.FILES) { File live ->
+        if (!live.name.endsWith('.csv')) return
+        def rel = sourceDir.toPath().relativize(live.toPath())
+        File dest = tablesDest.toPath().resolve(rel).toFile()
+        if (!dest.exists() || dest.getText('UTF-8').readLines() != live.getText('UTF-8').readLines()) differing << rel.toString()
+    }
+    if (differing) {
+        logger.warn("Tuning tables in ${sourceDir} differ from shared (${differing.join(', ')}). Not copied by an IDE "
+                + "launch: if you tuned them, run ${syncTask}.")
+    }
+}
+
+['Client': 'run', 'Server': 'run-server'].each { side, dir ->
+    def report = tasks.register("reportTuningTablesBefore${side}Launch") {
+        description = "Reports the ${side.toLowerCase()} run's live tuning tables that differ from shared (copies nothing)."
+        doLast {
+            reportTableDifferences(project.file("${dir}/config/satchel-tables/${tableNamespace}"),
+                    "syncTuningTablesFrom${side}")
+        }
+    }
+    tasks.matching { it.name == "prepareRun${side}Compile" }.configureEach { dependsOn report }
+}
