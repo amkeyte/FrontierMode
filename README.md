@@ -2,12 +2,12 @@
 
 **@ Your Own Risk.**
 
-Two Minecraft Forge mods, developed together:
+Two Minecraft mods, developed together, for Forge 1.20.1 and NeoForge 1.21.1:
 
 - **FrontierMode** -- the game: a safe, known area that only grows when you defeat the Amethyst Keeper
   hiding in it, and a deadly Wild beyond.
 - **Satchel** -- the core data and utility framework FrontierMode is built on (scoped state,
-  networking, persistence, and a lifecycle-signal layer over Forge's events).
+  networking, persistence, and module events over the mod loader's events).
 
 <!-- TODO: screenshots / a short GIF of a Keeper fight would go here (needs captures). -->
 
@@ -39,29 +39,40 @@ guaranteed to be portable between versions; expect to start a new one after upda
 
 ## Requirements
 
-- Minecraft **1.20.1**
-- Minecraft Forge **47.4.10** or newer 47.x
-- Both mods installed together: FrontierMode depends on Satchel.
+One of these two setups:
+
+| Minecraft | Mod loader |
+|---|---|
+| **1.20.1** | Minecraft Forge **47.4.10** or newer 47.x |
+| **1.21.1** | NeoForge **21.1.267** or newer 21.1.x |
+
+Install both mods together: FrontierMode depends on Satchel.
 
 ## Installation
 
-1. Install Forge for Minecraft 1.20.1.
-2. Download `satchel-<version>.jar` and `frontiermode-<version>.jar` from
-   [Releases](https://github.com/amkeyte/FrontierMode/releases) -- take both, at the same version.
+1. Install Forge for Minecraft 1.20.1, or NeoForge for Minecraft 1.21.1.
+2. From [Releases](https://github.com/amkeyte/FrontierMode/releases), download both mods for your
+   loader, at the same version. The file names end with the loader and Minecraft version:
+   - `Satchel-<version>-<loader>-<minecraft>.jar`
+   - `frontiermode-<version>-<loader>-<minecraft>.jar`
+
+   For example, `frontiermode-0.3.0-neoforge-1.21.1.jar`.
 3. Put them in your `mods` folder.
 4. Start a **new world**.
 
 
 ## Building
 
-Each mod is its own Gradle project (they are deliberately not combined into one build).
+Each mod has its own Gradle project for each loader (they are deliberately not combined into one
+build). The Forge 1.20.1 projects use JDK 17, and the NeoForge 1.21.1 projects use JDK 21.
 
 ```
-cd Satchel && ./gradlew build
-cd ../FrontierMode && ./gradlew build
+cd Satchel/forge-1.20.1 && ./gradlew build
+cd ../../FrontierMode/forge-1.20.1 && ./gradlew build
 ```
 
-Build Satchel first; FrontierMode compiles against it.
+For NeoForge, use the `neoforge-1.21.1` folders the same way. Build Satchel first, for the same
+loader; FrontierMode compiles against its jar.
 
 ## Repository layout
 
@@ -69,6 +80,10 @@ Build Satchel first; FrontierMode compiles against it.
 |---|---|
 | `FrontierMode/` | The gameplay mod |
 | `Satchel/` | The framework mod |
+| `<mod>/shared/` | Code that both loaders compile |
+| `<mod>/forge-1.20.1/` | The Forge project, with the code only it uses |
+| `<mod>/neoforge-1.21.1/` | The NeoForge project, with the code only it uses |
+| `CHANGELOG.md` | Release notes |
 
 ## License
 
