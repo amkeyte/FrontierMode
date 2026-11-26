@@ -281,6 +281,9 @@ tasks.register('release', Copy) {
 
     from tasks.named('jar').flatMap { it.archiveFile }
     into releaseDir
+    // Both lines build the same file name, so the released copy also names its loader and Minecraft version
+    // (<name>-<version>-<line>.jar). Only this copy is renamed: the jar in build/libs and the dev copies keep theirs.
+    rename { String fileName -> fileName.replaceFirst(/\.jar$/, "-${lineName}.jar") }
 }
 
 // Gradle's JavaExec doesn't forward stdin to the child process by default, so console
