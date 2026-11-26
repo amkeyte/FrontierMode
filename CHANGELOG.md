@@ -11,6 +11,25 @@ Worlds are not guaranteed to carry over between versions. If an update misbehave
 ---
 
 ## FrontierMode
+### 0.3.0 NeoForge 1.21.1 Port Complete
+**Satchel 0.3.0**
+- Requires Satchel 0.3.0.
+- Restructured the code to follow Satchel's API changes.
+- Breaking release: FrontierMode 0.2.x does not load with Satchel 0.3.0. Update both.
+
+**Repo restructure**
+- Moved mod code to a shared folder to be consumed by supported modloader versions.
+- Modloader-specific code moved to new build folders, one per release flavor.
+- Build chain supports new repo structure.
+- Moved client-only and server-only Minecraft code out of common code on both modloaders.
+
+**Platforms**
+- Added support for Minecraft 1.21.1 on NeoForge. Minecraft 1.20.1 on Forge is still supported. Download the files that match your version.
+
+**Gameplay**
+- A few things play a little differently on 1.21.1, because the game itself changed.
+
+
 ### 0.2.1 Progression Curve 
 **Satchel 0.2.1 Refactoring**
 - Bug fixes.
@@ -77,6 +96,39 @@ Worlds from earlier versions will crash when loaded; start a new world.
 ---
 
 ## Satchel
+
+### 0.3.0
+Support added for NeoForge 1.21.1
+
+**Repo restructure**
+- Moved shared Satchel code to its own folder to be consumed by supported modloader versions.
+- Modloader-specific code moved to new build folders, one per release flavor.
+- Build chain supports new repo structure.
+- Moved client-only and server-only Minecraft code out of common code on both modloaders.
+
+**API changes**
+Mods built for 0.2.x need updating and will not load with 0.3.0.
+
+*Removed*
+- The old signals: `SatchelSignal` and its wrappers, including `MobDied` and `MobRemoved`. Use module events.
+- The Mob Interest registry, with `MobGainedInterest` and `MobLostInterest`.
+- The `ScopeEvent.Tick` post. Use the Trinket tick.
+- `Satchel.isDevelopment()`.
+
+*Changed*
+- Satchel has its own `LogicalSide` in place of the loader's.
+- `Satchel.mobJig` returns your jig's own type.
+
+*Added*
+- On `Satchel`: `levelJig`, `playerJig`, `post`, `entity` and `player`.
+- For modules that run on both loaders:
+  - A module event can be an interface (`ModuleEvent`).
+  - `Ids.id` builds an id, and `Ids.parse` reads one from text.
+  - `StackData` reads and writes enchantments by id.
+  - `SatchelEnvironment` answers what you'd otherwise ask the loader: dedicated server, config folder, a mod's shipped files, and which server run this is.
+
+*Deprecated*
+- `Satchel.require()`, `foundation()` and `peekFoundation()`. They still work.
 
 ### 0.2.1
 - Bug fixes
