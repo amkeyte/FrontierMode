@@ -38,7 +38,7 @@ SentinelRules:sentinelPlacementCoefficient,FLOAT,0.0,1.0,0.25,0.25,0.25
 SentinelRules:sentinelPlacementRadiusFraction,FLOAT,0.0,1.0,0.5,0.5,0.5
 SentinelRules:sentinelScaleRatio,FLOAT,0.0,1.0,0.5,0.5,0.5
 SentinelRules:sentinelScaleStep,FLOAT,0.0,1.0,0.1,0.1,0.1
-CairnRules:cairnMaxAttempts,INT,10,2000,200,200,200
+CairnRules:cairnMaxAttempts,INT,10,2000,200,199,200
 CairnRules:launchHeightMax,FLOAT,0.0,32.0,7.0,7.0,7.0
 CairnRules:launchHeightMin,FLOAT,0.0,32.0,3.0,3.0,3.0
 CairnRules:pingPitch,FLOAT,0.5,2.0,1.0,1.0,1.0
